@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key } from "lucide-react";
+import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
+import { db } from "./db";
 
 // ── utils ──────────────────────────────────────────────────────────
 const p2 = n => String(n).padStart(2, "0");
@@ -15,20 +16,9 @@ const fmt = {
   sht:  s => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "",
 };
 
-// ── storage (browser localStorage) ────────────────────────────────
-const STORAGE_PREFIX = "running-coach:";
-const db = {
-  async get(k) {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_PREFIX + k);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  },
-  async set(k, v) {
-    try { window.localStorage.setItem(STORAGE_PREFIX + k, JSON.stringify(v)); }
-    catch(e) { console.error(e); }
-  },
-};
+// ── storage ────────────────────────────────────────────────────────
+// `db` is the cloud-backed per-user store (see src/db.js). Same async
+// get/set interface as before; the Anthropic API key stays local-only.
 
 // ── constants ──────────────────────────────────────────────────────
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -346,7 +336,7 @@ function ApiKeyModal({apiKey, onSave, onClose}) {
 // ══════════════════════════════════════════════════════════════════
 //  ROOT
 // ══════════════════════════════════════════════════════════════════
-export default function RunningCoach() {
+export default function RunningCoach({ onSignOut }) {
   const [loading,     setLoading]     = useState(true);
   const [tab,         setTab]         = useState("dash");
   const [runs,        setRuns]        = useState([]);
@@ -454,6 +444,12 @@ export default function RunningCoach() {
             className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 px-2.5 py-1.5 rounded-lg border border-orange-500/40 hover:border-orange-400 hover:bg-slate-800 transition-colors">
             <Download size={13}/>Backup
           </button>
+          {onSignOut && (
+            <button onClick={onSignOut}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
+              <LogOut size={13}/>Sign out
+            </button>
+          )}
         </div>
       </header>
 

@@ -1,0 +1,79 @@
+import { supabase } from "./supabase";
+
+// Cloud-backed key/value store over the per-user `app_state` row.
+//
+// The whole running-coach state lives in a single jsonb blob
+// (app_state.data) keyed by user_id. We mirror that blob in an in-memory
+// cache so the synchronous-style db.get/db.set the app already uses keep
+// working; writes are debounced into a single upsert.
+//
+// Exception: the Anthropic API key (rc_api_key) is intentionally NEVER sent
+// to the database — it stays in this browser's localStorage only.
+
+const LOCAL_PREFIX = "running-coach:";
+const LOCAL_ONLY = new Set(["rc_api_key"]);
+
+let userId = null;
+let cache = {};
+let saveTimer = null;
+
+// Load the user's app_state blob into the cache. Call once after sign-in,
+// before rendering the app.
+export async function initStore(uid) {
+  userId = uid;
+  const { data, error } = await supabase
+    .from("app_state")
+    .select("data")
+    .eq("user_id", uid)
+    .maybeSingle();
+  if (error) {
+    console.error("app_state load failed", error);
+    cache = {};
+  } else {
+    cache = data && data.data ? data.data : {};
+  }
+}
+
+export function clearStore() {
+  userId = null;
+  cache = {};
+  clearTimeout(saveTimer);
+  saveTimer = null;
+}
+
+async function flush() {
+  if (!userId) return;
+  const { error } = await supabase.from("app_state").upsert({
+    user_id: userId,
+    data: cache,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) console.error("app_state save failed", error);
+}
+
+export const db = {
+  async get(k) {
+    if (LOCAL_ONLY.has(k)) {
+      try {
+        const raw = window.localStorage.getItem(LOCAL_PREFIX + k);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+    return k in cache ? cache[k] : null;
+  },
+  async set(k, v) {
+    if (LOCAL_ONLY.has(k)) {
+      try {
+        window.localStorage.setItem(LOCAL_PREFIX + k, JSON.stringify(v));
+      } catch (e) {
+        console.error(e);
+      }
+      return;
+    }
+    cache[k] = v;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 600);
+  },
+};
