@@ -13,6 +13,12 @@ concurrency:
   group: deploy
   cancel-in-progress: true
 
+env:
+  AWS_REGION: eu-west-1
+  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::703323013899:role/GitHub-Actions-RunApp-deploy
+  S3_BUCKET_NAME: run.camboulive.solutions
+  CLOUDFRONT_DISTRIBUTION_ID: E42OGU5IVYJ14
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -35,15 +41,15 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ secrets.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
 
       - name: Sync to S3
         run: |
-          aws s3 sync dist/ "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
+          aws s3 sync dist/ "s3://${{ env.S3_BUCKET_NAME }}" --delete
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
