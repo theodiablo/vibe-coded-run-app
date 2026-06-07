@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader } from "lucide-react";
 import { supabase } from "./supabase";
 import { initStore, clearStore } from "./db";
@@ -16,6 +16,11 @@ function Splash() {
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = still resolving
   const [storeReady, setStoreReady] = useState(false);
+  // Which user id the store is currently loaded for. Guards against reloading
+  // (and clobbering the in-memory cache) on every auth event — Supabase fires
+  // onAuthStateChange on token refresh, tab refocus, and repeat SIGNED_IN, each
+  // time with a brand-new session object.
+  const loadedUidRef = useRef(null);
 
   // Track the auth session.
   useEffect(() => {
@@ -26,16 +31,21 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Load (or clear) the per-user store whenever the session changes.
+  // Load (or clear) the per-user store when the *user* changes. Keyed on the
+  // user id, not the session object, so token refresh / refocus events don't
+  // re-run initStore and overwrite the in-memory cache with stale DB data.
   useEffect(() => {
     if (session === undefined) return;
     let cancelled = false;
     if (session) {
+      if (loadedUidRef.current === session.user.id) return; // already loaded
+      loadedUidRef.current = session.user.id;
       setStoreReady(false);
       initStore(session.user.id).then(() => {
         if (!cancelled) setStoreReady(true);
       });
     } else {
+      loadedUidRef.current = null;
       clearStore();
       setStoreReady(false);
     }

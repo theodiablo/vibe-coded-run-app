@@ -20,6 +20,9 @@ let saveTimer = null;
 // Load the user's app_state blob into the cache. Call once after sign-in,
 // before rendering the app.
 export async function initStore(uid) {
+  // Flush any write still sitting in the debounce buffer before we replace the
+  // cache, otherwise a reload would silently discard unsaved changes.
+  await flushNow();
   userId = uid;
   const { data, error } = await supabase
     .from("app_state")
@@ -42,6 +45,8 @@ export function clearStore() {
 }
 
 async function flush() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
   if (!userId) return;
   const { error } = await supabase.from("app_state").upsert({
     user_id: userId,
@@ -49,6 +54,25 @@ async function flush() {
     updated_at: new Date().toISOString(),
   });
   if (error) console.error("app_state save failed", error);
+}
+
+// Flush immediately if a debounced write is pending. Safe to call when nothing
+// is pending (no-op).
+export async function flushNow() {
+  if (saveTimer) await flush();
+}
+
+// Persist pending writes when the page is being hidden or unloaded, so a
+// refresh within the debounce window can't drop the last change. visibilitychange
+// is the reliable signal on mobile/desktop; pagehide covers the rest.
+if (typeof window !== "undefined") {
+  const persistOnExit = () => {
+    if (saveTimer) flush();
+  };
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") persistOnExit();
+  });
+  window.addEventListener("pagehide", persistOnExit);
 }
 
 export const db = {
