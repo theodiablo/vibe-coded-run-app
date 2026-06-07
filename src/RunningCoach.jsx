@@ -875,7 +875,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
 
               {isExp && (
                 <div className="border-t border-slate-700/50">
-                  {wk.sessions.map(s => {
+                  {wk.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).map(s => {
                     const rowCls = "flex items-start gap-3 px-4 py-3 border-b border-slate-700/30 last:border-0 " + (s.done ? "opacity-40" : "");
                     const btnCls = "mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
                     const descCls = "text-sm mt-0.5 leading-snug " + (s.done ? "line-through text-slate-600" : "text-slate-300");
