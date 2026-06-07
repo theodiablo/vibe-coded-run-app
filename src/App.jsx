@@ -45,9 +45,11 @@ export default function App() {
         if (!cancelled) setStoreReady(true);
       });
     } else {
+      // Signed out: drop the in-memory store and forget which user it held.
+      // No need to reset storeReady here — we render <LoginScreen/> whenever
+      // there's no session, and the next sign-in resets it before reloading.
       loadedUidRef.current = null;
       clearStore();
-      setStoreReady(false);
     }
     return () => {
       cancelled = true;

@@ -139,6 +139,7 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
       addS(q.dayOffset, type, km, desc, pace);
     });
 
+    ss.sort((a, b) => a.date.localeCompare(b.date));
     weeks.push({weekNumber: w+1, startDate: wS.toISOString().split("T")[0], phase, sessions: ss});
   }
 
@@ -203,8 +204,9 @@ function SessionConfigurator({sessions, onChange}) {
 }
 
 // ── Toast ──────────────────────────────────────────────────────────
-function Toast({msg, type, onDone}) {
-  useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, []);
+// Presentational only; the auto-dismiss timer lives in the parent so this
+// stays a pure component.
+function Toast({msg, type}) {
   return (
     <div className="fixed left-4 right-4 max-w-md mx-auto z-50" style={{top:52}}>
       <div className={"py-2.5 px-4 rounded-xl text-sm font-medium text-center shadow-lg text-white " + (type === "err" ? "bg-red-500" : "bg-emerald-500")}>
@@ -401,6 +403,14 @@ export default function RunningCoach({ onSignOut }) {
   }, []);
 
   const showToast    = (msg, type) => setToast({msg, type: type || "ok"});
+
+  // Auto-dismiss the toast. setState here runs from a timer callback (not
+  // synchronously in the effect body), and clears on unmount / re-show.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
   const savePlan     = p => { setPlan(p); db.set("rc_plan", p); };
   const saveSettings = s => { setSettings(s); db.set("rc_settings", s); };
   const saveApiKey   = k => { setApiKey(k); db.set("rc_api_key", k); };
@@ -455,7 +465,7 @@ export default function RunningCoach({ onSignOut }) {
 
   return (
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
-      {toast       && <Toast {...toast} onDone={() => setToast(null)}/>}
+      {toast       && <Toast {...toast}/>}
       {needsName   && <NameSetupModal onSave={name => { saveSettings(Object.assign({}, settings, {name})); setNeedsName(false); }}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings}} onClose={() => setShowBackup(false)}/>}
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
@@ -640,7 +650,19 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
 //  PLAN VIEW
 // ══════════════════════════════════════════════════════════════════
 function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData}) {
-  const [exp,          setExp]         = useState(null);
+  // Index of the week containing today — the one we auto-expand.
+  const currentWeekIndex = () => {
+    if (!plan) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const i = plan.weeks.findIndex(w => {
+      const s = new Date(w.startDate + "T00:00:00");
+      const e = new Date(s); e.setDate(s.getDate() + 7);
+      return today >= s && today < e;
+    });
+    return i >= 0 ? i : 0;
+  };
+
+  const [exp,          setExp]         = useState(currentWeekIndex);
   const [editSessions, setEdit]        = useState(false);
   const [draft,        setDraft]       = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
   const [draftDate,    setDraftDate]   = useState(settings.raceDate);
@@ -648,16 +670,13 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
   const [draftDist,    setDraftDist]   = useState(settings.distanceKm || 20);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
-  useEffect(() => {
-    if (!plan) return;
-    const today = new Date(); today.setHours(0,0,0,0);
-    const i = plan.weeks.findIndex(w => {
-      const s = new Date(w.startDate + "T00:00:00");
-      const e = new Date(s); e.setDate(s.getDate() + 7);
-      return today >= s && today < e;
-    });
-    setExp(i >= 0 ? i : 0);
-  }, [plan]);
+  // Re-expand the current week whenever the plan changes (e.g. regenerate),
+  // adjusting state during render rather than in an effect.
+  const [prevPlan, setPrevPlan] = useState(plan);
+  if (plan !== prevPlan) {
+    setPrevPlan(plan);
+    setExp(currentWeekIndex());
+  }
 
   const genPlan = opts => {
     const o    = opts || {};
