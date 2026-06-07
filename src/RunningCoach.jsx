@@ -16,6 +16,10 @@ const fmt = {
   sht:  s => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "",
 };
 
+// Local YYYY-MM-DD. Using toISOString() here would convert to UTC and shift the
+// calendar day for anyone east of GMT (e.g. a Monday at local midnight becomes
+// the Sunday before), so we read the date parts in local time instead.
+const ymd = d => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
 // Estimated session duration (rounded minutes) for the prescribed distance/pace.
 const estMin = (km, pace) => (km && pace) ? Math.round(km * pace / 60) + " min" : "";
 // Strip any stale "· N min" slot label baked into older stored descriptions —
@@ -98,7 +102,7 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
       if (d >= race) return;
       ss.push({
         id: "w" + (w+1) + "d" + dOff,
-        date: d.toISOString().split("T")[0],
+        date: ymd(d),
         type, desc,
         km: Math.round(Math.max(1.5, km) * 10) / 10,
         pace, done: false, runId: null,
@@ -146,13 +150,13 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
     });
 
     ss.sort((a, b) => a.date.localeCompare(b.date));
-    weeks.push({weekNumber: w+1, startDate: wS.toISOString().split("T")[0], phase, sessions: ss});
+    weeks.push({weekNumber: w+1, startDate: ymd(wS), phase, sessions: ss});
   }
 
   const rWS = new Date(w0); rWS.setDate(w0.getDate() + N * 7);
   weeks.push({
     weekNumber: N + 1,
-    startDate: rWS.toISOString().split("T")[0],
+    startDate: ymd(rWS),
     phase: "RACE",
     sessions: [{
       id: "race", date: raceDate, type: "RACE",
@@ -230,7 +234,7 @@ function BackupModal({data, onClose}) {
 
   const tryDownload = () => {
     const url   = URL.createObjectURL(new Blob([json], {type:"application/json"}));
-    const fname = "running-coach-" + new Date().toISOString().split("T")[0] + ".json";
+    const fname = "running-coach-" + ymd(new Date()) + ".json";
     const a     = Object.assign(document.createElement("a"), {href: url, download: fname});
     document.body.appendChild(a); a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
@@ -917,7 +921,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
 //  LOG VIEW
 // ══════════════════════════════════════════════════════════════════
 function LogView({addRuns, onDone}) {
-  const INIT = {date:new Date().toISOString().split("T")[0],type:"EASY",km:"",dH:"",dM:"",dS:"",hr:"",hrMax:"",elev:"",effort:5,notes:""};
+  const INIT = {date:ymd(new Date()),type:"EASY",km:"",dH:"",dM:"",dS:"",hr:"",hrMax:"",elev:"",effort:5,notes:""};
   const [f,      setF]    = useState(INIT);
   const [busy,   setBusy] = useState(false);
   const [showImp,setImp]  = useState(false);
@@ -957,14 +961,14 @@ function LogView({addRuns, onDone}) {
           const dM   = parseFloat(row["distance (m)"] || row["distance"] || 0);
           const dur  = parseInt(row["duration (s)"] || row["duration"] || 0);
           if (dM > 500 && dur > 60) imported.push({
-            date: dStr || new Date().toISOString().split("T")[0],
+            date: dStr || ymd(new Date()),
             type: "EASY", km: Math.round(dM/100)/10, durationSec: dur,
             hr:        parseInt(row["average heart rate (bpm)"]) || null,
             hrMax:     parseInt(row["max heart rate (bpm)"])     || null,
             elevation: null, effort: 5, notes: "Zepp import",
           });
         } else if (hdrs.includes("activity date") || hdrs.includes("elapsed time")) {
-          const dStr = row["activity date"] ? new Date(row["activity date"]).toISOString().split("T")[0] : "";
+          const dStr = row["activity date"] ? ymd(new Date(row["activity date"])) : "";
           const dK   = parseFloat(row["distance"] || 0);
           const dur  = parseInt(row["elapsed time"] || row["moving time"] || 0);
           const aT   = (row["activity type"] || "run").toLowerCase();
@@ -1106,7 +1110,7 @@ function Overview({runs}) {
       const d   = new Date(r.date + "T00:00:00");
       const mon = new Date(d);
       mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-      const k = mon.toISOString().split("T")[0];
+      const k = ymd(mon);
       m[k] = (m[k] || 0) + (r.km || 0);
     });
     return Object.entries(m)
@@ -1517,7 +1521,7 @@ function CoachView({runs, plan, settings, apiKey, savePlan, openApiKey}) {
       + "Progress: " + (ps ? (ps.done + "/" + ps.total + " sessions done") : "no plan") + "\n"
       + "Recent runs: " + JSON.stringify(recent) + "\n"
       + "Plan sessions — use the sessionId field when calling update_plan: " + JSON.stringify(allSessions) + "\n"
-      + "Today: " + new Date().toISOString().split("T")[0] + "\n"
+      + "Today: " + ymd(new Date()) + "\n"
       + "Pace ref: easy=" + Math.round(tgt*1.25) + "s/km, tempo=" + Math.round(tgt*1.05) + "s/km, target=" + tgt + "s/km\n"
       + "CRITICAL: When modifying the plan, ALWAYS call the update_plan tool directly — never write tool calls as text or code. Use type=RACE for any race event (10K, half-marathon, tune-up, etc.).";
   };
