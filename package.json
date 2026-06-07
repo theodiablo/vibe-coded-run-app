@@ -25,6 +25,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "supabase": "^2.105.0",
     "tailwindcss": "^4.3.0",
     "vite": "^8.0.12"
   }
