@@ -61,8 +61,9 @@ function HRTarget({type, settings}) {
 }
 
 // ── plan builder ───────────────────────────────────────────────────
-function buildPlan(raceDate, goalSec, planSessions) {
+function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
   if (!goalSec) goalSec = 7200;
+  if (!distanceKm) distanceKm = 20;
   if (!planSessions) planSessions = [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}];
   const today = new Date(); today.setHours(0,0,0,0);
   const race  = new Date(raceDate + "T00:00:00");
@@ -70,7 +71,7 @@ function buildPlan(raceDate, goalSec, planSessions) {
   const toMon = dow === 1 ? 0 : dow === 0 ? 1 : (8 - dow) % 7;
   const w0    = new Date(today); w0.setDate(today.getDate() + toMon);
   const N     = Math.max(4, Math.min(24, Math.floor((race - w0) / 86400000 / 7)));
-  const tgt   = Math.round(goalSec / 20);
+  const tgt   = Math.round(goalSec / distanceKm);
   const easy  = Math.round(tgt * 1.25);
   const tmpo  = Math.round(tgt * 1.05);
   const sorted = planSessions.slice().sort((a, b) => b.minutes - a.minutes);
@@ -148,11 +149,11 @@ function buildPlan(raceDate, goalSec, planSessions) {
     phase: "RACE",
     sessions: [{
       id: "race", date: raceDate, type: "RACE",
-      desc: "Race Day — 20km! Everything you trained for.",
-      km: 20, pace: tgt, done: false, runId: null,
+      desc: "Race Day — " + distanceKm + "km! Everything you trained for.",
+      km: distanceKm, pace: tgt, done: false, runId: null,
     }],
   });
-  return {raceDate, goalSec, targetPace: tgt, planSessions, weeks};
+  return {raceDate, goalSec, distanceKm, targetPace: tgt, planSessions, weeks};
 }
 
 // ── session configurator ───────────────────────────────────────────
@@ -333,6 +334,36 @@ function ApiKeyModal({apiKey, onSave, onClose}) {
   );
 }
 
+// ── NameSetupModal (first-run onboarding) ──────────────────────────
+function NameSetupModal({onSave}) {
+  const [val, setVal] = useState("");
+  const save = () => { const n = val.trim(); if (n) onSave(n); };
+  return (
+    <div className="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 overflow-hidden shadow-xl">
+        <div className="px-5 pt-6 pb-4 text-center">
+          <div className="w-12 h-12 rounded-full bg-orange-500/15 flex items-center justify-center mx-auto mb-3">
+            <Activity size={22} className="text-orange-400"/>
+          </div>
+          <p className="font-bold text-lg">Welcome to Running Coach</p>
+          <p className="text-sm text-slate-400 mt-1">What should we call you?</p>
+        </div>
+        <div className="px-5 pb-5 space-y-3">
+          <input autoFocus type="text" value={val} maxLength={40}
+            onChange={e => setVal(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") save(); }}
+            placeholder="Your name"
+            className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white text-center focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
+          <button onClick={save} disabled={!val.trim()}
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+            Let's go
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════
 //  ROOT
 // ══════════════════════════════════════════════════════════════════
@@ -342,7 +373,7 @@ export default function RunningCoach({ onSignOut }) {
   const [runs,        setRuns]        = useState([]);
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
-    raceDate:"2026-11-01", goalSec:7200, name:"Théo",
+    raceDate:"2026-11-01", goalSec:7200, distanceKm:20, name:"",
     age:0, maxHR:0, restHR:60,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
@@ -351,6 +382,7 @@ export default function RunningCoach({ onSignOut }) {
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
   const [showApiKey,  setShowApiKey]  = useState(false);
+  const [needsName,   setNeedsName]   = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -360,8 +392,10 @@ export default function RunningCoach({ onSignOut }) {
       const k = await db.get("rc_api_key");
       if (r) setRuns(r);
       if (p) setPlan(p);
-      if (s) setSettings(s);
+      if (s) setSettings(prev => Object.assign({}, prev, s));
       if (k) setApiKey(k);
+      // First-time user: no saved settings, or saved settings without a name.
+      if (!s || !s.name) setNeedsName(true);
       setLoading(false);
     })();
   }, []);
@@ -422,6 +456,7 @@ export default function RunningCoach({ onSignOut }) {
   return (
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
       {toast       && <Toast {...toast} onDone={() => setToast(null)}/>}
+      {needsName   && <NameSetupModal onSave={name => { saveSettings(Object.assign({}, settings, {name})); setNeedsName(false); }}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings}} onClose={() => setShowBackup(false)}/>}
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showApiKey  && <ApiKeyModal  apiKey={apiKey} onSave={saveApiKey} onClose={() => setShowApiKey(false)}/>}
@@ -517,7 +552,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
             <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>
             <p className="font-semibold">{fmt.date(settings.raceDate)}</p>
             <p className="text-slate-400 text-sm mt-1">
-              {"Target: sub " + fmt.dur(settings.goalSec) + " · " + fmt.pace(Math.round(settings.goalSec/20)) + "/km"}
+              {(settings.distanceKm || 20) + "km · target sub " + fmt.dur(settings.goalSec) + " · " + fmt.pace(Math.round(settings.goalSec/(settings.distanceKm||20))) + "/km"}
             </p>
           </div>
           <div className="text-right">
@@ -555,7 +590,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
         <div className="bg-slate-800 rounded-xl p-5 text-center space-y-3">
           <p className="text-slate-400 text-sm">No training plan yet. Ready to get started?</p>
           <button
-            onClick={() => savePlan(buildPlan(settings.raceDate, settings.goalSec, settings.planSessions))}
+            onClick={() => savePlan(buildPlan(settings.raceDate, settings.goalSec, settings.planSessions, settings.distanceKm))}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors">
             Generate My Plan
           </button>
@@ -608,6 +643,9 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
   const [exp,          setExp]         = useState(null);
   const [editSessions, setEdit]        = useState(false);
   const [draft,        setDraft]       = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
+  const [draftDate,    setDraftDate]   = useState(settings.raceDate);
+  const [draftGoal,    setDraftGoal]   = useState(settings.goalSec);
+  const [draftDist,    setDraftDist]   = useState(settings.distanceKm || 20);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   useEffect(() => {
@@ -621,10 +659,14 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
     setExp(i >= 0 ? i : 0);
   }, [plan]);
 
-  const genPlan = sessions => {
-    const ps = sessions || draft;
-    saveSettings(Object.assign({}, settings, {planSessions: ps}));
-    savePlan(buildPlan(settings.raceDate, settings.goalSec, ps));
+  const genPlan = opts => {
+    const o    = opts || {};
+    const ps   = o.planSessions || draft;
+    const date = o.raceDate     || settings.raceDate;
+    const goal = o.goalSec      || settings.goalSec;
+    const dist = o.distanceKm   || settings.distanceKm || 20;
+    saveSettings(Object.assign({}, settings, {planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist}));
+    savePlan(buildPlan(date, goal, ps, dist));
     setEdit(false); setConfirmRegen(false);
   };
 
@@ -637,6 +679,12 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
           <input type="date" defaultValue={settings.raceDate}
             onChange={e => saveSettings(Object.assign({}, settings, {raceDate: e.target.value}))}
+            className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
+          <input type="number" min="1" max="200" step="0.1" defaultValue={settings.distanceKm || 20}
+            onChange={e => saveSettings(Object.assign({}, settings, {distanceKm: parseFloat(e.target.value) || 20}))}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
         </div>
         <div>
@@ -659,7 +707,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
             <span>Add your HR profile in Stats → HR Zones to unlock heart rate targets on every session.</span>
           </div>
         )}
-        <button onClick={() => genPlan(draft)}
+        <button onClick={() => genPlan({planSessions: draft})}
           className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3.5 rounded-xl font-semibold transition-colors">
           Generate My Training Plan
         </button>
@@ -723,27 +771,62 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700" style={{width: pct + "%"}}/>
         </div>
         <div className="flex justify-between text-xs text-slate-600 mt-2">
-          <span>{"Target: sub " + fmt.dur(plan.goalSec)}</span>
+          <span>{(plan.distanceKm || 20) + "km · sub " + fmt.dur(plan.goalSec)}</span>
           <span>{"Race: " + fmt.sht(plan.raceDate)}</span>
         </div>
       </div>
 
-      <button onClick={() => { setDraft(ps.slice()); setEdit(v => !v); }}
+      <button onClick={() => {
+          setDraft(ps.slice());
+          setDraftDate(settings.raceDate);
+          setDraftGoal(settings.goalSec);
+          setDraftDist(settings.distanceKm || 20);
+          setEdit(v => !v);
+        }}
         className={"w-full mb-3 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs transition-colors border " + (editSessions ? "bg-orange-500/10 border-orange-500/40" : "bg-slate-800 border-slate-700 hover:border-slate-500")}>
         <span>
           <span className="text-slate-400">Sessions: </span>
           <span className="text-white font-medium">{sessInfo || "not configured"}</span>
         </span>
-        <span className="text-orange-400 font-semibold ml-2 flex-shrink-0">{editSessions ? "Close" : "Edit"}</span>
+        <span className="text-orange-400 font-semibold ml-2 flex-shrink-0">{editSessions ? "Close" : "Edit plan"}</span>
       </button>
 
       {editSessions && (
         <div className="bg-slate-800 rounded-xl p-4 mb-3 border border-orange-500/30 space-y-4">
-          <SessionConfigurator sessions={draft} onChange={setDraft}/>
-          <button onClick={() => genPlan(draft)}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-            Regenerate with these sessions
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
+              <input type="date" value={draftDate} onChange={e => setDraftDate(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400"/>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1.5">Distance (km)</label>
+              <input type="number" min="1" max="200" step="0.1" value={draftDist}
+                onChange={e => setDraftDist(parseFloat(e.target.value) || 0)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400"/>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1.5">
+              {"Goal time: "}
+              <span className="text-white font-semibold">{fmt.dur(draftGoal)}</span>
+              <span className="text-slate-500">{draftDist > 0 ? "  ·  " + fmt.pace(Math.round(draftGoal / draftDist)) + "/km" : ""}</span>
+            </label>
+            <input type="range" min={20} max={360} step={5} value={Math.round(draftGoal / 60)}
+              onChange={e => setDraftGoal(parseInt(e.target.value) * 60)}
+              className="w-full accent-orange-500"/>
+            <div className="flex justify-between text-xs text-slate-600 mt-1"><span>20min</span><span>6h00</span></div>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
+            <SessionConfigurator sessions={draft} onChange={setDraft}/>
+          </div>
+          <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20})}
+            disabled={!draftDate || !draftDist}
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+            Regenerate plan
           </button>
+          <p className="text-xs text-slate-500 text-center">Regenerating rebuilds the schedule — completed sessions will reset.</p>
         </div>
       )}
 
@@ -961,7 +1044,7 @@ function LogView({addRuns, onDone}) {
 // ══════════════════════════════════════════════════════════════════
 //  STATS VIEW
 // ══════════════════════════════════════════════════════════════════
-function StatsView({runs, settings, saveSettings}) {
+function StatsView({runs, settings, saveSettings, showToast}) {
   const [sub, setSub] = useState("overview");
   return (
     <div className="max-w-lg mx-auto">
@@ -978,7 +1061,7 @@ function StatsView({runs, settings, saveSettings}) {
       </div>
       {sub === "overview"
         ? <Overview runs={runs}/>
-        : <HRZones settings={settings} saveSettings={saveSettings} runs={runs}/>}
+        : <HRZones settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}/>}
     </div>
   );
 }
@@ -1097,11 +1180,12 @@ function Overview({runs}) {
   );
 }
 
-function HRZones({settings, saveSettings, runs}) {
+function HRZones({settings, saveSettings, runs, showToast}) {
   const [age,    setAge]    = useState(String(settings.age || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));
   const [method, setMethod] = useState("karvonen");
+  const [saved,  setSaved]  = useState(false);
 
   const ageN  = parseInt(age)    || 0;
   const mhrN  = parseInt(maxHR)  || 0;
@@ -1129,7 +1213,12 @@ function HRZones({settings, saveSettings, runs}) {
     return idx >= 0 ? idx + 1 : null;
   };
 
-  const save   = () => saveSettings(Object.assign({}, settings, {age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN}));
+  const save   = () => {
+    saveSettings(Object.assign({}, settings, {age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN}));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    if (showToast) showToast(ready ? "Profile saved — HR zones updated." : "Profile saved.");
+  };
   const hrRuns = runs.filter(r => r.hr).slice(0, 6);
   const I = "w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500";
 
@@ -1182,8 +1271,8 @@ function HRZones({settings, saveSettings, runs}) {
           </div>
         </div>
         <button onClick={save}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-          Save Profile
+          className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
+          {saved ? <><Check size={16}/>Saved</> : "Save Profile"}
         </button>
       </div>
 
@@ -1382,7 +1471,8 @@ function CoachView({runs, plan, settings, apiKey, savePlan, openApiKey}) {
       pace: r.km && r.durationSec ? Math.round(r.durationSec / r.km) : null,
       hr:r.hr, effort:r.effort, notes:r.notes,
     }));
-    const tgt  = plan ? plan.targetPace : Math.round(settings.goalSec / 20);
+    const dist = (plan ? plan.distanceKm : settings.distanceKm) || 20;
+    const tgt  = plan ? plan.targetPace : Math.round(settings.goalSec / dist);
     const ps   = plan ? {
       raceDate: plan.raceDate, goalSec: plan.goalSec,
       done:  plan.weeks.flatMap(w => w.sessions).filter(s => s.done).length,
@@ -1396,7 +1486,7 @@ function CoachView({runs, plan, settings, apiKey, savePlan, openApiKey}) {
           date: s.date, type: s.type, km: s.km, done: s.done, week: w.weekNumber, phase: w.phase,
         })))
       : [];
-    return "You are a professional running coach for " + settings.name + " training for a 20km race.\n"
+    return "You are a professional running coach for " + settings.name + " training for a " + dist + "km race.\n"
       + "Race: " + settings.raceDate + " | Goal: sub-" + Math.floor(settings.goalSec/60) + "min | Target: " + fmt.pace(tgt) + "/km\n"
       + "Schedule: " + planDays + " | HR: " + hrInfo + "\n"
       + "Progress: " + (ps ? (ps.done + "/" + ps.total + " sessions done") : "no plan") + "\n"
