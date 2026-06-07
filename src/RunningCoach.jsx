@@ -16,6 +16,12 @@ const fmt = {
   sht:  s => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "",
 };
 
+// Estimated session duration (rounded minutes) for the prescribed distance/pace.
+const estMin = (km, pace) => (km && pace) ? Math.round(km * pace / 60) + " min" : "";
+// Strip any stale "· N min" slot label baked into older stored descriptions —
+// the real estimate is shown alongside km/pace instead.
+const cleanDesc = d => (d || "").replace(/\s*·\s*~?\d+\s*min\s*$/, "");
+
 // ── storage ────────────────────────────────────────────────────────
 // `db` is the cloud-backed per-user store (see src/db.js). Same async
 // get/set interface as before; the Anthropic API key stays local-only.
@@ -113,7 +119,7 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
       longKm = Math.min(maxLong * 0.9, 6.5 + (w - 4) * 0.3);
     }
     addS(longSess.dayOffset, "LONG", longKm,
-      "Long run — easy effort at " + fmt.pace(easy) + "/km · " + longSess.minutes + " min", easy);
+      "Long run — easy effort at " + fmt.pace(easy) + "/km", easy);
 
     qualSessions.forEach(q => {
       const maxQ = q.minutes * 60 / easy;
@@ -122,18 +128,18 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
         const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
         type = "EASY"; pace = easy;
         km   = Math.min(maxQ, easyKm);
-        desc = "Easy run — relaxed aerobic effort · " + q.minutes + " min";
+        desc = "Easy run — relaxed aerobic effort";
       } else {
         const buildW = w - 4;
         if (buildW % 2 === 0) {
           type = "TEMPO"; pace = tmpo;
           km   = Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8);
-          desc = "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard · " + q.minutes + " min";
+          desc = "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard";
         } else {
           const reps = q.minutes <= 30 ? 3 : 5;
           type = "INTERVALS"; pace = tgt;
           km   = Math.min(maxQ * 0.85, reps * 0.8 + 1.5);
-          desc = "Intervals — " + reps + "x800m at " + fmt.pace(tgt) + "/km + 90s recovery · " + q.minutes + " min";
+          desc = "Intervals — " + reps + "x800m at " + fmt.pace(tgt) + "/km + 90s recovery";
         }
       }
       addS(q.dayOffset, type, km, desc, pace);
@@ -589,9 +595,9 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
             <span className={"text-xs font-bold uppercase tracking-wide " + (TCLR[nextSess.type] || TCLR.OTHER)}>
               {nextSess.type}
             </span>
-            <p className="text-white text-sm font-medium mt-1 leading-snug">{nextSess.desc}</p>
+            <p className="text-white text-sm font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
             <p className="text-slate-400 text-xs mt-2">
-              {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · " + fmt.pace(nextSess.pace) + "/km"}
+              {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
             </p>
             <HRTarget type={nextSess.type} settings={settings}/>
           </div>
@@ -890,8 +896,8 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
                             <span className={typeCls}>{s.type}</span>
                             <span className="text-xs text-slate-600">{fmt.sht(s.date)}</span>
                           </div>
-                          <p className={descCls}>{s.desc}</p>
-                          <p className="text-xs text-slate-600 mt-0.5">{s.km + " km · " + fmt.pace(s.pace) + "/km"}</p>
+                          <p className={descCls}>{cleanDesc(s.desc)}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           <HRTarget type={s.type} settings={settings}/>
                         </div>
                       </div>
