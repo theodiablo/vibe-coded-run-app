@@ -32,8 +32,8 @@ const cleanDesc = d => (d || "").replace(/\s*·\s*~?\d+\s*min\s*$/, "");
 
 // ── constants ──────────────────────────────────────────────────────
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const TCLR = {EASY:"text-emerald-400",TEMPO:"text-yellow-400",INTERVALS:"text-orange-400",LONG:"text-sky-400",RACE:"text-red-400",OTHER:"text-violet-400"};
-const TBG  = {EASY:"border-emerald-500/30 bg-emerald-500/5",TEMPO:"border-yellow-500/30 bg-yellow-500/5",INTERVALS:"border-orange-500/30 bg-orange-500/5",LONG:"border-sky-500/30 bg-sky-500/5",RACE:"border-red-500/30 bg-red-500/5",OTHER:"border-violet-500/30 bg-violet-500/5"};
+const TCLR = {EASY:"text-emerald-400",TEMPO:"text-yellow-400",INTERVALS:"text-orange-400",LONG:"text-sky-400",RACE:"text-red-400",WALK:"text-cyan-400",OTHER:"text-violet-400"};
+const TBG  = {EASY:"border-emerald-500/30 bg-emerald-500/5",TEMPO:"border-yellow-500/30 bg-yellow-500/5",INTERVALS:"border-orange-500/30 bg-orange-500/5",LONG:"border-sky-500/30 bg-sky-500/5",RACE:"border-red-500/30 bg-red-500/5",WALK:"border-cyan-500/30 bg-cyan-500/5",OTHER:"border-violet-500/30 bg-violet-500/5"};
 const HR_ZONES = [
   {n:1,name:"Recovery",     lo:0.50,hi:0.60,clr:"#60a5fa",type:"Aerobic",   desc:"Very easy — active recovery, warm-up/cool-down"},
   {n:2,name:"Aerobic Base", lo:0.60,hi:0.70,clr:"#34d399",type:"Aerobic",   desc:"Easy runs, fat burning, building endurance base"},
@@ -55,6 +55,7 @@ function sessionHR(type, settings) {
     TEMPO:     {lo:0.77, hi:0.87, label:"Z3-4 · Lactate Threshold", clr:"#fb923c"},
     INTERVALS: {lo:0.87, hi:0.97, label:"Z4-5 · Max effort (reps)", clr:"#f87171"},
     RACE:      {lo:0.78, hi:0.88, label:"Z3-4 · Race effort",       clr:"#fb923c"},
+    WALK:      {lo:0.50, hi:0.60, label:"Z1 · Recovery",            clr:"#60a5fa"},
   };
   const z = map[type] || map.EASY;
   return {lo:kv(z.lo), hi:kv(z.hi), label:z.label, clr:z.clr};
@@ -555,6 +556,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
     if (type === "TEMPO")     return "bg-yellow-400";
     if (type === "INTERVALS") return "bg-orange-400";
     if (type === "RACE")      return "bg-red-400";
+    if (type === "WALK")      return "bg-cyan-400";
     return "bg-emerald-400";
   };
 
@@ -1031,7 +1033,7 @@ function LogView({addRuns, onDone}) {
             <input type="date" value={f.date} onChange={e => set("date", e.target.value)} className={I}/></div>
           <div><label className={L}>Type</label>
             <select value={f.type} onChange={e => set("type", e.target.value)} className={I}>
-              {["EASY","TEMPO","LONG","INTERVALS","RACE","OTHER"].map(t => <option key={t}>{t}</option>)}
+              {["EASY","TEMPO","LONG","INTERVALS","RACE","WALK","OTHER"].map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
         </div>
@@ -1478,8 +1480,8 @@ function CoachView({runs, plan, settings, apiKey, savePlan, openApiKey}) {
               },
               type: {
                 type: "string",
-                enum: ["EASY","TEMPO","LONG","INTERVALS","RACE"],
-                description: "Session type. Use RACE for ANY race event — 5K, 10K, half-marathon, tune-up race, etc.",
+                enum: ["EASY","TEMPO","LONG","INTERVALS","RACE","WALK"],
+                description: "Session type. Use RACE for ANY race event — 5K, 10K, half-marathon, tune-up race, etc. Use WALK for walking/recovery-walk sessions.",
               },
               km:   {type:"number", description:"Distance in km"},
               desc: {type:"string", description:"Session description shown to the athlete"},
