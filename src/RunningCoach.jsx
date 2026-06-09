@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut } from "lucide-react";
+import { Activity, Calendar, TrendingUp, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, LogOut } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
 import { db } from "./db";
 
@@ -317,36 +317,6 @@ function RestoreModal({onRestore, onClose}) {
   );
 }
 
-// ── ApiKeyModal ────────────────────────────────────────────────────
-function ApiKeyModal({apiKey, onSave, onClose}) {
-  const [val, setVal] = useState(apiKey || "");
-  const save = () => { onSave(val.trim()); onClose(); };
-  return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
-          <p className="font-semibold text-sm">Claude API Key</p>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
-        </div>
-        <div className="p-4 space-y-3">
-          <p className="text-xs text-slate-400">
-            The Coach tab talks directly to Anthropic's API from your browser. Paste your own API key
-            (created at <span className="text-slate-300">console.anthropic.com</span>) — it's stored only in this
-            browser's local storage and never leaves your device except in requests to api.anthropic.com.
-          </p>
-          <input type="password" value={val} onChange={e => setVal(e.target.value)}
-            placeholder="sk-ant-..."
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-slate-200 font-mono focus:outline-none focus:border-orange-400"/>
-          <button onClick={save}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-            Save Key
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── NameSetupModal (first-run onboarding) ──────────────────────────
 function NameSetupModal({onSave}) {
   const [val, setVal] = useState("");
@@ -390,11 +360,9 @@ export default function RunningCoach({ onSignOut }) {
     age:0, maxHR:0, restHR:60,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
-  const [apiKey,      setApiKey]      = useState("");
   const [toast,       setToast]       = useState(null);
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
-  const [showApiKey,  setShowApiKey]  = useState(false);
   const [needsName,   setNeedsName]   = useState(false);
 
   useEffect(() => {
@@ -402,11 +370,9 @@ export default function RunningCoach({ onSignOut }) {
       const r = await db.get("rc_runs");
       const p = await db.get("rc_plan");
       const s = await db.get("rc_settings");
-      const k = await db.get("rc_api_key");
       if (r) setRuns(r);
       if (p) setPlan(p);
       if (s) setSettings(prev => Object.assign({}, prev, s));
-      if (k) setApiKey(k);
       // First-time user: no saved settings, or saved settings without a name.
       if (!s || !s.name) setNeedsName(true);
       setLoading(false);
@@ -424,7 +390,6 @@ export default function RunningCoach({ onSignOut }) {
   }, [toast]);
   const savePlan     = p => { setPlan(p); db.set("rc_plan", p); };
   const saveSettings = s => { setSettings(s); db.set("rc_settings", s); };
-  const saveApiKey   = k => { setApiKey(k); db.set("rc_api_key", k); };
 
   const addRuns = rs => {
     setRuns(prev => {
@@ -465,13 +430,12 @@ export default function RunningCoach({ onSignOut }) {
     </div>
   );
 
-  const shared = {runs, plan, settings, apiKey, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, showToast, openApiKey: () => setShowApiKey(true)};
+  const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, showToast};
   const TABS   = [
     {id:"dash",  label:"Home",  Icon:Activity},
     {id:"plan",  label:"Plan",  Icon:Calendar},
     {id:"log",   label:"Log",   Icon:Plus},
     {id:"stats", label:"Stats", Icon:TrendingUp},
-    {id:"coach", label:"Coach", Icon:MessageSquare},
   ];
 
   return (
@@ -480,7 +444,6 @@ export default function RunningCoach({ onSignOut }) {
       {needsName   && <NameSetupModal onSave={name => { saveSettings(Object.assign({}, settings, {name})); setNeedsName(false); }}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings}} onClose={() => setShowBackup(false)}/>}
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
-      {showApiKey  && <ApiKeyModal  apiKey={apiKey} onSave={saveApiKey} onClose={() => setShowApiKey(false)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
         <div className="flex items-center gap-1.5">
@@ -488,10 +451,6 @@ export default function RunningCoach({ onSignOut }) {
           <span className="text-sm font-semibold">Running Coach</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={() => setShowApiKey(true)}
-            className={"flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors " + (apiKey ? "text-slate-400 hover:text-white border-slate-700 hover:border-slate-500 hover:bg-slate-800" : "text-amber-300 border-amber-500/40 hover:border-amber-400 hover:bg-slate-800")}>
-            <Key size={13}/>{apiKey ? "API key" : "Set API key"}
-          </button>
           <button onClick={() => setShowRestore(true)}
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
             <Upload size={13}/>Restore
@@ -514,7 +473,6 @@ export default function RunningCoach({ onSignOut }) {
         {tab === "plan"  && <PlanView   {...shared}/>}
         {tab === "log"   && <LogView    {...shared} onDone={() => setTab("dash")}/>}
         {tab === "stats" && <StatsView  {...shared}/>}
-        {tab === "coach" && <CoachView  {...shared}/>}
       </div>
 
       <nav className="fixed bottom-0 inset-x-0 bg-slate-800 border-t border-slate-700 flex z-20" style={{height:64}}>
@@ -1401,258 +1359,6 @@ function HRZones({settings, saveSettings, runs, showToast}) {
           <p className="text-slate-600 text-xs mt-1">to calculate your personalised heart rate zones</p>
         </div>
       )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  COACH VIEW
-// ══════════════════════════════════════════════════════════════════
-const ANTHROPIC_HEADERS = key => ({
-  "Content-Type": "application/json",
-  "x-api-key": key,
-  "anthropic-version": "2023-06-01",
-  "anthropic-dangerous-direct-browser-access": "true",
-});
-
-function CoachView({runs, plan, settings, apiKey, savePlan, openApiKey}) {
-  const initMsg = "Hey " + settings.name + "! I'm your AI running coach. I can answer questions, analyse your progress, and update your training plan directly from this chat. What's on your mind?";
-  const [msgs,  setMsgs]  = useState([{role:"assistant", text:initMsg}]);
-  const [input, setInput] = useState("");
-  const [busy,  setBusy]  = useState(false);
-  const endRef = useRef();
-
-  // Persist coach conversation across sessions
-  useEffect(() => {
-    db.get("rc_coach_msgs").then(saved => {
-      if (saved && saved.length > 0) setMsgs(saved);
-    });
-  }, []);
-  useEffect(() => {
-    if (msgs.length > 1) db.set("rc_coach_msgs", msgs.slice(-80));
-  }, [msgs]);
-
-  useEffect(() => { endRef.current && endRef.current.scrollIntoView({behavior:"smooth"}); }, [msgs]);
-
-  const clearChat = () => {
-    const fresh = [{role:"assistant", text:initMsg}];
-    setMsgs(fresh);
-    db.set("rc_coach_msgs", fresh);
-  };
-
-  const applyChanges = changes => {
-    if (!plan || !changes || !changes.length) return 0;
-    let count = 0;
-    const updated = Object.assign({}, plan, {
-      weeks: plan.weeks.map(w => Object.assign({}, w, {
-        sessions: w.sessions.map(s => {
-          const ch = changes.find(c => c.sessionId === s.id);
-          if (!ch) return s;
-          count++;
-          const patch = {};
-          if (ch.type  !== undefined) patch.type = ch.type;
-          if (ch.km    !== undefined) patch.km   = Math.round(ch.km * 10) / 10;
-          if (ch.desc  !== undefined) patch.desc = ch.desc;
-          if (ch.pace  !== undefined) patch.pace = ch.pace;
-          return Object.assign({}, s, patch);
-        }),
-      })),
-    });
-    savePlan(updated);
-    return count;
-  };
-
-  const UPDATE_TOOL = {
-    name: "update_plan",
-    description: "Directly modify sessions in the athlete's training plan. You MUST invoke this tool (never output tool calls as text or code blocks) whenever the user asks to add, schedule, change, swap, ease, or adjust any session.",
-    input_schema: {
-      type: "object",
-      properties: {
-        changes: {
-          type: "array",
-          description: "Sessions to modify",
-          items: {
-            type: "object",
-            properties: {
-              sessionId: {
-                type: "string",
-                description: "The sessionId field from the plan session list, e.g. 'w18d2'. Must match exactly.",
-              },
-              type: {
-                type: "string",
-                enum: ["EASY","TEMPO","LONG","INTERVALS","RACE","WALK"],
-                description: "Session type. Use RACE for ANY race event — 5K, 10K, half-marathon, tune-up race, etc. Use WALK for walking/recovery-walk sessions.",
-              },
-              km:   {type:"number", description:"Distance in km"},
-              desc: {type:"string", description:"Session description shown to the athlete"},
-              pace: {type:"number", description:"Target pace in seconds/km"},
-            },
-            required: ["sessionId"],
-          },
-        },
-        summary: {type:"string", description:"One-line summary of what was changed"},
-      },
-      required: ["changes","summary"],
-    },
-  };
-
-  const sysPrompt = () => {
-    const recent = runs.slice(0, 8).map(r => ({
-      date:r.date, type:r.type, km:r.km,
-      pace: r.km && r.durationSec ? Math.round(r.durationSec / r.km) : null,
-      hr:r.hr, effort:r.effort, notes:r.notes,
-    }));
-    const dist = (plan ? plan.distanceKm : settings.distanceKm) || 20;
-    const tgt  = plan ? plan.targetPace : Math.round(settings.goalSec / dist);
-    const ps   = plan ? {
-      raceDate: plan.raceDate, goalSec: plan.goalSec,
-      done:  plan.weeks.flatMap(w => w.sessions).filter(s => s.done).length,
-      total: plan.weeks.flatMap(w => w.sessions).length,
-    } : null;
-    const hrInfo   = settings.maxHR ? ("MaxHR=" + settings.maxHR + ", RestHR=" + (settings.restHR||60)) : "not set";
-    const planDays = (settings.planSessions || []).map(s => DAYS[s.dayOffset] + "(" + s.minutes + "min)").join(", ");
-    const allSessions = plan
-      ? plan.weeks.flatMap(w => w.sessions.map(s => ({
-          sessionId: s.id,
-          date: s.date, type: s.type, km: s.km, done: s.done, week: w.weekNumber, phase: w.phase,
-        })))
-      : [];
-    return "You are a professional running coach for " + settings.name + " training for a " + dist + "km race.\n"
-      + "Race: " + settings.raceDate + " | Goal: sub-" + Math.floor(settings.goalSec/60) + "min | Target: " + fmt.pace(tgt) + "/km\n"
-      + "Schedule: " + planDays + " | HR: " + hrInfo + "\n"
-      + "Progress: " + (ps ? (ps.done + "/" + ps.total + " sessions done") : "no plan") + "\n"
-      + "Recent runs: " + JSON.stringify(recent) + "\n"
-      + "Plan sessions — use the sessionId field when calling update_plan: " + JSON.stringify(allSessions) + "\n"
-      + "Today: " + ymd(new Date()) + "\n"
-      + "Pace ref: easy=" + Math.round(tgt*1.25) + "s/km, tempo=" + Math.round(tgt*1.05) + "s/km, target=" + tgt + "s/km\n"
-      + "CRITICAL: When modifying the plan, ALWAYS call the update_plan tool directly — never write tool calls as text or code. Use type=RACE for any race event (10K, half-marathon, tune-up, etc.).";
-  };
-
-  const send = async () => {
-    if (!input.trim() || busy) return;
-    if (!apiKey) { openApiKey(); return; }
-    const msg = input.trim(); setInput(""); setBusy(true);
-    setMsgs(m => m.concat({role:"user", text:msg}));
-    try {
-      const history  = msgs.filter(m => m.role === "user" || m.role === "assistant").map(m => ({role:m.role, content:m.text}));
-      const apiMsgs  = history.concat({role:"user", content:msg});
-      const r1 = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: ANTHROPIC_HEADERS(apiKey),
-        body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1024, system:sysPrompt(), tools:[UPDATE_TOOL], messages:apiMsgs}),
-      });
-      const d1 = await r1.json();
-      if (!r1.ok) {
-        const errMsg = (d1.error && d1.error.message) || "Request failed (" + r1.status + ").";
-        setMsgs(m => m.concat({role:"assistant", text:"API error: " + errMsg + " Check your API key (top right)."}));
-        setBusy(false);
-        return;
-      }
-      const toolCall = d1.content && d1.content.find(c => c.type === "tool_use");
-
-      if (toolCall && toolCall.name === "update_plan") {
-        const count = applyChanges(toolCall.input.changes);
-        const r2 = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST", headers: ANTHROPIC_HEADERS(apiKey),
-          body: JSON.stringify({
-            model:"claude-sonnet-4-20250514", max_tokens:1024, system:sysPrompt(), tools:[UPDATE_TOOL],
-            messages: apiMsgs.concat(
-              {role:"assistant", content:d1.content},
-              {role:"user", content:[{type:"tool_result", tool_use_id:toolCall.id, content:"Done — " + count + " session(s) updated."}]}
-            ),
-          }),
-        });
-        const d2  = await r2.json();
-        const txt = d2.content ? d2.content.filter(c => c.type === "text").map(c => c.text).join("") : "";
-        setMsgs(m => m.concat(
-          {role:"plan_update", text:toolCall.input.summary, count},
-          {role:"assistant",   text:txt},
-        ));
-      } else {
-        const txt = d1.content ? d1.content.filter(c => c.type === "text").map(c => c.text).join("") : "Sorry, no response.";
-        setMsgs(m => m.concat({role:"assistant", text:txt}));
-      }
-    } catch(e) {
-      console.error(e);
-      setMsgs(m => m.concat({role:"assistant", text:"Connection error. Please try again."}));
-    }
-    setBusy(false);
-  };
-
-  const quick = ["How's my training going?","Make next Sunday's run easier","I'm tired this week — adjust the plan","Can I still hit sub-2h with 2 sessions/week?"];
-
-  return (
-    <div className="max-w-lg mx-auto p-4">
-      <div className="pt-4 mb-4 flex justify-between items-start">
-        <div>
-          <h2 className="text-xl font-bold">AI Coach</h2>
-          <p className="text-xs text-slate-500">Powered by Claude · can update your plan directly</p>
-        </div>
-        <button onClick={clearChat}
-          className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1 rounded transition-colors mt-1">
-          Clear chat
-        </button>
-      </div>
-
-      {!apiKey && (
-        <button onClick={openApiKey}
-          className="w-full mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 flex gap-2 items-center text-left hover:bg-amber-500/15 transition-colors">
-          <Key size={15} className="flex-shrink-0"/>
-          <span>No API key set — tap here to add your Claude API key before chatting with the coach.</span>
-        </button>
-      )}
-
-      <div className="bg-slate-800 rounded-2xl overflow-hidden border border-slate-700">
-        <div className="overflow-y-auto p-4 space-y-3" style={{height:"calc(100vh - 310px)", minHeight:280}}>
-          {msgs.map((m, i) => {
-            if (m.role === "plan_update") return (
-              <div key={i} className="flex justify-center my-1">
-                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-2.5 text-xs text-center max-w-xs">
-                  <span className="text-emerald-300 font-semibold">Plan updated</span>
-                  <span className="block text-emerald-400/70 mt-0.5">{m.text}</span>
-                </div>
-              </div>
-            );
-            const isUser  = m.role === "user";
-            const wrapCls = "flex " + (isUser ? "justify-end" : "justify-start");
-            const bubbleCls = "max-w-xs rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap "
-              + (isUser ? "bg-orange-500 text-white rounded-br-sm" : "bg-slate-700 text-slate-100 rounded-bl-sm");
-            return (
-              <div key={i} className={wrapCls}>
-                <div className={bubbleCls}>{m.text}</div>
-              </div>
-            );
-          })}
-          {busy && (
-            <div className="flex justify-start">
-              <div className="bg-slate-700 rounded-2xl rounded-bl-sm px-5 py-3.5">
-                <Loader size={16} className="text-orange-400 animate-spin"/>
-              </div>
-            </div>
-          )}
-          {msgs.length <= 1 && !busy && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {quick.map((q, i) => (
-                <button key={i} onClick={() => setInput(q)}
-                  className="bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 text-xs px-3 py-2 rounded-full transition-colors">
-                  {q}
-                </button>
-              ))}
-            </div>
-          )}
-          <div ref={endRef}/>
-        </div>
-        <div className="border-t border-slate-700 p-3 flex gap-2">
-          <input type="text" value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) send(); }}
-            placeholder="Ask your coach..."
-            className="flex-1 bg-slate-700 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-400"/>
-          <button onClick={send} disabled={!input.trim() || busy}
-            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 rounded-xl transition-colors flex items-center">
-            <ChevronRight size={18}/>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

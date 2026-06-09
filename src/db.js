@@ -6,12 +6,9 @@ import { supabase } from "./supabase";
 // (app_state.data) keyed by user_id. We mirror that blob in an in-memory
 // cache so the synchronous-style db.get/db.set the app already uses keep
 // working; writes are debounced into a single upsert.
-//
-// Exception: the Anthropic API key (rc_api_key) is intentionally NEVER sent
-// to the database — it stays in this browser's localStorage only.
 
 const LOCAL_PREFIX = "running-coach:";
-const LOCAL_ONLY = new Set(["rc_api_key"]);
+const LOCAL_ONLY = new Set();
 
 let userId = null;
 let cache = {};
