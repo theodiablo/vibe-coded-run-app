@@ -321,33 +321,63 @@ function RestoreModal({onRestore, onClose}) {
 }
 
 // ── SettingsModal ──────────────────────────────────────────────────
-// Tucks the less-frequently-used data actions (Backup / Restore) behind
-// the header gear so they don't clutter the top bar.
-function SettingsModal({onBackup, onRestore, onClose}) {
-  const items = [
-    {Icon:Download, label:"Backup data",   sub:"Save a copy of your runs & plan",      onClick:onBackup},
-    {Icon:Upload,   label:"Restore data",  sub:"Reload from a previous backup",        onClick:onRestore},
-  ];
+// Full-screen settings: editable profile name, heart-rate zones, and the
+// less-frequently-used data actions (Backup / Restore) tucked away here so
+// they don't clutter the header.
+function SettingsModal({settings, saveSettings, runs, onBackup, onRestore, onClose, showToast}) {
+  const [name,  setName]  = useState(settings.name || "");
+  const [saved, setSaved] = useState(false);
+  const saveName = () => {
+    const n = name.trim();
+    if (!n) return;
+    saveSettings(Object.assign({}, settings, {name: n}));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    if (showToast) showToast("Name updated.");
+  };
+  const I = "w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500";
+
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
-          <p className="font-semibold text-sm">Settings</p>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
-        </div>
-        <div className="p-3 space-y-1">
-          <p className="text-xs text-slate-500 px-1 pb-1">Data</p>
-          {items.map(it => (
-            <button key={it.label} onClick={it.onClick}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-700/60 transition-colors text-left">
-              <it.Icon size={17} className="text-slate-300 shrink-0"/>
-              <span className="flex-1">
-                <span className="block text-sm text-slate-100">{it.label}</span>
-                <span className="block text-xs text-slate-500">{it.sub}</span>
-              </span>
-              <ChevronRight size={15} className="text-slate-600 shrink-0"/>
+    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
+      <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
+        <span className="text-sm font-semibold">Settings</span>
+        <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+      </header>
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-lg mx-auto p-4 space-y-5">
+          {/* Profile */}
+          <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+            <p className="text-sm font-semibold text-slate-200">Profile</p>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1.5">Your name</label>
+              <input type="text" maxLength={40} value={name} placeholder="Your name"
+                onChange={e => setName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") saveName(); }} className={I}/>
+            </div>
+            <button onClick={saveName} disabled={!name.trim()}
+              className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-40 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
+              {saved ? <><Check size={16}/>Saved</> : "Save name"}
             </button>
-          ))}
+          </div>
+
+          {/* Heart rate */}
+          <HRZones settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}/>
+
+          {/* Data */}
+          <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+            <p className="text-sm font-semibold text-slate-200">Data</p>
+            <p className="text-xs text-slate-400">Save a copy of your runs &amp; plan, or reload from a previous backup.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={onBackup}
+                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
+                <Download size={15}/>Backup
+              </button>
+              <button onClick={onRestore}
+                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
+                <Upload size={15}/>Restore
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -520,6 +550,7 @@ export default function RunningCoach({ onSignOut }) {
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showApiKey  && <ApiKeyModal  apiKey={apiKey} onSave={saveApiKey} onClose={() => setShowApiKey(false)}/>}
       {showSettings && <SettingsModal
+        settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}
         onBackup={()  => { setShowSettings(false); setShowBackup(true); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onClose={()   => setShowSettings(false)}/>}
@@ -1115,24 +1146,13 @@ function LogView({addRuns, onDone}) {
 // ══════════════════════════════════════════════════════════════════
 //  STATS VIEW
 // ══════════════════════════════════════════════════════════════════
-function StatsView({runs, settings, saveSettings, showToast}) {
-  const [sub, setSub] = useState("overview");
+function StatsView({runs}) {
   return (
     <div className="max-w-lg mx-auto">
-      <div className="px-4 pt-6 pb-0 flex justify-between items-center">
+      <div className="px-4 pt-6 pb-0">
         <h2 className="text-xl font-bold">Stats</h2>
-        <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
-          {[["overview","Overview"],["zones","HR Zones"]].map(pair => (
-            <button key={pair[0]} onClick={() => setSub(pair[0])}
-              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (sub === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
-              {pair[1]}
-            </button>
-          ))}
-        </div>
       </div>
-      {sub === "overview"
-        ? <Overview runs={runs}/>
-        : <HRZones settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}/>}
+      <Overview runs={runs}/>
     </div>
   );
 }
@@ -1299,9 +1319,9 @@ function HRZones({settings, saveSettings, runs, showToast}) {
   ];
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="space-y-5">
       <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
-        <p className="text-sm font-semibold text-slate-200">Your Profile</p>
+        <p className="text-sm font-semibold text-slate-200">Heart Rate</p>
         <div className="grid grid-cols-3 gap-3">
           <div><label className="text-xs text-slate-400 block mb-1.5">Age</label>
             <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} className={I}/></div>
@@ -1343,7 +1363,7 @@ function HRZones({settings, saveSettings, runs, showToast}) {
         </div>
         <button onClick={save}
           className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
-          {saved ? <><Check size={16}/>Saved</> : "Save Profile"}
+          {saved ? <><Check size={16}/>Saved</> : "Save heart rate"}
         </button>
       </div>
 
