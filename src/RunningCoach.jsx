@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut, Settings, History, Trash2 } from "lucide-react";
+import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut, Settings, History, Trash2, Pencil } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
 import { db } from "./db";
 
@@ -528,6 +528,17 @@ export default function RunningCoach({ onSignOut }) {
     showToast("Run deleted.");
   };
 
+  const updateRun = (id, patch) => {
+    setRuns(prev => {
+      // The date may have changed, so re-sort to keep the list newest-first.
+      const next = prev.map(r => r.id === id ? Object.assign({}, r, patch) : r)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      db.set("rc_runs", next);
+      return next;
+    });
+    showToast("Run updated.");
+  };
+
   const exportData    = () => setShowBackup(true);
   const handleRestore = d => {
     if (d.runs)     { setRuns(d.runs);         db.set("rc_runs", d.runs); }
@@ -542,7 +553,7 @@ export default function RunningCoach({ onSignOut }) {
     </div>
   );
 
-  const shared = {runs, plan, settings, apiKey, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, showToast, goTab: setTab, openApiKey: () => setShowApiKey(true)};
+  const shared = {runs, plan, settings, apiKey, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, openApiKey: () => setShowApiKey(true)};
   const TABS   = [
     {id:"dash",    label:"Home",    Icon:Activity},
     {id:"plan",    label:"Plan",    Icon:Calendar},
@@ -752,8 +763,9 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab}) {
 // ══════════════════════════════════════════════════════════════════
 //  HISTORY VIEW — the full run log, newest first, grouped by month
 // ══════════════════════════════════════════════════════════════════
-function HistoryView({runs, deleteRun, goTab}) {
+function HistoryView({runs, deleteRun, updateRun, goTab}) {
   const [confirmId, setConfirmId] = useState(null);
+  const [editRun,   setEditRun]   = useState(null);
 
   if (!runs.length) return (
     <div className="max-w-lg mx-auto flex flex-col items-center justify-center pt-24 text-center gap-3 p-4">
@@ -811,10 +823,16 @@ function HistoryView({runs, deleteRun, goTab}) {
                           className="text-xs text-slate-500 hover:text-slate-300 px-1.5 py-1">Cancel</button>
                       </div>
                     ) : (
-                      <button onClick={() => setConfirmId(r.id)} aria-label="Delete run"
-                        className="text-slate-600 hover:text-red-400 p-1 flex-shrink-0 transition-colors">
-                        <Trash2 size={15}/>
-                      </button>
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <button onClick={() => setEditRun(r)} aria-label="Edit run"
+                          className="text-slate-600 hover:text-orange-400 p-1 transition-colors">
+                          <Pencil size={15}/>
+                        </button>
+                        <button onClick={() => setConfirmId(r.id)} aria-label="Delete run"
+                          className="text-slate-600 hover:text-red-400 p-1 transition-colors">
+                          <Trash2 size={15}/>
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
@@ -822,6 +840,99 @@ function HistoryView({runs, deleteRun, goTab}) {
             </div>
           </div>
         ))}
+      </div>
+
+      {editRun && <EditRunModal run={editRun}
+        onSave={patch => updateRun(editRun.id, patch)}
+        onClose={() => setEditRun(null)}/>}
+    </div>
+  );
+}
+
+// ── EditRunModal ───────────────────────────────────────────────────
+// Edit an existing run — mirrors the fields on the Log a Run form.
+function EditRunModal({run, onSave, onClose}) {
+  const sec = run.durationSec || 0;
+  const [f, setF] = useState({
+    date:  run.date,
+    type:  run.type || "EASY",
+    km:    run.km != null ? String(run.km) : "",
+    dH:    String(Math.floor(sec / 3600) || ""),
+    dM:    String(Math.floor((sec % 3600) / 60) || ""),
+    dS:    String(sec % 60 || ""),
+    hr:    run.hr        ? String(run.hr)        : "",
+    hrMax: run.hrMax     ? String(run.hrMax)     : "",
+    elev:  run.elevation ? String(run.elevation) : "",
+    effort: run.effort || 5,
+    notes:  run.notes || "",
+  });
+  const [err, setErr] = useState("");
+  const set = (k, v) => setF(prev => Object.assign({}, prev, {[k]: v}));
+
+  const save = () => {
+    if (!f.km || (!f.dM && !f.dH)) { setErr("Distance and duration are required."); return; }
+    const s = (parseInt(f.dH) || 0) * 3600 + (parseInt(f.dM) || 0) * 60 + (parseInt(f.dS) || 0);
+    onSave({
+      date: f.date, type: f.type, km: parseFloat(f.km), durationSec: s,
+      hr:        f.hr    ? parseInt(f.hr)    : null,
+      hrMax:     f.hrMax ? parseInt(f.hrMax) : null,
+      elevation: f.elev  ? parseInt(f.elev)  : null,
+      effort:    parseInt(f.effort), notes: f.notes,
+    });
+    onClose();
+  };
+
+  const I = "w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500";
+  const L = "block text-xs text-slate-400 mb-1.5";
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700 shrink-0">
+          <p className="font-semibold text-sm">Edit Run</p>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+        </div>
+        <div className="p-4 space-y-4 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={L}>Date</label>
+              <input type="date" value={f.date} onChange={e => set("date", e.target.value)} className={I}/></div>
+            <div><label className={L}>Type</label>
+              <select value={f.type} onChange={e => set("type", e.target.value)} className={I}>
+                {["EASY","TEMPO","LONG","INTERVALS","RACE","WALK","OTHER"].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div><label className={L}>Distance (km)</label>
+            <input type="number" step="0.01" min="0" placeholder="8.5" value={f.km}
+              onChange={e => set("km", e.target.value)} className={I}/></div>
+          <div><label className={L}>Duration</label>
+            <div className="grid grid-cols-3 gap-2">
+              <input type="number" min="0" max="23" placeholder="h"   value={f.dH} onChange={e => set("dH", e.target.value)} className={I}/>
+              <input type="number" min="0" max="59" placeholder="min" value={f.dM} onChange={e => set("dM", e.target.value)} className={I}/>
+              <input type="number" min="0" max="59" placeholder="sec" value={f.dS} onChange={e => set("dS", e.target.value)} className={I}/>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className={L}>Avg HR</label>
+              <input type="number" placeholder="145" value={f.hr} onChange={e => set("hr", e.target.value)} className={I}/></div>
+            <div><label className={L}>Max HR</label>
+              <input type="number" placeholder="170" value={f.hrMax} onChange={e => set("hrMax", e.target.value)} className={I}/></div>
+            <div><label className={L}>Elev (m)</label>
+              <input type="number" placeholder="80" value={f.elev} onChange={e => set("elev", e.target.value)} className={I}/></div>
+          </div>
+          <div>
+            <label className={L}>{"Perceived effort: "}<span className="text-white font-semibold">{f.effort + "/10"}</span></label>
+            <input type="range" min="1" max="10" value={f.effort} onChange={e => set("effort", e.target.value)} className="w-full accent-orange-500"/>
+          </div>
+          <div><label className={L}>Notes</label>
+            <textarea rows={2} placeholder="How did it feel? Any aches?" value={f.notes}
+              onChange={e => set("notes", e.target.value)} className={I + " resize-none"}/></div>
+          {err && <p className="text-xs text-red-400">{err}</p>}
+          <button onClick={save}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
+            <Check size={18}/>Save changes
+          </button>
+        </div>
       </div>
     </div>
   );
