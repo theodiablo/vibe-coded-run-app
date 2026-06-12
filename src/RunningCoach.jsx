@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut } from "lucide-react";
+import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut, Settings } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
 import { db } from "./db";
 
@@ -320,6 +320,40 @@ function RestoreModal({onRestore, onClose}) {
   );
 }
 
+// ── SettingsModal ──────────────────────────────────────────────────
+// Tucks the less-frequently-used data actions (Backup / Restore) behind
+// the header gear so they don't clutter the top bar.
+function SettingsModal({onBackup, onRestore, onClose}) {
+  const items = [
+    {Icon:Download, label:"Backup data",   sub:"Save a copy of your runs & plan",      onClick:onBackup},
+    {Icon:Upload,   label:"Restore data",  sub:"Reload from a previous backup",        onClick:onRestore},
+  ];
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
+          <p className="font-semibold text-sm">Settings</p>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+        </div>
+        <div className="p-3 space-y-1">
+          <p className="text-xs text-slate-500 px-1 pb-1">Data</p>
+          {items.map(it => (
+            <button key={it.label} onClick={it.onClick}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-700/60 transition-colors text-left">
+              <it.Icon size={17} className="text-slate-300 shrink-0"/>
+              <span className="flex-1">
+                <span className="block text-sm text-slate-100">{it.label}</span>
+                <span className="block text-xs text-slate-500">{it.sub}</span>
+              </span>
+              <ChevronRight size={15} className="text-slate-600 shrink-0"/>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ApiKeyModal ────────────────────────────────────────────────────
 function ApiKeyModal({apiKey, onSave, onClose}) {
   const [val, setVal] = useState(apiKey || "");
@@ -398,6 +432,7 @@ export default function RunningCoach({ onSignOut }) {
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
   const [showApiKey,  setShowApiKey]  = useState(false);
+  const [showSettings,setShowSettings]= useState(false);
   const [needsName,   setNeedsName]   = useState(false);
 
   useEffect(() => {
@@ -484,6 +519,10 @@ export default function RunningCoach({ onSignOut }) {
       {showBackup  && <BackupModal  data={{runs, plan, settings}} onClose={() => setShowBackup(false)}/>}
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showApiKey  && <ApiKeyModal  apiKey={apiKey} onSave={saveApiKey} onClose={() => setShowApiKey(false)}/>}
+      {showSettings && <SettingsModal
+        onBackup={()  => { setShowSettings(false); setShowBackup(true); }}
+        onRestore={() => { setShowSettings(false); setShowRestore(true); }}
+        onClose={()   => setShowSettings(false)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
         <div className="flex items-center gap-1.5">
@@ -497,13 +536,9 @@ export default function RunningCoach({ onSignOut }) {
               <Key size={13}/>{apiKey ? "API key" : "Set API key"}
             </button>
           )}
-          <button onClick={() => setShowRestore(true)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
-            <Upload size={13}/>Restore
-          </button>
-          <button onClick={() => setShowBackup(true)}
-            className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 px-2.5 py-1.5 rounded-lg border border-orange-500/40 hover:border-orange-400 hover:bg-slate-800 transition-colors">
-            <Download size={13}/>Backup
+          <button onClick={() => setShowSettings(true)} aria-label="Settings"
+            className="flex items-center justify-center text-slate-400 hover:text-white p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
+            <Settings size={15}/>
           </button>
           {onSignOut && (
             <button onClick={onSignOut}
@@ -654,7 +689,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
           <p className="text-xs text-slate-600">Tap Log below to add your first one.</p>
           {!plan && (
             <p className="text-xs text-slate-600 pt-2 border-t border-slate-700/50">
-              Had data from a previous version? Use Restore in the header above.
+              Had data from a previous version? Open Settings (gear, top right) → Restore.
             </p>
           )}
         </div>
