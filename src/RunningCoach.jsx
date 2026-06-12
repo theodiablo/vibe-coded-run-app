@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut, Settings } from "lucide-react";
+import { Activity, Calendar, TrendingUp, MessageSquare, Plus, Check, Download, Upload, Loader, ChevronRight, Award, Zap, RotateCcw, Heart, Key, LogOut, Settings, History, Trash2 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
 import { db } from "./db";
 
@@ -519,6 +519,15 @@ export default function RunningCoach({ onSignOut }) {
     });
   };
 
+  const deleteRun = id => {
+    setRuns(prev => {
+      const next = prev.filter(r => r.id !== id);
+      db.set("rc_runs", next);
+      return next;
+    });
+    showToast("Run deleted.");
+  };
+
   const exportData    = () => setShowBackup(true);
   const handleRestore = d => {
     if (d.runs)     { setRuns(d.runs);         db.set("rc_runs", d.runs); }
@@ -533,12 +542,13 @@ export default function RunningCoach({ onSignOut }) {
     </div>
   );
 
-  const shared = {runs, plan, settings, apiKey, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, showToast, openApiKey: () => setShowApiKey(true)};
+  const shared = {runs, plan, settings, apiKey, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, showToast, goTab: setTab, openApiKey: () => setShowApiKey(true)};
   const TABS   = [
-    {id:"dash",  label:"Home",  Icon:Activity},
-    {id:"plan",  label:"Plan",  Icon:Calendar},
-    {id:"log",   label:"Log",   Icon:Plus},
-    {id:"stats", label:"Stats", Icon:TrendingUp},
+    {id:"dash",    label:"Home",    Icon:Activity},
+    {id:"plan",    label:"Plan",    Icon:Calendar},
+    {id:"log",     label:"Log",     Icon:Plus},
+    {id:"history", label:"History", Icon:History},
+    {id:"stats",   label:"Stats",   Icon:TrendingUp},
     ...(AI_FEATURES_ENABLED ? [{id:"coach", label:"Coach", Icon:MessageSquare}] : []),
   ];
 
@@ -584,6 +594,7 @@ export default function RunningCoach({ onSignOut }) {
         {tab === "dash"  && <Dashboard  {...shared}/>}
         {tab === "plan"  && <PlanView   {...shared}/>}
         {tab === "log"   && <LogView    {...shared} onDone={() => setTab("dash")}/>}
+        {tab === "history" && <HistoryView {...shared}/>}
         {tab === "stats" && <StatsView  {...shared}/>}
         {tab === "coach" && <CoachView  {...shared}/>}
       </div>
@@ -600,10 +611,20 @@ export default function RunningCoach({ onSignOut }) {
   );
 }
 
+// Colored accent bar per run type, shared by the dashboard and history list.
+const runBarColor = type => {
+  if (type === "LONG")      return "bg-sky-400";
+  if (type === "TEMPO")     return "bg-yellow-400";
+  if (type === "INTERVALS") return "bg-orange-400";
+  if (type === "RACE")      return "bg-red-400";
+  if (type === "WALK")      return "bg-cyan-400";
+  return "bg-emerald-400";
+};
+
 // ══════════════════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════════════
-function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
+function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab}) {
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
@@ -621,15 +642,6 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
     {l:"Runs logged", v:String(runs.length),    c:"text-sky-400",     I:Activity},
     {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Award},
   ];
-
-  const runBarColor = type => {
-    if (type === "LONG")      return "bg-sky-400";
-    if (type === "TEMPO")     return "bg-yellow-400";
-    if (type === "INTERVALS") return "bg-orange-400";
-    if (type === "RACE")      return "bg-red-400";
-    if (type === "WALK")      return "bg-cyan-400";
-    return "bg-emerald-400";
-  };
 
   return (
     <div className="p-4 space-y-5 max-w-lg mx-auto">
@@ -694,7 +706,15 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
 
       {runs.length > 0 && (
         <div>
-          <p className="text-slate-500 text-xs uppercase tracking-widest mb-2">Recent runs</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-slate-500 text-xs uppercase tracking-widest">Recent runs</p>
+            {runs.length > 3 && goTab && (
+              <button onClick={() => goTab("history")}
+                className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-0.5 transition-colors">
+                View all<ChevronRight size={13}/>
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {runs.slice(0, 3).map(r => {
               const pace = r.km && r.durationSec ? r.durationSec / r.km : 0;
@@ -725,6 +745,84 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  HISTORY VIEW — the full run log, newest first, grouped by month
+// ══════════════════════════════════════════════════════════════════
+function HistoryView({runs, deleteRun, goTab}) {
+  const [confirmId, setConfirmId] = useState(null);
+
+  if (!runs.length) return (
+    <div className="max-w-lg mx-auto flex flex-col items-center justify-center pt-24 text-center gap-3 p-4">
+      <History size={48} className="text-slate-700"/>
+      <p className="text-slate-400">No runs logged yet.</p>
+      <button onClick={() => goTab && goTab("log")}
+        className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+        Log your first run
+      </button>
+    </div>
+  );
+
+  // Runs arrive newest-first; bucket them into month sections in that order.
+  const totKm  = runs.reduce((s, r) => s + (r.km || 0), 0);
+  const groups = [];
+  runs.forEach(r => {
+    const key = new Date(r.date + "T12:00:00").toLocaleDateString("en-GB", {month:"long", year:"numeric"});
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== key) { g = {key, items:[]}; groups.push(g); }
+    g.items.push(r);
+  });
+
+  return (
+    <div className="max-w-lg mx-auto p-4">
+      <div className="mt-4 mb-4">
+        <h2 className="text-xl font-bold">History</h2>
+        <p className="text-slate-500 text-xs mt-0.5">
+          {runs.length + " run" + (runs.length === 1 ? "" : "s") + " · " + totKm.toFixed(0) + " km total"}
+        </p>
+      </div>
+
+      <div className="space-y-5">
+        {groups.map(g => (
+          <div key={g.key}>
+            <p className="text-slate-500 text-xs uppercase tracking-widest mb-2">{g.key}</p>
+            <div className="space-y-2">
+              {g.items.map(r => {
+                const pace = r.km && r.durationSec ? r.durationSec / r.km : 0;
+                return (
+                  <div key={r.id} className="bg-slate-800 rounded-xl p-3 flex items-center gap-3">
+                    <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(r.type)}/>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium">{r.km + " km · " + fmt.dur(r.durationSec)}</p>
+                      <p className="text-slate-400 text-xs">
+                        {fmt.date(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "")}
+                      </p>
+                      {r.notes && <p className="text-slate-600 text-xs mt-0.5 truncate">{r.notes}</p>}
+                    </div>
+                    <span className={"text-xs font-semibold flex-shrink-0 " + (TCLR[r.type] || TCLR.OTHER)}>{r.type}</span>
+                    {confirmId === r.id ? (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => { deleteRun(r.id); setConfirmId(null); }}
+                          className="text-xs font-semibold text-red-400 hover:text-red-300 px-1.5 py-1">Delete</button>
+                        <button onClick={() => setConfirmId(null)}
+                          className="text-xs text-slate-500 hover:text-slate-300 px-1.5 py-1">Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmId(r.id)} aria-label="Delete run"
+                        className="text-slate-600 hover:text-red-400 p-1 flex-shrink-0 transition-colors">
+                        <Trash2 size={15}/>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
