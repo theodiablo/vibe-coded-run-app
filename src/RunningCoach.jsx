@@ -31,6 +31,9 @@ const cleanDesc = d => (d || "").replace(/\s*·\s*~?\d+\s*min\s*$/, "");
 // get/set interface as before; the Anthropic API key stays local-only.
 
 // ── constants ──────────────────────────────────────────────────────
+// AI Coach chat + Claude API key are temporarily disabled — flip this back
+// on to restore the "Coach" tab and the header's API key control.
+const AI_FEATURES_ENABLED = false;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const TCLR = {EASY:"text-emerald-400",TEMPO:"text-yellow-400",INTERVALS:"text-orange-400",LONG:"text-sky-400",RACE:"text-red-400",WALK:"text-cyan-400",OTHER:"text-violet-400"};
 const TBG  = {EASY:"border-emerald-500/30 bg-emerald-500/5",TEMPO:"border-yellow-500/30 bg-yellow-500/5",INTERVALS:"border-orange-500/30 bg-orange-500/5",LONG:"border-sky-500/30 bg-sky-500/5",RACE:"border-red-500/30 bg-red-500/5",WALK:"border-cyan-500/30 bg-cyan-500/5",OTHER:"border-violet-500/30 bg-violet-500/5"};
@@ -471,7 +474,7 @@ export default function RunningCoach({ onSignOut }) {
     {id:"plan",  label:"Plan",  Icon:Calendar},
     {id:"log",   label:"Log",   Icon:Plus},
     {id:"stats", label:"Stats", Icon:TrendingUp},
-    {id:"coach", label:"Coach", Icon:MessageSquare},
+    ...(AI_FEATURES_ENABLED ? [{id:"coach", label:"Coach", Icon:MessageSquare}] : []),
   ];
 
   return (
@@ -488,10 +491,12 @@ export default function RunningCoach({ onSignOut }) {
           <span className="text-sm font-semibold">Running Coach</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={() => setShowApiKey(true)}
-            className={"flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors " + (apiKey ? "text-slate-400 hover:text-white border-slate-700 hover:border-slate-500 hover:bg-slate-800" : "text-amber-300 border-amber-500/40 hover:border-amber-400 hover:bg-slate-800")}>
-            <Key size={13}/>{apiKey ? "API key" : "Set API key"}
-          </button>
+          {AI_FEATURES_ENABLED && (
+            <button onClick={() => setShowApiKey(true)}
+              className={"flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors " + (apiKey ? "text-slate-400 hover:text-white border-slate-700 hover:border-slate-500 hover:bg-slate-800" : "text-amber-300 border-amber-500/40 hover:border-amber-400 hover:bg-slate-800")}>
+              <Key size={13}/>{apiKey ? "API key" : "Set API key"}
+            </button>
+          )}
           <button onClick={() => setShowRestore(true)}
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
             <Upload size={13}/>Restore
