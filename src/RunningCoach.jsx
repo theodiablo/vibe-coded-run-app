@@ -45,25 +45,48 @@ const HR_ZONES = [
   {n:5,name:"VO2 Max",      lo:0.90,hi:1.00,clr:"#f87171",type:"Anaerobic", desc:"Maximum effort — short intervals, race pace"},
 ];
 
-// ── session HR targets ─────────────────────────────────────────────
-function sessionHR(type, settings) {
-  const maxHR = settings.maxHR || 0;
-  const restHR = settings.restHR || 60;
-  if (maxHR <= restHR) return null;
+// ── HR zone bpm calc ───────────────────────────────────────────────
+// Shared by the HR Zones settings screen and the per-session targets on
+// the plan, so a zone's bpm range is computed identically everywhere.
+function hrZoneBpm(loPct, hiPct, maxHR, restHR, method) {
+  if (!maxHR) return null;
+  if (method === "pct") {
+    return {lo: Math.round(maxHR * loPct), hi: Math.round(maxHR * hiPct)};
+  }
   const hrr = maxHR - restHR;
-  const kv = p => Math.round(hrr * p + restHR);
-  const map = {
-    EASY:      {lo:0.60, hi:0.72, label:"Z2 · Aerobic Base",        clr:"#34d399"},
-    LONG:      {lo:0.60, hi:0.72, label:"Z2 · Aerobic Base",        clr:"#34d399"},
-    TEMPO:     {lo:0.77, hi:0.87, label:"Z3-4 · Lactate Threshold", clr:"#fb923c"},
-    INTERVALS: {lo:0.87, hi:0.97, label:"Z4-5 · Max effort (reps)", clr:"#f87171"},
-    RACE:      {lo:0.78, hi:0.88, label:"Z3-4 · Race effort",       clr:"#fb923c"},
-    WALK:      {lo:0.50, hi:0.60, label:"Z1 · Recovery",            clr:"#60a5fa"},
-  };
-  const z = map[type] || map.EASY;
-  return {lo:kv(z.lo), hi:kv(z.hi), label:z.label, clr:z.clr};
+  if (hrr <= 0) return null;
+  return {lo: Math.round(hrr * loPct + restHR), hi: Math.round(hrr * hiPct + restHR)};
 }
-function HRTarget({type, settings}) {
+
+// ── session HR targets ─────────────────────────────────────────────
+// Each session type maps onto one (or a span of) HR_ZONES — the bpm
+// range shown is derived from those zones' percentages via hrZoneBpm,
+// using the same MaxHR/RestHR/method as the HR Zones settings screen.
+const SESSION_ZONES = {
+  EASY:      {zones:[2],   label:"Z2 · Aerobic Base",        clr:"#34d399"},
+  LONG:      {zones:[2],   label:"Z2 · Aerobic Base",        clr:"#34d399"},
+  TEMPO:     {zones:[3,4], label:"Z3-4 · Lactate Threshold", clr:"#fb923c"},
+  INTERVALS: {zones:[4,5], label:"Z4-5 · Max effort (reps)", clr:"#f87171"},
+  RACE:      {zones:[3,4], label:"Z3-4 · Race effort",       clr:"#fb923c"},
+  WALK:      {zones:[1],   label:"Z1 · Recovery",            clr:"#60a5fa"},
+};
+function sessionHR(type, settings) {
+  const cfg    = SESSION_ZONES[type] || SESSION_ZONES.EASY;
+  const loZone = HR_ZONES[cfg.zones[0] - 1];
+  const hiZone = HR_ZONES[cfg.zones[cfg.zones.length - 1] - 1];
+  const r = hrZoneBpm(loZone.lo, hiZone.hi, settings.maxHR || 0, settings.restHR || 60, settings.hrMethod || "karvonen");
+  if (!r) return null;
+  return {lo:r.lo, hi:r.hi, label:cfg.label, clr:cfg.clr};
+}
+function HRTarget({type, settings, openSettings}) {
+  if (!settings.maxHR) {
+    return (
+      <button type="button" onClick={openSettings}
+        className="text-xs mt-1 flex items-center gap-1.5 text-amber-300 hover:text-amber-200 transition-colors">
+        <Heart size={12}/>Add your HR profile in Settings to see a target zone
+      </button>
+    );
+  }
   const hr = sessionHR(type, settings);
   if (!hr) return null;
   return (
@@ -454,7 +477,7 @@ export default function RunningCoach({ onSignOut }) {
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
     raceDate:"2026-11-01", goalSec:7200, distanceKm:20, name:"",
-    age:0, maxHR:0, restHR:60,
+    age:0, maxHR:0, restHR:60, hrMethod:"karvonen",
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [apiKey,      setApiKey]      = useState("");
@@ -553,7 +576,7 @@ export default function RunningCoach({ onSignOut }) {
     </div>
   );
 
-  const shared = {runs, plan, settings, apiKey, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, openApiKey: () => setShowApiKey(true)};
+  const shared = {runs, plan, settings, apiKey, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, openApiKey: () => setShowApiKey(true), openSettings: () => setShowSettings(true)};
   const TABS   = [
     {id:"dash",    label:"Home",    Icon:Activity},
     {id:"plan",    label:"Plan",    Icon:Calendar},
@@ -635,7 +658,7 @@ const runBarColor = type => {
 // ══════════════════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════════════
-function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab}) {
+function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab, openSettings}) {
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
@@ -699,7 +722,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab}) {
             <p className="text-slate-400 text-xs mt-2">
               {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
             </p>
-            <HRTarget type={nextSess.type} settings={settings}/>
+            <HRTarget type={nextSess.type} settings={settings} openSettings={openSettings}/>
           </div>
         </div>
       ) : !plan ? (
@@ -941,7 +964,7 @@ function EditRunModal({run, onSave, onClose}) {
 // ══════════════════════════════════════════════════════════════════
 //  PLAN VIEW
 // ══════════════════════════════════════════════════════════════════
-function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData}) {
+function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData, openSettings}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -1013,10 +1036,11 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
         </div>
         {!settings.maxHR && (
-          <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-3 text-xs text-amber-200 flex gap-2 items-start">
+          <button type="button" onClick={openSettings}
+            className="w-full bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 rounded-xl p-3 text-xs text-amber-200 flex gap-2 items-start text-left transition-colors">
             <span className="flex-shrink-0 text-base leading-none">💡</span>
-            <span>Add your HR profile in Stats → HR Zones to unlock heart rate targets on every session.</span>
-          </div>
+            <span>Add your HR profile in Settings to unlock heart rate targets on every session.</span>
+          </button>
         )}
         <button onClick={() => genPlan({planSessions: draft})}
           className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3.5 rounded-xl font-semibold transition-colors">
@@ -1184,7 +1208,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
                           </div>
                           <p className={descCls}>{cleanDesc(s.desc)}</p>
                           <p className="text-xs text-slate-600 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
-                          <HRTarget type={s.type} settings={settings}/>
+                          <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
                         </div>
                       </div>
                     );
@@ -1484,7 +1508,7 @@ function HRZones({settings, saveSettings, runs, showToast}) {
   const [age,    setAge]    = useState(String(settings.age || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));
-  const [method, setMethod] = useState("karvonen");
+  const [method, setMethod] = useState(settings.hrMethod || "karvonen");
   const [saved,  setSaved]  = useState(false);
 
   const ageN  = parseInt(age)    || 0;
@@ -1496,12 +1520,7 @@ function HRZones({settings, saveSettings, runs, showToast}) {
   const hrr    = effMax - rhrN;
   const ready  = effMax > 0 && rhrN > 0 && hrr > 0;
 
-  const getZone = z => {
-    if (!ready) return null;
-    return method === "karvonen"
-      ? {lo: Math.round(hrr * z.lo + rhrN), hi: Math.round(hrr * z.hi + rhrN)}
-      : {lo: Math.round(effMax * z.lo),     hi: Math.round(effMax * z.hi)};
-  };
+  const getZone = z => hrZoneBpm(z.lo, z.hi, effMax, rhrN, method);
 
   const getRunZone = hr => {
     if (!ready || !hr) return null;
@@ -1514,7 +1533,7 @@ function HRZones({settings, saveSettings, runs, showToast}) {
   };
 
   const save   = () => {
-    saveSettings(Object.assign({}, settings, {age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN}));
+    saveSettings(Object.assign({}, settings, {age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN, hrMethod:method}));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     if (showToast) showToast(ready ? "Profile saved — HR zones updated." : "Profile saved.");
