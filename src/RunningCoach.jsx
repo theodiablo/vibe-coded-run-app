@@ -757,7 +757,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab, openSettin
                   <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(r.type)}/>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium">{r.km + " km · " + fmt.dur(r.durationSec)}</p>
-                    <p className="text-slate-400 text-xs">{fmt.sht(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "")}</p>
+                    <p className="text-slate-400 text-xs">{fmt.sht(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "") + (r.elevation ? " · ⛰️ " + r.elevation + "m" : "")}</p>
                   </div>
                   <span className={"text-xs font-semibold flex-shrink-0 " + (TCLR[r.type] || TCLR.OTHER)}>{r.type}</span>
                 </div>
@@ -833,7 +833,7 @@ function HistoryView({runs, deleteRun, updateRun, goTab}) {
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">{r.km + " km · " + fmt.dur(r.durationSec)}</p>
                       <p className="text-slate-400 text-xs">
-                        {fmt.date(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "")}
+                        {fmt.date(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "") + (r.elevation ? " · ⛰️ " + r.elevation + "m" : "")}
                       </p>
                       {r.notes && <p className="text-slate-600 text-xs mt-0.5 truncate">{r.notes}</p>}
                     </div>
@@ -1413,6 +1413,22 @@ function Overview({runs}) {
       .map(e => ({d: fmt.sht(e[0]), km: Math.round(e[1] * 10) / 10}));
   })();
 
+  // Weekly elevation gain, bucketed the same way as weekly distance so the two
+  // charts share a timeline. Weeks with runs but no elevation contribute 0.
+  const wkElevBars = (() => {
+    const m = {};
+    fRuns.forEach(r => {
+      const d   = new Date(r.date + "T00:00:00");
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const k = ymd(mon);
+      m[k] = (m[k] || 0) + (r.elevation || 0);
+    });
+    return Object.entries(m)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(e => ({d: fmt.sht(e[0]), elev: Math.round(e[1])}));
+  })();
+
   const pLine = fRuns.slice()
     .filter(r => r.km && r.durationSec)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -1427,11 +1443,15 @@ function Overview({runs}) {
   }, null);
   const hrRuns = fRuns.filter(r => r.hr);
   const avgHR  = hrRuns.length ? hrRuns.reduce((s, r) => s + r.hr, 0) / hrRuns.length : 0;
+  const totElev = fRuns.reduce((s, r) => s + (r.elevation || 0), 0);
+  const totTime = fRuns.reduce((s, r) => s + (r.durationSec || 0), 0);
 
   const stats = [
     {l:"Total distance", v:totKm.toFixed(1) + " km",    s:fRuns.length + " runs", c:"text-orange-400"},
+    {l:"Total time",     v:(totTime/3600).toFixed(1) + " h", s:"moving time",     c:"text-violet-400"},
     {l:"Average pace",   v:fmt.pace(avgPace),             s:"min/km",               c:"text-sky-400"},
-    bestPace && {l:"Best pace",     v:fmt.pace(bestPace), s:"runs ≥3km",            c:"text-emerald-400"},
+    totElev > 0 && {l:"Total elevation", v:Math.round(totElev).toLocaleString() + " m", s:"climbed", c:"text-emerald-400"},
+    bestPace && {l:"Best pace",     v:fmt.pace(bestPace), s:"runs ≥3km",            c:"text-amber-400"},
     avgHR > 0 && {l:"Avg heart rate", v:Math.round(avgHR) + "", s:"bpm",           c:"text-red-400"},
   ].filter(Boolean);
 
@@ -1475,6 +1495,20 @@ function Overview({runs}) {
               <YAxis tick={{fill:"#475569",fontSize:10}}/>
               <Tooltip contentStyle={tt} formatter={v => [v + " km", "Distance"]}/>
               <Bar dataKey="km" fill="#f97316" radius={[4,4,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      {totElev > 0 && wkElevBars.length > 1 && (
+        <div className="bg-slate-800 rounded-2xl p-4">
+          <p className="text-slate-400 text-sm font-medium mb-3">Weekly elevation gain (m)</p>
+          <ResponsiveContainer width="100%" height={150}>
+            <BarChart data={wkElevBars} margin={{top:0,right:4,left:-18,bottom:0}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#0f172a"/>
+              <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
+              <YAxis tick={{fill:"#475569",fontSize:10}}/>
+              <Tooltip contentStyle={tt} formatter={v => [v + " m", "Elevation"]}/>
+              <Bar dataKey="elev" fill="#10b981" radius={[4,4,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
         </div>
