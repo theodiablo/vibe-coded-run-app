@@ -29,15 +29,26 @@ const estMin = (km, pace) => (km && pace) ? Math.round(km * pace / 60) + " min" 
 // "fatigue factor" — going further costs slightly more than linear time.
 const riegel = (t1, d1, d2, k = 1.06) => t1 * Math.pow(d2 / d1, k);
 
+// Grade-adjusted (flat-equivalent) distance. A hilly run is slower than its flat
+// twin at the same effort, so we credit the climb by treating each metre ascended
+// as ~VERT_COST extra metres of flat running. We only log total gain (no descent
+// or profile), so this is an average-cost approximation — but it stops hilly runs
+// from looking unfit, which sharpens both the best-effort pick and the HR fit.
+// At ~+10% grade this counts a km as ~1.8 flat km, in line with GAP rules of thumb.
+const VERT_COST = 8;
+const flatEqKm = r => r.km + (r.elevation > 0 ? VERT_COST * r.elevation / 1000 : 0);
+
 // Pick the runner's strongest logged effort. We don't just take the lowest raw
 // pace — a fast 1 km blip shouldn't outrank a strong 12 km run — so each
 // qualifying run (≥3 km, with a duration) is normalised to its Riegel-equivalent
-// 10 km time and the best (smallest) one wins. Returns {km, durationSec} or null.
+// 10 km time and the best (smallest) one wins. Distances are flat-equivalent so a
+// strong hilly run can win. Returns {km, durationSec, raw} or null (km is flat-eq).
 const bestEffortAnchor = runs => runs
   .filter(r => r.km >= 3 && r.durationSec)
   .reduce((best, r) => {
-    const eq = riegel(r.durationSec, r.km, 10);
-    return (!best || eq < best.eq) ? {km: r.km, durationSec: r.durationSec, eq} : best;
+    const eqKm = flatEqKm(r);
+    const eq = riegel(r.durationSec, eqKm, 10);
+    return (!best || eq < best.eq) ? {km: eqKm, durationSec: r.durationSec, eq, raw: r} : best;
   }, null);
 
 // Least-squares linear fit y = a + b·x, plus R² so callers can judge the fit.
@@ -64,9 +75,11 @@ const linReg = pts => {
 // and vice-versa. Returns the anchor plus fit stats so the caller can gate it.
 const hrModelAnchor = (runs, effMax, restHR, method) => {
   if (!effMax) return null;
+  // y is grade-adjusted pace: a hilly run's slow pace at high HR becomes a fast
+  // flat-equivalent pace at high HR, consistent with the rest of the data.
   const pts = runs
     .filter(r => r.km >= 2 && r.durationSec && r.hr)
-    .map(r => ({x: r.hr, y: r.durationSec / r.km}));
+    .map(r => ({x: r.hr, y: r.durationSec / flatEqKm(r)}));
   const fit = linReg(pts);
   if (!fit) return null;
   const hrs = pts.map(p => p.x);
@@ -1685,7 +1698,9 @@ function RacePredictions({runs, settings}) {
           <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
             <p className="text-slate-400 text-xs">
               <span className="text-orange-400 font-semibold">Best-effort</span> projects your strongest run
-              {" (" + best.km + " km in " + fmt.dur(best.durationSec) + ")"} to each distance with Riegel's formula.
+              {" (" + best.raw.km + " km in " + fmt.dur(best.durationSec)
+                + (best.raw.elevation > 0 ? ", " + Math.round(best.raw.elevation) + " m climb" : "") + ")"}
+              {" "}to each distance with Riegel's formula.
             </p>
             {hrOk ? (
               <p className="text-slate-400 text-xs">
@@ -1698,7 +1713,7 @@ function RacePredictions({runs, settings}) {
                 Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.
               </p>
             )}
-            <p className="text-slate-600 text-xs">Estimates assume flat terrain and aren't adjusted for elevation.</p>
+            <p className="text-slate-600 text-xs">Runs are grade-adjusted for elevation gain; predictions are for a flat course.</p>
           </div>
         </>
       )}
