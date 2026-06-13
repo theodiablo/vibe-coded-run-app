@@ -22,6 +22,62 @@ const fmt = {
 const ymd = d => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
 // Estimated session duration (rounded minutes) for the prescribed distance/pace.
 const estMin = (km, pace) => (km && pace) ? Math.round(km * pace / 60) + " min" : "";
+
+// ── race prediction maths ──────────────────────────────────────────
+// Peter Riegel's endurance race-time formula: project a known time t1 over
+// distance d1 to a target distance d2. The 1.06 exponent is the standard
+// "fatigue factor" — going further costs slightly more than linear time.
+const riegel = (t1, d1, d2, k = 1.06) => t1 * Math.pow(d2 / d1, k);
+
+// Pick the runner's strongest logged effort. We don't just take the lowest raw
+// pace — a fast 1 km blip shouldn't outrank a strong 12 km run — so each
+// qualifying run (≥3 km, with a duration) is normalised to its Riegel-equivalent
+// 10 km time and the best (smallest) one wins. Returns {km, durationSec} or null.
+const bestEffortAnchor = runs => runs
+  .filter(r => r.km >= 3 && r.durationSec)
+  .reduce((best, r) => {
+    const eq = riegel(r.durationSec, r.km, 10);
+    return (!best || eq < best.eq) ? {km: r.km, durationSec: r.durationSec, eq} : best;
+  }, null);
+
+// Least-squares linear fit y = a + b·x, plus R² so callers can judge the fit.
+const linReg = pts => {
+  const n = pts.length;
+  if (n < 2) return null;
+  const mx = pts.reduce((s, p) => s + p.x, 0) / n;
+  const my = pts.reduce((s, p) => s + p.y, 0) / n;
+  let sxx = 0, sxy = 0, syy = 0;
+  pts.forEach(p => { sxx += (p.x - mx) ** 2; sxy += (p.x - mx) * (p.y - my); syy += (p.y - my) ** 2; });
+  if (sxx === 0) return null;
+  const b = sxy / sxx;
+  const a = my - b * mx;
+  const r2 = syy === 0 ? 0 : (sxy * sxy) / (sxx * syy);
+  return {a, b, r2};
+};
+
+// Heart-rate model. Across all runs that recorded an avg HR, fit pace (sec/km)
+// against HR — easy low-HR runs anchor the slow end, hard high-HR runs the fast
+// end — then extrapolate the pace the runner could hold at their threshold HR
+// (top of Z4). Threshold effort is roughly a 1-hour race, so we anchor it as
+// {km covered in 3600 s, 3600 s} for Riegel to project from. A fast pace held at
+// a low HR therefore pulls the predicted threshold pace faster ("handled well"),
+// and vice-versa. Returns the anchor plus fit stats so the caller can gate it.
+const hrModelAnchor = (runs, effMax, restHR, method) => {
+  if (!effMax) return null;
+  const pts = runs
+    .filter(r => r.km >= 2 && r.durationSec && r.hr)
+    .map(r => ({x: r.hr, y: r.durationSec / r.km}));
+  const fit = linReg(pts);
+  if (!fit) return null;
+  const hrs = pts.map(p => p.x);
+  const spread = Math.max(...hrs) - Math.min(...hrs);
+  const thr = hrZoneBpm(0.88, 0.90, effMax, restHR, method);
+  if (!thr) return null;
+  const thrPace = fit.a + fit.b * thr.lo;
+  if (thrPace <= 0) return null;
+  return {km: 3600 / thrPace, durationSec: 3600, r2: fit.r2, slope: fit.b, n: pts.length, spread, thrHR: thr.lo, thrPace};
+};
+
 // Strip any stale "· N min" slot label baked into older stored descriptions —
 // the real estimate is shown alongside km/pace instead.
 const cleanDesc = d => (d || "").replace(/\s*·\s*~?\d+\s*min\s*$/, "");
@@ -1379,13 +1435,14 @@ function LogView({addRuns, onDone}) {
 // ══════════════════════════════════════════════════════════════════
 //  STATS VIEW
 // ══════════════════════════════════════════════════════════════════
-function StatsView({runs}) {
+function StatsView({runs, settings}) {
   return (
     <div className="max-w-lg mx-auto">
       <div className="px-4 pt-6 pb-0">
         <h2 className="text-xl font-bold">Stats</h2>
       </div>
       <Overview runs={runs}/>
+      <RacePredictions runs={runs} settings={settings}/>
     </div>
   );
 }
@@ -1533,6 +1590,117 @@ function Overview({runs}) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  RACE PREDICTIONS — project finish times from logged runs
+// ══════════════════════════════════════════════════════════════════
+function RacePredictions({runs, settings}) {
+  const [period, setPeriod] = useState("12w");
+
+  // Same period filter the Overview uses, so both halves of Stats agree.
+  const fRuns = period === "all" ? runs : (() => {
+    const cut = new Date();
+    cut.setDate(cut.getDate() - (period === "4w" ? 28 : 84));
+    return runs.filter(r => new Date(r.date + "T00:00:00") >= cut);
+  })();
+
+  // Effective max HR: explicit setting → Tanaka from age → highest HR observed.
+  const effMax = settings.maxHR
+    || (settings.age ? Math.round(208 - 0.7 * settings.age) : 0)
+    || fRuns.reduce((m, r) => Math.max(m, r.hrMax || r.hr || 0), 0);
+  const restHR = settings.restHR || 60;
+  const method = settings.hrMethod || "karvonen";
+
+  const best = bestEffortAnchor(fRuns);
+  const hr   = hrModelAnchor(fRuns, effMax, restHR, method);
+  // Only trust the HR model with a real spread of efforts and a sane fit.
+  const hrOk = hr && hr.n >= 8 && hr.spread >= 15 && hr.slope < 0 && hr.r2 >= 0.3;
+
+  // 5 / 10 / 20 km, plus the race-day distance when it isn't already one of them.
+  const dists = [5, 10, 20];
+  const raceD = settings.distanceKm;
+  if (raceD && !dists.includes(raceD)) dists.push(raceD);
+  dists.sort((a, b) => a - b);
+
+  if (!runs.length) return null;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold">Race predictions</h3>
+          <p className="text-slate-500 text-xs mt-0.5">Projected finish times from your logged runs</p>
+        </div>
+        <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
+          {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
+            <button key={pair[0]} onClick={() => setPeriod(pair[0])}
+              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
+              {pair[1]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!best ? (
+        <div className="bg-slate-800 rounded-xl p-4 text-center">
+          <p className="text-slate-400 text-sm">Log a run of 3 km or more to estimate your race times.</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {dists.map(d => {
+              const bt = riegel(best.durationSec, best.km, d);
+              const ht = hrOk ? riegel(hr.durationSec, hr.km, d) : null;
+              return (
+                <div key={d} className="bg-slate-800 rounded-xl p-4">
+                  <div className="flex items-baseline justify-between mb-3">
+                    <p className="font-semibold">
+                      {d} km
+                      {d === raceD && <span className="ml-2 text-xs text-orange-400 font-normal">race day</span>}
+                    </p>
+                  </div>
+                  <div className={"grid gap-3 " + (ht ? "grid-cols-2" : "grid-cols-1")}>
+                    <div>
+                      <p className="text-slate-500 text-xs">Best-effort estimate</p>
+                      <p className="text-2xl font-bold mt-0.5 text-orange-400">{fmt.dur(bt)}</p>
+                      <p className="text-slate-600 text-xs">{fmt.pace(bt / d)}/km</p>
+                    </div>
+                    {ht && (
+                      <div>
+                        <p className="text-slate-500 text-xs">HR-modelled estimate</p>
+                        <p className="text-2xl font-bold mt-0.5 text-sky-400">{fmt.dur(ht)}</p>
+                        <p className="text-slate-600 text-xs">{fmt.pace(ht / d)}/km</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+            <p className="text-slate-400 text-xs">
+              <span className="text-orange-400 font-semibold">Best-effort</span> projects your strongest run
+              {" (" + best.km + " km in " + fmt.dur(best.durationSec) + ")"} to each distance with Riegel's formula.
+            </p>
+            {hrOk ? (
+              <p className="text-slate-400 text-xs">
+                <span className="text-sky-400 font-semibold">HR-modelled</span> fits your pace against heart rate across
+                {" " + hr.n + " runs"} and extrapolates to threshold effort (~{hr.thrHR} bpm) — so easy runs handled
+                well count too, not just your fastest day.
+              </p>
+            ) : (
+              <p className="text-slate-500 text-xs">
+                Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.
+              </p>
+            )}
+            <p className="text-slate-600 text-xs">Estimates assume flat terrain and aren't adjusted for elevation.</p>
+          </div>
+        </>
       )}
     </div>
   );
