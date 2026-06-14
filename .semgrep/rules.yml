@@ -1,0 +1,104 @@
+# Offline, dependency-free Semgrep rules for this app.
+#
+# CI also runs the hosted registry packs (p/javascript, p/react, p/secrets,
+# p/owasp-top-ten) for broad coverage; these local rules guarantee a baseline
+# even without registry access and lock in the dangerous patterns removed during
+# the security cleanup (notably the browser-side Anthropic API calls) so they
+# can't silently return.
+#
+# Code-pattern rules are scoped to source files (so docs that legitimately
+# mention these terms don't trip them); secret-detection rules scan everything.
+# This rules file itself is excluded via .semgrepignore to avoid self-matches.
+rules:
+  - id: no-eval
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Avoid eval(): it executes arbitrary code and is a classic injection sink.
+    pattern-regex: '\beval\s*\('
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html", "*.cjs", "*.mjs"]
+      exclude: ["*.test.js", "*.test.jsx", "*.spec.js"]
+
+  - id: no-new-function
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Avoid `new Function(...)`: it behaves like eval() and executes arbitrary code.
+    pattern-regex: 'new\s+Function\s*\('
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html", "*.cjs", "*.mjs"]
+
+  - id: no-dangerously-set-inner-html
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      dangerouslySetInnerHTML can introduce XSS. Render text as children, or
+      sanitize with a vetted library if raw HTML is truly required.
+    pattern-regex: 'dangerouslySetInnerHTML'
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html"]
+
+  - id: no-inner-html-assignment
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Assigning to .innerHTML can introduce XSS. Use textContent or React state.
+    pattern-regex: '\.innerHTML\s*='
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html"]
+
+  - id: no-document-write
+    languages: [generic]
+    severity: WARNING
+    message: "document.write() is an XSS sink and blocks parsing. Avoid it."
+    pattern-regex: 'document\.write\s*\('
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html"]
+
+  - id: no-browser-anthropic-access
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Calling the Anthropic API directly from the browser exposes the API key.
+      Route LLM calls through a server-side proxy instead.
+    pattern-regex: 'anthropic-dangerous-direct-browser-access'
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html"]
+
+  - id: no-client-side-api-key-header
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Sending an `x-api-key` header from client code ships a secret to the
+      browser. Use a server-side proxy that holds the key.
+    pattern-regex: '["'']x-api-key["'']'
+    paths:
+      include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html"]
+      exclude: ["*.test.js", "*.test.jsx", "*.spec.js"]
+
+  - id: hardcoded-private-key
+    languages: [generic]
+    severity: ERROR
+    message: "A private key appears to be committed. Remove it and rotate the key."
+    pattern-regex: '-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----'
+
+  - id: hardcoded-aws-access-key
+    languages: [generic]
+    severity: ERROR
+    message: "An AWS access key ID appears to be committed. Remove it and rotate."
+    pattern-regex: 'AKIA[0-9A-Z]{16}'
+
+  - id: hardcoded-anthropic-key
+    languages: [generic]
+    severity: ERROR
+    message: "An Anthropic API key appears to be committed. Remove it and rotate."
+    pattern-regex: 'sk-ant-[A-Za-z0-9_-]{20,}'
+
+  - id: hardcoded-supabase-secret-key
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      A Supabase *secret* key appears to be committed (the publishable/anon key
+      is fine; the secret key must never be). Remove it and rotate.
+    pattern-regex: 'sb_secret_[A-Za-z0-9_-]{10,}'

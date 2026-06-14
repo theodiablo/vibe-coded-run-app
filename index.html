@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Content-Security-Policy: limits where scripts, styles and network requests
+      may come from, as defence-in-depth against XSS. The app only talks to its
+      own origin and Supabase (REST + realtime websockets). 'unsafe-inline' is
+      required for style because React/recharts use inline style attributes.
+      Note: frame-ancestors is ignored in a <meta> CSP — set it (and
+      X-Frame-Options) as a response header at CloudFront for clickjacking
+      protection.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'self'; object-src 'none'; form-action 'self'"
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Running Coach</title>

@@ -1,0 +1,193 @@
+import { useState } from "react";
+import { Check, Heart } from "lucide-react";
+import { INPUT_CLS } from "../constants";
+import { fmt } from "../utils/format";
+import { HR_ZONES, hrZoneBpm } from "../utils/hr";
+
+export function HRZones({settings, saveSettings, runs, showToast}) {
+  const [age,    setAge]    = useState(String(settings.age || ""));
+  const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
+  const [restHR, setRestHR] = useState(String(settings.restHR || 60));
+  const [method, setMethod] = useState(settings.hrMethod || "karvonen");
+  const [saved,  setSaved]  = useState(false);
+
+  const ageN  = parseInt(age)    || 0;
+  const mhrN  = parseInt(maxHR)  || 0;
+  const rhrN  = parseInt(restHR) || 60;
+  const tanakaMax  = ageN ? Math.round(208 - 0.7 * ageN) : null;
+  const classicMax = ageN ? 220 - ageN : null;
+  const effMax = mhrN || tanakaMax || 0;
+  const hrr    = effMax - rhrN;
+  const ready  = effMax > 0 && rhrN > 0 && hrr > 0;
+
+  const getZone = z => hrZoneBpm(z.lo, z.hi, effMax, rhrN, method);
+
+  const getRunZone = hr => {
+    if (!ready || !hr) return null;
+    const idx = HR_ZONES.findIndex((z, i) => {
+      const r = getZone(z);
+      if (!r) return false;
+      return i === HR_ZONES.length - 1 ? hr >= r.lo : hr >= r.lo && hr < r.hi;
+    });
+    return idx >= 0 ? idx + 1 : null;
+  };
+
+  const save   = () => {
+    saveSettings({...settings, age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN, hrMethod:method});
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    if (showToast) showToast(ready ? "Profile saved — HR zones updated." : "Profile saved.");
+  };
+  const hrRuns = runs.filter(r => r.hr).slice(0, 6);
+
+  const methodOpts = [
+    {v:"karvonen", l:"Karvonen (HRR)",  sub:"Uses resting HR — more personalised"},
+    {v:"pct",      l:"% of Max HR",     sub:"Simpler, doesn't need resting HR"},
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
+        <p className="text-sm font-semibold text-slate-200">Heart Rate</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className="text-xs text-slate-400 block mb-1.5">Age</label>
+            <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} className={INPUT_CLS}/></div>
+          <div><label className="text-xs text-slate-400 block mb-1.5">Max HR</label>
+            <input type="number" min="100" max="230" placeholder="auto" value={maxHR} onChange={e => setMaxHR(e.target.value)} className={INPUT_CLS}/></div>
+          <div><label className="text-xs text-slate-400 block mb-1.5">Rest HR</label>
+            <input type="number" min="30" max="120" placeholder="60" value={restHR} onChange={e => setRestHR(e.target.value)} className={INPUT_CLS}/></div>
+        </div>
+
+        {ageN > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">Max HR formulas — tap to apply:</p>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => setMaxHR(String(tanakaMax))}
+                className="text-xs bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 px-3 py-2 rounded-lg transition-colors text-left">
+                <span className="font-semibold">{"Tanaka: " + tanakaMax + " bpm"}</span>
+                <span className="block opacity-70 text-xs">208 - 0.7×age · more accurate</span>
+              </button>
+              <button onClick={() => setMaxHR(String(classicMax))}
+                className="text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 px-3 py-2 rounded-lg transition-colors text-left">
+                <span className="font-semibold">{"Classic: " + classicMax + " bpm"}</span>
+                <span className="block text-slate-500 text-xs">220 - age · simple method</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Zone calculation method:</p>
+          <div className="grid grid-cols-2 gap-2">
+            {methodOpts.map(opt => (
+              <button key={opt.v} onClick={() => setMethod(opt.v)}
+                className={"py-2.5 px-3 rounded-xl border text-left transition-colors " + (method === opt.v ? "bg-orange-500/15 border-orange-500/50 text-orange-300" : "bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-300")}>
+                <p className="text-xs font-semibold">{opt.l}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{opt.sub}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+        <button onClick={save}
+          className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
+          {saved ? <><Check size={16}/>Saved</> : "Save heart rate"}
+        </button>
+      </div>
+
+      {ready ? (
+        <div className="space-y-5">
+          <div className="bg-slate-800 rounded-2xl p-4">
+            <p className="text-sm font-semibold text-slate-200 mb-4">Heart Rate Zones</p>
+            <div className="flex rounded-xl overflow-hidden h-9 mb-3">
+              {HR_ZONES.map(z => {
+                const r = getZone(z);
+                return (
+                  <div key={z.n} className="flex-1 flex flex-col items-center justify-center" style={{background:z.clr}}>
+                    <span className="text-xs font-black text-slate-900">{z.n}</span>
+                    {r && <span className="font-semibold text-slate-800 leading-none" style={{fontSize:9}}>{r.lo}</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between text-xs text-slate-600 mb-4 px-1">
+              <span>{rhrN + " bpm (rest)"}</span>
+              <span>{effMax + " bpm (max)"}</span>
+            </div>
+            <div className="space-y-1">
+              {HR_ZONES.map(z => {
+                const r = getZone(z);
+                const aeroClass = z.type === "Aerobic"
+                  ? "bg-emerald-500/15 text-emerald-400"
+                  : "bg-orange-500/15 text-orange-400";
+                return (
+                  <div key={z.n} className="flex items-center gap-3 py-2.5 border-b border-slate-700/50 last:border-0">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{background:z.clr}}/>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-white">{"Z" + z.n + " · " + z.name}</span>
+                        <span className={"text-xs px-1.5 py-0.5 rounded-full " + aeroClass}>{z.type}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">{z.desc}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-white">{r ? (r.lo + "–" + r.hi) : "-"}</p>
+                      <p className="text-xs text-slate-500">{Math.round(z.lo*100) + "–" + Math.round(z.hi*100) + "%"}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="bg-slate-800 rounded-xl p-3 text-xs text-slate-500 leading-relaxed">
+            <span className="text-slate-300 font-medium">{method === "karvonen" ? "Karvonen method: " : "% of Max HR: "}</span>
+            {method === "karvonen"
+              ? "Zone HR = ((MaxHR - RestHR) x intensity%) + RestHR. HRR = " + effMax + " - " + rhrN + " = " + hrr + " bpm. More accurate as it accounts for individual fitness."
+              : "Zone HR = MaxHR x intensity%. Simple and widely used, but doesn't account for resting HR or fitness level."}
+          </div>
+
+          {hrRuns.length > 0 && (
+            <div className="bg-slate-800 rounded-2xl p-4">
+              <p className="text-sm font-semibold text-slate-200 mb-3">Recent runs — zone analysis</p>
+              <div className="space-y-1">
+                {hrRuns.map(r => {
+                  const zIdx  = getRunZone(r.hr);
+                  const zData = zIdx ? HR_ZONES[zIdx - 1] : null;
+                  return (
+                    <div key={r.id} className="flex items-center gap-3 py-2 border-b border-slate-700/30 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white">{fmt.sht(r.date) + " · " + r.km + " km"}</p>
+                        <p className="text-xs text-slate-500">
+                          {"Avg HR: "}<span className="text-red-400">{r.hr + " bpm"}</span>
+                        </p>
+                      </div>
+                      {zData ? (
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-xs font-semibold px-2 py-1 rounded-lg"
+                            style={{background: zData.clr + "25", color: zData.clr}}>
+                            {"Z" + zData.n + " · " + zData.name}
+                          </span>
+                          <p className={"text-xs mt-0.5 " + (zData.type === "Aerobic" ? "text-emerald-400" : "text-orange-400")}>
+                            {zData.type}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-600">—</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-slate-800 rounded-2xl p-8 text-center">
+          <Heart size={36} className="mx-auto mb-3 text-slate-700"/>
+          <p className="text-slate-400 text-sm">Enter your age and/or Max HR above</p>
+          <p className="text-slate-600 text-xs mt-1">to calculate your personalised heart rate zones</p>
+        </div>
+      )}
+    </div>
+  );
+}

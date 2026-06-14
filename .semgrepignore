@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-ssr/
+package-lock.json
+# These rule definitions contain the very patterns they forbid (in messages and
+# pattern-regex), so exclude them from scanning to avoid self-matches.
+.semgrep/

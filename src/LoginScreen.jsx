@@ -109,7 +109,9 @@ export default function LoginScreen() {
                   <input
                     type="password"
                     required
-                    minLength={6}
+                    // Enforce the stronger policy on sign-up only; sign-in must
+                    // still accept existing accounts created under the old rule.
+                    minLength={mode === "signup" ? 12 : 6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="flex-1 bg-transparent py-2 text-sm text-white outline-none"
