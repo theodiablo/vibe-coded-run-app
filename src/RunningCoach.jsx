@@ -22,6 +22,75 @@ const fmt = {
 const ymd = d => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
 // Estimated session duration (rounded minutes) for the prescribed distance/pace.
 const estMin = (km, pace) => (km && pace) ? Math.round(km * pace / 60) + " min" : "";
+
+// ── race prediction maths ──────────────────────────────────────────
+// Peter Riegel's endurance race-time formula: project a known time t1 over
+// distance d1 to a target distance d2. The 1.06 exponent is the standard
+// "fatigue factor" — going further costs slightly more than linear time.
+const riegel = (t1, d1, d2, k = 1.06) => t1 * Math.pow(d2 / d1, k);
+
+// Grade-adjusted (flat-equivalent) distance. A hilly run is slower than its flat
+// twin at the same effort, so we credit the climb by treating each metre ascended
+// as ~VERT_COST extra metres of flat running. We only log total gain (no descent
+// or profile), so this is an average-cost approximation — but it stops hilly runs
+// from looking unfit, which sharpens both the best-effort pick and the HR fit.
+// At ~+10% grade this counts a km as ~1.8 flat km, in line with GAP rules of thumb.
+const VERT_COST = 8;
+const flatEqKm = r => r.km + (r.elevation > 0 ? VERT_COST * r.elevation / 1000 : 0);
+
+// Pick the runner's strongest logged effort. We don't just take the lowest raw
+// pace — a fast 1 km blip shouldn't outrank a strong 12 km run — so each
+// qualifying run (≥3 km, with a duration) is normalised to its Riegel-equivalent
+// 10 km time and the best (smallest) one wins. Distances are flat-equivalent so a
+// strong hilly run can win. Returns {km, durationSec, raw} or null (km is flat-eq).
+const bestEffortAnchor = runs => runs
+  .filter(r => r.km >= 3 && r.durationSec)
+  .reduce((best, r) => {
+    const eqKm = flatEqKm(r);
+    const eq = riegel(r.durationSec, eqKm, 10);
+    return (!best || eq < best.eq) ? {km: eqKm, durationSec: r.durationSec, eq, raw: r} : best;
+  }, null);
+
+// Least-squares linear fit y = a + b·x, plus R² so callers can judge the fit.
+const linReg = pts => {
+  const n = pts.length;
+  if (n < 2) return null;
+  const mx = pts.reduce((s, p) => s + p.x, 0) / n;
+  const my = pts.reduce((s, p) => s + p.y, 0) / n;
+  let sxx = 0, sxy = 0, syy = 0;
+  pts.forEach(p => { sxx += (p.x - mx) ** 2; sxy += (p.x - mx) * (p.y - my); syy += (p.y - my) ** 2; });
+  if (sxx === 0) return null;
+  const b = sxy / sxx;
+  const a = my - b * mx;
+  const r2 = syy === 0 ? 0 : (sxy * sxy) / (sxx * syy);
+  return {a, b, r2};
+};
+
+// Heart-rate model. Across all runs that recorded an avg HR, fit pace (sec/km)
+// against HR — easy low-HR runs anchor the slow end, hard high-HR runs the fast
+// end — then extrapolate the pace the runner could hold at their threshold HR
+// (top of Z4). Threshold effort is roughly a 1-hour race, so we anchor it as
+// {km covered in 3600 s, 3600 s} for Riegel to project from. A fast pace held at
+// a low HR therefore pulls the predicted threshold pace faster ("handled well"),
+// and vice-versa. Returns the anchor plus fit stats so the caller can gate it.
+const hrModelAnchor = (runs, effMax, restHR, method) => {
+  if (!effMax) return null;
+  // y is grade-adjusted pace: a hilly run's slow pace at high HR becomes a fast
+  // flat-equivalent pace at high HR, consistent with the rest of the data.
+  const pts = runs
+    .filter(r => r.km >= 2 && r.durationSec && r.hr)
+    .map(r => ({x: r.hr, y: r.durationSec / flatEqKm(r)}));
+  const fit = linReg(pts);
+  if (!fit) return null;
+  const hrs = pts.map(p => p.x);
+  const spread = Math.max(...hrs) - Math.min(...hrs);
+  const thr = hrZoneBpm(0.88, 0.90, effMax, restHR, method);
+  if (!thr) return null;
+  const thrPace = fit.a + fit.b * thr.lo;
+  if (thrPace <= 0) return null;
+  return {km: 3600 / thrPace, durationSec: 3600, r2: fit.r2, slope: fit.b, n: pts.length, spread, thrHR: thr.lo, thrPace};
+};
+
 // Strip any stale "· N min" slot label baked into older stored descriptions —
 // the real estimate is shown alongside km/pace instead.
 const cleanDesc = d => (d || "").replace(/\s*·\s*~?\d+\s*min\s*$/, "");
@@ -31,6 +100,9 @@ const cleanDesc = d => (d || "").replace(/\s*·\s*~?\d+\s*min\s*$/, "");
 // get/set interface as before; the Anthropic API key stays local-only.
 
 // ── constants ──────────────────────────────────────────────────────
+// AI Coach chat + Claude API key are temporarily disabled — flip this back
+// on to restore the "Coach" tab and the header's API key control.
+const AI_FEATURES_ENABLED = false;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const TCLR = {EASY:"text-emerald-400",TEMPO:"text-yellow-400",INTERVALS:"text-orange-400",LONG:"text-sky-400",RACE:"text-red-400",WALK:"text-cyan-400",OTHER:"text-violet-400"};
 const TBG  = {EASY:"border-emerald-500/30 bg-emerald-500/5",TEMPO:"border-yellow-500/30 bg-yellow-500/5",INTERVALS:"border-orange-500/30 bg-orange-500/5",LONG:"border-sky-500/30 bg-sky-500/5",RACE:"border-red-500/30 bg-red-500/5",WALK:"border-cyan-500/30 bg-cyan-500/5",OTHER:"border-violet-500/30 bg-violet-500/5"};
@@ -42,25 +114,48 @@ const HR_ZONES = [
   {n:5,name:"VO2 Max",      lo:0.90,hi:1.00,clr:"#f87171",type:"Anaerobic", desc:"Maximum effort — short intervals, race pace"},
 ];
 
-// ── session HR targets ─────────────────────────────────────────────
-function sessionHR(type, settings) {
-  const maxHR = settings.maxHR || 0;
-  const restHR = settings.restHR || 60;
-  if (maxHR <= restHR) return null;
+// ── HR zone bpm calc ───────────────────────────────────────────────
+// Shared by the HR Zones settings screen and the per-session targets on
+// the plan, so a zone's bpm range is computed identically everywhere.
+function hrZoneBpm(loPct, hiPct, maxHR, restHR, method) {
+  if (!maxHR) return null;
+  if (method === "pct") {
+    return {lo: Math.round(maxHR * loPct), hi: Math.round(maxHR * hiPct)};
+  }
   const hrr = maxHR - restHR;
-  const kv = p => Math.round(hrr * p + restHR);
-  const map = {
-    EASY:      {lo:0.60, hi:0.72, label:"Z2 · Aerobic Base",        clr:"#34d399"},
-    LONG:      {lo:0.60, hi:0.72, label:"Z2 · Aerobic Base",        clr:"#34d399"},
-    TEMPO:     {lo:0.77, hi:0.87, label:"Z3-4 · Lactate Threshold", clr:"#fb923c"},
-    INTERVALS: {lo:0.87, hi:0.97, label:"Z4-5 · Max effort (reps)", clr:"#f87171"},
-    RACE:      {lo:0.78, hi:0.88, label:"Z3-4 · Race effort",       clr:"#fb923c"},
-    WALK:      {lo:0.50, hi:0.60, label:"Z1 · Recovery",            clr:"#60a5fa"},
-  };
-  const z = map[type] || map.EASY;
-  return {lo:kv(z.lo), hi:kv(z.hi), label:z.label, clr:z.clr};
+  if (hrr <= 0) return null;
+  return {lo: Math.round(hrr * loPct + restHR), hi: Math.round(hrr * hiPct + restHR)};
 }
-function HRTarget({type, settings}) {
+
+// ── session HR targets ─────────────────────────────────────────────
+// Each session type maps onto one (or a span of) HR_ZONES — the bpm
+// range shown is derived from those zones' percentages via hrZoneBpm,
+// using the same MaxHR/RestHR/method as the HR Zones settings screen.
+const SESSION_ZONES = {
+  EASY:      {zones:[2],   label:"Z2 · Aerobic Base",        clr:"#34d399"},
+  LONG:      {zones:[2],   label:"Z2 · Aerobic Base",        clr:"#34d399"},
+  TEMPO:     {zones:[3,4], label:"Z3-4 · Lactate Threshold", clr:"#fb923c"},
+  INTERVALS: {zones:[4,5], label:"Z4-5 · Max effort (reps)", clr:"#f87171"},
+  RACE:      {zones:[3,4], label:"Z3-4 · Race effort",       clr:"#fb923c"},
+  WALK:      {zones:[1],   label:"Z1 · Recovery",            clr:"#60a5fa"},
+};
+function sessionHR(type, settings) {
+  const cfg    = SESSION_ZONES[type] || SESSION_ZONES.EASY;
+  const loZone = HR_ZONES[cfg.zones[0] - 1];
+  const hiZone = HR_ZONES[cfg.zones[cfg.zones.length - 1] - 1];
+  const r = hrZoneBpm(loZone.lo, hiZone.hi, settings.maxHR || 0, settings.restHR || 60, settings.hrMethod || "karvonen");
+  if (!r) return null;
+  return {lo:r.lo, hi:r.hi, label:cfg.label, clr:cfg.clr};
+}
+function HRTarget({type, settings, openSettings}) {
+  if (!settings.maxHR) {
+    return (
+      <button type="button" onClick={openSettings}
+        className="text-xs mt-1 flex items-center gap-1.5 text-amber-300 hover:text-amber-200 transition-colors">
+        <Heart size={12}/>Add your HR profile in Settings to see a target zone
+      </button>
+    );
+  }
   const hr = sessionHR(type, settings);
   if (!hr) return null;
   return (
@@ -72,7 +167,7 @@ function HRTarget({type, settings}) {
 }
 
 // ── plan builder ───────────────────────────────────────────────────
-function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
+function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation) {
   if (!goalSec) goalSec = 7200;
   if (!distanceKm) distanceKm = 20;
   if (!planSessions) planSessions = [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}];
@@ -82,7 +177,15 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
   const toMon = dow === 1 ? 0 : dow === 0 ? 1 : (8 - dow) % 7;
   const w0    = new Date(today); w0.setDate(today.getDate() + toMon);
   const N     = Math.max(4, Math.min(24, Math.floor((race - w0) / 86400000 / 7)));
-  const tgt   = Math.round(goalSec / distanceKm);
+  // Training paces target the *flat-equivalent* effort: finishing a hilly course
+  // in the goal time needs the flat fitness of a faster runner, so each metre of
+  // climb stretches the effective distance (same VERT_COST grade-adjust as the
+  // predictions). On a flat course this collapses to goalSec / distanceKm.
+  const gain      = raceElevation || 0;
+  const flatEqDist = distanceKm + VERT_COST * gain / 1000;
+  const tgt       = Math.round(goalSec / flatEqDist);
+  // Real average ground pace on the course — what the race-day card should show.
+  const racePace = Math.round(goalSec / distanceKm);
   const easy  = Math.round(tgt * 1.25);
   const tmpo  = Math.round(tgt * 1.05);
   const sorted = planSessions.slice().sort((a, b) => b.minutes - a.minutes);
@@ -161,11 +264,13 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
     phase: "RACE",
     sessions: [{
       id: "race", date: raceDate, type: "RACE",
-      desc: "Race Day — " + distanceKm + "km! Everything you trained for.",
-      km: distanceKm, pace: tgt, done: false, runId: null,
+      desc: "Race Day — " + distanceKm + "km"
+        + (gain > 0 ? " · +" + Math.round(gain) + "m climb" : "")
+        + "! Everything you trained for.",
+      km: distanceKm, pace: racePace, done: false, runId: null,
     }],
   });
-  return {raceDate, goalSec, distanceKm, targetPace: tgt, planSessions, weeks};
+  return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt, planSessions, weeks};
 }
 
 // ── session configurator ───────────────────────────────────────────
@@ -356,8 +461,8 @@ export default function RunningCoach({ onSignOut }) {
   const [runs,        setRuns]        = useState([]);
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
-    raceDate:"2026-11-01", goalSec:7200, distanceKm:20, name:"",
-    age:0, maxHR:0, restHR:60,
+    raceDate:"2026-11-01", goalSec:7200, distanceKm:20, raceElevation:0, name:"",
+    age:0, maxHR:0, restHR:60, hrMethod:"karvonen",
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState(null);
@@ -416,6 +521,26 @@ export default function RunningCoach({ onSignOut }) {
     });
   };
 
+  const deleteRun = id => {
+    setRuns(prev => {
+      const next = prev.filter(r => r.id !== id);
+      db.set("rc_runs", next);
+      return next;
+    });
+    showToast("Run deleted.");
+  };
+
+  const updateRun = (id, patch) => {
+    setRuns(prev => {
+      // The date may have changed, so re-sort to keep the list newest-first.
+      const next = prev.map(r => r.id === id ? Object.assign({}, r, patch) : r)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      db.set("rc_runs", next);
+      return next;
+    });
+    showToast("Run updated.");
+  };
+
   const exportData    = () => setShowBackup(true);
   const handleRestore = d => {
     if (d.runs)     { setRuns(d.runs);         db.set("rc_runs", d.runs); }
@@ -458,6 +583,7 @@ export default function RunningCoach({ onSignOut }) {
           <button onClick={() => setShowBackup(true)}
             className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 px-2.5 py-1.5 rounded-lg border border-orange-500/40 hover:border-orange-400 hover:bg-slate-800 transition-colors">
             <Download size={13}/>Backup
+
           </button>
           {onSignOut && (
             <button onClick={onSignOut}
@@ -472,6 +598,7 @@ export default function RunningCoach({ onSignOut }) {
         {tab === "dash"  && <Dashboard  {...shared}/>}
         {tab === "plan"  && <PlanView   {...shared}/>}
         {tab === "log"   && <LogView    {...shared} onDone={() => setTab("dash")}/>}
+        {tab === "history" && <HistoryView {...shared}/>}
         {tab === "stats" && <StatsView  {...shared}/>}
       </div>
 
@@ -487,10 +614,20 @@ export default function RunningCoach({ onSignOut }) {
   );
 }
 
+// Colored accent bar per run type, shared by the dashboard and history list.
+const runBarColor = type => {
+  if (type === "LONG")      return "bg-sky-400";
+  if (type === "TEMPO")     return "bg-yellow-400";
+  if (type === "INTERVALS") return "bg-orange-400";
+  if (type === "RACE")      return "bg-red-400";
+  if (type === "WALK")      return "bg-cyan-400";
+  return "bg-emerald-400";
+};
+
 // ══════════════════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════════════════
-function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
+function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab, openSettings}) {
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
@@ -508,15 +645,6 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
     {l:"Runs logged", v:String(runs.length),    c:"text-sky-400",     I:Activity},
     {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Award},
   ];
-
-  const runBarColor = type => {
-    if (type === "LONG")      return "bg-sky-400";
-    if (type === "TEMPO")     return "bg-yellow-400";
-    if (type === "INTERVALS") return "bg-orange-400";
-    if (type === "RACE")      return "bg-red-400";
-    if (type === "WALK")      return "bg-cyan-400";
-    return "bg-emerald-400";
-  };
 
   return (
     <div className="p-4 space-y-5 max-w-lg mx-auto">
@@ -563,14 +691,14 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
             <p className="text-slate-400 text-xs mt-2">
               {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
             </p>
-            <HRTarget type={nextSess.type} settings={settings}/>
+            <HRTarget type={nextSess.type} settings={settings} openSettings={openSettings}/>
           </div>
         </div>
       ) : !plan ? (
         <div className="bg-slate-800 rounded-xl p-5 text-center space-y-3">
           <p className="text-slate-400 text-sm">No training plan yet. Ready to get started?</p>
           <button
-            onClick={() => savePlan(buildPlan(settings.raceDate, settings.goalSec, settings.planSessions, settings.distanceKm))}
+            onClick={() => savePlan(buildPlan(settings.raceDate, settings.goalSec, settings.planSessions, settings.distanceKm, settings.raceElevation))}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors">
             Generate My Plan
           </button>
@@ -581,7 +709,15 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
 
       {runs.length > 0 && (
         <div>
-          <p className="text-slate-500 text-xs uppercase tracking-widest mb-2">Recent runs</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-slate-500 text-xs uppercase tracking-widest">Recent runs</p>
+            {runs.length > 3 && goTab && (
+              <button onClick={() => goTab("history")}
+                className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-0.5 transition-colors">
+                View all<ChevronRight size={13}/>
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {runs.slice(0, 3).map(r => {
               const pace = r.km && r.durationSec ? r.durationSec / r.km : 0;
@@ -590,7 +726,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
                   <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(r.type)}/>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium">{r.km + " km · " + fmt.dur(r.durationSec)}</p>
-                    <p className="text-slate-400 text-xs">{fmt.sht(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "")}</p>
+                    <p className="text-slate-400 text-xs">{fmt.sht(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "") + (r.elevation ? " · ⛰️ " + r.elevation + "m" : "")}</p>
                   </div>
                   <span className={"text-xs font-semibold flex-shrink-0 " + (TCLR[r.type] || TCLR.OTHER)}>{r.type}</span>
                 </div>
@@ -607,7 +743,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
           <p className="text-xs text-slate-600">Tap Log below to add your first one.</p>
           {!plan && (
             <p className="text-xs text-slate-600 pt-2 border-t border-slate-700/50">
-              Had data from a previous version? Use Restore in the header above.
+              Had data from a previous version? Open Settings (gear, top right) → Restore.
             </p>
           )}
         </div>
@@ -617,9 +753,187 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan}) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+//  HISTORY VIEW — the full run log, newest first, grouped by month
+// ══════════════════════════════════════════════════════════════════
+function HistoryView({runs, deleteRun, updateRun, goTab}) {
+  const [confirmId, setConfirmId] = useState(null);
+  const [editRun,   setEditRun]   = useState(null);
+
+  if (!runs.length) return (
+    <div className="max-w-lg mx-auto flex flex-col items-center justify-center pt-24 text-center gap-3 p-4">
+      <History size={48} className="text-slate-700"/>
+      <p className="text-slate-400">No runs logged yet.</p>
+      <button onClick={() => goTab && goTab("log")}
+        className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+        Log your first run
+      </button>
+    </div>
+  );
+
+  // Runs arrive newest-first; bucket them into month sections in that order.
+  const totKm  = runs.reduce((s, r) => s + (r.km || 0), 0);
+  const groups = [];
+  runs.forEach(r => {
+    const key = new Date(r.date + "T12:00:00").toLocaleDateString("en-GB", {month:"long", year:"numeric"});
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== key) { g = {key, items:[]}; groups.push(g); }
+    g.items.push(r);
+  });
+
+  return (
+    <div className="max-w-lg mx-auto p-4">
+      <div className="mt-4 mb-4">
+        <h2 className="text-xl font-bold">History</h2>
+        <p className="text-slate-500 text-xs mt-0.5">
+          {runs.length + " run" + (runs.length === 1 ? "" : "s") + " · " + totKm.toFixed(0) + " km total"}
+        </p>
+      </div>
+
+      <div className="space-y-5">
+        {groups.map(g => (
+          <div key={g.key}>
+            <p className="text-slate-500 text-xs uppercase tracking-widest mb-2">{g.key}</p>
+            <div className="space-y-2">
+              {g.items.map(r => {
+                const pace = r.km && r.durationSec ? r.durationSec / r.km : 0;
+                return (
+                  <div key={r.id} className="bg-slate-800 rounded-xl p-3 flex items-center gap-3">
+                    <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(r.type)}/>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium">{r.km + " km · " + fmt.dur(r.durationSec)}</p>
+                      <p className="text-slate-400 text-xs">
+                        {fmt.date(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "") + (r.elevation ? " · ⛰️ " + r.elevation + "m" : "")}
+                      </p>
+                      {r.notes && <p className="text-slate-600 text-xs mt-0.5 truncate">{r.notes}</p>}
+                    </div>
+                    <span className={"text-xs font-semibold flex-shrink-0 " + (TCLR[r.type] || TCLR.OTHER)}>{r.type}</span>
+                    {confirmId === r.id ? (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => { deleteRun(r.id); setConfirmId(null); }}
+                          className="text-xs font-semibold text-red-400 hover:text-red-300 px-1.5 py-1">Delete</button>
+                        <button onClick={() => setConfirmId(null)}
+                          className="text-xs text-slate-500 hover:text-slate-300 px-1.5 py-1">Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <button onClick={() => setEditRun(r)} aria-label="Edit run"
+                          className="text-slate-600 hover:text-orange-400 p-1 transition-colors">
+                          <Pencil size={15}/>
+                        </button>
+                        <button onClick={() => setConfirmId(r.id)} aria-label="Delete run"
+                          className="text-slate-600 hover:text-red-400 p-1 transition-colors">
+                          <Trash2 size={15}/>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {editRun && <EditRunModal run={editRun}
+        onSave={patch => updateRun(editRun.id, patch)}
+        onClose={() => setEditRun(null)}/>}
+    </div>
+  );
+}
+
+// ── EditRunModal ───────────────────────────────────────────────────
+// Edit an existing run — mirrors the fields on the Log a Run form.
+function EditRunModal({run, onSave, onClose}) {
+  const sec = run.durationSec || 0;
+  const [f, setF] = useState({
+    date:  run.date,
+    type:  run.type || "EASY",
+    km:    run.km != null ? String(run.km) : "",
+    dH:    String(Math.floor(sec / 3600) || ""),
+    dM:    String(Math.floor((sec % 3600) / 60) || ""),
+    dS:    String(sec % 60 || ""),
+    hr:    run.hr        ? String(run.hr)        : "",
+    hrMax: run.hrMax     ? String(run.hrMax)     : "",
+    elev:  run.elevation ? String(run.elevation) : "",
+    effort: run.effort || 5,
+    notes:  run.notes || "",
+  });
+  const [err, setErr] = useState("");
+  const set = (k, v) => setF(prev => Object.assign({}, prev, {[k]: v}));
+
+  const save = () => {
+    if (!f.km || (!f.dM && !f.dH)) { setErr("Distance and duration are required."); return; }
+    const s = (parseInt(f.dH) || 0) * 3600 + (parseInt(f.dM) || 0) * 60 + (parseInt(f.dS) || 0);
+    onSave({
+      date: f.date, type: f.type, km: parseFloat(f.km), durationSec: s,
+      hr:        f.hr    ? parseInt(f.hr)    : null,
+      hrMax:     f.hrMax ? parseInt(f.hrMax) : null,
+      elevation: f.elev  ? parseInt(f.elev)  : null,
+      effort:    parseInt(f.effort), notes: f.notes,
+    });
+    onClose();
+  };
+
+  const I = "w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500";
+  const L = "block text-xs text-slate-400 mb-1.5";
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700 shrink-0">
+          <p className="font-semibold text-sm">Edit Run</p>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+        </div>
+        <div className="p-4 space-y-4 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={L}>Date</label>
+              <input type="date" value={f.date} onChange={e => set("date", e.target.value)} className={I}/></div>
+            <div><label className={L}>Type</label>
+              <select value={f.type} onChange={e => set("type", e.target.value)} className={I}>
+                {["EASY","TEMPO","LONG","INTERVALS","RACE","WALK","OTHER"].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div><label className={L}>Distance (km)</label>
+            <input type="number" step="0.01" min="0" placeholder="8.5" value={f.km}
+              onChange={e => set("km", e.target.value)} className={I}/></div>
+          <div><label className={L}>Duration</label>
+            <div className="grid grid-cols-3 gap-2">
+              <input type="number" min="0" max="23" placeholder="h"   value={f.dH} onChange={e => set("dH", e.target.value)} className={I}/>
+              <input type="number" min="0" max="59" placeholder="min" value={f.dM} onChange={e => set("dM", e.target.value)} className={I}/>
+              <input type="number" min="0" max="59" placeholder="sec" value={f.dS} onChange={e => set("dS", e.target.value)} className={I}/>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className={L}>Avg HR</label>
+              <input type="number" placeholder="145" value={f.hr} onChange={e => set("hr", e.target.value)} className={I}/></div>
+            <div><label className={L}>Max HR</label>
+              <input type="number" placeholder="170" value={f.hrMax} onChange={e => set("hrMax", e.target.value)} className={I}/></div>
+            <div><label className={L}>Elev (m)</label>
+              <input type="number" placeholder="80" value={f.elev} onChange={e => set("elev", e.target.value)} className={I}/></div>
+          </div>
+          <div>
+            <label className={L}>{"Perceived effort: "}<span className="text-white font-semibold">{f.effort + "/10"}</span></label>
+            <input type="range" min="1" max="10" value={f.effort} onChange={e => set("effort", e.target.value)} className="w-full accent-orange-500"/>
+          </div>
+          <div><label className={L}>Notes</label>
+            <textarea rows={2} placeholder="How did it feel? Any aches?" value={f.notes}
+              onChange={e => set("notes", e.target.value)} className={I + " resize-none"}/></div>
+          {err && <p className="text-xs text-red-400">{err}</p>}
+          <button onClick={save}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
+            <Check size={18}/>Save changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
 //  PLAN VIEW
 // ══════════════════════════════════════════════════════════════════
-function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData}) {
+function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData, openSettings}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -638,6 +952,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
   const [draftDate,    setDraftDate]   = useState(settings.raceDate);
   const [draftGoal,    setDraftGoal]   = useState(settings.goalSec);
   const [draftDist,    setDraftDist]   = useState(settings.distanceKm || 20);
+  const [draftElev,    setDraftElev]   = useState(settings.raceElevation || 0);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   // Re-expand the current week whenever the plan changes (e.g. regenerate),
@@ -654,8 +969,10 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
     const date = o.raceDate     || settings.raceDate;
     const goal = o.goalSec      || settings.goalSec;
     const dist = o.distanceKm   || settings.distanceKm || 20;
-    saveSettings(Object.assign({}, settings, {planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist}));
-    savePlan(buildPlan(date, goal, ps, dist));
+    // 0 is a valid climb, so coalesce on nullish rather than falsy.
+    const elev = o.raceElevation ?? settings.raceElevation ?? 0;
+    saveSettings(Object.assign({}, settings, {planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: elev}));
+    savePlan(buildPlan(date, goal, ps, dist, elev));
     setEdit(false); setConfirmRegen(false);
   };
 
@@ -677,6 +994,13 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
         </div>
         <div>
+          <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+          <input type="number" min="0" max="10000" step="10" defaultValue={settings.raceElevation || 0}
+            onChange={e => saveSettings(Object.assign({}, settings, {raceElevation: Math.max(0, parseInt(e.target.value) || 0)}))}
+            className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+          <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+        </div>
+        <div>
           <label className="text-xs text-slate-400 block mb-1.5">
             {"Goal time: "}
             <span className="text-white font-semibold">{Math.round(settings.goalSec/60) + " min"}</span>
@@ -691,10 +1015,11 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
         </div>
         {!settings.maxHR && (
-          <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-3 text-xs text-amber-200 flex gap-2 items-start">
+          <button type="button" onClick={openSettings}
+            className="w-full bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 rounded-xl p-3 text-xs text-amber-200 flex gap-2 items-start text-left transition-colors">
             <span className="flex-shrink-0 text-base leading-none">💡</span>
-            <span>Add your HR profile in Stats → HR Zones to unlock heart rate targets on every session.</span>
-          </div>
+            <span>Add your HR profile in Settings to unlock heart rate targets on every session.</span>
+          </button>
         )}
         <button onClick={() => genPlan({planSessions: draft})}
           className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3.5 rounded-xl font-semibold transition-colors">
@@ -760,7 +1085,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700" style={{width: pct + "%"}}/>
         </div>
         <div className="flex justify-between text-xs text-slate-600 mt-2">
-          <span>{(plan.distanceKm || 20) + "km · sub " + fmt.dur(plan.goalSec)}</span>
+          <span>{(plan.distanceKm || 20) + "km" + (plan.raceElevation > 0 ? " · +" + Math.round(plan.raceElevation) + "m" : "") + " · sub " + fmt.dur(plan.goalSec)}</span>
           <span>{"Race: " + fmt.sht(plan.raceDate)}</span>
         </div>
       </div>
@@ -770,6 +1095,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           setDraftDate(settings.raceDate);
           setDraftGoal(settings.goalSec);
           setDraftDist(settings.distanceKm || 20);
+          setDraftElev(settings.raceElevation || 0);
           setEdit(v => !v);
         }}
         className={"w-full mb-3 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs transition-colors border " + (editSessions ? "bg-orange-500/10 border-orange-500/40" : "bg-slate-800 border-slate-700 hover:border-slate-500")}>
@@ -796,6 +1122,13 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
             </div>
           </div>
           <div>
+            <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+            <input type="number" min="0" max="10000" step="10" value={draftElev}
+              onChange={e => setDraftElev(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400"/>
+            <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+          </div>
+          <div>
             <label className="text-xs text-slate-400 block mb-1.5">
               {"Goal time: "}
               <span className="text-white font-semibold">{fmt.dur(draftGoal)}</span>
@@ -810,7 +1143,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
             <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
             <SessionConfigurator sessions={draft} onChange={setDraft}/>
           </div>
-          <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20})}
+          <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
             disabled={!draftDate || !draftDist}
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
             Regenerate plan
@@ -862,7 +1195,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
                           </div>
                           <p className={descCls}>{cleanDesc(s.desc)}</p>
                           <p className="text-xs text-slate-600 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
-                          <HRTarget type={s.type} settings={settings}/>
+                          <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
                         </div>
                       </div>
                     );
@@ -1033,24 +1366,14 @@ function LogView({addRuns, onDone}) {
 // ══════════════════════════════════════════════════════════════════
 //  STATS VIEW
 // ══════════════════════════════════════════════════════════════════
-function StatsView({runs, settings, saveSettings, showToast}) {
-  const [sub, setSub] = useState("overview");
+function StatsView({runs, settings}) {
   return (
     <div className="max-w-lg mx-auto">
-      <div className="px-4 pt-6 pb-0 flex justify-between items-center">
+      <div className="px-4 pt-6 pb-0">
         <h2 className="text-xl font-bold">Stats</h2>
-        <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
-          {[["overview","Overview"],["zones","HR Zones"]].map(pair => (
-            <button key={pair[0]} onClick={() => setSub(pair[0])}
-              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (sub === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
-              {pair[1]}
-            </button>
-          ))}
-        </div>
       </div>
-      {sub === "overview"
-        ? <Overview runs={runs}/>
-        : <HRZones settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}/>}
+      <Overview runs={runs}/>
+      <RacePredictions runs={runs} settings={settings}/>
     </div>
   );
 }
@@ -1078,6 +1401,22 @@ function Overview({runs}) {
       .map(e => ({d: fmt.sht(e[0]), km: Math.round(e[1] * 10) / 10}));
   })();
 
+  // Weekly elevation gain, bucketed the same way as weekly distance so the two
+  // charts share a timeline. Weeks with runs but no elevation contribute 0.
+  const wkElevBars = (() => {
+    const m = {};
+    fRuns.forEach(r => {
+      const d   = new Date(r.date + "T00:00:00");
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const k = ymd(mon);
+      m[k] = (m[k] || 0) + (r.elevation || 0);
+    });
+    return Object.entries(m)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(e => ({d: fmt.sht(e[0]), elev: Math.round(e[1])}));
+  })();
+
   const pLine = fRuns.slice()
     .filter(r => r.km && r.durationSec)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -1092,11 +1431,15 @@ function Overview({runs}) {
   }, null);
   const hrRuns = fRuns.filter(r => r.hr);
   const avgHR  = hrRuns.length ? hrRuns.reduce((s, r) => s + r.hr, 0) / hrRuns.length : 0;
+  const totElev = fRuns.reduce((s, r) => s + (r.elevation || 0), 0);
+  const totTime = fRuns.reduce((s, r) => s + (r.durationSec || 0), 0);
 
   const stats = [
     {l:"Total distance", v:totKm.toFixed(1) + " km",    s:fRuns.length + " runs", c:"text-orange-400"},
+    {l:"Total time",     v:(totTime/3600).toFixed(1) + " h", s:"moving time",     c:"text-violet-400"},
     {l:"Average pace",   v:fmt.pace(avgPace),             s:"min/km",               c:"text-sky-400"},
-    bestPace && {l:"Best pace",     v:fmt.pace(bestPace), s:"runs ≥3km",            c:"text-emerald-400"},
+    totElev > 0 && {l:"Total elevation", v:Math.round(totElev).toLocaleString() + " m", s:"climbed", c:"text-emerald-400"},
+    bestPace && {l:"Best pace",     v:fmt.pace(bestPace), s:"runs ≥3km",            c:"text-amber-400"},
     avgHR > 0 && {l:"Avg heart rate", v:Math.round(avgHR) + "", s:"bpm",           c:"text-red-400"},
   ].filter(Boolean);
 
@@ -1144,6 +1487,20 @@ function Overview({runs}) {
           </ResponsiveContainer>
         </div>
       )}
+      {totElev > 0 && wkElevBars.length > 1 && (
+        <div className="bg-slate-800 rounded-2xl p-4">
+          <p className="text-slate-400 text-sm font-medium mb-3">Weekly elevation gain (m)</p>
+          <ResponsiveContainer width="100%" height={150}>
+            <BarChart data={wkElevBars} margin={{top:0,right:4,left:-18,bottom:0}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#0f172a"/>
+              <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
+              <YAxis tick={{fill:"#475569",fontSize:10}}/>
+              <Tooltip contentStyle={tt} formatter={v => [v + " m", "Elevation"]}/>
+              <Bar dataKey="elev" fill="#10b981" radius={[4,4,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
       {pLine.length > 2 && (
         <div className="bg-slate-800 rounded-2xl p-4">
           <div className="flex justify-between items-baseline mb-3">
@@ -1169,11 +1526,136 @@ function Overview({runs}) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  RACE PREDICTIONS — project finish times from logged runs
+// ══════════════════════════════════════════════════════════════════
+function RacePredictions({runs, settings}) {
+  const [period, setPeriod] = useState("12w");
+
+  // Same period filter the Overview uses, so both halves of Stats agree.
+  const fRuns = period === "all" ? runs : (() => {
+    const cut = new Date();
+    cut.setDate(cut.getDate() - (period === "4w" ? 28 : 84));
+    return runs.filter(r => new Date(r.date + "T00:00:00") >= cut);
+  })();
+
+  // Effective max HR: explicit setting → Tanaka from age → highest HR observed.
+  const effMax = settings.maxHR
+    || (settings.age ? Math.round(208 - 0.7 * settings.age) : 0)
+    || fRuns.reduce((m, r) => Math.max(m, r.hrMax || r.hr || 0), 0);
+  const restHR = settings.restHR || 60;
+  const method = settings.hrMethod || "karvonen";
+
+  const best = bestEffortAnchor(fRuns);
+  const hr   = hrModelAnchor(fRuns, effMax, restHR, method);
+  // Only trust the HR model with a real spread of efforts and a sane fit.
+  const hrOk = hr && hr.n >= 8 && hr.spread >= 15 && hr.slope < 0 && hr.r2 >= 0.3;
+
+  // 5 / 10 / 20 km, plus the race-day distance when it isn't already one of them.
+  const dists = [5, 10, 20];
+  const raceD = settings.distanceKm;
+  if (raceD && !dists.includes(raceD)) dists.push(raceD);
+  dists.sort((a, b) => a - b);
+
+  // Climb on the race-day course. Applied only to the race-day row — the other
+  // distances stay flat hypotheticals — by projecting to the flat-equivalent
+  // distance, the same grade-adjustment used on the input runs.
+  const raceGain = settings.raceElevation || 0;
+
+  if (!runs.length) return null;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold">Race predictions</h3>
+          <p className="text-slate-500 text-xs mt-0.5">Projected finish times from your logged runs</p>
+        </div>
+        <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
+          {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
+            <button key={pair[0]} onClick={() => setPeriod(pair[0])}
+              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
+              {pair[1]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!best ? (
+        <div className="bg-slate-800 rounded-xl p-4 text-center">
+          <p className="text-slate-400 text-sm">Log a run of 3 km or more to estimate your race times.</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {dists.map(d => {
+              // Race-day row carries its course climb; others are flat.
+              const isRace = d === raceD;
+              const dEq = isRace ? d + VERT_COST * raceGain / 1000 : d;
+              const bt = riegel(best.durationSec, best.km, dEq);
+              const ht = hrOk ? riegel(hr.durationSec, hr.km, dEq) : null;
+              return (
+                <div key={d} className="bg-slate-800 rounded-xl p-4">
+                  <div className="flex items-baseline justify-between mb-3">
+                    <p className="font-semibold">
+                      {d} km
+                      {isRace && <span className="ml-2 text-xs text-orange-400 font-normal">race day</span>}
+                      {isRace && raceGain > 0 && <span className="ml-2 text-xs text-slate-500 font-normal">incl. {Math.round(raceGain)} m climb</span>}
+                    </p>
+                  </div>
+                  <div className={"grid gap-3 " + (ht ? "grid-cols-2" : "grid-cols-1")}>
+                    <div>
+                      <p className="text-slate-500 text-xs">Best-effort estimate</p>
+                      <p className="text-2xl font-bold mt-0.5 text-orange-400">{fmt.dur(bt)}</p>
+                      <p className="text-slate-600 text-xs">{fmt.pace(bt / d)}/km</p>
+                    </div>
+                    {ht && (
+                      <div>
+                        <p className="text-slate-500 text-xs">HR-modelled estimate</p>
+                        <p className="text-2xl font-bold mt-0.5 text-sky-400">{fmt.dur(ht)}</p>
+                        <p className="text-slate-600 text-xs">{fmt.pace(ht / d)}/km</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+            <p className="text-slate-400 text-xs">
+              <span className="text-orange-400 font-semibold">Best-effort</span> projects your strongest run
+              {" (" + best.raw.km + " km in " + fmt.dur(best.durationSec)
+                + (best.raw.elevation > 0 ? ", " + Math.round(best.raw.elevation) + " m climb" : "") + ")"}
+              {" "}to each distance with Riegel's formula.
+            </p>
+            {hrOk ? (
+              <p className="text-slate-400 text-xs">
+                <span className="text-sky-400 font-semibold">HR-modelled</span> fits your pace against heart rate across
+                {" " + hr.n + " runs"} and extrapolates to threshold effort (~{hr.thrHR} bpm) — so easy runs handled
+                well count too, not just your fastest day.
+              </p>
+            ) : (
+              <p className="text-slate-500 text-xs">
+                Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.
+              </p>
+            )}
+            <p className="text-slate-600 text-xs">
+              Runs are grade-adjusted for elevation gain. Times are for a flat course
+              {raceGain > 0 ? "; the race-day row includes its " + Math.round(raceGain) + " m climb." : ", except the race-day row once you set its climb in the Plan settings."}
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function HRZones({settings, saveSettings, runs, showToast}) {
   const [age,    setAge]    = useState(String(settings.age || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));
-  const [method, setMethod] = useState("karvonen");
+  const [method, setMethod] = useState(settings.hrMethod || "karvonen");
   const [saved,  setSaved]  = useState(false);
 
   const ageN  = parseInt(age)    || 0;
@@ -1185,12 +1667,7 @@ function HRZones({settings, saveSettings, runs, showToast}) {
   const hrr    = effMax - rhrN;
   const ready  = effMax > 0 && rhrN > 0 && hrr > 0;
 
-  const getZone = z => {
-    if (!ready) return null;
-    return method === "karvonen"
-      ? {lo: Math.round(hrr * z.lo + rhrN), hi: Math.round(hrr * z.hi + rhrN)}
-      : {lo: Math.round(effMax * z.lo),     hi: Math.round(effMax * z.hi)};
-  };
+  const getZone = z => hrZoneBpm(z.lo, z.hi, effMax, rhrN, method);
 
   const getRunZone = hr => {
     if (!ready || !hr) return null;
@@ -1203,7 +1680,7 @@ function HRZones({settings, saveSettings, runs, showToast}) {
   };
 
   const save   = () => {
-    saveSettings(Object.assign({}, settings, {age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN}));
+    saveSettings(Object.assign({}, settings, {age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN, hrMethod:method}));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     if (showToast) showToast(ready ? "Profile saved — HR zones updated." : "Profile saved.");
@@ -1217,9 +1694,9 @@ function HRZones({settings, saveSettings, runs, showToast}) {
   ];
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="space-y-5">
       <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
-        <p className="text-sm font-semibold text-slate-200">Your Profile</p>
+        <p className="text-sm font-semibold text-slate-200">Heart Rate</p>
         <div className="grid grid-cols-3 gap-3">
           <div><label className="text-xs text-slate-400 block mb-1.5">Age</label>
             <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} className={I}/></div>
@@ -1261,7 +1738,7 @@ function HRZones({settings, saveSettings, runs, showToast}) {
         </div>
         <button onClick={save}
           className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
-          {saved ? <><Check size={16}/>Saved</> : "Save Profile"}
+          {saved ? <><Check size={16}/>Saved</> : "Save heart rate"}
         </button>
       </div>
 
