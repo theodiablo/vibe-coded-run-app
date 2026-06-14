@@ -5,11 +5,11 @@ import { initStore, clearStore } from "./db";
 import RunningCoach from "./RunningCoach.jsx";
 import LoginScreen from "./LoginScreen.jsx";
 
-// How long to wait for the initial auth check before assuming it has hung
-// (e.g. a stalled PKCE code-exchange after an OAuth redirect) and recovering.
-const AUTH_INIT_TIMEOUT_MS = 8000;
-// One-shot guard (per tab) so the recovery reload happens at most once.
-const RECOVERY_KEY = "auth-init-recovered";
+// Defensive cap on the initial auth resolution. Supabase requests are already
+// bounded by the fetch timeout in supabase.js, so getSession() should always
+// settle well within this; it exists only so a never-resolving auth check can
+// never leave the user staring at the splash spinner forever.
+const AUTH_INIT_TIMEOUT_MS = 20000;
 
 function Splash() {
   return (
@@ -30,18 +30,9 @@ export default function App() {
 
   // Track the auth session.
   useEffect(() => {
-    let settled = false;
-    // Mark the auth state as known. Clearing the recovery guard on every
-    // successful resolution means a future hang (e.g. another OAuth redirect)
-    // can trigger recovery again.
+    let active = true;
     const settle = (s) => {
-      settled = true;
-      try {
-        sessionStorage.removeItem(RECOVERY_KEY);
-      } catch {
-        /* sessionStorage may be unavailable (private mode) — ignore */
-      }
-      setSession(s);
+      if (active) setSession(s);
     };
 
     supabase.auth
@@ -49,49 +40,29 @@ export default function App() {
       .then(({ data }) => settle(data.session))
       .catch((err) => {
         // A *rejected* getSession() would otherwise leave `session` stuck at
-        // `undefined` (infinite <Splash/>) with no trace. Log it and let the
-        // safety net below recover rather than swallowing it silently.
+        // `undefined` (infinite <Splash/>). Log it and fall back to the login
+        // screen so the user can retry rather than being stranded.
         console.error("Initial getSession() failed", err);
+        settle(null);
       });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       settle(s);
     });
 
-    // Safety net for a hung initial auth check. After an OAuth (PKCE) redirect,
-    // supabase-js exchanges the `?code=` param for a session inside its
-    // one-shot initialize() promise; both getSession() and onAuthStateChange
-    // await that same promise. The token-exchange request has no client-side
-    // timeout, so if it hangs neither callback ever fires and the app is stuck
-    // on the spinner forever — even though the session is usually already
-    // persisted to localStorage (which is why a manual refresh fixes it).
-    // Automate that refresh once, then fall back to the login screen so we
-    // never spin or reload-loop indefinitely.
+    // Belt-and-suspenders: if the auth state is somehow still unresolved after
+    // the cap (requests are already bounded by the fetch timeout in
+    // supabase.js), drop to the login screen instead of spinning forever.
     const timer = setTimeout(() => {
-      if (settled) return;
-      let recovered = false;
-      try {
-        recovered = sessionStorage.getItem(RECOVERY_KEY) === "1";
-      } catch {
-        /* sessionStorage unavailable — skip the reload, fall through below */
-      }
-      if (!recovered) {
-        console.warn("Auth init stalled; reloading to recover persisted session");
-        try {
-          sessionStorage.setItem(RECOVERY_KEY, "1");
-        } catch {
-          /* ignore */
-        }
-        window.location.reload();
-      } else {
-        // Already reloaded once and still stuck — stop trying and let the user
-        // sign in again instead of looping.
-        console.error("Auth init still stalled after reload; showing login");
-        settle(null);
-      }
+      setSession((curr) => {
+        if (curr !== undefined) return curr;
+        console.error("Auth init did not settle in time; showing login");
+        return null;
+      });
     }, AUTH_INIT_TIMEOUT_MS);
 
     return () => {
+      active = false;
       clearTimeout(timer);
       sub.subscription.unsubscribe();
     };
