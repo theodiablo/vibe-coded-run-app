@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { dlog } from "./oauthDebug"; // TEMP diagnostics
 
 // Cloud-backed key/value store over the per-user `app_state` row.
 //
@@ -16,7 +17,9 @@ let saveTimer = null;
 export async function initStore(uid) {
   // Flush any write still sitting in the debounce buffer before we replace the
   // cache, otherwise a reload would silently discard unsaved changes.
+  dlog("initStore: flushNow() start");
   await flushNow();
+  dlog("initStore: flushNow() done; issuing app_state select");
   userId = uid;
   // Never let a failed/aborted first load reject out of initStore: App.jsx
   // gates rendering on this resolving (storeReady), so a thrown error here
@@ -28,6 +31,7 @@ export async function initStore(uid) {
       .select("data")
       .eq("user_id", uid)
       .maybeSingle();
+    dlog("initStore: app_state select returned. error?", error?.message ?? null, "hasRow?", !!data);
     if (error) {
       console.error("app_state load failed", error);
       cache = {};
@@ -35,6 +39,7 @@ export async function initStore(uid) {
       cache = data && data.data ? data.data : {};
     }
   } catch (err) {
+    dlog("initStore: app_state select THREW", err);
     console.error("app_state load threw", err);
     cache = {};
   }
