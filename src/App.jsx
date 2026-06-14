@@ -4,7 +4,6 @@ import { supabase } from "./supabase";
 import { initStore, clearStore } from "./db";
 import RunningCoach from "./RunningCoach.jsx";
 import LoginScreen from "./LoginScreen.jsx";
-import { dlog, snapshotAuthState } from "./oauthDebug"; // TEMP diagnostics
 
 // Defensive cap on the initial auth resolution. Supabase requests are already
 // bounded by the fetch timeout in supabase.js, so getSession() should always
@@ -31,8 +30,6 @@ export default function App() {
 
   // Track the auth session.
   useEffect(() => {
-    dlog("auth effect MOUNT — calling getSession()");
-    snapshotAuthState("effect-mount");
     let active = true;
     const settle = (s) => {
       if (active) setSession(s);
@@ -40,21 +37,16 @@ export default function App() {
 
     supabase.auth
       .getSession()
-      .then(({ data }) => {
-        dlog("getSession() RESOLVED. session?", !!data.session, "user", data.session?.user?.id);
-        settle(data.session);
-      })
+      .then(({ data }) => settle(data.session))
       .catch((err) => {
         // A *rejected* getSession() would otherwise leave `session` stuck at
         // `undefined` (infinite <Splash/>). Log it and fall back to the login
         // screen so the user can retry rather than being stranded.
-        dlog("getSession() REJECTED", err);
         console.error("Initial getSession() failed", err);
         settle(null);
       });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      dlog("onAuthStateChange EVENT:", _event, "session?", !!s, "user", s?.user?.id);
       settle(s);
     });
 
@@ -85,9 +77,7 @@ export default function App() {
     if (session) {
       if (loadedUidRef.current === session.user.id) return; // already loaded
       setStoreReady(false);
-      dlog("initStore() START for user", session.user.id);
       initStore(session.user.id).then(() => {
-        dlog("initStore() DONE; setting storeReady=true");
         if (!cancelled) {
           loadedUidRef.current = session.user.id;
           setStoreReady(true);
@@ -104,18 +94,6 @@ export default function App() {
       cancelled = true;
     };
   }, [session]);
-
-  // TEMP: log which gate this render hits so we can tell *which* Splash is stuck
-  // (session still undefined vs. store not ready).
-  const gate =
-    session === undefined
-      ? "SPLASH (session===undefined)"
-      : !session
-        ? "LOGIN (no session)"
-        : !storeReady
-          ? "SPLASH (storeReady===false)"
-          : "APP (RunningCoach)";
-  dlog("render gate:", gate);
 
   if (session === undefined) return <Splash />;
   if (!session) return <LoginScreen />;

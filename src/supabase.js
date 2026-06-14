@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { dlog } from "./oauthDebug"; // TEMP diagnostics
 
 // The publishable (anon) key is PUBLIC-safe: it grants nothing on its own.
 // Row-Level Security on the `app_state` / `profiles` tables is the real
@@ -26,23 +25,11 @@ const SUPABASE_ANON_KEY =
 const REQUEST_TIMEOUT_MS = 15000;
 
 function fetchWithTimeout(input, init = {}) {
-  // TEMP diagnostics: name the request by its URL path so we can see in the
-  // console exactly which Supabase call starts, finishes, or times out.
-  let label = "";
-  try {
-    const raw = typeof input === "string" ? input : input?.url ?? String(input);
-    label = `${init.method || "GET"} ${new URL(raw).pathname}`;
-  } catch {
-    label = String(input);
-  }
-  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  dlog("fetch START", label);
-
   const controller = new AbortController();
-  const timer = setTimeout(() => {
-    dlog("fetch TIMEOUT — aborting", label, `after ${REQUEST_TIMEOUT_MS}ms`);
-    controller.abort(new DOMException("Request timed out", "TimeoutError"));
-  }, REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(
+    () => controller.abort(new DOMException("Request timed out", "TimeoutError")),
+    REQUEST_TIMEOUT_MS
+  );
   // Forward an upstream abort (e.g. a caller-supplied signal) to our controller
   // so we don't override the library's own cancellation.
   const upstream = init.signal;
@@ -50,25 +37,13 @@ function fetchWithTimeout(input, init = {}) {
     if (upstream.aborted) controller.abort(upstream.reason);
     else upstream.addEventListener("abort", () => controller.abort(upstream.reason), { once: true });
   }
-  return fetch(input, { ...init, signal: controller.signal })
-    .then((res) => {
-      const ms = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt);
-      dlog("fetch DONE", label, "status", res.status, `${ms}ms`);
-      return res;
-    })
-    .catch((err) => {
-      const ms = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt);
-      dlog("fetch ERROR", label, err?.name || err, `${ms}ms`);
-      throw err;
-    })
-    .finally(() => clearTimeout(timer));
+  return fetch(input, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  // TEMP: `debug: true` turns on supabase-js's internal auth logs
-  // (#_initialize, #_acquireLock, #_recoverAndRefresh, etc.) so we can see
-  // exactly where the OAuth redirect flow stalls. Remove once the bug is found.
-  auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true, debug: true },
+  auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true },
   global: { fetch: fetchWithTimeout },
 });
 
