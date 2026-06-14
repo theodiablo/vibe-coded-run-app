@@ -84,12 +84,14 @@ export default function App() {
     let cancelled = false;
     if (session) {
       if (loadedUidRef.current === session.user.id) return; // already loaded
-      loadedUidRef.current = session.user.id;
       setStoreReady(false);
       dlog("initStore() START for user", session.user.id);
       initStore(session.user.id).then(() => {
         dlog("initStore() DONE; setting storeReady=true");
-        if (!cancelled) setStoreReady(true);
+        if (!cancelled) {
+          loadedUidRef.current = session.user.id;
+          setStoreReady(true);
+        }
       });
     } else {
       // Signed out: drop the in-memory store and forget which user it held.
