@@ -1,0 +1,64 @@
+import { describe, it, expect } from "vitest";
+import { p2, fmt, ymd, estMin, cleanDesc } from "./format";
+
+describe("p2", () => {
+  it("zero-pads single digits", () => {
+    expect(p2(5)).toBe("05");
+    expect(p2(12)).toBe("12");
+  });
+});
+
+describe("fmt.pace", () => {
+  it("formats seconds-per-km as m:ss", () => {
+    expect(fmt.pace(330)).toBe("5:30");
+    expect(fmt.pace(65)).toBe("1:05");
+  });
+  it("returns placeholder for missing/zero", () => {
+    expect(fmt.pace(0)).toBe("--:--");
+    expect(fmt.pace(null)).toBe("--:--");
+  });
+});
+
+describe("fmt.dur", () => {
+  it("formats under an hour as m:ss", () => {
+    expect(fmt.dur(330)).toBe("5:30");
+  });
+  it("formats over an hour as h:mm:ss", () => {
+    expect(fmt.dur(3661)).toBe("1:01:01");
+    expect(fmt.dur(7200)).toBe("2:00:00");
+  });
+  it("returns placeholder for falsy", () => {
+    expect(fmt.dur(0)).toBe("--");
+  });
+});
+
+describe("ymd", () => {
+  it("formats a date using local calendar parts (no UTC shift)", () => {
+    // Construct via local Date parts; ymd must echo them back regardless of TZ.
+    const d = new Date(2026, 0, 5, 0, 0, 0); // 5 Jan 2026, local midnight
+    expect(ymd(d)).toBe("2026-01-05");
+  });
+});
+
+describe("estMin", () => {
+  it("estimates minutes from km and pace", () => {
+    expect(estMin(10, 360)).toBe("60 min");
+  });
+  it("returns empty string when inputs missing", () => {
+    expect(estMin(0, 360)).toBe("");
+    expect(estMin(10, 0)).toBe("");
+  });
+});
+
+describe("cleanDesc", () => {
+  it("strips a trailing slot-label estimate", () => {
+    expect(cleanDesc("Easy run · ~30 min")).toBe("Easy run");
+    expect(cleanDesc("Long run · 90 min")).toBe("Long run");
+  });
+  it("leaves descriptions without a trailing estimate untouched", () => {
+    expect(cleanDesc("Tempo run — comfortably hard")).toBe("Tempo run — comfortably hard");
+  });
+  it("handles nullish input", () => {
+    expect(cleanDesc(null)).toBe("");
+  });
+});
