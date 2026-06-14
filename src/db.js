@@ -18,16 +18,25 @@ export async function initStore(uid) {
   // cache, otherwise a reload would silently discard unsaved changes.
   await flushNow();
   userId = uid;
-  const { data, error } = await supabase
-    .from("app_state")
-    .select("data")
-    .eq("user_id", uid)
-    .maybeSingle();
-  if (error) {
-    console.error("app_state load failed", error);
+  // Never let a failed/aborted first load reject out of initStore: App.jsx
+  // gates rendering on this resolving (storeReady), so a thrown error here
+  // would strand the user on the splash spinner. Fall back to an empty cache
+  // and let the app load; the next successful read/write reconciles it.
+  try {
+    const { data, error } = await supabase
+      .from("app_state")
+      .select("data")
+      .eq("user_id", uid)
+      .maybeSingle();
+    if (error) {
+      console.error("app_state load failed", error);
+      cache = {};
+    } else {
+      cache = data && data.data ? data.data : {};
+    }
+  } catch (err) {
+    console.error("app_state load threw", err);
     cache = {};
-  } else {
-    cache = data && data.data ? data.data : {};
   }
 }
 
