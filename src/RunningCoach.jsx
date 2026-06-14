@@ -167,7 +167,7 @@ function HRTarget({type, settings, openSettings}) {
 }
 
 // ── plan builder ───────────────────────────────────────────────────
-function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
+function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation) {
   if (!goalSec) goalSec = 7200;
   if (!distanceKm) distanceKm = 20;
   if (!planSessions) planSessions = [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}];
@@ -177,7 +177,15 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
   const toMon = dow === 1 ? 0 : dow === 0 ? 1 : (8 - dow) % 7;
   const w0    = new Date(today); w0.setDate(today.getDate() + toMon);
   const N     = Math.max(4, Math.min(24, Math.floor((race - w0) / 86400000 / 7)));
-  const tgt   = Math.round(goalSec / distanceKm);
+  // Training paces target the *flat-equivalent* effort: finishing a hilly course
+  // in the goal time needs the flat fitness of a faster runner, so each metre of
+  // climb stretches the effective distance (same VERT_COST grade-adjust as the
+  // predictions). On a flat course this collapses to goalSec / distanceKm.
+  const gain      = raceElevation || 0;
+  const flatEqDist = distanceKm + VERT_COST * gain / 1000;
+  const tgt       = Math.round(goalSec / flatEqDist);
+  // Real average ground pace on the course — what the race-day card should show.
+  const racePace = Math.round(goalSec / distanceKm);
   const easy  = Math.round(tgt * 1.25);
   const tmpo  = Math.round(tgt * 1.05);
   const sorted = planSessions.slice().sort((a, b) => b.minutes - a.minutes);
@@ -256,11 +264,13 @@ function buildPlan(raceDate, goalSec, planSessions, distanceKm) {
     phase: "RACE",
     sessions: [{
       id: "race", date: raceDate, type: "RACE",
-      desc: "Race Day — " + distanceKm + "km! Everything you trained for.",
-      km: distanceKm, pace: tgt, done: false, runId: null,
+      desc: "Race Day — " + distanceKm + "km"
+        + (gain > 0 ? " · +" + Math.round(gain) + "m climb" : "")
+        + "! Everything you trained for.",
+      km: distanceKm, pace: racePace, done: false, runId: null,
     }],
   });
-  return {raceDate, goalSec, distanceKm, targetPace: tgt, planSessions, weeks};
+  return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt, planSessions, weeks};
 }
 
 // ── session configurator ───────────────────────────────────────────
@@ -798,7 +808,7 @@ function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab, openSettin
         <div className="bg-slate-800 rounded-xl p-5 text-center space-y-3">
           <p className="text-slate-400 text-sm">No training plan yet. Ready to get started?</p>
           <button
-            onClick={() => savePlan(buildPlan(settings.raceDate, settings.goalSec, settings.planSessions, settings.distanceKm))}
+            onClick={() => savePlan(buildPlan(settings.raceDate, settings.goalSec, settings.planSessions, settings.distanceKm, settings.raceElevation))}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors">
             Generate My Plan
           </button>
@@ -1052,6 +1062,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
   const [draftDate,    setDraftDate]   = useState(settings.raceDate);
   const [draftGoal,    setDraftGoal]   = useState(settings.goalSec);
   const [draftDist,    setDraftDist]   = useState(settings.distanceKm || 20);
+  const [draftElev,    setDraftElev]   = useState(settings.raceElevation || 0);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   // Re-expand the current week whenever the plan changes (e.g. regenerate),
@@ -1068,8 +1079,10 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
     const date = o.raceDate     || settings.raceDate;
     const goal = o.goalSec      || settings.goalSec;
     const dist = o.distanceKm   || settings.distanceKm || 20;
-    saveSettings(Object.assign({}, settings, {planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist}));
-    savePlan(buildPlan(date, goal, ps, dist));
+    // 0 is a valid climb, so coalesce on nullish rather than falsy.
+    const elev = o.raceElevation ?? settings.raceElevation ?? 0;
+    saveSettings(Object.assign({}, settings, {planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: elev}));
+    savePlan(buildPlan(date, goal, ps, dist, elev));
     setEdit(false); setConfirmRegen(false);
   };
 
@@ -1089,6 +1102,13 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           <input type="number" min="1" max="200" step="0.1" defaultValue={settings.distanceKm || 20}
             onChange={e => saveSettings(Object.assign({}, settings, {distanceKm: parseFloat(e.target.value) || 20}))}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+          <input type="number" min="0" max="10000" step="10" defaultValue={settings.raceElevation || 0}
+            onChange={e => saveSettings(Object.assign({}, settings, {raceElevation: Math.max(0, parseInt(e.target.value) || 0)}))}
+            className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+          <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">
@@ -1175,7 +1195,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700" style={{width: pct + "%"}}/>
         </div>
         <div className="flex justify-between text-xs text-slate-600 mt-2">
-          <span>{(plan.distanceKm || 20) + "km · sub " + fmt.dur(plan.goalSec)}</span>
+          <span>{(plan.distanceKm || 20) + "km" + (plan.raceElevation > 0 ? " · +" + Math.round(plan.raceElevation) + "m" : "") + " · sub " + fmt.dur(plan.goalSec)}</span>
           <span>{"Race: " + fmt.sht(plan.raceDate)}</span>
         </div>
       </div>
@@ -1185,6 +1205,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
           setDraftDate(settings.raceDate);
           setDraftGoal(settings.goalSec);
           setDraftDist(settings.distanceKm || 20);
+          setDraftElev(settings.raceElevation || 0);
           setEdit(v => !v);
         }}
         className={"w-full mb-3 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs transition-colors border " + (editSessions ? "bg-orange-500/10 border-orange-500/40" : "bg-slate-800 border-slate-700 hover:border-slate-500")}>
@@ -1211,6 +1232,13 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
             </div>
           </div>
           <div>
+            <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+            <input type="number" min="0" max="10000" step="10" value={draftElev}
+              onChange={e => setDraftElev(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400"/>
+            <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+          </div>
+          <div>
             <label className="text-xs text-slate-400 block mb-1.5">
               {"Goal time: "}
               <span className="text-white font-semibold">{fmt.dur(draftGoal)}</span>
@@ -1225,7 +1253,7 @@ function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess
             <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
             <SessionConfigurator sessions={draft} onChange={setDraft}/>
           </div>
-          <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20})}
+          <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
             disabled={!draftDate || !draftDist}
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
             Regenerate plan
@@ -1448,14 +1476,14 @@ function LogView({addRuns, onDone}) {
 // ══════════════════════════════════════════════════════════════════
 //  STATS VIEW
 // ══════════════════════════════════════════════════════════════════
-function StatsView({runs, settings, saveSettings}) {
+function StatsView({runs, settings}) {
   return (
     <div className="max-w-lg mx-auto">
       <div className="px-4 pt-6 pb-0">
         <h2 className="text-xl font-bold">Stats</h2>
       </div>
       <Overview runs={runs}/>
-      <RacePredictions runs={runs} settings={settings} saveSettings={saveSettings}/>
+      <RacePredictions runs={runs} settings={settings}/>
     </div>
   );
 }
@@ -1611,7 +1639,7 @@ function Overview({runs}) {
 // ══════════════════════════════════════════════════════════════════
 //  RACE PREDICTIONS — project finish times from logged runs
 // ══════════════════════════════════════════════════════════════════
-function RacePredictions({runs, settings, saveSettings}) {
+function RacePredictions({runs, settings}) {
   const [period, setPeriod] = useState("12w");
 
   // Same period filter the Overview uses, so both halves of Stats agree.
@@ -1704,21 +1732,6 @@ function RacePredictions({runs, settings, saveSettings}) {
             })}
           </div>
 
-          {raceD && (
-            <div className="bg-slate-800 rounded-xl p-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-slate-200">Target race elevation</p>
-                <p className="text-slate-500 text-xs">Total climb on your {raceD} km race-day course</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="number" min="0" max="10000" step="10" defaultValue={raceGain || ""} placeholder="0"
-                  onChange={e => saveSettings(Object.assign({}, settings, {raceElevation: Math.max(0, parseInt(e.target.value) || 0)}))}
-                  className="w-20 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white text-sm text-right focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-                <span className="text-slate-400 text-sm">m</span>
-              </div>
-            </div>
-          )}
-
           <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
             <p className="text-slate-400 text-xs">
               <span className="text-orange-400 font-semibold">Best-effort</span> projects your strongest run
@@ -1739,7 +1752,7 @@ function RacePredictions({runs, settings, saveSettings}) {
             )}
             <p className="text-slate-600 text-xs">
               Runs are grade-adjusted for elevation gain. Times are for a flat course
-              {raceGain > 0 ? "; the race-day row includes its " + Math.round(raceGain) + " m climb." : ", except the race-day row once you set its climb above."}
+              {raceGain > 0 ? "; the race-day row includes its " + Math.round(raceGain) + " m climb." : ", except the race-day row once you set its climb in the Plan settings."}
             </p>
           </div>
         </>
