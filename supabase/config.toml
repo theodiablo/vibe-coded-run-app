@@ -183,6 +183,12 @@ minimum_password_length = 12
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = "lower_upper_letters_digits"
+# Leaked-password protection (HaveIBeenPwned) has NO config.toml key — the CLI
+# (v2.105.0) rejects `enable_leaked_password_protection` and it is not part of
+# the config-sync set, so `config push` can't set it. Enable it once in the
+# dashboard: Authentication → Providers → Email → "Prevent use of leaked
+# passwords" (also surfaced under Auth → Policies). Clears the
+# `auth_leaked_password_protection` advisor warning.
 
 # Configure passkey sign-ins.
 # [auth.passkey]
