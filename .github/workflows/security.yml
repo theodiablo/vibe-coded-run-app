@@ -1,0 +1,42 @@
+name: Security scan (Semgrep)
+
+# Static analysis gate: runs on every PR and on pushes to main so insecure
+# patterns are caught before they ship. Independent of the deploy workflow.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.166.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Network-independent baseline that also locks in the dangerous patterns
+      # removed during the security cleanup. Fails the job on any finding.
+      - name: Local baseline rules
+        run: semgrep scan --error --config .semgrep/rules.yml .
+
+      # Broad coverage from the hosted rule packs (no Semgrep account needed).
+      # Blocks the PR on ERROR-severity findings.
+      - name: Registry rule packs
+        run: >-
+          semgrep scan --error
+          --config p/javascript
+          --config p/react
+          --config p/secrets
+          --config p/owasp-top-ten
+          .
