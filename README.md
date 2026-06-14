@@ -1,12 +1,22 @@
 # Running Coach
 
-A standalone training-log + AI coach app for 20K race prep. Built with Vite + React + Tailwind. All data (runs, plan, settings, API key) is stored in the browser's `localStorage` — nothing is sent to a server except direct calls to Anthropic's API from the Coach tab.
+A training-log app for 20K race prep, built with Vite + React + Tailwind.
+Sign-in and per-user data (runs, plan, settings) are handled by Supabase;
+each signed-in user's data lives in their own row, protected by row-level
+security.
 
 ## Develop
 
 ```sh
 npm install
 npm run dev
+```
+
+## Test
+
+```sh
+npm test         # run the Vitest suite once
+npm run test:watch
 ```
 
 ## Build
@@ -16,12 +26,20 @@ npm run build   # outputs to dist/
 npm run preview
 ```
 
-## Claude API key
+## Configuration
 
-The Coach tab calls `api.anthropic.com` directly from the browser using the
-`anthropic-dangerous-direct-browser-access` header. Each user pastes their own
-API key (from console.anthropic.com) via the "Set API key" button in the header;
-it's stored only in that browser's `localStorage`.
+The Supabase URL and **publishable (anon)** key are read from `VITE_SUPABASE_URL`
+and `VITE_SUPABASE_ANON_KEY` at build time, with public-safe defaults baked in so
+a static build works without extra config. The anon key grants nothing on its
+own — row-level security is the real boundary, and the secret key must never be
+committed.
+
+## Security
+
+- A Content-Security-Policy is set in `index.html` as defence-in-depth.
+- `.github/workflows/security.yml` runs Semgrep on every PR and push to `main`.
+- Password policy lives in `supabase/config.toml` for local dev; the live
+  project's policy must be set in the Supabase dashboard.
 
 ## Deployment (S3 + CloudFront via GitHub Actions)
 
