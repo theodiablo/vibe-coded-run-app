@@ -545,7 +545,7 @@ export default function RunningCoach({ onSignOut }) {
   const [runs,        setRuns]        = useState([]);
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
-    raceDate:"2026-11-01", goalSec:7200, distanceKm:20, name:"",
+    raceDate:"2026-11-01", goalSec:7200, distanceKm:20, raceElevation:0, name:"",
     age:0, maxHR:0, restHR:60, hrMethod:"karvonen",
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
@@ -1448,14 +1448,14 @@ function LogView({addRuns, onDone}) {
 // ══════════════════════════════════════════════════════════════════
 //  STATS VIEW
 // ══════════════════════════════════════════════════════════════════
-function StatsView({runs, settings}) {
+function StatsView({runs, settings, saveSettings}) {
   return (
     <div className="max-w-lg mx-auto">
       <div className="px-4 pt-6 pb-0">
         <h2 className="text-xl font-bold">Stats</h2>
       </div>
       <Overview runs={runs}/>
-      <RacePredictions runs={runs} settings={settings}/>
+      <RacePredictions runs={runs} settings={settings} saveSettings={saveSettings}/>
     </div>
   );
 }
@@ -1611,7 +1611,7 @@ function Overview({runs}) {
 // ══════════════════════════════════════════════════════════════════
 //  RACE PREDICTIONS — project finish times from logged runs
 // ══════════════════════════════════════════════════════════════════
-function RacePredictions({runs, settings}) {
+function RacePredictions({runs, settings, saveSettings}) {
   const [period, setPeriod] = useState("12w");
 
   // Same period filter the Overview uses, so both halves of Stats agree.
@@ -1638,6 +1638,11 @@ function RacePredictions({runs, settings}) {
   const raceD = settings.distanceKm;
   if (raceD && !dists.includes(raceD)) dists.push(raceD);
   dists.sort((a, b) => a - b);
+
+  // Climb on the race-day course. Applied only to the race-day row — the other
+  // distances stay flat hypotheticals — by projecting to the flat-equivalent
+  // distance, the same grade-adjustment used on the input runs.
+  const raceGain = settings.raceElevation || 0;
 
   if (!runs.length) return null;
 
@@ -1666,14 +1671,18 @@ function RacePredictions({runs, settings}) {
         <>
           <div className="space-y-3">
             {dists.map(d => {
-              const bt = riegel(best.durationSec, best.km, d);
-              const ht = hrOk ? riegel(hr.durationSec, hr.km, d) : null;
+              // Race-day row carries its course climb; others are flat.
+              const isRace = d === raceD;
+              const dEq = isRace ? d + VERT_COST * raceGain / 1000 : d;
+              const bt = riegel(best.durationSec, best.km, dEq);
+              const ht = hrOk ? riegel(hr.durationSec, hr.km, dEq) : null;
               return (
                 <div key={d} className="bg-slate-800 rounded-xl p-4">
                   <div className="flex items-baseline justify-between mb-3">
                     <p className="font-semibold">
                       {d} km
-                      {d === raceD && <span className="ml-2 text-xs text-orange-400 font-normal">race day</span>}
+                      {isRace && <span className="ml-2 text-xs text-orange-400 font-normal">race day</span>}
+                      {isRace && raceGain > 0 && <span className="ml-2 text-xs text-slate-500 font-normal">incl. {Math.round(raceGain)} m climb</span>}
                     </p>
                   </div>
                   <div className={"grid gap-3 " + (ht ? "grid-cols-2" : "grid-cols-1")}>
@@ -1695,6 +1704,21 @@ function RacePredictions({runs, settings}) {
             })}
           </div>
 
+          {raceD && (
+            <div className="bg-slate-800 rounded-xl p-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-200">Target race elevation</p>
+                <p className="text-slate-500 text-xs">Total climb on your {raceD} km race-day course</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="number" min="0" max="10000" step="10" defaultValue={raceGain || ""} placeholder="0"
+                  onChange={e => saveSettings(Object.assign({}, settings, {raceElevation: Math.max(0, parseInt(e.target.value) || 0)}))}
+                  className="w-20 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white text-sm text-right focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
+                <span className="text-slate-400 text-sm">m</span>
+              </div>
+            </div>
+          )}
+
           <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
             <p className="text-slate-400 text-xs">
               <span className="text-orange-400 font-semibold">Best-effort</span> projects your strongest run
@@ -1713,7 +1737,10 @@ function RacePredictions({runs, settings}) {
                 Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.
               </p>
             )}
-            <p className="text-slate-600 text-xs">Runs are grade-adjusted for elevation gain; predictions are for a flat course.</p>
+            <p className="text-slate-600 text-xs">
+              Runs are grade-adjusted for elevation gain. Times are for a flat course
+              {raceGain > 0 ? "; the race-day row includes its " + Math.round(raceGain) + " m climb." : ", except the race-day row once you set its climb above."}
+            </p>
           </div>
         </>
       )}
