@@ -53,3 +53,63 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
+
+      # Clickjacking protection has to be a real response header — frame-ancestors
+      # and X-Frame-Options are ignored when set via a <meta> CSP. Manage them as a
+      # CloudFront Response Headers Policy attached to the distribution. Idempotent:
+      # creates/updates the policy and only re-attaches when not already set.
+      - name: Ensure CloudFront security response headers
+        env:
+          DIST_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
+          POLICY_NAME: run-app-security-headers
+        run: |
+          set -euo pipefail
+
+          # frame-ancestors 'none' restricts ONLY framing — with no default-src it
+          # does not constrain script/connect/etc., so it won't break the app.
+          jq -n --arg csp "frame-ancestors 'none'" '{
+            Name: env.POLICY_NAME,
+            Comment: "run-app: clickjacking protection (managed by deploy.yml)",
+            SecurityHeadersConfig: {
+              FrameOptions: { Override: true, FrameOption: "DENY" },
+              ContentSecurityPolicy: { Override: true, ContentSecurityPolicy: $csp }
+            }
+          }' > /tmp/rhp.json
+
+          policy_id=$(aws cloudfront list-response-headers-policies --type custom \
+            --query "ResponseHeadersPolicyList.Items[?ResponseHeadersPolicy.ResponseHeadersPolicyConfig.Name=='${POLICY_NAME}'].ResponseHeadersPolicy.Id | [0]" \
+            --output text)
+
+          if [ "$policy_id" = "None" ] || [ -z "$policy_id" ]; then
+            echo "Creating response headers policy ${POLICY_NAME}..."
+            policy_id=$(aws cloudfront create-response-headers-policy \
+              --response-headers-policy-config file:///tmp/rhp.json \
+              --query 'ResponseHeadersPolicy.Id' --output text)
+          else
+            echo "Updating response headers policy ${POLICY_NAME} (${policy_id})..."
+            rhp_etag=$(aws cloudfront get-response-headers-policy --id "$policy_id" \
+              --query 'ETag' --output text)
+            aws cloudfront update-response-headers-policy \
+              --id "$policy_id" --if-match "$rhp_etag" \
+              --response-headers-policy-config file:///tmp/rhp.json >/dev/null
+          fi
+          echo "Policy id: ${policy_id}"
+
+          # Attach to the distribution's default cache behavior (skip if unchanged).
+          aws cloudfront get-distribution-config --id "$DIST_ID" > /tmp/dist.json
+          dist_etag=$(jq -r '.ETag' /tmp/dist.json)
+          current=$(jq -r '.DistributionConfig.DefaultCacheBehavior.ResponseHeadersPolicyId // ""' /tmp/dist.json)
+
+          if [ "$current" = "$policy_id" ]; then
+            echo "Distribution already references policy ${policy_id}; nothing to do."
+            exit 0
+          fi
+
+          jq --arg pid "$policy_id" \
+            '.DistributionConfig.DefaultCacheBehavior.ResponseHeadersPolicyId = $pid | .DistributionConfig' \
+            /tmp/dist.json > /tmp/dist-config.json
+
+          aws cloudfront update-distribution \
+            --id "$DIST_ID" --if-match "$dist_etag" \
+            --distribution-config file:///tmp/dist-config.json >/dev/null
+          echo "Attached policy ${policy_id} to distribution ${DIST_ID}."

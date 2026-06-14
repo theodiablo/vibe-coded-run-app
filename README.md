@@ -31,7 +31,7 @@ and syncs `dist/` to an S3 bucket, then invalidates the CloudFront distribution.
 Configure these repository secrets:
 
 - `AWS_REGION` — e.g. `eu-west-3`
-- `AWS_DEPLOY_ROLE_ARN` — IAM role ARN assumable via OIDC (with permissions to write to the S3 bucket and create CloudFront invalidations)
+- `AWS_DEPLOY_ROLE_ARN` — IAM role ARN assumable via OIDC. Needs permissions to write to the S3 bucket, create CloudFront invalidations, and manage the security response headers policy: `cloudfront:CreateInvalidation`, `cloudfront:ListResponseHeadersPolicies`, `cloudfront:CreateResponseHeadersPolicy`, `cloudfront:GetResponseHeadersPolicy`, `cloudfront:UpdateResponseHeadersPolicy`, `cloudfront:GetDistributionConfig`, `cloudfront:UpdateDistribution`
 - `S3_BUCKET_NAME` — target bucket name
 - `CLOUDFRONT_DISTRIBUTION_ID` — distribution to invalidate after each deploy
 
