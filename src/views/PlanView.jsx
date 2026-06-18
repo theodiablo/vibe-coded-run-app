@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Check, ChevronRight, Download, RotateCcw } from "lucide-react";
+import { Check, ChevronRight, Download, Plus, RotateCcw } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { HRTarget } from "../components/HRTarget";
 
-export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData, openSettings}) {
+export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData, openSettings, goLog}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -269,6 +269,14 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
                           <p className="text-xs text-slate-600 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
                         </div>
+                        {!s.done && (
+                          <button
+                            onClick={() => goLog({date: s.date, type: s.type, km: s.km, pace: s.pace})}
+                            className="flex-shrink-0 self-center p-1.5 rounded-lg text-slate-500 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
+                            title="Log this run">
+                            <Plus size={15}/>
+                          </button>
+                        )}
                       </div>
                     );
                   })}

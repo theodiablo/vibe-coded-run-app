@@ -25,6 +25,7 @@ export default function RunningCoach({ onSignOut }) {
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState(null);
+  const [logPrefill,  setLogPrefill]  = useState(null);
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
   const [showSettings,setShowSettings]= useState(false);
@@ -116,7 +117,8 @@ export default function RunningCoach({ onSignOut }) {
     </div>
   );
 
-  const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, openSettings: () => setShowSettings(true)};
+  const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); };
+  const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, openSettings: () => setShowSettings(true)};
   const TABS   = [
     {id:"dash",    label:"Home",    Icon:Activity},
     {id:"plan",    label:"Plan",    Icon:Calendar},
@@ -159,7 +161,7 @@ export default function RunningCoach({ onSignOut }) {
       <div style={{paddingTop:44, paddingBottom:64}}>
         {tab === "dash"  && <Dashboard  {...shared}/>}
         {tab === "plan"  && <PlanView   {...shared}/>}
-        {tab === "log"   && <LogView    {...shared} onDone={() => setTab("dash")}/>}
+        {tab === "log"   && <LogView    {...shared} prefill={logPrefill} onDone={() => { setLogPrefill(null); setTab("dash"); }}/>}
         {tab === "history" && <HistoryView {...shared}/>}
         {tab === "stats" && <StatsView  {...shared}/>}
       </div>
