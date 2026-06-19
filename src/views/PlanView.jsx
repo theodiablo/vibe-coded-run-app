@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Check, ChevronRight, Download, Plus, RotateCcw } from "lucide-react";
+import { Check, ChevronRight, Plus, RotateCcw } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { HRTarget } from "../components/HRTarget";
 
-export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, exportData, openSettings, goLog}) {
+export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, openSettings, goLog}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -124,10 +124,6 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
       <div className="flex justify-between items-center mt-4 mb-4">
         <h2 className="text-xl font-bold">Training Plan</h2>
         <div className="flex gap-1 items-center">
-          <button onClick={exportData}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-            <Download size={16}/>
-          </button>
           {confirmRegen ? (
             <div className="flex gap-1">
               <button onClick={() => setConfirmRegen(false)}
