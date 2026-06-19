@@ -51,9 +51,14 @@ falls back to an empty cache so the app still renders.
   (`src/utils/format.js`) for durations/paces. Parse local dates as
   `new Date(s + "T00:00:00")`.
 - First-run onboarding lives in `src/modals/OnboardingWizard.jsx` (Name → Plan →
-  Heart rate). It's gated by `settings.onboarded` (and legacy `settings.name`);
-  set `onboarded: true` whenever you complete or dismiss a first-run flow so it
-  doesn't re-trigger.
+  Heart rate). It's gated in `RunningCoach.jsx` by `settings.onboarded` (and legacy
+  `settings.name`); set `onboarded: true` whenever you complete or dismiss a
+  first-run flow so it doesn't re-trigger.
+- Onboarding **persists per-step**: each step saves its entered data plus an
+  `onboardStep` index via `onSaveProgress`, so a mid-flow refresh resumes on the
+  same step. The gate treats a set `onboardStep` (with `!onboarded`) as "in
+  progress, resume" — so don't key first-run detection on `name` alone, and clear
+  the marker (`onboardStep: 0`) on complete/skip.
 - `LogView` accepts a `prefill` prop and an `onSaved` callback (fires only on a
   real manual save, not CSV import/cancel) — used to log a run straight from a
   plan session and auto-tick it.
