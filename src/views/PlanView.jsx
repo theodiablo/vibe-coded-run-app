@@ -3,6 +3,7 @@ import { Check, ChevronRight, Plus, RotateCcw } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { SessionConfigurator } from "../components/SessionConfigurator";
+import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 
 export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, openSettings, goLog}) {
@@ -23,7 +24,7 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
   const [draft,        setDraft]       = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
   const [draftDate,    setDraftDate]   = useState(settings.raceDate);
   const [draftGoal,    setDraftGoal]   = useState(settings.goalSec);
-  const [draftDist,    setDraftDist]   = useState(settings.distanceKm || 20);
+  const [draftDist,    setDraftDist]   = useState(settings.distanceKm || "");
   const [draftElev,    setDraftElev]   = useState(settings.raceElevation || 0);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
@@ -55,34 +56,25 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         <p className="text-slate-400 text-sm">Configure your goal and available training days.</p>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
-          <input type="date" defaultValue={settings.raceDate}
+          <input type="date" value={settings.raceDate || ""}
             onChange={e => saveSettings({...settings, raceDate: e.target.value})}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-          <input type="number" min="1" max="200" step="0.1" defaultValue={settings.distanceKm || 20}
-            onChange={e => saveSettings({...settings, distanceKm: parseFloat(e.target.value) || 20})}
-            className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+          <input type="number" min="1" max="200" step="0.1" value={settings.distanceKm || ""} placeholder="e.g. 21.1"
+            onChange={e => { const n = parseFloat(e.target.value); saveSettings({...settings, distanceKm: isNaN(n) ? "" : n}); }}
+            className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
-          <input type="number" min="0" max="10000" step="10" defaultValue={settings.raceElevation || 0}
-            onChange={e => saveSettings({...settings, raceElevation: Math.max(0, parseInt(e.target.value) || 0)})}
-            className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+          <input type="number" min="0" max="10000" step="10" value={settings.raceElevation ?? ""} placeholder="0"
+            onChange={e => { const v = e.target.value; saveSettings({...settings, raceElevation: v === "" ? "" : Math.max(0, parseInt(v) || 0)}); }}
+            className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
           <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
         </div>
-        <div>
-          <label className="text-xs text-slate-400 block mb-1.5">
-            {"Goal time: "}
-            <span className="text-white font-semibold">{fmt.dur(settings.goalSec)}</span>
-            <span className="text-slate-500">{settings.distanceKm > 0 ? "  ·  " + fmt.pace(Math.round(settings.goalSec / settings.distanceKm)) + "/km" : ""}</span>
-          </label>
-          <input type="range" min={20} max={360} step={5} defaultValue={Math.round((settings.goalSec || 7200) / 60)}
-            onChange={e => saveSettings({...settings, goalSec: parseInt(e.target.value) * 60})}
-            className="w-full accent-orange-500"/>
-          <div className="flex justify-between text-xs text-slate-600 mt-1"><span>20min</span><span>6h00</span></div>
-        </div>
+        <GoalConfigurator distanceKm={settings.distanceKm} goalSec={settings.goalSec}
+          onChange={g => saveSettings({...settings, goalSec: g})}/>
         <div>
           <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
@@ -95,7 +87,8 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           </button>
         )}
         <button onClick={() => genPlan({planSessions: draft})}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3.5 rounded-xl font-semibold transition-colors">
+          disabled={!settings.raceDate || !settings.distanceKm}
+          className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-3.5 rounded-xl font-semibold transition-colors">
           Generate My Training Plan
         </button>
       </div>
@@ -163,7 +156,7 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           setDraft(ps.slice());
           setDraftDate(settings.raceDate);
           setDraftGoal(settings.goalSec);
-          setDraftDist(settings.distanceKm || 20);
+          setDraftDist(settings.distanceKm || "");
           setDraftElev(settings.raceElevation || 0);
           setEdit(v => !v);
         }}
@@ -185,29 +178,19 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
             </div>
             <div>
               <label className="text-xs text-slate-400 block mb-1.5">Distance (km)</label>
-              <input type="number" min="1" max="200" step="0.1" value={draftDist}
-                onChange={e => setDraftDist(parseFloat(e.target.value) || 0)}
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400"/>
+              <input type="number" min="1" max="200" step="0.1" value={draftDist} placeholder="e.g. 21.1"
+                onChange={e => { const n = parseFloat(e.target.value); setDraftDist(isNaN(n) ? "" : n); }}
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
             </div>
           </div>
           <div>
             <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
-            <input type="number" min="0" max="10000" step="10" value={draftElev}
-              onChange={e => setDraftElev(Math.max(0, parseInt(e.target.value) || 0))}
-              className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400"/>
+            <input type="number" min="0" max="10000" step="10" value={draftElev} placeholder="0"
+              onChange={e => { const v = e.target.value; setDraftElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); }}
+              className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
             <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
           </div>
-          <div>
-            <label className="text-xs text-slate-400 block mb-1.5">
-              {"Goal time: "}
-              <span className="text-white font-semibold">{fmt.dur(draftGoal)}</span>
-              <span className="text-slate-500">{draftDist > 0 ? "  ·  " + fmt.pace(Math.round(draftGoal / draftDist)) + "/km" : ""}</span>
-            </label>
-            <input type="range" min={20} max={360} step={5} value={Math.round(draftGoal / 60)}
-              onChange={e => setDraftGoal(parseInt(e.target.value) * 60)}
-              className="w-full accent-orange-500"/>
-            <div className="flex justify-between text-xs text-slate-600 mt-1"><span>20min</span><span>6h00</span></div>
-          </div>
+          <GoalConfigurator distanceKm={draftDist} goalSec={draftGoal} onChange={setDraftGoal}/>
           <div>
             <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
             <SessionConfigurator sessions={draft} onChange={setDraft}/>

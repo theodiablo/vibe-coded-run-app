@@ -20,7 +20,7 @@ export default function RunningCoach({ onSignOut }) {
   const [runs,        setRuns]        = useState([]);
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
-    raceDate:"2026-11-01", goalSec:7200, distanceKm:20, raceElevation:0, name:"",
+    raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
     age:0, maxHR:0, restHR:60, hrMethod:"karvonen", onboarded:false,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
