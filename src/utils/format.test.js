@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { p2, fmt, ymd, estMin, cleanDesc } from "./format";
+import { p2, fmt, ymd, estMin, cleanDesc, parseDur } from "./format";
 
 describe("p2", () => {
   it("zero-pads single digits", () => {
@@ -29,6 +29,29 @@ describe("fmt.dur", () => {
   });
   it("returns placeholder for falsy", () => {
     expect(fmt.dur(0)).toBe("--");
+  });
+});
+
+describe("parseDur", () => {
+  it("parses m:ss goal times and paces", () => {
+    expect(parseDur("50:00")).toBe(3000);
+    expect(parseDur("5:30")).toBe(330);
+  });
+  it("parses h:mm:ss times", () => {
+    expect(parseDur("1:45:00")).toBe(6300);
+  });
+  it("round-trips with fmt.dur / fmt.pace", () => {
+    expect(parseDur(fmt.dur(3000))).toBe(3000);
+    expect(parseDur(fmt.pace(312))).toBe(312);
+  });
+  it("tolerates surrounding whitespace", () => {
+    expect(parseDur("  50:00 ")).toBe(3000);
+  });
+  it("returns null for blank or non-numeric input", () => {
+    expect(parseDur("")).toBeNull();
+    expect(parseDur(null)).toBeNull();
+    expect(parseDur("5:")).toBeNull();
+    expect(parseDur("abc")).toBeNull();
   });
 });
 

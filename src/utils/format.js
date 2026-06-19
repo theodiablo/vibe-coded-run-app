@@ -13,6 +13,19 @@ export const fmt = {
   sht:  s => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "",
 };
 
+// Parse a colon-separated time string into seconds — accepts a goal time
+// ("m:ss" / "h:mm:ss") or a pace ("m:ss" per km). Each segment carries over at
+// 60, so it round-trips with fmt.dur / fmt.pace. Returns null for blank or
+// non-numeric input so callers can ignore an incomplete edit rather than
+// snapping the value to 0.
+export const parseDur = str => {
+  const t = (str ?? "").trim();
+  if (!t) return null;
+  const parts = t.split(":");
+  if (parts.some(p => p.trim() === "" || isNaN(Number(p)))) return null;
+  return parts.reduce((acc, p) => acc * 60 + Number(p), 0);
+};
+
 // Local YYYY-MM-DD. Using toISOString() here would convert to UTC and shift the
 // calendar day for anyone east of GMT (e.g. a Monday at local midnight becomes
 // the Sunday before), so we read the date parts in local time instead.
