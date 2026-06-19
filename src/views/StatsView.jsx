@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, 
 import { VERT_COST } from "../constants";
 import { fmt, ymd } from "../utils/format";
 import { riegel, bestEffortAnchor, hrModelAnchor } from "../utils/predictions";
+import { PredictionsInfo } from "../components/PredictionsInfo";
 
 export function StatsView({runs, settings}) {
   return (
@@ -205,7 +206,10 @@ function RacePredictions({runs, settings}) {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold">Race predictions</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold">Race predictions</h3>
+            <PredictionsInfo/>
+          </div>
           <p className="text-slate-500 text-xs mt-0.5">Projected finish times from your logged runs</p>
         </div>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">

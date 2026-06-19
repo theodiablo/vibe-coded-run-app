@@ -5,6 +5,7 @@ import { fmt, estMin, cleanDesc } from "../utils/format";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
+import { PlanInfo } from "../components/PlanInfo";
 
 export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, openSettings, goLog}) {
   // Index of the week containing today — the one we auto-expand.
@@ -51,7 +52,10 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
 
   if (!plan) return (
     <div className="p-4 max-w-lg mx-auto">
-      <h2 className="text-xl font-bold mt-4 mb-5">Training Plan</h2>
+      <div className="flex items-center justify-between mt-4 mb-5">
+        <h2 className="text-xl font-bold">Training Plan</h2>
+        <PlanInfo/>
+      </div>
       <div className="bg-slate-800 rounded-2xl p-5 space-y-5">
         <p className="text-slate-400 text-sm">Configure your goal and available training days.</p>
         <div>
@@ -115,7 +119,10 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mt-4 mb-4">
-        <h2 className="text-xl font-bold">Training Plan</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold">Training Plan</h2>
+          <PlanInfo/>
+        </div>
         <div className="flex gap-1 items-center">
           {confirmRegen ? (
             <div className="flex gap-1">
