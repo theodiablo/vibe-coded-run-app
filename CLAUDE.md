@@ -5,6 +5,13 @@ mirrored through `db` into an in-memory cache that debounce-upserts to a single
 per-user Supabase `app_state` JSONB row. It's failure-tolerant: a failed load
 falls back to an empty cache so the app still renders.
 
+## Maintaining this file
+Keep this file current. When you learn something durable about the project (a
+non-obvious convention, gotcha, or architectural decision) or about the
+maintainer's preferences, edit the relevant section here in the same change.
+Record reusable rules, not a changelog of what you did — keep entries concise
+and delete anything that becomes stale.
+
 ## Commands
 - `npm install` — **run first in a fresh checkout**; deps are not committed, so
   `lint`/`test`/`build` all fail with module-not-found until you do. (`vite` /
