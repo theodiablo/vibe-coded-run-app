@@ -21,7 +21,7 @@ export default function RunningCoach({ onSignOut }) {
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
     raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
-    age:0, maxHR:0, restHR:60, hrMethod:"karvonen", onboarded:false,
+    age:0, maxHR:0, restHR:60, hrMethod:"karvonen", onboarded:false, onboardStep:0,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState(null);
@@ -39,9 +39,10 @@ export default function RunningCoach({ onSignOut }) {
       if (r) setRuns(r);
       if (p) setPlan(p);
       if (s) setSettings(prev => ({...prev, ...s}));
-      // First-time user: no saved settings, or never named and never onboarded.
-      // Existing users who already have a name are treated as onboarded.
-      if (!s || (!s.name && !s.onboarded)) setOnboarding(true);
+      // First-time user, or onboarding started but not finished — resume it.
+      // In-progress is marked by `onboardStep`; existing users who already have a
+      // name (but no onboarding marker) are treated as onboarded.
+      if (!s || (!s.onboarded && (s.onboardStep != null || !s.name))) setOnboarding(true);
       setLoading(false);
     })();
   }, []);
@@ -132,14 +133,15 @@ export default function RunningCoach({ onSignOut }) {
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
       {toast       && <Toast {...toast}/>}
       {onboarding  && <OnboardingWizard settings={settings}
+        onSaveProgress={(partial, step) => saveSettings({...settings, ...partial, onboardStep: step})}
         onComplete={({name, plan, hr}) => {
-          const next = {...settings, name, onboarded: true, ...plan, ...(hr || {})};
+          const next = {...settings, name, onboarded: true, onboardStep: 0, ...plan, ...(hr || {})};
           saveSettings(next);
           savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation));
           setOnboarding(false);
         }}
         onSkip={({name}) => {
-          saveSettings({...settings, onboarded: true, ...(name ? {name} : {})});
+          saveSettings({...settings, onboarded: true, onboardStep: 0, ...(name ? {name} : {})});
           setOnboarding(false);
         }}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings}} onClose={() => setShowBackup(false)}/>}

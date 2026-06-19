@@ -6,9 +6,13 @@ import { GoalConfigurator } from "../components/GoalConfigurator";
 
 // Guided first-run onboarding: Name -> Plan details -> Heart rate.
 // All input is held in local draft state and only committed via onComplete/onSkip.
-export function OnboardingWizard({settings, onComplete, onSkip}) {
+export function OnboardingWizard({settings, onSaveProgress, onComplete, onSkip}) {
   const STEPS = 3;
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(settings.onboardStep || 0);
+
+  // Persist the entered data + the step we're moving to, so a refresh resumes
+  // where the user left off (db flushes pending writes on page hide).
+  const goStep = (next, partial) => { onSaveProgress(partial || {}, next); setStep(next); };
 
   const [name,          setName]    = useState(settings.name || "");
   const [raceDate,      setRaceDate] = useState(settings.raceDate || "");
@@ -47,7 +51,7 @@ export function OnboardingWizard({settings, onComplete, onSkip}) {
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
         <div className="flex items-center gap-2">
           {step > 0 && (
-            <button onClick={() => setStep(step - 1)}
+            <button onClick={() => goStep(step - 1)}
               className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-white transition-colors -ml-1 pr-1">
               <ChevronLeft size={16}/>Back
             </button>
@@ -80,10 +84,10 @@ export function OnboardingWizard({settings, onComplete, onSkip}) {
               </div>
               <input autoFocus type="text" value={name} maxLength={40}
                 onChange={e => setName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && trimmedName) setStep(1); }}
+                onKeyDown={e => { if (e.key === "Enter" && trimmedName) goStep(1, {name: trimmedName}); }}
                 placeholder="Your name"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white text-center focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-              <button onClick={() => setStep(1)} disabled={!trimmedName}
+              <button onClick={() => goStep(1, {name: trimmedName})} disabled={!trimmedName}
                 className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 Continue
               </button>
@@ -119,7 +123,7 @@ export function OnboardingWizard({settings, onComplete, onSkip}) {
                 <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
               </div>
-              <button onClick={() => setStep(2)} disabled={!raceDate || !distanceKm}
+              <button onClick={() => goStep(2, {raceDate, goalSec, distanceKm, raceElevation, planSessions})} disabled={!raceDate || !distanceKm}
                 className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 Continue
               </button>
