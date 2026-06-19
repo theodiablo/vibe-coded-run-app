@@ -75,12 +75,13 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">
             {"Goal time: "}
-            <span className="text-white font-semibold">{Math.round(settings.goalSec/60) + " min"}</span>
+            <span className="text-white font-semibold">{fmt.dur(settings.goalSec)}</span>
+            <span className="text-slate-500">{settings.distanceKm > 0 ? "  ·  " + fmt.pace(Math.round(settings.goalSec / settings.distanceKm)) + "/km" : ""}</span>
           </label>
-          <input type="range" min={75} max={180} step={5} defaultValue={120}
+          <input type="range" min={20} max={360} step={5} defaultValue={Math.round((settings.goalSec || 7200) / 60)}
             onChange={e => saveSettings({...settings, goalSec: parseInt(e.target.value) * 60})}
             className="w-full accent-orange-500"/>
-          <div className="flex justify-between text-xs text-slate-600 mt-1"><span>1h15</span><span>3h00</span></div>
+          <div className="flex justify-between text-xs text-slate-600 mt-1"><span>20min</span><span>6h00</span></div>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
