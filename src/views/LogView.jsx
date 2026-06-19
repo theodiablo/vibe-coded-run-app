@@ -68,7 +68,7 @@ export function LogView({addRuns, onDone, onSaved, prefill}) {
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mt-4 mb-5">
-        <h2 className="text-xl font-bold">Log a Run</h2>
+        <h2 className="text-xl font-bold">Record a Run</h2>
         <button onClick={() => setImp(v => !v)} className={impBtnCls}>
           <Upload size={14}/>Import CSV
         </button>

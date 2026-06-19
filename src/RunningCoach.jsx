@@ -124,7 +124,7 @@ export default function RunningCoach({ onSignOut }) {
   const TABS   = [
     {id:"dash",    label:"Home",    Icon:Activity},
     {id:"plan",    label:"Plan",    Icon:Calendar},
-    {id:"log",     label:"Log",     Icon:Plus},
+    {id:"log",     label:"Record",  Icon:Plus},
     {id:"history", label:"History", Icon:History},
     {id:"stats",   label:"Stats",   Icon:TrendingUp},
   ];
