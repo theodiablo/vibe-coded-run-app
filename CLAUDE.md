@@ -55,9 +55,10 @@ and delete anything that becomes stale.
 
 ## Conventions
 - Reuse existing form pieces rather than re-rolling inputs: `SessionConfigurator`
-  (training days), `GoalConfigurator` (goal time/pace — a single slider whose
-  range comes from `paceBand(distanceKm)` in `src/utils/goal.js`, with a
-  Time/Pace toggle and a pre-filled mid-pack suggestion), `INPUT_CLS` /
+  (training days), `GoalConfigurator` (goal time/pace — a slider whose range
+  comes from `paceBand(distanceKm)` in `src/utils/goal.js`, plus editable Time /
+  Pace text fields for exact entry that commit on blur/Enter via `parseDur`, with
+  a pre-filled mid-pack suggestion), `INPUT_CLS` /
   `LABEL_CLS` (`src/constants.js`) for input styling, type colors `TCLR`, day
   names `DAYS`, and the `fmt` helpers (`src/utils/format.js`) for durations/paces.
 - Number inputs: keep an emptied field empty while editing. Don't write

@@ -1,12 +1,14 @@
-import { useEffect, useRef } from "react";
-import { fmt } from "../utils/format";
+import { useEffect, useRef, useState } from "react";
+import { fmt, parseDur } from "../utils/format";
 import { paceBand, suggestedGoalSec, clampGoalSec } from "../utils/goal";
 
 // Goal-setting control shared by onboarding and the plan view. A slider sets the
-// target finish time, and its range adapts to the entered distance so it only
-// ever offers realistic times. Changing the distance resets the goal to a fresh
-// mid-pack suggestion for that distance, so a time picked for one race length
-// never lingers on another (e.g. a 5 km time left sitting on a 20 km race).
+// target finish time for a quick sweep, and editable Time / Pace fields below it
+// let you dial in an exact value the slider can't easily hit. The range adapts to
+// the entered distance so it only ever offers realistic times. Changing the
+// distance resets the goal to a fresh mid-pack suggestion for that distance, so a
+// time picked for one race length never lingers on another (e.g. a 5 km time left
+// sitting on a 20 km race).
 export function GoalConfigurator({distanceKm, goalSec, onChange}) {
   const band = paceBand(distanceKm);
   const suggested = suggestedGoalSec(distanceKm);
@@ -29,6 +31,13 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}) {
     else if (normalised !== goalSec) onChange(normalised);
   }, [band, distanceKm, suggested, normalised, goalSec, onChange]);
 
+  // Local text for the editable Time / Pace fields. `null` means "not editing,
+  // show the derived value"; while a field is focused we let it hold whatever
+  // the user is typing (including an empty string) and only commit on blur/Enter
+  // — committing an unparseable value is a no-op so the field reverts.
+  const [timeText, setTimeText] = useState(null);
+  const [paceText, setPaceText] = useState(null);
+
   if (!band) {
     return (
       <div>
@@ -46,18 +55,49 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}) {
   const tMin  = Math.round(band.fast * dist);
   const tMax  = Math.round(band.slow * dist);
 
+  // Commit a typed time (total finish time) or pace (per km), clamping into the
+  // distance-appropriate band so manual entry stays as realistic as the slider.
+  const commitTime = () => {
+    const sec = parseDur(timeText);
+    if (sec != null) onChange(clampGoalSec(sec, distanceKm));
+    setTimeText(null);
+  };
+  const commitPace = () => {
+    const p = parseDur(paceText);
+    if (p != null) onChange(clampGoalSec(Math.round(p * dist), distanceKm));
+    setPaceText(null);
+  };
+
+  const fieldCls = "w-full bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm text-center tabular-nums focus:outline-none focus:border-orange-400";
+
   return (
     <div>
-      <label className="text-xs text-slate-400 block mb-1.5">
-        {"Goal: "}
-        <span className="text-white font-semibold">{fmt.dur(eff)}</span>
-        <span className="text-slate-400">{"  ·  " + fmt.pace(pace) + "/km"}</span>
-      </label>
+      <label className="text-xs text-slate-400 block mb-1.5">Goal time</label>
       <input type="range" min={tMin} max={tMax} step={10} value={eff}
         onChange={e => onChange(parseInt(e.target.value))}
         className="w-full accent-orange-500"/>
       <div className="flex justify-between text-xs text-slate-400 mt-1">
         <span>{fmt.dur(tMin)}</span><span>{fmt.dur(tMax)}</span>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <label className="flex-1">
+          <span className="text-[11px] text-slate-400 block mb-1">Time</span>
+          <input type="text" inputMode="numeric" className={fieldCls}
+            value={timeText ?? fmt.dur(eff)}
+            onChange={e => setTimeText(e.target.value)}
+            onFocus={e => e.target.select()}
+            onBlur={commitTime}
+            onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}/>
+        </label>
+        <label className="flex-1">
+          <span className="text-[11px] text-slate-400 block mb-1">Pace /km</span>
+          <input type="text" inputMode="numeric" className={fieldCls}
+            value={paceText ?? fmt.pace(pace)}
+            onChange={e => setPaceText(e.target.value)}
+            onFocus={e => e.target.select()}
+            onBlur={commitPace}
+            onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}/>
+        </label>
       </div>
     </div>
   );
