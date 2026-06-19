@@ -182,7 +182,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, onSkip})
                   Finish
                 </button>
                 <button onClick={() => finish(false)}
-                  className="w-full text-slate-400 hover:text-white py-2 text-xs transition-colors">
+                  className="w-full border border-slate-500 hover:border-slate-300 text-slate-400 hover:text-white py-2.5 rounded-xl text-xs transition-colors">
                   I don't know my heart rate
                 </button>
               </div>

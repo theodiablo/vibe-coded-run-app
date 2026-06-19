@@ -18,7 +18,7 @@ export function Dashboard({runs, plan, settings, goTab, openSettings}) {
 
   const statCards = [
     {l:"This week",  v:wkKm.toFixed(1)+" km",  c:"text-orange-400",  I:Zap},
-    {l:"Runs logged", v:String(runs.length),    c:"text-sky-400",     I:Activity},
+    {l:"Runs recorded", v:String(runs.length),    c:"text-sky-400",     I:Activity},
     {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Award},
   ];
 
@@ -124,7 +124,7 @@ export function Dashboard({runs, plan, settings, goTab, openSettings}) {
         <div className="bg-slate-800 rounded-xl p-6 text-center space-y-2">
           <Activity size={32} className="mx-auto text-slate-700"/>
           <p className="text-sm text-slate-400">No runs yet.</p>
-          <p className="text-xs text-slate-400">Tap Log below to add your first one.</p>
+          <p className="text-xs text-slate-400">Tap Record below to add your first one.</p>
           {!plan && (
             <p className="text-xs text-slate-400 pt-2 border-t border-slate-700/50">
               Had data from a previous version? Open Settings (gear, top right) → Restore.

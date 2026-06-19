@@ -87,7 +87,7 @@ function Overview({runs}) {
   if (!runs.length) return (
     <div className="flex flex-col items-center justify-center pt-20 text-center gap-3 p-4">
       <TrendingUp size={48} className="text-slate-700"/>
-      <p className="text-slate-400">Log some runs to see your stats!</p>
+      <p className="text-slate-400">Record some runs to see your stats!</p>
     </div>
   );
 

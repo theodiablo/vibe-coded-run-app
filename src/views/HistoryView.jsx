@@ -12,10 +12,10 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}) {
   if (!runs.length) return (
     <div className="max-w-lg mx-auto flex flex-col items-center justify-center pt-24 text-center gap-3 p-4">
       <History size={48} className="text-slate-700"/>
-      <p className="text-slate-400">No runs logged yet.</p>
+      <p className="text-slate-400">No runs recorded yet.</p>
       <button onClick={() => goTab && goTab("log")}
         className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-        Log your first run
+        Record your first run
       </button>
     </div>
   );
