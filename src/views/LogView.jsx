@@ -4,7 +4,7 @@ import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
 import { parseRunsCsv, MAX_CSV_BYTES } from "../utils/csv";
 
-export function LogView({addRuns, onDone, prefill}) {
+export function LogView({addRuns, onDone, onSaved, prefill}) {
   const estSec = prefill?.km && prefill?.pace ? Math.round(prefill.km * prefill.pace) : 0;
   const INIT = {
     date:   prefill?.date || ymd(new Date()),
@@ -35,7 +35,7 @@ export function LogView({addRuns, onDone, prefill}) {
       elevation: f.elev  ? parseInt(f.elev)  : null,
       effort:    parseInt(f.effort), notes: f.notes,
     }]);
-    setBusy(false); onDone();
+    setBusy(false); onSaved?.(); onDone();
   };
 
   const handleCSV = e => {
