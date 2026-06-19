@@ -3,7 +3,7 @@ import { TBG, TCLR, runBarColor } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { HRTarget } from "../components/HRTarget";
 
-export function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab, openSettings}) {
+export function Dashboard({runs, plan, settings, goTab, openSettings}) {
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
@@ -74,9 +74,9 @@ export function Dashboard({runs, plan, settings, savePlan, buildPlan, goTab, ope
         <div className="bg-slate-800 rounded-xl p-5 text-center space-y-3">
           <p className="text-slate-400 text-sm">No training plan yet. Ready to get started?</p>
           <button
-            onClick={() => savePlan(buildPlan(settings.raceDate, settings.goalSec, settings.planSessions, settings.distanceKm, settings.raceElevation))}
+            onClick={() => goTab("plan")}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors">
-            Generate My Plan
+            Set Up My Plan
           </button>
         </div>
       ) : (

@@ -4,7 +4,7 @@ import { db } from "./db";
 import { STORAGE_KEYS } from "./constants";
 import { buildPlan } from "./utils/plan";
 import { Toast } from "./components/Toast";
-import { NameSetupModal } from "./modals/NameSetupModal";
+import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
 import { RestoreModal } from "./modals/RestoreModal";
 import { SettingsModal } from "./modals/SettingsModal";
@@ -21,7 +21,7 @@ export default function RunningCoach({ onSignOut }) {
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
     raceDate:"2026-11-01", goalSec:7200, distanceKm:20, raceElevation:0, name:"",
-    age:0, maxHR:0, restHR:60, hrMethod:"karvonen",
+    age:0, maxHR:0, restHR:60, hrMethod:"karvonen", onboarded:false,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState(null);
@@ -29,7 +29,7 @@ export default function RunningCoach({ onSignOut }) {
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
   const [showSettings,setShowSettings]= useState(false);
-  const [needsName,   setNeedsName]   = useState(false);
+  const [onboarding,  setOnboarding]  = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -39,8 +39,9 @@ export default function RunningCoach({ onSignOut }) {
       if (r) setRuns(r);
       if (p) setPlan(p);
       if (s) setSettings(prev => ({...prev, ...s}));
-      // First-time user: no saved settings, or saved settings without a name.
-      if (!s || !s.name) setNeedsName(true);
+      // First-time user: no saved settings, or never named and never onboarded.
+      // Existing users who already have a name are treated as onboarded.
+      if (!s || (!s.name && !s.onboarded)) setOnboarding(true);
       setLoading(false);
     })();
   }, []);
@@ -130,7 +131,17 @@ export default function RunningCoach({ onSignOut }) {
   return (
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
       {toast       && <Toast {...toast}/>}
-      {needsName   && <NameSetupModal onSave={name => { saveSettings({...settings, name}); setNeedsName(false); }}/>}
+      {onboarding  && <OnboardingWizard settings={settings}
+        onComplete={({name, plan, hr}) => {
+          const next = {...settings, name, onboarded: true, ...plan, ...(hr || {})};
+          saveSettings(next);
+          savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation));
+          setOnboarding(false);
+        }}
+        onSkip={({name}) => {
+          saveSettings({...settings, onboarded: true, ...(name ? {name} : {})});
+          setOnboarding(false);
+        }}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings}} onClose={() => setShowBackup(false)}/>}
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showSettings && <SettingsModal
