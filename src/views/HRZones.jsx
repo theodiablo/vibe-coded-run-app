@@ -109,7 +109,7 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
                 );
               })}
             </div>
-            <div className="flex justify-between text-xs text-slate-600 mb-4 px-1">
+            <div className="flex justify-between text-xs text-slate-400 mb-4 px-1">
               <span>{rhrN + " bpm (rest)"}</span>
               <span>{effMax + " bpm (max)"}</span>
             </div>

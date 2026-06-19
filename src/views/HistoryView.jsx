@@ -54,7 +54,7 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}) {
                       <p className="text-slate-400 text-xs">
                         {fmt.date(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "") + (r.elevation ? " · ⛰️ " + r.elevation + "m" : "")}
                       </p>
-                      {r.notes && <p className="text-slate-600 text-xs mt-0.5 truncate">{r.notes}</p>}
+                      {r.notes && <p className="text-slate-400 text-xs mt-0.5 truncate">{r.notes}</p>}
                     </div>
                     <span className={"text-xs font-semibold flex-shrink-0 " + (TCLR[r.type] || TCLR.OTHER)}>{r.type}</span>
                     {confirmId === r.id ? (
@@ -67,11 +67,11 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}) {
                     ) : (
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         <button onClick={() => setEditRun(r)} aria-label="Edit run"
-                          className="text-slate-600 hover:text-orange-400 p-1 transition-colors">
+                          className="text-slate-400 hover:text-orange-400 p-1 transition-colors">
                           <Pencil size={15}/>
                         </button>
                         <button onClick={() => setConfirmId(r.id)} aria-label="Delete run"
-                          className="text-slate-600 hover:text-red-400 p-1 transition-colors">
+                          className="text-slate-400 hover:text-red-400 p-1 transition-colors">
                           <Trash2 size={15}/>
                         </button>
                       </div>

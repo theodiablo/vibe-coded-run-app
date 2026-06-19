@@ -184,7 +184,7 @@ export default function RunningCoach({ onSignOut }) {
       <nav className="fixed bottom-0 inset-x-0 bg-slate-800 border-t border-slate-700 flex z-20" style={{height:64}}>
         {TABS.map(item => (
           <button key={item.id} onClick={() => setTab(item.id)}
-            className={"flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors " + (tab === item.id ? "text-orange-400" : "text-slate-500 hover:text-slate-300")}>
+            className={"flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors " + (tab === item.id ? "text-orange-400" : "text-slate-400 hover:text-slate-200")}>
             <item.Icon size={20}/>{item.label}
           </button>
         ))}
