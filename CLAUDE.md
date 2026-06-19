@@ -5,6 +5,13 @@ mirrored through `db` into an in-memory cache that debounce-upserts to a single
 per-user Supabase `app_state` JSONB row. It's failure-tolerant: a failed load
 falls back to an empty cache so the app still renders.
 
+## Maintaining this file
+Keep this file current. When you learn something durable about the project (a
+non-obvious convention, gotcha, or architectural decision) or about the
+maintainer's preferences, edit the relevant section here in the same change.
+Record reusable rules, not a changelog of what you did — keep entries concise
+and delete anything that becomes stale.
+
 ## Commands
 - `npm install` — **run first in a fresh checkout**; deps are not committed, so
   `lint`/`test`/`build` all fail with module-not-found until you do. (`vite` /
@@ -34,6 +41,10 @@ falls back to an empty cache so the app still renders.
   `name`, `onboarded`). The training plan is (re)built by
   `buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation)`
   (`src/utils/plan.js`).
+- `raceDate`, `distanceKm`, and `goalSec` start **empty** (`""`) — there are no
+  seeded race defaults. Anything reading them before setup must guard (the
+  Dashboard race card and Generate buttons gate on `raceDate && distanceKm`),
+  not assume a value.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`.
@@ -44,8 +55,15 @@ falls back to an empty cache so the app still renders.
 
 ## Conventions
 - Reuse existing form pieces rather than re-rolling inputs: `SessionConfigurator`
-  (training days), `INPUT_CLS` / `LABEL_CLS` (`src/constants.js`) for input
-  styling, type colors `TCLR`, day names `DAYS`.
+  (training days), `GoalConfigurator` (goal time/pace — a single slider whose
+  range comes from `paceBand(distanceKm)` in `src/utils/goal.js`, with a
+  Time/Pace toggle and a pre-filled mid-pack suggestion), `INPUT_CLS` /
+  `LABEL_CLS` (`src/constants.js`) for input styling, type colors `TCLR`, day
+  names `DAYS`, and the `fmt` helpers (`src/utils/format.js`) for durations/paces.
+- Number inputs: keep an emptied field empty while editing. Don't write
+  `parseFloat(e.target.value) || 0` — the `|| fallback` snaps the value back to
+  a default as soon as the user clears it. Coalesce to a number only at use time
+  (`buildPlan`/persistence), not in the `onChange`.
 - Tailwind utility classes inline; dark slate palette with orange-500 accents.
 - Dates are `YYYY-MM-DD` strings; use `ymd()` and the `fmt.*` helpers
   (`src/utils/format.js`) for durations/paces. Parse local dates as
