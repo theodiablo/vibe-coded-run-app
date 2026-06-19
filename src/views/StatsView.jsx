@@ -106,9 +106,9 @@ function Overview({runs}) {
       <div className="grid grid-cols-2 gap-3">
         {stats.map(s => (
           <div key={s.l} className="bg-slate-800 rounded-xl p-4">
-            <p className="text-slate-500 text-xs">{s.l}</p>
+            <p className="text-slate-400 text-xs">{s.l}</p>
             <p className={"text-2xl font-bold mt-1 " + s.c}>{s.v}</p>
-            <p className="text-slate-600 text-xs">{s.s}</p>
+            <p className="text-slate-400 text-xs">{s.s}</p>
           </div>
         ))}
       </div>
@@ -144,7 +144,7 @@ function Overview({runs}) {
         <div className="bg-slate-800 rounded-2xl p-4">
           <div className="flex justify-between items-baseline mb-3">
             <p className="text-slate-400 text-sm font-medium">Pace trend</p>
-            <p className="text-slate-600 text-xs">down = faster</p>
+            <p className="text-slate-400 text-xs">down = faster</p>
           </div>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={pLine} margin={{top:4,right:4,left:-18,bottom:0}}>
@@ -242,15 +242,15 @@ function RacePredictions({runs, settings}) {
                   </div>
                   <div className={"grid gap-3 " + (ht ? "grid-cols-2" : "grid-cols-1")}>
                     <div>
-                      <p className="text-slate-500 text-xs">Best-effort estimate</p>
+                      <p className="text-slate-400 text-xs">Best-effort estimate</p>
                       <p className="text-2xl font-bold mt-0.5 text-orange-400">{fmt.dur(bt)}</p>
-                      <p className="text-slate-600 text-xs">{fmt.pace(bt / d)}/km</p>
+                      <p className="text-slate-400 text-xs">{fmt.pace(bt / d)}/km</p>
                     </div>
                     {ht && (
                       <div>
-                        <p className="text-slate-500 text-xs">HR-modelled estimate</p>
+                        <p className="text-slate-400 text-xs">HR-modelled estimate</p>
                         <p className="text-2xl font-bold mt-0.5 text-sky-400">{fmt.dur(ht)}</p>
-                        <p className="text-slate-600 text-xs">{fmt.pace(ht / d)}/km</p>
+                        <p className="text-slate-400 text-xs">{fmt.pace(ht / d)}/km</p>
                       </div>
                     )}
                   </div>
@@ -277,7 +277,7 @@ function RacePredictions({runs, settings}) {
                 Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.
               </p>
             )}
-            <p className="text-slate-600 text-xs">
+            <p className="text-slate-400 text-xs">
               Runs are grade-adjusted for elevation gain. Times are for a flat course
               {raceGain > 0 ? "; the race-day row includes its " + Math.round(raceGain) + " m climb." : ", except the race-day row once you set its climb in the Plan settings."}
             </p>

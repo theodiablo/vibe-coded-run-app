@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+/* This is a dark UI. Tell the browser so native form controls (the date
+   picker's calendar indicator, the picker popup, scrollbars, etc.) render
+   light-on-dark. Without this the calendar icon on `<input type="date">`
+   draws black and is invisible against the dark slate inputs. */
+:root {
+  color-scheme: dark;
+}

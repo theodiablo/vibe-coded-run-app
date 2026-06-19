@@ -146,7 +146,7 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         <div className="h-2.5 bg-slate-700 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700" style={{width: pct + "%"}}/>
         </div>
-        <div className="flex justify-between text-xs text-slate-600 mt-2">
+        <div className="flex justify-between text-xs text-slate-400 mt-2">
           <span>{(plan.distanceKm || 20) + "km" + (plan.raceElevation > 0 ? " · +" + Math.round(plan.raceElevation) + "m" : "") + " · sub " + fmt.dur(plan.goalSec)}</span>
           <span>{"Race: " + fmt.sht(plan.raceDate)}</span>
         </div>
@@ -220,11 +220,11 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
             <div key={wk.weekNumber} className={"rounded-xl border overflow-hidden " + wkCardCls}>
               <button onClick={() => setExp(isExp ? null : i)} className="w-full px-4 py-3 flex items-center gap-2 text-left">
                 <span className={"text-sm font-bold flex-shrink-0 " + wkNumCls}>{"W" + wk.weekNumber}</span>
-                <span className="text-xs text-slate-600 flex-shrink-0">{fmt.sht(wk.startDate)}</span>
+                <span className="text-xs text-slate-400 flex-shrink-0">{fmt.sht(wk.startDate)}</span>
                 <span className={"text-xs px-2 py-0.5 rounded-full flex-shrink-0 " + phaseClass(wk.phase)}>{wk.phase}</span>
                 {isCurr && <span className="text-xs text-orange-400 flex-shrink-0">now</span>}
                 <span className="flex-1"/>
-                <span className="text-xs text-slate-600">{wDone + "/" + wk.sessions.length}</span>
+                <span className="text-xs text-slate-400">{wDone + "/" + wk.sessions.length}</span>
                 <ChevronRight size={14} className={chevronCls}/>
               </button>
 
@@ -240,10 +240,10 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={typeCls}>{s.type}</span>
-                            <span className="text-xs text-slate-600">{fmt.sht(s.date)}</span>
+                            <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
                           </div>
                           <p className={descCls}>{cleanDesc(s.desc)}</p>
-                          <p className="text-xs text-slate-600 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 self-center">
