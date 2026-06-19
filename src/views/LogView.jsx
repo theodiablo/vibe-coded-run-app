@@ -4,8 +4,17 @@ import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
 import { parseRunsCsv, MAX_CSV_BYTES } from "../utils/csv";
 
-export function LogView({addRuns, onDone}) {
-  const INIT = {date:ymd(new Date()),type:"EASY",km:"",dH:"",dM:"",dS:"",hr:"",hrMax:"",elev:"",effort:5,notes:""};
+export function LogView({addRuns, onDone, prefill}) {
+  const estSec = prefill?.km && prefill?.pace ? Math.round(prefill.km * prefill.pace) : 0;
+  const INIT = {
+    date:   prefill?.date || ymd(new Date()),
+    type:   prefill?.type || "EASY",
+    km:     prefill?.km != null ? String(prefill.km) : "",
+    dH:     estSec >= 3600 ? String(Math.floor(estSec / 3600)) : "",
+    dM:     estSec >= 60   ? String(Math.floor((estSec % 3600) / 60)) : "",
+    dS:     estSec % 60    ? String(estSec % 60) : "",
+    hr:"",hrMax:"",elev:"",effort:5,notes:"",
+  };
   const [f,      setF]    = useState(INIT);
   const [busy,   setBusy] = useState(false);
   const [showImp,setImp]  = useState(false);
