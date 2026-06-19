@@ -31,12 +31,13 @@ export function Dashboard({runs, plan, settings, goTab, openSettings}) {
 
       <div className="rounded-2xl p-5 border border-orange-500/30"
         style={{background:"linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))"}}>
+        {settings.raceDate && settings.distanceKm ? (
         <div className="flex justify-between items-center">
           <div>
             <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>
             <p className="font-semibold">{fmt.date(settings.raceDate)}</p>
             <p className="text-slate-400 text-sm mt-1">
-              {(settings.distanceKm || 20) + "km · target sub " + fmt.dur(settings.goalSec) + " · " + fmt.pace(Math.round(settings.goalSec/(settings.distanceKm||20))) + "/km"}
+              {settings.distanceKm + "km · target sub " + fmt.dur(settings.goalSec) + " · " + fmt.pace(Math.round(settings.goalSec/settings.distanceKm)) + "/km"}
             </p>
           </div>
           <div className="text-right">
@@ -44,6 +45,13 @@ export function Dashboard({runs, plan, settings, goTab, openSettings}) {
             <p className="text-slate-400 text-xs mt-1">days to go</p>
           </div>
         </div>
+        ) : (
+          <button onClick={() => goTab("plan")} className="w-full text-left">
+            <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>
+            <p className="font-semibold">Set up your race</p>
+            <p className="text-slate-400 text-sm mt-1">Pick a date and distance to build your training plan →</p>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3">

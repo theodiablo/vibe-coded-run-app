@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Activity, ChevronLeft } from "lucide-react";
 import { INPUT_CLS } from "../constants";
-import { fmt } from "../utils/format";
 import { SessionConfigurator } from "../components/SessionConfigurator";
+import { GoalConfigurator } from "../components/GoalConfigurator";
 
 // Guided first-run onboarding: Name -> Plan details -> Heart rate.
 // All input is held in local draft state and only committed via onComplete/onSkip.
@@ -11,10 +11,10 @@ export function OnboardingWizard({settings, onComplete, onSkip}) {
   const [step, setStep] = useState(0);
 
   const [name,          setName]    = useState(settings.name || "");
-  const [raceDate,      setRaceDate] = useState(settings.raceDate);
-  const [distanceKm,    setDist]    = useState(settings.distanceKm || 20);
+  const [raceDate,      setRaceDate] = useState(settings.raceDate || "");
+  const [distanceKm,    setDist]    = useState(settings.distanceKm || "");
   const [raceElevation, setElev]    = useState(settings.raceElevation || 0);
-  const [goalSec,       setGoal]    = useState(settings.goalSec || 7200);
+  const [goalSec,       setGoal]    = useState(settings.goalSec || "");
   const [planSessions,  setSess]    = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
 
   const [age,    setAge]    = useState(String(settings.age || ""));
@@ -41,14 +41,6 @@ export function OnboardingWizard({settings, onComplete, onSkip}) {
     {v:"karvonen", l:"Karvonen (HRR)", sub:"Uses resting HR — more personalised"},
     {v:"pct",      l:"% of Max HR",    sub:"Simpler, doesn't need resting HR"},
   ];
-
-  const goalLabel = (
-    <>
-      {"Goal time: "}
-      <span className="text-white font-semibold">{fmt.dur(goalSec)}</span>
-      <span className="text-slate-500">{distanceKm > 0 ? "  ·  " + fmt.pace(Math.round(goalSec / distanceKm)) + "/km" : ""}</span>
-    </>
-  );
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
@@ -111,24 +103,18 @@ export function OnboardingWizard({settings, onComplete, onSkip}) {
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-                <input type="number" min="1" max="200" step="0.1" value={distanceKm}
-                  onChange={e => setDist(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+                <input type="number" min="1" max="200" step="0.1" value={distanceKm} placeholder="e.g. 21.1"
+                  onChange={e => { const n = parseFloat(e.target.value); setDist(isNaN(n) ? "" : n); }}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
-                <input type="number" min="0" max="10000" step="10" value={raceElevation}
-                  onChange={e => setElev(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+                <input type="number" min="0" max="10000" step="10" value={raceElevation} placeholder="0"
+                  onChange={e => { const v = e.target.value; setElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); }}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
                 <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
               </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1.5">{goalLabel}</label>
-                <input type="range" min={20} max={360} step={5} value={Math.round(goalSec / 60)}
-                  onChange={e => setGoal(parseInt(e.target.value) * 60)}
-                  className="w-full accent-orange-500"/>
-                <div className="flex justify-between text-xs text-slate-600 mt-1"><span>20min</span><span>6h00</span></div>
-              </div>
+              <GoalConfigurator distanceKm={distanceKm} goalSec={goalSec} onChange={setGoal}/>
               <div>
                 <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
