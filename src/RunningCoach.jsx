@@ -161,7 +161,9 @@ export default function RunningCoach({ onSignOut }) {
       <div style={{paddingTop:44, paddingBottom:64}}>
         {tab === "dash"  && <Dashboard  {...shared}/>}
         {tab === "plan"  && <PlanView   {...shared}/>}
-        {tab === "log"   && <LogView    {...shared} prefill={logPrefill} onDone={() => { setLogPrefill(null); setTab("dash"); }}/>}
+        {tab === "log"   && <LogView    {...shared} prefill={logPrefill}
+          onSaved={() => { if (logPrefill?.wNum != null && logPrefill?.sId) toggleSess(logPrefill.wNum, logPrefill.sId); }}
+          onDone={() => { setLogPrefill(null); setTab("dash"); }}/>}
         {tab === "history" && <HistoryView {...shared}/>}
         {tab === "stats" && <StatsView  {...shared}/>}
       </div>

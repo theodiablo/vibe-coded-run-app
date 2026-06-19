@@ -249,14 +249,11 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
                 <div className="border-t border-slate-700/50">
                   {wk.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).map(s => {
                     const rowCls = "flex items-start gap-3 px-4 py-3 border-b border-slate-700/30 last:border-0 " + (s.done ? "opacity-40" : "");
-                    const btnCls = "mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
+                    const checkCls = "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
                     const descCls = "text-sm mt-0.5 leading-snug " + (s.done ? "line-through text-slate-600" : "text-slate-300");
                     const typeCls = "text-xs font-bold uppercase " + (TCLR[s.type] || "text-violet-400");
                     return (
                       <div key={s.id} className={rowCls}>
-                        <button onClick={() => toggleSess(wk.weekNumber, s.id)} className={btnCls}>
-                          {s.done && <Check size={11}/>}
-                        </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={typeCls}>{s.type}</span>
@@ -266,14 +263,19 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
                           <p className="text-xs text-slate-600 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
                         </div>
-                        {!s.done && (
-                          <button
-                            onClick={() => goLog({date: s.date, type: s.type, km: s.km, pace: s.pace})}
-                            className="flex-shrink-0 self-center p-1.5 rounded-lg text-slate-500 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
-                            title="Log this run">
-                            <Plus size={15}/>
+                        <div className="flex items-center gap-2 flex-shrink-0 self-center">
+                          {!s.done && (
+                            <button
+                              onClick={() => goLog({date: s.date, type: s.type, km: s.km, pace: s.pace, wNum: wk.weekNumber, sId: s.id})}
+                              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors">
+                              <Plus size={13}/>Record
+                            </button>
+                          )}
+                          <button onClick={() => toggleSess(wk.weekNumber, s.id)} className={checkCls}
+                            title={s.done ? "Mark not done" : "Mark done"}>
+                            {s.done && <Check size={11}/>}
                           </button>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
