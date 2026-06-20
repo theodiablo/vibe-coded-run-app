@@ -159,4 +159,4 @@ The app is open source — you can read exactly what gets stored in `supabase/mi
 
 ## License
 
-[MIT](LICENSE) — do whatever you want with it, just keep the copyright notice.
+[MIT](LICENSE) — do whatever you want with it, just keep the copyright notice and give a shoutout to the original project if you reuse it.
