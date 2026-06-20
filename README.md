@@ -155,6 +155,25 @@ I will never use your data for any purpose other than running the app, and I wil
 
 The app is open source — you can read exactly what gets stored in `supabase/migrations/` and `src/db.js`.
 
+The workflow uses GitHub's OIDC provider to assume an AWS IAM role
+(`aws-actions/configure-aws-credentials`) — no long-lived AWS keys stored in
+GitHub.
+
+### PR previews
+
+`.github/workflows/deploy-pr.yml` deploys a preview for each pull request to its
+own prefix in the same bucket — `s3://<bucket>/pr/<number>/`, served at
+`https://run.camboulive.solutions/pr/<number>/index.html` — and removes it when
+the PR is closed. The deployed URL is posted (and kept up to date) as a PR
+comment. (CloudFront only resolves a default root object at `/`, so previews
+link straight to `index.html`.)
+
+Only the **code owners** listed in `.github/CODEOWNERS` trigger a preview: the
+job is gated on the PR author having write access (`OWNER`/`MEMBER`/
+`COLLABORATOR`), and because the workflow uses `pull_request` (not
+`pull_request_target`), fork PRs cannot assume the deploy role. It reuses the
+same OIDC role and CloudFront distribution as the production deploy.
+
 ---
 
 ## License
