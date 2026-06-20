@@ -1,17 +1,21 @@
-import { Activity, Award, ChevronRight, Zap } from "lucide-react";
-import { TBG, TCLR, runBarColor } from "../constants";
-import { fmt, estMin, cleanDesc } from "../utils/format";
+import { Activity, Award, Check, ChevronRight, Plus, Zap } from "lucide-react";
+import { TBG, TCLR } from "../constants";
+import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
 import { HRTarget } from "../components/HRTarget";
+import { RunRow } from "../components/RunRow";
 
-export function Dashboard({runs, plan, settings, goTab, openSettings}) {
+export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, openSettings}) {
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
+  // Carry the week number alongside each session so the card's Record / Mark
+  // done actions can target the right session via goLog / toggleSess.
   const nextSess = plan
-    ? plan.weeks.flatMap(w => w.sessions)
+    ? plan.weeks.flatMap(w => w.sessions.map(s => ({...s, wNum: w.weekNumber})))
         .filter(s => !s.done && new Date(s.date + "T00:00:00") >= today)
         .sort((a, b) => a.date.localeCompare(b.date))[0]
     : null;
+  const nextIsToday = nextSess && nextSess.date === ymd(today);
   const wkMon = new Date(today); wkMon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
   const wkKm  = runs.filter(r => new Date(r.date + "T00:00:00") >= wkMon).reduce((s, r) => s + (r.km||0), 0);
   const totKm = runs.reduce((s, r) => s + (r.km||0), 0);
@@ -59,23 +63,37 @@ export function Dashboard({runs, plan, settings, goTab, openSettings}) {
           <div key={card.l} className="bg-slate-800 rounded-xl p-3">
             <card.I size={15} className={card.c}/>
             <p className={"text-xl font-bold mt-1 leading-tight " + card.c}>{card.v}</p>
-            <p className="text-slate-500 text-xs">{card.l}</p>
+            <p className="text-slate-400 text-xs">{card.l}</p>
           </div>
         ))}
       </div>
 
       {nextSess ? (
         <div>
-          <p className="text-slate-500 text-xs uppercase tracking-widest mb-2">Up next</p>
-          <div className={"border rounded-xl p-4 " + (TBG[nextSess.type] || TBG.OTHER)}>
+          <p className="text-orange-300 text-xs font-bold uppercase tracking-widest mb-2">
+            {nextIsToday ? "Today's session" : "Up next"}
+          </p>
+          <div className={"border-2 rounded-2xl p-4 " + (TBG[nextSess.type] || TBG.OTHER)}>
             <span className={"text-xs font-bold uppercase tracking-wide " + (TCLR[nextSess.type] || TCLR.OTHER)}>
               {nextSess.type}
             </span>
-            <p className="text-white text-sm font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
+            <p className="text-white text-base font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
             <p className="text-slate-400 text-xs mt-2">
               {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
             </p>
             <HRTarget type={nextSess.type} settings={settings} openSettings={openSettings}/>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => goLog({date: nextSess.date, type: nextSess.type, km: nextSess.km, pace: nextSess.pace, wNum: nextSess.wNum, sId: nextSess.id})}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+                <Plus size={15}/>Record
+              </button>
+              <button
+                onClick={() => toggleSess(nextSess.wNum, nextSess.id)}
+                className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+                <Check size={15}/>Mark done
+              </button>
+            </div>
           </div>
         </div>
       ) : !plan ? (
@@ -103,19 +121,7 @@ export function Dashboard({runs, plan, settings, goTab, openSettings}) {
             )}
           </div>
           <div className="space-y-2">
-            {runs.slice(0, 3).map(r => {
-              const pace = r.km && r.durationSec ? r.durationSec / r.km : 0;
-              return (
-                <div key={r.id} className="bg-slate-800 rounded-xl p-3 flex items-center gap-3">
-                  <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(r.type)}/>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium">{r.km + " km · " + fmt.dur(r.durationSec)}</p>
-                    <p className="text-slate-400 text-xs">{fmt.sht(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "") + (r.elevation ? " · ⛰️ " + r.elevation + "m" : "")}</p>
-                  </div>
-                  <span className={"text-xs font-semibold flex-shrink-0 " + (TCLR[r.type] || TCLR.OTHER)}>{r.type}</span>
-                </div>
-              );
-            })}
+            {runs.slice(0, 3).map(r => <RunRow key={r.id} run={r}/>)}
           </div>
         </div>
       )}

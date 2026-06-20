@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { History, Pencil, Trash2 } from "lucide-react";
-import { TCLR, runBarColor } from "../constants";
 import { fmt } from "../utils/format";
+import { RunRow } from "../components/RunRow";
 import { EditRunModal } from "../modals/EditRunModal";
 
 // The full run log, newest first, grouped by month.
@@ -34,7 +34,7 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}) {
     <div className="max-w-lg mx-auto p-4">
       <div className="mt-4 mb-4">
         <h2 className="text-xl font-bold">History</h2>
-        <p className="text-slate-500 text-xs mt-0.5">
+        <p className="text-slate-400 text-xs mt-0.5">
           {runs.length + " run" + (runs.length === 1 ? "" : "s") + " · " + totKm.toFixed(0) + " km total"}
         </p>
       </div>
@@ -42,43 +42,31 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}) {
       <div className="space-y-5">
         {groups.map(g => (
           <div key={g.key}>
-            <p className="text-slate-500 text-xs uppercase tracking-widest mb-2">{g.key}</p>
+            <p className="text-slate-400 text-xs uppercase tracking-widest mb-2">{g.key}</p>
             <div className="space-y-2">
-              {g.items.map(r => {
-                const pace = r.km && r.durationSec ? r.durationSec / r.km : 0;
-                return (
-                  <div key={r.id} className="bg-slate-800 rounded-xl p-3 flex items-center gap-3">
-                    <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(r.type)}/>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium">{r.km + " km · " + fmt.dur(r.durationSec)}</p>
-                      <p className="text-slate-400 text-xs">
-                        {fmt.date(r.date) + " · " + fmt.pace(pace) + "/km" + (r.hr ? " · ❤️ " + r.hr : "") + (r.elevation ? " · ⛰️ " + r.elevation + "m" : "")}
-                      </p>
-                      {r.notes && <p className="text-slate-400 text-xs mt-0.5 truncate">{r.notes}</p>}
+              {g.items.map(r => (
+                <RunRow key={r.id} run={r} dateFmt={fmt.date} showNotes actions={
+                  confirmId === r.id ? (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => { deleteRun(r.id); setConfirmId(null); }}
+                        className="text-xs font-semibold text-red-400 hover:text-red-300 px-2 py-2">Delete</button>
+                      <button onClick={() => setConfirmId(null)}
+                        className="text-xs text-slate-400 hover:text-slate-200 px-2 py-2">Cancel</button>
                     </div>
-                    <span className={"text-xs font-semibold flex-shrink-0 " + (TCLR[r.type] || TCLR.OTHER)}>{r.type}</span>
-                    {confirmId === r.id ? (
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={() => { deleteRun(r.id); setConfirmId(null); }}
-                          className="text-xs font-semibold text-red-400 hover:text-red-300 px-1.5 py-1">Delete</button>
-                        <button onClick={() => setConfirmId(null)}
-                          className="text-xs text-slate-500 hover:text-slate-300 px-1.5 py-1">Cancel</button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <button onClick={() => setEditRun(r)} aria-label="Edit run"
-                          className="text-slate-400 hover:text-orange-400 p-1 transition-colors">
-                          <Pencil size={15}/>
-                        </button>
-                        <button onClick={() => setConfirmId(r.id)} aria-label="Delete run"
-                          className="text-slate-400 hover:text-red-400 p-1 transition-colors">
-                          <Trash2 size={15}/>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  ) : (
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <button onClick={() => setEditRun(r)} aria-label="Edit run"
+                        className="flex items-center justify-center text-slate-400 hover:text-orange-400 transition-colors" style={{minWidth:40, minHeight:40}}>
+                        <Pencil size={16}/>
+                      </button>
+                      <button onClick={() => setConfirmId(r.id)} aria-label="Delete run"
+                        className="flex items-center justify-center text-slate-400 hover:text-red-400 transition-colors" style={{minWidth:40, minHeight:40}}>
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
+                  )
+                }/>
+              ))}
             </div>
           </div>
         ))}

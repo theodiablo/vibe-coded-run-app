@@ -11,6 +11,14 @@ export const fmt = {
   },
   date: s => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "",
   sht:  s => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "",
+  // A whole-minute duration as a compact label: 30min, 1h, 1h15, 1h50. Avoids
+  // the raw-float "1.8333333333333335h" you get from a bare `minutes / 60`.
+  mins: m => {
+    if (m == null || m === "") return "";
+    if (m < 60) return m + "min";
+    const h = Math.floor(m / 60), r = Math.round(m % 60);
+    return r ? h + "h" + p2(r) : h + "h";
+  },
 };
 
 // Parse a colon-separated time string into seconds — accepts a goal time

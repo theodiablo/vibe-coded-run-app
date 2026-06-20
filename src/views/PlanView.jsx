@@ -1,11 +1,20 @@
-import { useState } from "react";
-import { Check, ChevronRight, Plus, RotateCcw } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ArrowDown, Check, ChevronRight, Plus, RotateCcw } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
+
+// Plain-language meaning of each training phase, shown in the legend.
+const PHASE_DESC = {
+  BASE:  "Build aerobic base",
+  BUILD: "Add intensity",
+  PEAK:  "Sharpen & peak",
+  TAPER: "Rest & freshen up",
+  RACE:  "Race week",
+};
 
 export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, openSettings, goLog}) {
   // Index of the week containing today — the one we auto-expand.
@@ -22,6 +31,14 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
 
   const [exp,          setExp]         = useState(currentWeekIndex);
   const [editSessions, setEdit]        = useState(false);
+  // The current-week card, so we can scroll the runner to "now" in a long plan.
+  const weekRef = useRef(null);
+  const jumpToWeek = () => weekRef.current?.scrollIntoView({behavior: "smooth", block: "center"});
+  // On first open, if "now" sits well down the list, bring it into view.
+  useEffect(() => {
+    if (currentWeekIndex() >= 4) weekRef.current?.scrollIntoView({block: "center"});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [draft,        setDraft]       = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
   const [draftDate,    setDraftDate]   = useState(settings.raceDate);
   const [draftGoal,    setDraftGoal]   = useState(settings.goalSec);
@@ -103,10 +120,17 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
   const done = all.filter(s => s.done).length;
   const pct  = Math.round((done / all.length) * 100);
   const today = new Date(); today.setHours(0,0,0,0);
+  const nowIdx = plan.weeks.findIndex(w => {
+    const s = new Date(w.startDate + "T00:00:00");
+    const e = new Date(s); e.setDate(s.getDate() + 7);
+    return today >= s && today < e;
+  });
+  // Distinct phases in schedule order, for the legend.
+  const phases = [...new Set(plan.weeks.map(w => w.phase))];
   const ps   = plan.planSessions || settings.planSessions || [];
   const sessInfo = ps.slice()
     .sort((a, b) => a.dayOffset - b.dayOffset)
-    .map(s => DAYS[s.dayOffset] + " (" + (s.minutes < 60 ? s.minutes + "min" : (s.minutes/60) + "h") + ")")
+    .map(s => DAYS[s.dayOffset] + " (" + fmt.mins(s.minutes) + ")")
     .join(" · ");
 
   const phaseClass = phase => {
@@ -157,7 +181,25 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           <span>{(plan.distanceKm || 20) + "km" + (plan.raceElevation > 0 ? " · +" + Math.round(plan.raceElevation) + "m" : "") + " · sub " + fmt.dur(plan.goalSec)}</span>
           <span>{"Race: " + fmt.sht(plan.raceDate)}</span>
         </div>
+        {phases.length > 1 && (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-slate-700/50">
+            {phases.map(ph => (
+              <span key={ph} className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className={"w-2 h-2 rounded-full " + phaseClass(ph).split(" ")[0].replace("/15", "")}/>
+                <span className="font-semibold">{ph}</span>
+                <span className="text-slate-500">{PHASE_DESC[ph] || ""}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
+
+      {nowIdx >= 0 && (
+        <button onClick={jumpToWeek}
+          className="w-full mb-3 rounded-xl px-4 py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 transition-colors">
+          Jump to this week<ArrowDown size={13}/>
+        </button>
+      )}
 
       <button onClick={() => {
           setDraft(ps.slice());
@@ -224,7 +266,7 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           const chevronCls = "text-slate-600 transition-transform flex-shrink-0 " + (isExp ? "rotate-90" : "");
 
           return (
-            <div key={wk.weekNumber} className={"rounded-xl border overflow-hidden " + wkCardCls}>
+            <div key={wk.weekNumber} ref={isCurr ? weekRef : null} className={"rounded-xl border overflow-hidden " + wkCardCls}>
               <button onClick={() => setExp(isExp ? null : i)} className="w-full px-4 py-3 flex items-center gap-2 text-left">
                 <span className={"text-sm font-bold flex-shrink-0 " + wkNumCls}>{"W" + wk.weekNumber}</span>
                 <span className="text-xs text-slate-400 flex-shrink-0">{fmt.sht(wk.startDate)}</span>
