@@ -56,3 +56,16 @@ Configure these repository secrets:
 The workflow uses GitHub's OIDC provider to assume an AWS IAM role
 (`aws-actions/configure-aws-credentials`) — no long-lived AWS keys stored in
 GitHub.
+
+### PR previews
+
+`.github/workflows/deploy-pr.yml` deploys a preview for each pull request to its
+own prefix in the same bucket — `s3://<bucket>/pr/<number>/`, served at
+`https://run.camboulive.solutions/pr/<number>/` — and removes it when the PR is
+closed. The deployed URL is posted (and kept up to date) as a PR comment.
+
+Only the **code owners** listed in `.github/CODEOWNERS` trigger a preview: the
+job is gated on the PR author having write access (`OWNER`/`MEMBER`/
+`COLLABORATOR`), and because the workflow uses `pull_request` (not
+`pull_request_target`), fork PRs cannot assume the deploy role. It reuses the
+same OIDC role and CloudFront distribution as the production deploy.

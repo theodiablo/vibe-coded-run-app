@@ -1,0 +1,7 @@
+# Code owners for this repository.
+#
+# Owners are requested for review on every PR and define who is trusted to run
+# the PR preview deploy pipeline (.github/workflows/deploy-pr.yml). Only PRs
+# authored by users with write access (owners/members/collaborators) get a
+# preview, so keep this list aligned with the people who should hold that trust.
+*       @theodiablo
