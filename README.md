@@ -84,9 +84,8 @@ export const SUPABASE_URL = "https://your-project-id.supabase.co";
 export const SUPABASE_ANON_KEY = "your-anon-key-here";
 ```
 
-Alternatively, you can override them without touching the source by creating a
-`.env.local` file at the repo root with `VITE_SUPABASE_URL` and
-`VITE_SUPABASE_ANON_KEY` — env vars take precedence over the values in `config.js`.
+Alternatively, you can set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as
+environment variables at build time — they take precedence over the values in `config.js`.
 
 ### 4. Run it
 
