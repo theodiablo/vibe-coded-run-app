@@ -92,7 +92,10 @@ jobs:
         with:
           script: |
             const { PR_PREFIX, PREVIEW_BASE_URL, PR_NUMBER } = process.env;
-            const url = `${PREVIEW_BASE_URL}/${PR_PREFIX}/${PR_NUMBER}/`;
+            // Link straight to index.html: the CloudFront distribution only
+            // resolves a default root object at `/`, not for subfolders, so a
+            // bare `/pr/<number>/` would 404.
+            const url = `${PREVIEW_BASE_URL}/${PR_PREFIX}/${PR_NUMBER}/index.html`;
             const marker = '<!-- pr-preview-deploy -->';
             const body = `${marker}\n🚀 **PR preview deployed**\n\n${url}\n\n_Updated for commit ${context.sha.slice(0, 7)}._`;
 

@@ -61,8 +61,10 @@ GitHub.
 
 `.github/workflows/deploy-pr.yml` deploys a preview for each pull request to its
 own prefix in the same bucket — `s3://<bucket>/pr/<number>/`, served at
-`https://run.camboulive.solutions/pr/<number>/` — and removes it when the PR is
-closed. The deployed URL is posted (and kept up to date) as a PR comment.
+`https://run.camboulive.solutions/pr/<number>/index.html` — and removes it when
+the PR is closed. The deployed URL is posted (and kept up to date) as a PR
+comment. (CloudFront only resolves a default root object at `/`, so previews
+link straight to `index.html`.)
 
 Only the **code owners** listed in `.github/CODEOWNERS` trigger a preview: the
 job is gated on the PR author having write access (`OWNER`/`MEMBER`/
