@@ -243,16 +243,25 @@ export function useRunTracker() {
   // Tear down on unmount.
   useEffect(() => () => { stopWatch(); releaseWake(); }, [stopWatch, releaseWake]);
 
-  // One-shot preview fix so the map centers on the user before they hit Start.
-  // Silent on error — the user hasn't requested GPS yet.
+  // Live preview fix while idle so the user can see their position AND its
+  // accuracy (the map draws a circle around it) and calibrate before hitting
+  // Start. Runs only in idle; the cleanup stops it the moment recording begins,
+  // and the last value persists so the map stays pinned through the transition.
+  // Silent on error — recording's own watch surfaces permission issues.
   useEffect(() => {
+    if (state !== "idle") return;
     if (!("geolocation" in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
-      pos => setLocation([pos.coords.latitude, pos.coords.longitude]),
+    const id = navigator.geolocation.watchPosition(
+      pos => setLocation({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        acc: pos.coords.accuracy ?? null,
+      }),
       () => {},
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
-  }, []);
+    return () => navigator.geolocation.clearWatch(id);
+  }, [state]);
 
   // ── derived stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {

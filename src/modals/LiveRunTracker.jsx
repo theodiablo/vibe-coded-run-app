@@ -85,7 +85,7 @@ export function LiveRunTracker({ onFinish, onClose }) {
 
       <div className="flex-1 min-h-0">
         <RouteMap points={points} follow={state === "tracking"} interactive={!live}
-          location={state === "idle" ? location : null} className="h-full w-full" />
+          location={location} className="h-full w-full" />
       </div>
 
       <div className="p-4 space-y-3 border-t border-slate-800">
@@ -112,9 +112,18 @@ export function LiveRunTracker({ onFinish, onClose }) {
         </div>
 
         {state === "idle" && (
-          <Ctrl onClick={t.start} color="bg-orange-500 hover:bg-orange-600 text-white">
-            <Play size={20} />Start run
-          </Ctrl>
+          <>
+            {location?.acc != null && (
+              <p className={"text-[11px] text-center " + (
+                location.acc <= 15 ? "text-emerald-400" : location.acc <= 30 ? "text-amber-400" : "text-red-400")}>
+                GPS accuracy ±{Math.round(location.acc)} m
+                {location.acc <= 15 ? " — good to go" : " — wait for it to settle for a cleaner start"}
+              </p>
+            )}
+            <Ctrl onClick={t.start} color="bg-orange-500 hover:bg-orange-600 text-white">
+              <Play size={20} />Start run
+            </Ctrl>
+          </>
         )}
         {state === "tracking" && (
           <div className="flex gap-2">

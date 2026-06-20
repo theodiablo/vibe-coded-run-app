@@ -15,23 +15,47 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
   const mapRef = useRef(null);
   const linesRef = useRef([]);
   const dotRef = useRef(null);
-  const locDotRef = useRef(null); // preview dot shown before recording starts
+  const locDotRef = useRef(null);     // preview position dot (before recording)
+  const locCircleRef = useRef(null);  // accuracy circle around the preview dot
+  const locCenteredRef = useRef(false);
+  const zoomCtrlRef = useRef(null);
 
-  // Create the map once.
+  // Create the map once. Recreating it whenever interactivity changes would snap
+  // the view back to the world map (it happened on every Start) — so interactive
+  // is toggled in a separate effect below instead.
   useEffect(() => {
     const map = L.map(elRef.current, {
-      zoomControl: interactive,
+      zoomControl: false,
       attributionControl: true,
-      dragging: interactive,
-      scrollWheelZoom: interactive,
-      doubleClickZoom: interactive,
-      boxZoom: interactive,
-      keyboard: interactive,
-      tap: interactive,
     }).setView([0, 0], 2);
     L.tileLayer(MAP_TILE_URL, { attribution: MAP_ATTRIBUTION, maxZoom: 20 }).addTo(map);
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      linesRef.current = [];
+      dotRef.current = null;
+      locDotRef.current = null;
+      locCircleRef.current = null;
+      zoomCtrlRef.current = null;
+      locCenteredRef.current = false;
+    };
+  }, []);
+
+  // Enable/disable pan-zoom without tearing the map down (which would reset the
+  // view). Tracking shows a non-interactive, auto-following map.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    ["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"]
+      .forEach(h => map[h] && map[h][interactive ? "enable" : "disable"]());
+    if (interactive && !zoomCtrlRef.current) {
+      zoomCtrlRef.current = L.control.zoom();
+      map.addControl(zoomCtrlRef.current);
+    } else if (!interactive && zoomCtrlRef.current) {
+      map.removeControl(zoomCtrlRef.current);
+      zoomCtrlRef.current = null;
+    }
   }, [interactive]);
 
   // Redraw the track whenever points change.
@@ -76,22 +100,42 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
     }
   }, [points, follow]);
 
-  // Preview dot: show current location before recording starts (no track points yet).
+  // Preview the current location + an accuracy circle before recording starts
+  // (i.e. while there are no track points yet) so the user can confirm a good
+  // GPS lock and calibrate. Center once, then only move the dot/circle on later
+  // fixes so panning to look around isn't fought.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (location && !points.length) {
+      const ll = [location.lat, location.lng];
       const icon = L.divIcon({
         className: "",
         html: '<div style="width:14px;height:14px;border-radius:9999px;background:#60a5fa;border:2px solid #fff;box-shadow:0 0 0 2px rgba(96,165,250,.4)"></div>',
         iconSize: [14, 14], iconAnchor: [7, 7],
       });
-      if (locDotRef.current) locDotRef.current.setLatLng(location).setIcon(icon);
-      else locDotRef.current = L.marker(location, { icon, interactive: false }).addTo(map);
-      map.setView(location, Math.max(map.getZoom(), 15), { animate: false });
-    } else if (locDotRef.current) {
-      locDotRef.current.remove();
-      locDotRef.current = null;
+      if (locDotRef.current) locDotRef.current.setLatLng(ll).setIcon(icon);
+      else locDotRef.current = L.marker(ll, { icon, interactive: false }).addTo(map);
+
+      if (location.acc != null) {
+        if (locCircleRef.current) locCircleRef.current.setLatLng(ll).setRadius(location.acc);
+        else locCircleRef.current = L.circle(ll, {
+          radius: location.acc, color: "#60a5fa", weight: 1,
+          fillColor: "#60a5fa", fillOpacity: 0.12, interactive: false,
+        }).addTo(map);
+      } else if (locCircleRef.current) {
+        locCircleRef.current.remove();
+        locCircleRef.current = null;
+      }
+
+      if (!locCenteredRef.current) {
+        map.setView(ll, Math.max(map.getZoom(), 16), { animate: false });
+        locCenteredRef.current = true;
+      }
+    } else {
+      if (locDotRef.current) { locDotRef.current.remove(); locDotRef.current = null; }
+      if (locCircleRef.current) { locCircleRef.current.remove(); locCircleRef.current = null; }
+      locCenteredRef.current = false;
     }
   }, [location, points.length]);
 
