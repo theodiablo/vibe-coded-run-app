@@ -10,9 +10,11 @@ import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
 // where GPS was lost (signal/background) so the route isn't bridged with a
 // straight line.
 
-const ACC_MAX_M = 35;        // drop fixes worse than this
+const ACC_MAX_M = 25;        // drop fixes worse than this (tighter = cleaner track)
+const ACC_WARMUP_M = 20;     // require a fix at least this good before the FIRST point —
+                             // the GNSS chip emits coarse network fixes until satellites lock
 const MIN_INTERVAL_MS = 2000; // thin the stream to ~1 point / 2s (battery/storage)
-const MIN_MOVE_M = 5;         // and only when actually moving (kills jitter)
+const MIN_MOVE_M = 5;         // base jitter gate (scaled up for less-accurate fixes below)
 const GAP_MS = 12000;         // a fix after this long a silence starts a new segment
 const TICK_MS = 1000;         // UI clock refresh while tracking
 const CUR_PACE_WINDOW_MS = 30000; // current-pace look-back
@@ -80,7 +82,7 @@ export function useRunTracker() {
   const onPos = useCallback((pos) => {
     if (stateRef.current !== "tracking") return; // ignore fixes while paused
     if (!accuracyOK(pos, ACC_MAX_M)) return;
-    const { latitude, longitude, altitude } = pos.coords;
+    const { latitude, longitude, altitude, accuracy } = pos.coords;
     const t = pos.timestamp || Date.now();
     const pts = pointsRef.current;
     let last = null;
@@ -88,8 +90,14 @@ export function useRunTracker() {
     let next = pts;
     if (last) {
       if (t - last[2] < MIN_INTERVAL_MS) return;          // too soon
-      if (haversineM(last, [latitude, longitude]) < MIN_MOVE_M) return; // not moving
+      // Reject a move smaller than the fix's own uncertainty as jitter, so a
+      // less-accurate fix can't zigzag the track or inflate distance. Accurate
+      // fixes fall back to the flat MIN_MOVE_M floor.
+      const minMove = Math.max(MIN_MOVE_M, (accuracy || 0) * 0.5);
+      if (haversineM(last, [latitude, longitude]) < minMove) return; // not moving
       if (t - last[2] > GAP_MS) next = [...pts, null];    // lost signal → break track
+    } else if (accuracy != null && accuracy > ACC_WARMUP_M) {
+      return; // warm-up: don't anchor the track on a coarse pre-lock fix
     }
     const np = [latitude, longitude, t, altitude == null ? null : Math.round(altitude)];
     pointsRef.current = [...next, np];
