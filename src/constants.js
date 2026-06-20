@@ -16,7 +16,7 @@ export const LIVE_RUN_KEY = "rc_live_run";
 // allowed for a multi-user app under the OSMF tile policy. The key is a
 // publishable, domain-restricted client key (set VITE_MAPTILER_KEY at build).
 // Attribution must stay visible per the OSM data licence.
-export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
+export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "PCOM2soXowyfwOjq7jfc";
 export const MAP_TILE_URL =
   "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
 export const MAP_ATTRIBUTION =
