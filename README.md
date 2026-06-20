@@ -72,18 +72,19 @@ supabase start        # spins up a local Postgres + Auth + Studio
 supabase db push      # applies migrations
 ```
 
-### 3. Configure your environment
+### 3. Point the app at your Supabase project
 
-```sh
-cp .env.example .env.local
+Open `src/config.js` and replace the two default values with your project's
+URL and anon key (both found under *Settings → API* in the Supabase dashboard):
+
+```js
+export const SUPABASE_URL = "https://your-project-id.supabase.co";
+export const SUPABASE_ANON_KEY = "your-anon-key-here";
 ```
 
-Fill in the two values from your Supabase project's API settings:
-
-```
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
-```
+Alternatively, you can override them without touching the source by creating a
+`.env.local` file at the repo root (see `.env.example`) — env vars take precedence
+over the values in `config.js`.
 
 ### 4. Run it
 
