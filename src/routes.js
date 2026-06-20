@@ -75,6 +75,16 @@ export function queuePendingRoute(entry) {
   savePending(list);
 }
 
+// Drop a queued trace whose run was deleted before it ever synced, so it isn't
+// later uploaded as an orphaned row (the privacy delete must cover pending
+// traces too, not just already-synced ones).
+export function removePendingRoute(tmpId) {
+  if (!tmpId) return;
+  const list = loadPending();
+  const next = list.filter(e => e.tmpId !== tmpId);
+  if (next.length !== list.length) savePending(next);
+}
+
 // Read a not-yet-uploaded trace straight from the offline queue, so a run whose
 // route is still pending sync can be viewed locally before it reaches Supabase.
 export function getPendingRoute(tmpId) {

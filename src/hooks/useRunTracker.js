@@ -208,10 +208,17 @@ export function useRunTracker() {
     setPending(prev => {
       const buf = prev;
       if (!buf) return prev;
-      pointsRef.current = buf.points || [];
+      // Break the track between the recovered points and whatever gets recorded
+      // next: an unknown (possibly large) amount of time and distance may have
+      // passed since the crash, so resuming must start a fresh segment rather
+      // than bridge the gap with a phantom straight line that inflates distance.
+      const recovered = buf.points || [];
+      if (recovered.length && recovered[recovered.length - 1] != null) recovered.push(null);
+      pointsRef.current = recovered;
       setPoints(pointsRef.current);
       accRef.current = buf.accSec || 0;
       startRef.current = null;
+      lastFixRef.current = 0;
       setError(null);
       setMovingSec(Math.round(buf.accSec || 0));
       stateRef.current = "paused"; // user taps Resume to continue recording

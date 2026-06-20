@@ -3,7 +3,7 @@ import { Activity, Calendar, TrendingUp, Plus, Loader, History, Settings } from 
 import { db } from "./db";
 import { STORAGE_KEYS } from "./constants";
 import { buildPlan } from "./utils/plan";
-import { deleteRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
+import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -103,7 +103,11 @@ export default function RunningCoach({ onSignOut }) {
   const deleteRun = id => {
     setRuns(prev => {
       const r = prev.find(x => x.id === id);
-      if (r?.routeId) deleteRoute(r.routeId); // drop the GPS trace too (privacy)
+      // Drop the GPS trace too (privacy) — whether already synced (routeId) or
+      // still waiting in the offline queue (routeTmp), so a deleted run never
+      // leaks its route to the cloud on a later flush.
+      if (r?.routeId) deleteRoute(r.routeId);
+      if (r?.routeTmp) removePendingRoute(r.routeTmp);
       const next = prev.filter(x => x.id !== id);
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
@@ -176,7 +180,7 @@ export default function RunningCoach({ onSignOut }) {
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showSettings && <SettingsModal
         settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}
-        onBackup={()  => { setShowSettings(false); setShowBackup(true); }}
+        onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
         onClose={()   => setShowSettings(false)}/>}
