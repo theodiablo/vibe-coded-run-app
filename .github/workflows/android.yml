@@ -1,0 +1,61 @@
+name: Build Android app
+
+# Manual / tag-triggered only — the Android app is released to the Play Store on
+# its own cadence, independent of the web deploy (deploy.yml), even though both
+# build from the same dist/. Not run on every push.
+on:
+  workflow_dispatch: {}
+  push:
+    tags: ["android-v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+        env:
+          # Same domain-restricted MapTiler key as the web deploy (see README → Maps).
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      # Release signing. Store a base64 keystore + credentials as Actions secrets.
+      # Debug builds need no signing; only release AABs uploaded to Play do.
+      - name: Decode keystore
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+
+      - name: Build AAB
+        working-directory: android
+        run: ./gradlew bundleRelease
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: running-coach-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn

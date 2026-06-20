@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "lucide-react";
 import { supabase } from "./supabase";
+import { isNative } from "./native";
 import { initStore, clearStore } from "./db";
 import RunningCoach from "./RunningCoach.jsx";
 import LoginScreen from "./LoginScreen.jsx";
@@ -66,6 +67,26 @@ export default function App() {
       clearTimeout(timer);
       sub.subscription.unsubscribe();
     };
+  }, []);
+
+  // Inside the Capacitor shell, OAuth / magic-link redirects come back as a deep
+  // link (see authRedirectTo). Catch it, pull the PKCE `code`, and complete the
+  // exchange so the WebView signs in. No-op on the web (handled by
+  // detectSessionInUrl). Plugin imported lazily so it stays out of the web bundle.
+  useEffect(() => {
+    if (!isNative) return;
+    let listener;
+    import("@capacitor/app").then(({ App: CapApp }) =>
+      CapApp.addListener("appUrlOpen", async ({ url }) => {
+        try {
+          const code = new URL(url).searchParams.get("code");
+          if (code) await supabase.auth.exchangeCodeForSession(code);
+        } catch (err) {
+          console.error("Deep-link auth exchange failed", err);
+        }
+      }),
+    ).then((h) => { listener = h; });
+    return () => { listener?.remove?.(); };
   }, []);
 
   // Load (or clear) the per-user store when the *user* changes. Keyed on the

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+import { isNative } from "./native";
 
 // supabase-js issues every request (auth token exchange, token refresh,
 // PostgREST queries) through the browser `fetch` with NO client-side timeout
@@ -37,4 +38,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: { fetch: fetchWithTimeout },
 });
 
-export const authRedirectTo = () => `${window.location.origin}/`;
+// Where Supabase sends the user back after an OAuth / magic-link sign-in. In the
+// browser that's the app's own origin. Inside the Capacitor shell the origin is
+// http://localhost (not reachable externally), so we return a registered deep
+// link instead; App.jsx listens for it via @capacitor/app and completes the PKCE
+// exchange. This scheme must be added to the Supabase Auth redirect allow-list.
+export const AUTH_DEEP_LINK = "solutions.camboulive.run://auth-callback";
+export const authRedirectTo = () =>
+  isNative ? AUTH_DEEP_LINK : `${window.location.origin}/`;

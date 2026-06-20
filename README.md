@@ -132,6 +132,38 @@ npm run preview       # preview the production build locally
 
 ---
 
+## Android app (background GPS tracking)
+
+The web app records runs only while the screen is on — browsers can't track in the
+background. The **Android app** wraps the same web build in a [Capacitor](https://capacitorjs.com)
+shell and swaps the GPS source for a native background-location plugin, so a run
+keeps recording with the screen off or the app backgrounded. The UI, save path, and
+`run_routes` storage are reused unchanged; the web app is unaffected (a single bundle
+serves both — `Capacitor.isNativePlatform()` is `false` in the browser).
+
+**Build it locally** (needs Android Studio / the Android SDK + JDK 21):
+
+```sh
+npm install
+npm run build              # → dist/
+npx cap sync android       # copy web assets + native plugins into android/
+npx cap open android       # open in Android Studio, run on a device/emulator
+```
+
+Debug builds need no signing. Release AABs for the Play Store are built by
+`.github/workflows/android.yml` (manual or on an `android-v*` tag) and need these
+extra repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+
+**Before release**, two things must be configured outside the repo:
+
+- **Supabase Auth → URL Configuration:** add `solutions.camboulive.run://auth-callback`
+  to the redirect allow-list so OAuth / magic-link sign-in returns to the app.
+- **Play Console:** background location requires a prominent in-app disclosure, a
+  public privacy policy URL, and the "Location permissions" declaration form
+  justifying `ACCESS_BACKGROUND_LOCATION` (core feature: recording a run with the
+  screen off). Test on an internal track first.
+
 ## Maps
 
 Live GPS run tracking renders the route on a map using [MapTiler](https://www.maptiler.com/)

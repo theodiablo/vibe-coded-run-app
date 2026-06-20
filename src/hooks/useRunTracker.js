@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
+import { geoSource } from "../geo/source";
 
 // Live GPS run tracker. All geolocation access is funnelled through this one hook
 // so a Phase-2 native shell can swap watchPosition for a background-location
@@ -124,18 +125,18 @@ export function useRunTracker() {
   }, []);
 
   const startWatch = useCallback(() => {
-    if (!("geolocation" in navigator)) {
+    if (!geoSource.isAvailable()) {
       setError("This browser/device doesn't support GPS (geolocation). Geolocation also needs a secure (https) connection.");
       return false;
     }
-    watchRef.current = navigator.geolocation.watchPosition(onPos, onErr, {
-      enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
-    });
+    // background:true → the native source runs a foreground service so recording
+    // continues with the screen off; on web the flag is ignored (no-op).
+    watchRef.current = geoSource.watchPosition(onPos, onErr, { background: true });
     return true;
   }, [onPos, onErr]);
 
   const stopWatch = useCallback(() => {
-    if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current);
+    if (watchRef.current != null) geoSource.clearWatch(watchRef.current);
     watchRef.current = null;
   }, []);
 
@@ -266,17 +267,19 @@ export function useRunTracker() {
   // Silent on error — recording's own watch surfaces permission issues.
   useEffect(() => {
     if (state !== "idle") return;
-    if (!("geolocation" in navigator)) return;
-    const id = navigator.geolocation.watchPosition(
+    if (!geoSource.isAvailable()) return;
+    // Foreground-only preview (background:false) — no foreground service /
+    // notification while the user is still on the start screen.
+    const handle = geoSource.watchPosition(
       pos => setLocation({
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
         acc: pos.coords.accuracy ?? null,
       }),
       () => {},
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      { background: false },
     );
-    return () => navigator.geolocation.clearWatch(id);
+    return () => geoSource.clearWatch(handle);
   }, [state]);
 
   // ── derived stats ──────────────────────────────────────────────────────────

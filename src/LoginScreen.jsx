@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Activity, Loader, Mail, Lock } from "lucide-react";
 import { supabase, authRedirectTo } from "./supabase";
+import { isNative } from "./native";
 
 export default function LoginScreen() {
   const [mode, setMode] = useState("signin"); // signin | signup | magic
@@ -14,13 +15,21 @@ export default function LoginScreen() {
   async function withGoogle() {
     setBusy(true);
     setMsg(null);
-    const { error } = await supabase.auth.signInWithOAuth({
+    // In the shell, open the provider in the system browser ourselves and let the
+    // deep link bring the result back (App.jsx completes the exchange). On the web
+    // Supabase performs the redirect for us.
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: authRedirectTo() },
+      options: { redirectTo: authRedirectTo(), skipBrowserRedirect: isNative },
     });
     if (error) {
       note("err", error.message);
       setBusy(false);
+      return;
+    }
+    if (isNative && data?.url) {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url: data.url });
     }
     // on success the browser is redirected, so no need to reset busy
   }
