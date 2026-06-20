@@ -85,8 +85,8 @@ export const SUPABASE_ANON_KEY = "your-anon-key-here";
 ```
 
 Alternatively, you can override them without touching the source by creating a
-`.env.local` file at the repo root (see `.env.example`) — env vars take precedence
-over the values in `config.js`.
+`.env.local` file at the repo root with `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` — env vars take precedence over the values in `config.js`.
 
 ### 4. Run it
 
