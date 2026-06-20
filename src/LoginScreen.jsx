@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Activity, Loader, Mail, Lock } from "lucide-react";
 import { supabase, authRedirectTo } from "./supabase";
 import { isNative } from "./native";
+import { PRIVACY_URL } from "./constants";
 
 export default function LoginScreen() {
   const [mode, setMode] = useState("signin"); // signin | signup | magic
@@ -169,7 +170,9 @@ export default function LoginScreen() {
         </div>
 
         <p className="text-center text-xs text-slate-600 mt-4">
-          Your data syncs securely to your account.
+          Your data syncs securely to your account.{" "}
+          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
+            className="text-slate-500 underline hover:text-slate-300">Privacy</a>
         </p>
       </div>
     </div>

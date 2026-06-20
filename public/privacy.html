@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="index" />
+    <title>Privacy Policy — Running Coach</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #0f172a;
+        color: #cbd5e1;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      .wrap { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+      h1 { color: #fff; font-size: 1.6rem; margin: 0 0 .25rem; }
+      h2 { color: #fff; font-size: 1.1rem; margin: 2rem 0 .5rem; }
+      .lead { color: #94a3b8; margin: 0 0 1.5rem; }
+      .updated { color: #64748b; font-size: .85rem; }
+      a { color: #fb923c; }
+      ul { padding-left: 1.25rem; }
+      li { margin: .3rem 0; }
+      strong { color: #e2e8f0; }
+      .accent { color: #fb923c; }
+      .card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+        margin: 1.25rem 0;
+      }
+      footer { margin-top: 2.5rem; color: #64748b; font-size: .85rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>🏃 Running Coach — Privacy Policy</h1>
+      <p class="lead">A free, open-source running-training app. No ads, no analytics,
+        no upsells — and the same goes for your data.</p>
+      <p class="updated">Last updated: 20 June 2026</p>
+
+      <h2>Who we are</h2>
+      <p>Running Coach is an independent, open-source project. The source code is
+        public, so you can verify exactly what is stored and how. This policy covers
+        both the web app (<a href="https://run.camboulive.solutions">run.camboulive.solutions</a>)
+        and the Android app.</p>
+
+      <h2>What we collect</h2>
+      <ul>
+        <li><strong>Your email address</strong> — to create and sign in to your account.</li>
+        <li><strong>Your runs</strong> — date, distance, duration, heart rate, effort, and notes.</li>
+        <li><strong>Your training plan and race settings.</strong></li>
+        <li><strong>Your name</strong>, if you choose to enter one during onboarding.</li>
+        <li><strong>GPS location and route traces</strong>, when you use live run tracking
+          (see below).</li>
+      </ul>
+
+      <h2 class="accent">Location data &amp; background tracking</h2>
+      <div class="card">
+        <p>When you start a live run, the app records your <strong>precise GPS
+          location</strong> to draw your route and compute distance, pace, and
+          elevation. In the Android app this includes collecting location
+          <strong>in the background — while the app is closed or the screen is
+          off</strong> — so your run keeps recording.</p>
+        <ul>
+          <li>Location is collected <strong>only while a run is actively
+            recording.</strong> Stop the run and collection stops. The app never
+            tracks you in the background at any other time.</li>
+          <li>A persistent notification is shown the entire time a run is recording,
+            so it is always clear when location is being collected.</li>
+          <li>Your route is saved to <strong>your own account</strong> and is shown
+            only to you.</li>
+        </ul>
+      </div>
+
+      <h2>How your data is stored</h2>
+      <p>Your account and data are stored using <a href="https://supabase.com">Supabase</a>
+        (authentication and a per-user database). Every user's data is isolated by
+        row-level security, so no other user can read it. Map tiles are served by
+        <a href="https://www.maptiler.com">MapTiler</a>; rendering a map sends the
+        relevant map-tile coordinates to MapTiler, but not your account identity.</p>
+
+      <h2>How your data is used</h2>
+      <p>Your data is used <strong>only to run the app for you</strong> — to build your
+        plan, log and display your runs, and show your routes. That's it.</p>
+      <ul>
+        <li>We do <strong>not</strong> sell your data.</li>
+        <li>We do <strong>not</strong> share it with third parties for advertising.</li>
+        <li>There is <strong>no</strong> advertising, analytics, or behavioural tracking.</li>
+      </ul>
+
+      <h2>Your rights &amp; deleting your data</h2>
+      <p>You can view and delete individual runs (and their routes) at any time inside
+        the app. To delete your entire account and all associated data, email the
+        address below and we will remove it. You can also export a full backup of your
+        data from within the app at any time.</p>
+
+      <h2>Permissions (Android)</h2>
+      <ul>
+        <li><strong>Location (precise, incl. background)</strong> — to record your run
+          route, including with the screen off. Requested only when you start tracking.</li>
+        <li><strong>Notifications</strong> — to show the persistent "recording run"
+          notification.</li>
+      </ul>
+
+      <h2>Children</h2>
+      <p>Running Coach is not directed at children under 13, and we do not knowingly
+        collect data from them.</p>
+
+      <h2>Changes</h2>
+      <p>If this policy changes, the "last updated" date above will change. Material
+        changes will be noted in the app.</p>
+
+      <h2>Contact</h2>
+      <p>Questions, or want your data deleted? Email
+        <a href="mailto:theo.camboulive.dev@gmail.com">theo.camboulive.dev@gmail.com</a>.</p>
+
+      <footer>
+        Running Coach is open source (MIT). You can read exactly what is stored in the
+        project's <code>supabase/migrations/</code> and <code>src/db.js</code>.
+      </footer>
+    </div>
+  </body>
+</html>

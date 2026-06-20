@@ -5,6 +5,8 @@ import { simplify } from "../utils/geo";
 import { saveRoute, queuePendingRoute } from "../routes";
 import { useRunTracker } from "../hooks/useRunTracker";
 import { RouteMap } from "../components/RouteMap";
+import { BgLocationDisclosure } from "./BgLocationDisclosure";
+import { BG_LOC_DISCLOSED_KEY } from "../constants";
 
 // Detect the Phase-2 native shell (a TWA/Capacitor build that DOES track in the
 // background) so we don't nag those users with the browser-only screen-on notice.
@@ -34,9 +36,26 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
   const t = useRunTracker();
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
+  const [showDisclosure, setShowDisclosure] = useState(false);
 
   const hasTrack = stats.n > 0;
   const live = state === "tracking" || state === "paused";
+
+  // In the native shell, show the background-location prominent disclosure before
+  // the first recording (which triggers the OS permission prompt). On the web, or
+  // once accepted, start straight away.
+  const disclosed = () => {
+    try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
+  };
+  const handleStart = () => {
+    if (inNativeShell && !disclosed()) setShowDisclosure(true);
+    else t.start();
+  };
+  const acceptDisclosure = () => {
+    try { localStorage.setItem(BG_LOC_DISCLOSED_KEY, "1"); } catch { /* quota — non-fatal */ }
+    setShowDisclosure(false);
+    t.start();
+  };
 
   const handleClose = () => {
     if ((live || state === "stopped") && hasTrack &&
@@ -125,7 +144,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
                 {location.acc <= 15 ? " — good to go" : " — wait for it to settle for a cleaner start"}
               </p>
             )}
-            <Ctrl onClick={t.start} color="bg-orange-500 hover:bg-orange-600 text-white">
+            <Ctrl onClick={handleStart} color="bg-orange-500 hover:bg-orange-600 text-white">
               <Play size={20} />Start run
             </Ctrl>
           </>
@@ -158,6 +177,10 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
           </p>
         )}
       </div>
+
+      {showDisclosure && (
+        <BgLocationDisclosure onAccept={acceptDisclosure} onCancel={() => setShowDisclosure(false)} />
+      )}
     </div>
   );
 }

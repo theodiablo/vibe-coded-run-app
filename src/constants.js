@@ -12,6 +12,16 @@ export const STORAGE_KEYS = {
 // it's high-frequency local scratch space, flushed only on a real save.
 export const LIVE_RUN_KEY = "rc_live_run";
 
+// localStorage flag: the user has seen and accepted the background-location
+// prominent disclosure (native shell only). Set once per install so we show it
+// before the first OS permission prompt but don't nag on every run.
+export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
+
+// Public privacy policy (static page in public/privacy.html, served at the site
+// root). Linked from the disclosure + login screen and required by the app stores
+// for background-location apps.
+export const PRIVACY_URL = "https://run.camboulive.solutions/privacy.html";
+
 // Map basemap. A keyed free-tier provider (MapTiler) — raw OSM tiles aren't
 // allowed for a multi-user app under the OSMF tile policy. Set VITE_MAPTILER_KEY
 // (a publishable, domain-restricted client key) at build. No default key is
