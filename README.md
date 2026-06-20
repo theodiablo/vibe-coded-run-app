@@ -41,35 +41,91 @@ The app is intentionally **100% static and serverless**:
 
 ---
 
-## Develop locally
+## Running your own copy
+
+Want to fork this and make it yours? Here's everything you need.
+
+### Prerequisites
+
+- **Node 20+**
+- A free **[Supabase](https://supabase.com)** account (the free tier is plenty)
+
+### 1. Create a Supabase project
+
+Go to [supabase.com](https://supabase.com), create a new project, then grab your
+**Project URL** and **anon (public) key** from *Settings → API*.
+
+### 2. Set up the database schema
+
+In your Supabase project, open the **SQL Editor** and run the three migration files
+in order from `supabase/migrations/`:
+
+1. `20260607114706_init_schema.sql`
+2. `20260607165159_grant_table_privileges.sql`
+3. `20260614120000_harden_security_definer_functions.sql`
+
+Alternatively, if you have the [Supabase CLI](https://supabase.com/docs/guides/cli)
+and Docker installed, you can run a full local stack:
+
+```sh
+supabase start        # spins up a local Postgres + Auth + Studio
+supabase db push      # applies migrations
+```
+
+### 3. Configure your environment
+
+```sh
+cp .env.example .env.local
+```
+
+Fill in the two values from your Supabase project's API settings:
+
+```
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### 4. Run it
 
 ```sh
 npm install
 npm run dev
 ```
 
-## Test
+That's it — the app is fully self-contained once it talks to your own Supabase project.
 
-```sh
-npm test              # run the Vitest suite once
-npm run test:watch    # watch mode
-```
+### 5. Deploy (optional)
 
-## Build
+Pushes to `main` trigger `.github/workflows/deploy.yml`, which builds the app and
+syncs `dist/` to an S3 bucket behind a CloudFront distribution. Set these
+**repository secrets** in your fork (*Settings → Secrets and variables → Actions*):
 
-```sh
-npm run build    # outputs to dist/
-npm run preview
-```
+| Secret | Value |
+|--------|-------|
+| `AWS_REGION` | e.g. `eu-west-3` |
+| `AWS_DEPLOY_ROLE_ARN` | IAM role ARN assumable via OIDC from GitHub Actions |
+| `S3_BUCKET_NAME` | target S3 bucket (serve as a static website or via CloudFront) |
+| `CLOUDFRONT_DISTRIBUTION_ID` | distribution to invalidate after each deploy |
+
+The workflow uses GitHub's OIDC provider to assume the IAM role — no long-lived
+AWS credentials stored in GitHub. The role needs S3 write access and these
+CloudFront permissions: `CreateInvalidation`, `ListResponseHeadersPolicies`,
+`CreateResponseHeadersPolicy`, `GetResponseHeadersPolicy`,
+`UpdateResponseHeadersPolicy`, `GetDistributionConfig`, `UpdateDistribution`.
 
 ---
 
-## Configuration
+## Local development commands
 
-The Supabase URL and **publishable (anon)** key are read from `VITE_SUPABASE_URL`
-and `VITE_SUPABASE_ANON_KEY` at build time, with public-safe defaults baked in so
-a static build works without extra config. The anon key grants nothing on its own —
-row-level security is the real boundary, and the secret key must never be committed.
+```sh
+npm install           # install dependencies (run first after cloning)
+npm run dev           # start the Vite dev server
+npm test              # run the Vitest suite once
+npm run test:watch    # watch mode
+npm run lint          # ESLint
+npm run build         # production build → dist/
+npm run preview       # preview the production build locally
+```
 
 ---
 
@@ -82,24 +138,6 @@ row-level security is the real boundary, and the secret key must never be commit
 
 ---
 
-## Deployment (S3 + CloudFront via GitHub Actions)
+## License
 
-Pushes to `main` trigger `.github/workflows/deploy.yml`, which builds the app and
-syncs `dist/` to an S3 bucket, then invalidates the CloudFront distribution.
-
-Configure these repository secrets:
-
-| Secret | Value |
-|--------|-------|
-| `AWS_REGION` | e.g. `eu-west-3` |
-| `AWS_DEPLOY_ROLE_ARN` | IAM role ARN assumable via OIDC |
-| `S3_BUCKET_NAME` | target bucket name |
-| `CLOUDFRONT_DISTRIBUTION_ID` | distribution to invalidate after each deploy |
-
-The IAM role needs: `cloudfront:CreateInvalidation`, `cloudfront:ListResponseHeadersPolicies`,
-`cloudfront:CreateResponseHeadersPolicy`, `cloudfront:GetResponseHeadersPolicy`,
-`cloudfront:UpdateResponseHeadersPolicy`, `cloudfront:GetDistributionConfig`,
-`cloudfront:UpdateDistribution`, and write access to the S3 bucket.
-
-The workflow uses GitHub's OIDC provider to assume the role — no long-lived AWS keys
-stored in GitHub.
+[MIT](LICENSE) — do whatever you want with it, just keep the copyright notice.
