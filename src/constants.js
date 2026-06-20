@@ -13,10 +13,13 @@ export const STORAGE_KEYS = {
 export const LIVE_RUN_KEY = "rc_live_run";
 
 // Map basemap. A keyed free-tier provider (MapTiler) — raw OSM tiles aren't
-// allowed for a multi-user app under the OSMF tile policy. The key is a
-// publishable, domain-restricted client key (set VITE_MAPTILER_KEY at build).
-// Attribution must stay visible per the OSM data licence.
-export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "PCOM2soXowyfwOjq7jfc";
+// allowed for a multi-user app under the OSMF tile policy. Set VITE_MAPTILER_KEY
+// (a publishable, domain-restricted client key) at build. No default key is
+// baked in: shipping a real key in a public repo lets anyone drain the owner's
+// quota. Without the env var the tracker still records — RouteMap just shows a
+// "needs key" notice instead of tiles. Attribution stays visible per the OSM
+// data licence.
+export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
 export const MAP_TILE_URL =
   "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
 export const MAP_ATTRIBUTION =

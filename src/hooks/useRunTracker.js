@@ -47,6 +47,8 @@ export function useRunTracker() {
   const startRef = useRef(null);   // epoch ms the current active segment began
   const watchRef = useRef(null);
   const wakeRef = useRef(null);
+  const lastFixRef = useRef(0);    // epoch ms of the last usable fix (incl. ones
+                                   // dropped as jitter) — for true gap detection
 
   // Mirror render state into refs from effects (not during render) so the async
   // geolocation callback always sees the latest values.
@@ -85,6 +87,11 @@ export function useRunTracker() {
     if (!accuracyOK(pos, ACC_MAX_M)) return;
     const { latitude, longitude, altitude, accuracy } = pos.coords;
     const t = pos.timestamp || Date.now();
+    // Silence since the last usable fix. Measured against every accepted fix
+    // (even ones we then drop as jitter), NOT the last stored point, so standing
+    // still — which keeps producing fixes — doesn't masquerade as a lost signal.
+    const sinceLastFix = lastFixRef.current ? t - lastFixRef.current : 0;
+    lastFixRef.current = t;
     const pts = pointsRef.current;
     let last = null;
     for (let i = pts.length - 1; i >= 0; i--) { if (pts[i]) { last = pts[i]; break; } }
@@ -96,7 +103,7 @@ export function useRunTracker() {
       // fixes fall back to the flat MIN_MOVE_M floor.
       const minMove = Math.max(MIN_MOVE_M, (accuracy || 0) * 0.5);
       if (haversineM(last, [latitude, longitude]) < minMove) return; // not moving
-      if (t - last[2] > GAP_MS) next = [...pts, null];    // lost signal → break track
+      if (sinceLastFix > GAP_MS) next = [...pts, null];   // lost signal → break track
     } else if (accuracy != null && accuracy > ACC_WARMUP_M) {
       return; // warm-up: don't anchor the track on a coarse pre-lock fix
     }
@@ -139,6 +146,7 @@ export function useRunTracker() {
     setPoints([]);
     accRef.current = 0;
     startRef.current = Date.now();
+    lastFixRef.current = 0;
     if (!startWatch()) return;
     stateRef.current = "tracking";
     setState("tracking");
@@ -187,6 +195,7 @@ export function useRunTracker() {
     setPoints([]);
     accRef.current = 0;
     startRef.current = null;
+    lastFixRef.current = 0;
     setError(null);
     setMovingSec(0);
     stateRef.current = "idle";

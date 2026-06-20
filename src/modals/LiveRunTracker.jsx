@@ -41,7 +41,10 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
   const handleClose = () => {
     if ((live || state === "stopped") && hasTrack &&
       !window.confirm("Discard this run? Your tracked route will be lost.")) return;
-    t.reset();
+    // Only tear down (which clears the crash-recovery buffer) for an in-progress
+    // or just-finished run. Backing out while idle must NOT wipe an unresumed
+    // recovery buffer — it should still be offered next time the tracker opens.
+    if (live || state === "stopped") t.reset();
     onClose();
   };
 
