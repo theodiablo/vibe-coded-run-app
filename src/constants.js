@@ -7,6 +7,24 @@ export const STORAGE_KEYS = {
   SETTINGS: "rc_settings",
 };
 
+// localStorage key for the in-progress live run buffer (crash/refresh recovery).
+// Kept out of STORAGE_KEYS on purpose: it must NOT sync to the Supabase blob —
+// it's high-frequency local scratch space, flushed only on a real save.
+export const LIVE_RUN_KEY = "rc_live_run";
+
+// Map basemap. A keyed free-tier provider (MapTiler) — raw OSM tiles aren't
+// allowed for a multi-user app under the OSMF tile policy. Set VITE_MAPTILER_KEY
+// (a publishable, domain-restricted client key) at build. No default key is
+// baked in: shipping a real key in a public repo lets anyone drain the owner's
+// quota. Without the env var the tracker still records — RouteMap just shows a
+// "needs key" notice instead of tiles. Attribution stays visible per the OSM
+// data licence.
+export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
+export const MAP_TILE_URL =
+  "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
+export const MAP_ATTRIBUTION =
+  '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
+
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // Per session-type text / border-background colour classes.

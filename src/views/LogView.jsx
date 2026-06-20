@@ -1,19 +1,23 @@
 import { useState, useRef } from "react";
-import { Loader, Plus, Upload } from "lucide-react";
+import { Loader, Plus, Upload, MapPin } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
 import { parseRunsCsv, MAX_CSV_BYTES } from "../utils/csv";
 
-export function LogView({addRuns, onDone, onSaved, prefill}) {
-  const estSec = prefill?.km && prefill?.pace ? Math.round(prefill.km * prefill.pace) : 0;
+export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
+  // A GPS-tracked run prefills its real measured duration; a plan session
+  // prefills an estimate from km × prescribed pace.
+  const estSec = prefill?.durationSec != null
+    ? prefill.durationSec
+    : (prefill?.km && prefill?.pace ? Math.round(prefill.km * prefill.pace) : 0);
   const INIT = {
     date:   prefill?.date || ymd(new Date()),
     type:   prefill?.type || "EASY",
     km:     prefill?.km != null ? String(prefill.km) : "",
     dH:     estSec >= 3600 ? String(Math.floor(estSec / 3600)) : "",
     dM:     estSec >= 60   ? String(Math.floor((estSec % 3600) / 60)) : "",
-    dS:     estSec % 60    ? String(estSec % 60) : "",
-    hr:"",hrMax:"",elev:"",effort:5,notes:"",
+    dS:     Math.round(estSec % 60) ? String(Math.round(estSec % 60)) : "",
+    hr:"",hrMax:"",elev: prefill?.elevation != null ? String(prefill.elevation) : "",effort:5,notes:"",
   };
   const [f,      setF]    = useState(INIT);
   const [busy,   setBusy] = useState(false);
@@ -34,6 +38,10 @@ export function LogView({addRuns, onDone, onSaved, prefill}) {
       hrMax:     f.hrMax ? parseInt(f.hrMax) : null,
       elevation: f.elev  ? parseInt(f.elev)  : null,
       effort:    parseInt(f.effort), notes: f.notes,
+      // Carry the GPS trace reference through from a live-tracked run.
+      ...(prefill?.source   ? { source: prefill.source } : {}),
+      ...(prefill?.routeId  ? { routeId: prefill.routeId } : {}),
+      ...(prefill?.routeTmp ? { routeTmp: prefill.routeTmp, routePending: true } : {}),
     }]);
     setBusy(false); onSaved?.(); onDone();
   };
@@ -75,6 +83,19 @@ export function LogView({addRuns, onDone, onSaved, prefill}) {
       </div>
 
       {csvMsg && <div className={msgCls}>{csvMsg}</div>}
+
+      {openTracker && !prefill?.source && (
+        <button onClick={openTracker}
+          className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors mb-5">
+          <MapPin size={16}/>Track a run live (GPS)
+        </button>
+      )}
+
+      {prefill?.source === "gps" && (
+        <div className="bg-emerald-500/15 text-emerald-300 text-sm rounded-xl px-4 py-2.5 mb-5">
+          Tracked by GPS — distance, time and elevation are filled in. Add a type and notes, then save.
+        </div>
+      )}
 
       {showImp && (
         <div className="bg-slate-800 rounded-2xl p-4 mb-5 border border-slate-700 space-y-2.5">

@@ -32,7 +32,7 @@ export function BackupModal({data, onClose}) {
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
           <div>
             <p className="font-semibold text-sm">Backup Data</p>
-            <p className="text-xs text-slate-400">{(data.runs ? data.runs.length : 0) + " run(s) · " + (data.plan ? "plan saved" : "no plan")}</p>
+            <p className="text-xs text-slate-400">{(data.runs ? data.runs.length : 0) + " run(s) · " + (data.plan ? "plan saved" : "no plan") + (data.routes?.length ? " · " + data.routes.length + " route(s)" : "")}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
         </div>

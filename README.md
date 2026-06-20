@@ -108,6 +108,7 @@ syncs `dist/` to an S3 bucket behind a CloudFront distribution. Set these
 | `AWS_DEPLOY_ROLE_ARN` | IAM role ARN assumable via OIDC from GitHub Actions |
 | `S3_BUCKET_NAME` | target S3 bucket (serve as a static website or via CloudFront) |
 | `CLOUDFRONT_DISTRIBUTION_ID` | distribution to invalidate after each deploy |
+| `VITE_MAPTILER_KEY` | *(optional)* MapTiler key for the map basemap on GPS-tracked runs — see [Maps](#maps). Omit it and the app still records runs, just without tiles. |
 
 The workflow uses GitHub's OIDC provider to assume the IAM role — no long-lived
 AWS credentials stored in GitHub. The role needs S3 write access and these
@@ -131,10 +132,41 @@ npm run preview       # preview the production build locally
 
 ---
 
+## Maps
+
+Live GPS run tracking renders the route on a map using [MapTiler](https://www.maptiler.com/)
+tiles. Without a key the tracker still records the run; only the map basemap
+won't load (the app shows a small "needs key" notice instead of tiles). Raw
+OpenStreetMap tiles are intentionally not used — the OSMF tile policy disallows
+them for a multi-user app.
+
+**Set the key as the `VITE_MAPTILER_KEY` build-time variable:**
+
+- **CI / deploys:** add `VITE_MAPTILER_KEY` as a **repository secret**
+  (*Settings → Secrets and variables → Actions*). Both `deploy.yml` and
+  `deploy-pr.yml` read it in their build step and Vite inlines it into the
+  bundle. The secret is read at build time, so a change only takes effect on the
+  next deploy — re-run the workflow (or push a commit) after adding it.
+- **Local dev:** put `VITE_MAPTILER_KEY=...` in a gitignored `.env.local` file.
+
+> ⚠️ **A `VITE_*` value is NOT a secret in the deployed app.** Vite inlines it
+> into the public JavaScript bundle, so anyone can read the key in their
+> browser's dev tools — using a GitHub secret only keeps it out of the *source
+> repo*, not out of the shipped site. The real protection is **restricting the
+> key to your origin(s)** in the MapTiler dashboard
+> (*Account → Keys → Allowed origins / HTTP referrers*): add your production
+> domain (e.g. `https://run.camboulive.solutions`) so the key can't be lifted
+> and used to drain your tile quota from another site. PR previews are served
+> from the same origin, so one entry covers them too. Never use an unrestricted
+> key here.
+
 ## Security
 
 - A Content-Security-Policy is set in `index.html` as defence-in-depth.
 - `.github/workflows/security.yml` runs Semgrep on every PR and push to `main`.
+- The MapTiler key (`VITE_MAPTILER_KEY`) is inlined into the public bundle, so it
+  must be **origin-restricted in the MapTiler dashboard** to your domain(s) — see
+  [Maps](#maps). No default key ships in the source.
 - Password policy lives in `supabase/config.toml` for local dev; the live project's
   policy must be set in the Supabase dashboard.
 
