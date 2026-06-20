@@ -10,11 +10,12 @@ import { segments } from "../utils/geo";
 //
 // `points` is the tracker tuple array ([lat,lng,t,alt], null = gap). `follow`
 // recenters on the latest fix while live.
-export function RouteMap({ points = [], follow = false, interactive = true, className = "", style }) {
+export function RouteMap({ points = [], follow = false, interactive = true, location = null, className = "", style }) {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const linesRef = useRef([]);
   const dotRef = useRef(null);
+  const locDotRef = useRef(null); // preview dot shown before recording starts
 
   // Create the map once.
   useEffect(() => {
@@ -74,6 +75,25 @@ export function RouteMap({ points = [], follow = false, interactive = true, clas
       map.fitBounds(L.latLngBounds(all).pad(0.15), { animate: false });
     }
   }, [points, follow]);
+
+  // Preview dot: show current location before recording starts (no track points yet).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (location && !points.length) {
+      const icon = L.divIcon({
+        className: "",
+        html: '<div style="width:14px;height:14px;border-radius:9999px;background:#60a5fa;border:2px solid #fff;box-shadow:0 0 0 2px rgba(96,165,250,.4)"></div>',
+        iconSize: [14, 14], iconAnchor: [7, 7],
+      });
+      if (locDotRef.current) locDotRef.current.setLatLng(location).setIcon(icon);
+      else locDotRef.current = L.marker(location, { icon, interactive: false }).addTo(map);
+      map.setView(location, Math.max(map.getZoom(), 15), { animate: false });
+    } else if (locDotRef.current) {
+      locDotRef.current.remove();
+      locDotRef.current = null;
+    }
+  }, [location, points.length]);
 
   return (
     <div className={className} style={{ position: "relative", ...style }}>

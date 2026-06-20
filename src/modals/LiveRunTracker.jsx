@@ -32,7 +32,7 @@ function Ctrl({ onClick, color, children, disabled }) {
 
 export function LiveRunTracker({ onFinish, onClose }) {
   const t = useRunTracker();
-  const { state, points, stats, error, pending } = t;
+  const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
 
   const hasTrack = stats.n > 0;
@@ -84,7 +84,8 @@ export function LiveRunTracker({ onFinish, onClose }) {
       </header>
 
       <div className="flex-1 min-h-0">
-        <RouteMap points={points} follow={state === "tracking"} interactive={!live} className="h-full w-full" />
+        <RouteMap points={points} follow={state === "tracking"} interactive={!live}
+          location={state === "idle" ? location : null} className="h-full w-full" />
       </div>
 
       <div className="p-4 space-y-3 border-t border-slate-800">

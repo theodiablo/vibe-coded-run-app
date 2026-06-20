@@ -31,6 +31,7 @@ export function useRunTracker() {
   const [points, setPoints] = useState([]);
   const [error, setError] = useState(null);
   const [movingSec, setMovingSec] = useState(0);
+  const [location, setLocation] = useState(null); // preview position shown before recording starts
   // A recoverable in-progress run from a previous session, read once on mount. A
   // buffer older than the cutoff is dropped so a days-old run can't reappear.
   const [pending, setPending] = useState(() => {
@@ -242,6 +243,17 @@ export function useRunTracker() {
   // Tear down on unmount.
   useEffect(() => () => { stopWatch(); releaseWake(); }, [stopWatch, releaseWake]);
 
+  // One-shot preview fix so the map centers on the user before they hit Start.
+  // Silent on error — the user hasn't requested GPS yet.
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => setLocation([pos.coords.latitude, pos.coords.longitude]),
+      () => {},
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
+  }, []);
+
   // ── derived stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const km = distanceKm(points);
@@ -264,7 +276,7 @@ export function useRunTracker() {
   }, [points, movingSec]);
 
   return {
-    state, points, stats, error, pending,
+    state, points, stats, error, pending, location,
     start, pause, resume, stop, reset,
     resumePrevious, discardPrevious, finalize,
   };
