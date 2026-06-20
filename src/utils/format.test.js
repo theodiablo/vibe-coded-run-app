@@ -32,6 +32,26 @@ describe("fmt.dur", () => {
   });
 });
 
+describe("fmt.mins", () => {
+  it("formats sub-hour as Nmin", () => {
+    expect(fmt.mins(30)).toBe("30min");
+    expect(fmt.mins(45)).toBe("45min");
+  });
+  it("formats whole hours as Nh", () => {
+    expect(fmt.mins(60)).toBe("1h");
+    expect(fmt.mins(120)).toBe("2h");
+  });
+  it("formats mixed durations as NhMM (no raw float)", () => {
+    expect(fmt.mins(90)).toBe("1h30");
+    expect(fmt.mins(110)).toBe("1h50");
+    expect(fmt.mins(65)).toBe("1h05");
+  });
+  it("returns empty string for nullish/blank", () => {
+    expect(fmt.mins(null)).toBe("");
+    expect(fmt.mins("")).toBe("");
+  });
+});
+
 describe("parseDur", () => {
   it("parses m:ss goal times and paces", () => {
     expect(parseDur("50:00")).toBe(3000);

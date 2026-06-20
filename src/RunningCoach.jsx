@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Activity, Calendar, TrendingUp, Plus, Loader, History, Settings, LogOut } from "lucide-react";
+import { Activity, Calendar, TrendingUp, Plus, Loader, History, Settings } from "lucide-react";
 import { db } from "./db";
 import { STORAGE_KEYS } from "./constants";
 import { buildPlan } from "./utils/plan";
@@ -150,6 +150,7 @@ export default function RunningCoach({ onSignOut }) {
         settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}
         onBackup={()  => { setShowSettings(false); setShowBackup(true); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
+        onSignOut={onSignOut}
         onClose={()   => setShowSettings(false)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
@@ -157,18 +158,10 @@ export default function RunningCoach({ onSignOut }) {
           <Activity size={15} className="text-orange-400"/>
           <span className="text-sm font-semibold">Running Coach</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => setShowSettings(true)} aria-label="Settings"
-            className="flex items-center justify-center text-slate-400 hover:text-white p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
-            <Settings size={15}/>
-          </button>
-          {onSignOut && (
-            <button onClick={onSignOut}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
-              <LogOut size={13}/>Sign out
-            </button>
-          )}
-        </div>
+        <button onClick={() => setShowSettings(true)} aria-label="Settings"
+          className="flex items-center justify-center text-slate-400 hover:text-white p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
+          <Settings size={15}/>
+        </button>
       </header>
 
       <div style={{paddingTop:44, paddingBottom:64}}>

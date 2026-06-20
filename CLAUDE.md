@@ -61,6 +61,12 @@ and delete anything that becomes stale.
   a pre-filled mid-pack suggestion), `INPUT_CLS` /
   `LABEL_CLS` (`src/constants.js`) for input styling, type colors `TCLR`, day
   names `DAYS`, and the `fmt` helpers (`src/utils/format.js`) for durations/paces.
+- A logged run renders as `RunRow` (`src/components/RunRow.jsx`) — the shared
+  card used by both the dashboard's recent-runs list and the History view. Pass
+  `dateFmt` (`fmt.sht` vs `fmt.date`), `showNotes`, and an `actions` slot rather
+  than re-rolling the markup, so the two lists never drift.
+- Show a whole-minute duration with `fmt.mins` (`30min` / `1h` / `1h50`), never a
+  bare `minutes / 60` — that prints `1.8333333333333335h`.
 - Number inputs: keep an emptied field empty while editing. Don't write
   `parseFloat(e.target.value) || 0` — the `|| fallback` snaps the value back to
   a default as soon as the user clears it. Coalesce to a number only at use time

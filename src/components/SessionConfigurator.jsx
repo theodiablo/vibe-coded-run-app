@@ -1,4 +1,5 @@
 import { DAYS } from "../constants";
+import { fmt } from "../utils/format";
 
 // Pick training days and per-day durations; the longest becomes the long run.
 export function SessionConfigurator({sessions, onChange}) {
@@ -34,7 +35,7 @@ export function SessionConfigurator({sessions, onChange}) {
               {[20, 30, 45, 60, 75, 90].map(m => (
                 <button key={m} onClick={() => setMins(s.dayOffset, m)}
                   className={"flex-1 py-1 rounded-md text-xs transition-colors " + (s.minutes === m ? "bg-orange-500 text-white" : "bg-slate-600 text-slate-400 hover:text-white")}>
-                  {m < 60 ? m + "m" : (m / 60) + "h"}
+                  {fmt.mins(m)}
                 </button>
               ))}
             </div>

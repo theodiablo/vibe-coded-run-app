@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Check, Download, Upload } from "lucide-react";
+import { Check, Download, Upload, LogOut } from "lucide-react";
 import { INPUT_CLS } from "../constants";
 import { HRZones } from "../views/HRZones";
 
 // Full-screen settings: editable profile name, heart-rate zones, and the
 // less-frequently-used data actions (Backup / Restore) tucked away here so
 // they don't clutter the header.
-export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore, onClose, showToast}) {
+export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore, onSignOut, onClose, showToast}) {
   const [name,  setName]  = useState(settings.name || "");
   const [saved, setSaved] = useState(false);
   const saveName = () => {
@@ -59,6 +59,16 @@ export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore
               </button>
             </div>
           </div>
+
+          {/* Account */}
+          {onSignOut && (
+            <div className="bg-slate-800 rounded-2xl p-4">
+              <button onClick={onSignOut}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
+                <LogOut size={15}/>Sign out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

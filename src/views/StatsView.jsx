@@ -12,14 +12,18 @@ export function StatsView({runs, settings}) {
       <div className="px-4 pt-6 pb-0">
         <h2 className="text-xl font-bold">Stats</h2>
       </div>
-      <Overview runs={runs}/>
+      <Overview runs={runs} settings={settings}/>
       <RacePredictions runs={runs} settings={settings}/>
     </div>
   );
 }
 
-function Overview({runs}) {
+function Overview({runs, settings}) {
   const [period, setPeriod] = useState("12w");
+  // The user's goal pace, drawn on the pace trend so the reference line tracks
+  // their actual target rather than a hardcoded 6:00.
+  const goalPace = settings && settings.goalSec && settings.distanceKm
+    ? settings.goalSec / settings.distanceKm : 0;
 
   const fRuns = period === "all" ? runs : (() => {
     const cut = new Date();
@@ -94,7 +98,8 @@ function Overview({runs}) {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        <p className="text-slate-400 text-xs">Totals for the selected window</p>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
           {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
             <button key={pair[0]} onClick={() => setPeriod(pair[0])}
@@ -154,8 +159,10 @@ function Overview({runs}) {
               <YAxis tick={{fill:"#475569",fontSize:10}} domain={["dataMin - 30","dataMax + 30"]}
                 tickFormatter={v => fmt.pace(v)}/>
               <Tooltip contentStyle={tt} formatter={v => [fmt.pace(v) + "/km", "Pace"]}/>
-              <ReferenceLine y={360} stroke="#f97316" strokeDasharray="5 3"
-                label={{value:"6:00 goal", fill:"#f97316", fontSize:10, position:"right"}}/>
+              {goalPace > 0 && (
+                <ReferenceLine y={Math.round(goalPace)} stroke="#f97316" strokeDasharray="5 3"
+                  label={{value: fmt.pace(goalPace) + " goal", fill:"#f97316", fontSize:10, position:"right"}}/>
+              )}
               <Line type="monotone" dataKey="p" stroke="#38bdf8" strokeWidth={2.5}
                 dot={{r:3.5, fill:"#38bdf8", strokeWidth:0}}/>
             </LineChart>
@@ -210,7 +217,7 @@ function RacePredictions({runs, settings}) {
             <h3 className="text-lg font-bold">Race predictions</h3>
             <PredictionsInfo/>
           </div>
-          <p className="text-slate-500 text-xs mt-0.5">Projected finish times from your logged runs</p>
+          <p className="text-slate-400 text-xs mt-0.5">Projected from your strongest run in the selected window</p>
         </div>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
           {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
