@@ -91,7 +91,22 @@ export default function RunningCoach({ onSignOut }) {
         weeks: prev.weeks.map(w => {
           if (w.weekNumber !== wNum) return w;
           return {...w,
-            sessions: w.sessions.map(s => s.id !== sId ? s : {...s, done: !s.done}),
+            sessions: w.sessions.map(s => s.id !== sId ? s : {...s, done: !s.done, skipped: false}),
+          };
+        }),
+      };
+      db.set(STORAGE_KEYS.PLAN, p);
+      return p;
+    });
+  };
+
+  const skipSess = (wNum, sId) => {
+    setPlan(prev => {
+      const p = {...prev,
+        weeks: prev.weeks.map(w => {
+          if (w.weekNumber !== wNum) return w;
+          return {...w,
+            sessions: w.sessions.map(s => s.id !== sId ? s : {...s, skipped: !s.skipped, done: false}),
           };
         }),
       };
@@ -149,7 +164,7 @@ export default function RunningCoach({ onSignOut }) {
   );
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
-  const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
+  const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
   const TABS   = [
     {id:"dash",    label:"Home",    Icon:Activity},
     {id:"plan",    label:"Plan",    Icon:Calendar},
