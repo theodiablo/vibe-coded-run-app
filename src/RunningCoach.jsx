@@ -28,6 +28,7 @@ export default function RunningCoach({ onSignOut }) {
   });
   const [toast,       setToast]       = useState(null);
   const [logPrefill,  setLogPrefill]  = useState(null);
+  const [prefillVer,  setPrefillVer]  = useState(0);
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
   const [showSettings,setShowSettings]= useState(false);
@@ -143,7 +144,7 @@ export default function RunningCoach({ onSignOut }) {
     </div>
   );
 
-  const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); };
+  const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
   const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
   const TABS   = [
     {id:"dash",    label:"Home",    Icon:Activity},
@@ -194,7 +195,7 @@ export default function RunningCoach({ onSignOut }) {
       <div style={{paddingTop:44, paddingBottom:64}}>
         {tab === "dash"  && <Dashboard  {...shared}/>}
         {tab === "plan"  && <PlanView   {...shared}/>}
-        {tab === "log"   && <LogView    {...shared} prefill={logPrefill}
+        {tab === "log"   && <LogView    {...shared} key={prefillVer} prefill={logPrefill}
           onSaved={() => { if (logPrefill?.wNum != null && logPrefill?.sId) toggleSess(logPrefill.wNum, logPrefill.sId); }}
           onDone={() => { setLogPrefill(null); setTab("dash"); }}/>}
         {tab === "history" && <HistoryView {...shared}/>}
