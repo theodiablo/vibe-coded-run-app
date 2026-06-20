@@ -169,7 +169,7 @@ export default function RunningCoach({ onSignOut }) {
           saveSettings({...settings, onboarded: true, onboardStep: 0, ...(name ? {name} : {})});
           setOnboarding(false);
         }}/>}
-      {showTracker && <LiveRunTracker
+      {showTracker && <LiveRunTracker showToast={showToast}
         onFinish={prefill => { setShowTracker(false); goLog(prefill); }}
         onClose={() => setShowTracker(false)}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings, ...(backupRoutes.length ? {routes: backupRoutes} : {})}} onClose={() => setShowBackup(false)}/>}

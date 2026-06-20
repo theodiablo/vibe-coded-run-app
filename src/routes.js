@@ -75,6 +75,13 @@ export function queuePendingRoute(entry) {
   savePending(list);
 }
 
+// Read a not-yet-uploaded trace straight from the offline queue, so a run whose
+// route is still pending sync can be viewed locally before it reaches Supabase.
+export function getPendingRoute(tmpId) {
+  if (!tmpId) return null;
+  return loadPending().find(e => e.tmpId === tmpId) || null;
+}
+
 // Retry every queued trace. Calls onSaved(tmpId, routeId) for each success so
 // the caller can relink the run. Entries that still fail stay queued.
 export async function flushPendingRoutes(onSaved) {

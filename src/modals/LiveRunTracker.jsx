@@ -30,7 +30,7 @@ function Ctrl({ onClick, color, children, disabled }) {
   );
 }
 
-export function LiveRunTracker({ onFinish, onClose }) {
+export function LiveRunTracker({ onFinish, onClose, showToast }) {
   const t = useRunTracker();
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
@@ -56,9 +56,11 @@ export function LiveRunTracker({ onFinish, onClose }) {
       routeId = await saveRoute({ points: simplified, stats: statObj });
     } catch {
       // Offline / save failed — queue the trace so it isn't lost; it relinks on
-      // the next load (see flushPendingRoutes in RunningCoach).
+      // the next load (see flushPendingRoutes in RunningCoach). Don't fail
+      // silently: the route is viewable locally but won't be in the cloud yet.
       routeTmp = "rt" + Date.now();
       queuePendingRoute({ tmpId: routeTmp, points: simplified, stats: statObj });
+      showToast?.("Couldn't upload the route — saved on this device, will retry syncing.", "err");
     }
     t.finalize();
     setBusy(false);

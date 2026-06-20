@@ -3,22 +3,32 @@ import { History, Pencil, Trash2, Map as MapIcon } from "lucide-react";
 import { fmt } from "../utils/format";
 import { RunRow } from "../components/RunRow";
 import { RouteMap } from "../components/RouteMap";
-import { getRoute } from "../routes";
+import { getRoute, getPendingRoute } from "../routes";
 import { EditRunModal } from "../modals/EditRunModal";
 
-// Lazy-loads and renders a run's saved GPS trace (kept out of the runs blob).
-function RouteMapLoader({id}) {
-  const [route, setRoute] = useState(undefined); // undefined = loading, null = failed
+// Lazy-loads and renders a run's saved GPS trace (kept out of the runs blob). A
+// synced run fetches from Supabase; one still pending upload reads the trace
+// straight from the offline queue so it's viewable before it syncs.
+function RouteMapLoader({run}) {
+  const [route, setRoute] = useState(() => run.routeId ? undefined : getPendingRoute(run.routeTmp));
   useEffect(() => {
+    if (!run.routeId) return; // pending route already pulled from localStorage
     let on = true;
-    getRoute(id).then(r => on && setRoute(r)).catch(() => on && setRoute(null));
+    getRoute(run.routeId).then(r => on && setRoute(r)).catch(() => on && setRoute(null));
     return () => { on = false; };
-  }, [id]);
+  }, [run.routeId]);
   if (route === undefined)
     return <div className="h-20 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 text-sm">Loading route…</div>;
   if (!route)
     return <div className="h-20 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 text-sm">Route unavailable.</div>;
-  return <RouteMap points={route.points} interactive className="h-56 rounded-xl overflow-hidden"/>;
+  return (
+    <>
+      {!run.routeId && (
+        <p className="text-[11px] text-amber-400 text-center">Saved on this device — will sync to the cloud when possible.</p>
+      )}
+      <RouteMap points={route.points} interactive className="h-56 rounded-xl overflow-hidden"/>
+    </>
+  );
 }
 
 // The full run log, newest first, grouped by month.
@@ -74,7 +84,7 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}) {
                       </div>
                     ) : (
                       <div className="flex items-center gap-0.5 flex-shrink-0">
-                        {r.routeId && (
+                        {(r.routeId || r.routeTmp) && (
                           <button onClick={() => setMapId(mapId === r.id ? null : r.id)} aria-label="View route"
                             className={"flex items-center justify-center transition-colors " + (mapId === r.id ? "text-orange-400" : "text-slate-400 hover:text-orange-400")} style={{minWidth:40, minHeight:40}}>
                             <MapIcon size={16}/>
@@ -91,7 +101,7 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}) {
                       </div>
                     )
                   }/>
-                  {mapId === r.id && r.routeId && <RouteMapLoader id={r.routeId}/>}
+                  {mapId === r.id && (r.routeId || r.routeTmp) && <RouteMapLoader run={r}/>}
                 </div>
               ))}
             </div>
