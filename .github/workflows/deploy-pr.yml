@@ -1,0 +1,184 @@
+name: Deploy PR preview to S3
+
+# Per-PR preview deploys. Each PR is built and synced to its own prefix in the
+# same bucket as production: s3://<bucket>/<PR_PREFIX>/<number>/, reachable at
+# https://<domain>/<PR_PREFIX>/<number>/. The folder is removed when the PR is
+# closed.
+#
+# Security: this uses `pull_request` (NOT `pull_request_target`), so PRs opened
+# from forks run with a read-only token and cannot assume the OIDC deploy role.
+# On top of that, every job is gated on `author_association` so only the code
+# owners — i.e. users with write access to the repo (OWNER/MEMBER/COLLABORATOR)
+# — ever trigger an AWS deploy. Untrusted contributors get CI checks but no
+# preview.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+
+permissions:
+  id-token: write       # OIDC: assume the AWS deploy role
+  contents: read
+  pull-requests: write  # post the preview URL as a PR comment
+
+# One preview per PR; a new push supersedes the in-flight deploy.
+concurrency:
+  group: deploy-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: eu-west-1
+  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::703323013899:role/GitHub-Actions-RunApp-deploy
+  S3_BUCKET_NAME: run.camboulive.solutions
+  CLOUDFRONT_DISTRIBUTION_ID: E42OGU5IVYJ14
+  # Previews live under this prefix so they never collide with the production
+  # build synced to the bucket root by deploy.yml.
+  PR_PREFIX: pr
+  PREVIEW_BASE_URL: https://run.camboulive.solutions
+
+jobs:
+  # ---- Deploy / update the preview on open, push, or reopen -----------------
+  deploy:
+    name: Deploy preview
+    if: >-
+      github.event.action != 'closed' &&
+      (github.event.pull_request.author_association == 'OWNER' ||
+       github.event.pull_request.author_association == 'MEMBER' ||
+       github.event.pull_request.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Sync preview to S3
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # vite.config.js sets `base: './'`, so the built index.html and assets
+          # use relative paths and work unchanged when served from a subfolder.
+          # `--delete` keeps the prefix in sync with the latest build only.
+          aws s3 sync dist/ "s3://${S3_BUCKET_NAME}/${PR_PREFIX}/${PR_NUMBER}/" --delete
+
+      - name: Invalidate CloudFront cache for this PR
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/${PR_PREFIX}/${PR_NUMBER}/*"
+
+      - name: Comment preview URL on the PR
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const { PR_PREFIX, PREVIEW_BASE_URL, PR_NUMBER } = process.env;
+            // Link straight to index.html: the CloudFront distribution only
+            // resolves a default root object at `/`, not for subfolders, so a
+            // bare `/pr/<number>/` would 404.
+            const url = `${PREVIEW_BASE_URL}/${PR_PREFIX}/${PR_NUMBER}/index.html`;
+            const marker = '<!-- pr-preview-deploy -->';
+            const body = `${marker}\n🚀 **PR preview deployed**\n\n${url}\n\n_Updated for commit ${context.sha.slice(0, 7)}._`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(PR_NUMBER),
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(PR_NUMBER),
+                body,
+              });
+            }
+
+  # ---- Tear the preview down when the PR is closed/merged -------------------
+  cleanup:
+    name: Remove preview
+    if: >-
+      github.event.action == 'closed' &&
+      (github.event.pull_request.author_association == 'OWNER' ||
+       github.event.pull_request.author_association == 'MEMBER' ||
+       github.event.pull_request.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Remove preview from S3
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          aws s3 rm "s3://${S3_BUCKET_NAME}/${PR_PREFIX}/${PR_NUMBER}/" --recursive
+
+      - name: Invalidate CloudFront cache for this PR
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/${PR_PREFIX}/${PR_NUMBER}/*"
+
+      - name: Comment teardown on the PR
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const { PR_PREFIX, PR_NUMBER } = process.env;
+            const marker = '<!-- pr-preview-deploy -->';
+            const body = `${marker}\n🧹 PR preview for \`${PR_PREFIX}/${PR_NUMBER}\` removed.`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(PR_NUMBER),
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(PR_NUMBER),
+                body,
+              });
+            }
