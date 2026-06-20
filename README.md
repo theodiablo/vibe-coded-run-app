@@ -18,7 +18,9 @@ Spoiler: every app I tried failed the last point. Strava, I'm looking at you.
 
 So I did what any reasonable person would do — I spent a weekend vibe-coding my own.
 
-If you're in the same boat, feel free to use it, fork it, or suggest features. All feedback is welcome!
+If you're in the same boat, **[sign up and give it a go](https://run.camboulive.solutions)** — it's free, no premium tier, no upsells. Ever.
+
+You can also fork it, run your own copy, or suggest features. All feedback is welcome!
 
 ---
 
@@ -136,6 +138,23 @@ npm run preview       # preview the production build locally
 - `.github/workflows/security.yml` runs Semgrep on every PR and push to `main`.
 - Password policy lives in `supabase/config.toml` for local dev; the live project's
   policy must be set in the Supabase dashboard.
+
+---
+
+## Your data
+
+When you sign up, the app stores:
+
+- Your email address (for login)
+- Your runs (date, distance, duration, HR, effort, notes)
+- Your training plan and race settings
+- Your name, if you enter one during onboarding
+
+That's it. No tracking, no analytics, no ads.
+
+I will never use your data for any purpose other than running the app, and I will never sell it or share it with third parties.
+
+The app is open source — you can read exactly what gets stored in `supabase/migrations/` and `src/db.js`.
 
 ---
 
