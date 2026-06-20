@@ -46,9 +46,35 @@ and delete anything that becomes stale.
   Dashboard race card and Generate buttons gate on `raceDate && distanceKm`),
   not assume a value.
 
+## Live run tracking (GPS)
+- **Single GPS funnel:** `src/hooks/useRunTracker.js` owns all geolocation
+  (`watchPosition`), the start/pause/resume/stop state machine, moving-time
+  accounting, wake lock, and a `localStorage` recovery buffer (`LIVE_RUN_KEY`,
+  deliberately NOT synced to the app_state blob). Keep GPS access behind this hook
+  so a future native shell can swap the source without touching the UI.
+- **UI:** `src/modals/LiveRunTracker.jsx` (full-screen, gated by `showTracker` in
+  `RunningCoach`, opened via `shared.openTracker`). On finish it funnels into the
+  normal save path — `goLog(prefill)` → `LogView` → `addRuns` — passing measured
+  `durationSec`/`elevation` and the trace ref.
+- **Traces are NOT in the blob.** The polyline lives in its own Supabase
+  `run_routes` table via `src/routes.js` (direct queries, not `db`); a run only
+  stores a `routeId` reference. `deleteRun` cascades to `deleteRoute`; backup/
+  restore include routes. Offline saves queue in `localStorage` and relink on next
+  load via `flushPendingRoutes` (run carries a temp `routeTmp`/`routePending`).
+- **Geo math:** `src/utils/geo.js` (haversine, jitter-gated `distanceKm`,
+  hysteresis `elevGainM`, Douglas–Peucker `simplify`, `segments`). A point is the
+  tuple `[lat, lng, tEpochMs, alt|null]`; a `null` entry is a GAP marker (don't
+  bridge it). Map basemap is MapTiler — needs `VITE_MAPTILER_KEY` (records fine
+  without it, just no tiles). Browser tracking is **foreground-only** (screen must
+  stay on); true background needs a native shell — a deliberate platform limit.
+
 ## Data shapes
-- **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`.
+- **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
+  plus, for GPS-tracked runs, `{source:"gps", routeId}` (the `run_routes` ref).
   `id` is generated in `addRuns` if absent; runs are kept sorted newest-first.
+- **Route:** `run_routes` row `{id, user_id, points, stats, created_at}` where
+  `points` is the simplified `[lat,lng,t,alt]` array (null = gap) and `stats` is
+  `{km, durationSec, elevation, avgPace}`.
 - **Plan:** `buildPlan(...)` → `{..., weeks:[{weekNumber, startDate, phase,
   sessions:[{id, date, type, desc, km, pace, done}]}]}`.
   Session types: EASY, TEMPO, INTERVALS, LONG, RACE, WALK, OTHER.

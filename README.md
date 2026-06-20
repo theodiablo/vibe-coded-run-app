@@ -34,6 +34,12 @@ a static build works without extra config. The anon key grants nothing on its
 own — row-level security is the real boundary, and the secret key must never be
 committed.
 
+Live GPS run tracking renders the route on a map using [MapTiler](https://www.maptiler.com/)
+tiles. Set `VITE_MAPTILER_KEY` to a publishable (domain-restricted) MapTiler key
+at build time. Without it the tracker still records the run; only the map basemap
+won't load. Raw OpenStreetMap tiles are intentionally not used — the OSMF tile
+policy disallows them for a multi-user app.
+
 ## Security
 
 - A Content-Security-Policy is set in `index.html` as defence-in-depth.

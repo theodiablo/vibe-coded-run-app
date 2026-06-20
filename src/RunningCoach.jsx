@@ -3,11 +3,13 @@ import { Activity, Calendar, TrendingUp, Plus, Loader, History, Settings } from 
 import { db } from "./db";
 import { STORAGE_KEYS } from "./constants";
 import { buildPlan } from "./utils/plan";
+import { deleteRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
 import { RestoreModal } from "./modals/RestoreModal";
 import { SettingsModal } from "./modals/SettingsModal";
+import { LiveRunTracker } from "./modals/LiveRunTracker";
 import { Dashboard } from "./views/Dashboard";
 import { PlanView } from "./views/PlanView";
 import { LogView } from "./views/LogView";
@@ -30,6 +32,8 @@ export default function RunningCoach({ onSignOut }) {
   const [showRestore, setShowRestore] = useState(false);
   const [showSettings,setShowSettings]= useState(false);
   const [onboarding,  setOnboarding]  = useState(false);
+  const [showTracker, setShowTracker] = useState(false);
+  const [backupRoutes,setBackupRoutes]= useState([]);
 
   useEffect(() => {
     (async () => {
@@ -44,6 +48,16 @@ export default function RunningCoach({ onSignOut }) {
       // name (but no onboarding marker) are treated as onboarded.
       if (!s || (!s.onboarded && (s.onboardStep != null || !s.name))) setOnboarding(true);
       setLoading(false);
+      // Retry any GPS traces that couldn't be uploaded on a previous (offline)
+      // save, and relink each to its run once it lands.
+      flushPendingRoutes((tmpId, routeId) => {
+        setRuns(prev => {
+          const next = prev.map(r => r.routeTmp === tmpId
+            ? { ...r, routeId, routePending: false, routeTmp: undefined } : r);
+          db.set(STORAGE_KEYS.RUNS, next);
+          return next;
+        });
+      });
     })();
   }, []);
 
@@ -87,7 +101,9 @@ export default function RunningCoach({ onSignOut }) {
 
   const deleteRun = id => {
     setRuns(prev => {
-      const next = prev.filter(r => r.id !== id);
+      const r = prev.find(x => x.id === id);
+      if (r?.routeId) deleteRoute(r.routeId); // drop the GPS trace too (privacy)
+      const next = prev.filter(x => x.id !== id);
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
     });
@@ -105,11 +121,19 @@ export default function RunningCoach({ onSignOut }) {
     showToast("Run updated.");
   };
 
-  const exportData    = () => setShowBackup(true);
+  const exportData    = async () => {
+    // GPS traces live in their own table, so pull them in to make the backup
+    // self-contained (and portable for data-export requests).
+    let routes = [];
+    try { routes = await getAllRoutes(); } catch { /* backup still works without */ }
+    setBackupRoutes(routes);
+    setShowBackup(true);
+  };
   const handleRestore = d => {
     if (d.runs)     { setRuns(d.runs);         db.set(STORAGE_KEYS.RUNS, d.runs); }
     if (d.plan)     { setPlan(d.plan);          db.set(STORAGE_KEYS.PLAN, d.plan); }
     if (d.settings) { setSettings(d.settings);  db.set(STORAGE_KEYS.SETTINGS, d.settings); }
+    if (d.routes)   { restoreRoutes(d.routes); }
     showToast("Restored — " + (d.runs ? d.runs.length : 0) + " run(s) imported.");
   };
 
@@ -120,7 +144,7 @@ export default function RunningCoach({ onSignOut }) {
   );
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); };
-  const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, openSettings: () => setShowSettings(true)};
+  const shared = {runs, plan, settings, addRuns, savePlan, saveSettings, toggleSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
   const TABS   = [
     {id:"dash",    label:"Home",    Icon:Activity},
     {id:"plan",    label:"Plan",    Icon:Calendar},
@@ -144,7 +168,10 @@ export default function RunningCoach({ onSignOut }) {
           saveSettings({...settings, onboarded: true, onboardStep: 0, ...(name ? {name} : {})});
           setOnboarding(false);
         }}/>}
-      {showBackup  && <BackupModal  data={{runs, plan, settings}} onClose={() => setShowBackup(false)}/>}
+      {showTracker && <LiveRunTracker
+        onFinish={prefill => { setShowTracker(false); goLog(prefill); }}
+        onClose={() => setShowTracker(false)}/>}
+      {showBackup  && <BackupModal  data={{runs, plan, settings, ...(backupRoutes.length ? {routes: backupRoutes} : {})}} onClose={() => setShowBackup(false)}/>}
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showSettings && <SettingsModal
         settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}
