@@ -155,6 +155,28 @@ Debug builds need no signing. Release AABs for the Play Store are built by
 extra repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 
+### Install a build on your phone
+
+Every PR builds a sideloadable **debug APK** via `.github/workflows/android-pr.yml`
+(a bot comment links to it). To install one:
+
+1. Download the `running-coach-pr<N>-debug-apk` artifact from the PR's workflow run
+   and unzip it to get `app-debug.apk`. (Locally: `cd android && ./gradlew assembleDebug`
+   → `android/app/build/outputs/apk/debug/app-debug.apk`.)
+2. Get it onto the phone — easiest is `adb install app-debug.apk` over USB
+   (enable **Developer options → USB debugging**), or transfer the file and tap it.
+3. When tapping the file, Android asks to **allow installing unknown apps** for
+   whichever app opened it (Files, Chrome, Drive) — allow it, then install.
+
+The debug APK is signed with a throwaway debug key, so it can't be updated *over* a
+Play Store install of the same app (uninstall one first). Background GPS, the
+foreground-service notification, and the location prompts all work in debug builds —
+no Play release or plugin license required.
+
+> ⚠️ The PR APK uses the same `applicationId` (`solutions.camboulive.run`) and talks
+> to the **production Supabase project** — runs you log from a test build are real
+> data on your account.
+
 **Before release**, two things must be configured outside the repo:
 
 - **Supabase Auth → URL Configuration:** add `solutions.camboulive.run://auth-callback`
