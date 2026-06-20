@@ -18,6 +18,12 @@ create index if not exists run_routes_user_id_idx on public.run_routes (user_id)
 
 alter table public.run_routes enable row level security;
 
+-- Base table privileges for the authenticated role. RLS policies filter rows but
+-- do NOT grant access to the table itself — without this every client call gets
+-- `42501 permission denied for table run_routes` (HTTP 403). RLS still scopes
+-- every row to auth.uid(). (Mirrors 20260607165159_grant_table_privileges.sql.)
+grant select, insert, update, delete on public.run_routes to authenticated;
+
 drop policy if exists "run_routes read own" on public.run_routes;
 create policy "run_routes read own"
   on public.run_routes for select to authenticated using (auth.uid() = user_id);
