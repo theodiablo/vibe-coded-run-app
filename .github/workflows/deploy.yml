@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AWS_REGION: eu-west-1
-  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::703323013899:role/GitHub-Actions-RunApp-deploy
-  S3_BUCKET_NAME: run.camboulive.solutions
-  CLOUDFRONT_DISTRIBUTION_ID: E42OGU5IVYJ14
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
 
 jobs:
   deploy:

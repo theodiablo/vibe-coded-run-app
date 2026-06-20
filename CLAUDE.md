@@ -33,6 +33,12 @@ and delete anything that becomes stale.
   keys `rc_runs`, `rc_plan`, `rc_settings`). Every state change is mirrored to
   `db` in the same handler that calls `setState`. Writes debounce ~600ms into a
   single upsert and flush on page hide/unload.
+- **Supabase config:** URL and anon key live in `src/config.js` (imported by
+  `src/supabase.js`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
+  override them at build time. Don't hardcode credentials elsewhere.
+- **Multi-user:** The app is open to public signups — don't make single-user
+  assumptions. Every user gets their own isolated data via RLS on `app_state`
+  and `profiles`.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.jsx`. Follow that style.
 - **Layout:** views in `src/views/`, modals/full-screen flows in `src/modals/`,
