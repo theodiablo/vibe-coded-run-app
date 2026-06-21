@@ -7,6 +7,9 @@ name: Build Android PR APK
 on:
   pull_request:
     branches: [main]
+  # Manual re-run (e.g. when a push doesn't fire the pull_request event).
+  # Becomes available once this workflow is on the default branch.
+  workflow_dispatch: {}
 
 permissions:
   contents: read

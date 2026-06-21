@@ -66,6 +66,11 @@ async function ensureForegroundPermission() {
 export const nativeSource = {
   isAvailable: () => true,
 
+  // Request foreground location, showing the OS dialog. Called from the consent
+  // flow so the prompt appears right after the user accepts the disclosure — not
+  // only when recording starts. Returns true if usable; may reject (caller wraps).
+  requestPermissions: () => ensureForegroundPermission(),
+
   // Returns a sync handle immediately. The underlying watcher id resolves
   // asynchronously; `handle.removed` covers a clearWatch that races ahead of it.
   watchPosition(onPos, onErr, { background = false } = {}) {

@@ -11,6 +11,10 @@
 export const webSource = {
   isAvailable: () => typeof navigator !== "undefined" && "geolocation" in navigator,
 
+  // No-op on the web: the browser shows its own permission prompt the first time
+  // watchPosition runs, so there's nothing to request up front.
+  requestPermissions: async () => true,
+
   // Third arg (the shared `{ background }` option) is intentionally ignored — a
   // browser can't record in the background. Always high-accuracy, matching the
   // Phase-1 inline behaviour.

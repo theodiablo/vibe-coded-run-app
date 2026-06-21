@@ -147,6 +147,27 @@ export function useRunTracker() {
     watchRef.current = null;
   }, []);
 
+  // Proactively request the OS location permission (native), so the prompt can be
+  // shown as part of the consent flow rather than only when recording starts.
+  // Returns whether location is usable; sets an actionable error if denied.
+  const requestPermissions = useCallback(async () => {
+    if (!geoSource.requestPermissions) return true;
+    try {
+      const granted = await geoSource.requestPermissions();
+      if (!granted) {
+        setError(isNative
+          ? "Location permission is needed to record your run. Enable it (“Allow all the time”) in this app's settings, then try again."
+          : "Location permission denied. Enable it for this site in your browser settings, then try again.");
+        return false;
+      }
+      setError(null);
+      return true;
+    } catch {
+      setError("Couldn't request location permission. Please try again.");
+      return false;
+    }
+  }, []);
+
   // ── controls ─────────────────────────────────────────────────────────────
   const start = useCallback(() => {
     setError(null);
@@ -317,7 +338,7 @@ export function useRunTracker() {
 
   return {
     state, points, stats, error, pending, location,
-    start, pause, resume, stop, reset,
+    start, pause, resume, stop, reset, requestPermissions,
     resumePrevious, discardPrevious, finalize,
   };
 }

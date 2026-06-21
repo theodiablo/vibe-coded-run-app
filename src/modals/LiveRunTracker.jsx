@@ -52,12 +52,16 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
     if (isNative && !disclosed()) { setPendingStart(() => fn); setShowDisclosure(true); }
     else fn();
   };
-  const acceptDisclosure = () => {
+  const acceptDisclosure = async () => {
     try { localStorage.setItem(BG_LOC_DISCLOSED_KEY, "1"); } catch { /* quota — non-fatal */ }
     setShowDisclosure(false);
     const run = pendingStart;
     setPendingStart(null);
-    run?.();
+    // Ask the OS for location right after consent (native) so the prompt is part
+    // of the disclosure flow, not deferred to Start. Only record if granted — and
+    // the upfront grant means a later Start won't prompt again.
+    const granted = isNative ? await t.requestPermissions() : true;
+    if (granted) run?.();
   };
   const cancelDisclosure = () => { setShowDisclosure(false); setPendingStart(null); };
 
