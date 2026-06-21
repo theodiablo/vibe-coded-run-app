@@ -121,7 +121,9 @@ export function useRunTracker() {
 
   const onErr = useCallback((err) => {
     if (err.code === err.PERMISSION_DENIED)
-      setError("Location permission denied. Enable it for this site in your browser settings, then try again.");
+      setError(isNative
+        ? "Location permission is needed to record your run. Enable it (“Allow all the time”) in this app's settings, then try again."
+        : "Location permission denied. Enable it for this site in your browser settings, then try again.");
     else if (err.code === err.POSITION_UNAVAILABLE)
       setError("Couldn't get a GPS fix. Make sure location is on and you're outdoors.");
     else if (err.code === err.TIMEOUT)

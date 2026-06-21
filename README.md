@@ -177,10 +177,14 @@ no Play release or plugin license required.
 > to the **production Supabase project** — runs you log from a test build are real
 > data on your account.
 
-**Before release**, two things must be configured outside the repo:
+**Before release**, three things must be configured outside the repo:
 
 - **Supabase Auth → URL Configuration:** add `solutions.camboulive.run://auth-callback`
   to the redirect allow-list so OAuth / magic-link sign-in returns to the app.
+- **MapTiler key origins:** the WebView's origin is **`https://localhost`**, not the
+  web domain, so an origin-restricted key returns *"Invalid key"* and tiles won't
+  load. Add `https://localhost` (and `http://localhost`) to the key's allowed
+  origins in the MapTiler dashboard — see [Maps](#maps).
 - **Play Console:** background location requires a prominent in-app disclosure, a
   public privacy policy URL, and the "Location permissions" declaration form
   justifying `ACCESS_BACKGROUND_LOCATION` (core feature: recording a run with the
@@ -213,6 +217,12 @@ them for a multi-user app.
 > and used to drain your tile quota from another site. PR previews are served
 > from the same origin, so one entry covers them too. Never use an unrestricted
 > key here.
+>
+> **Android app:** the Capacitor WebView loads from `https://localhost`, *not* the
+> web domain, so a key restricted only to the production domain returns
+> *"Invalid key"* and tiles won't render (the run still records). Add
+> `https://localhost` (and `http://localhost`) to the allowed origins so the app's
+> map works too.
 
 ## Security
 

@@ -55,6 +55,18 @@ async function geoPlugin() {
   return _geoPlugin;
 }
 
+// Explicitly request foreground (fine) location, reliably showing the OS dialog.
+// Relying on addWatcher's own requestPermissions alone proved flaky (no prompt on
+// some devices). Returns true if location is usable. Throws are swallowed by the
+// caller, which then falls back to addWatcher's built-in request.
+async function ensureForegroundPermission() {
+  const Geolocation = await geoPlugin();
+  let perm = await Geolocation.checkPermissions();
+  const ok = (p) => p.location === "granted" || p.coarseLocation === "granted";
+  if (!ok(perm)) perm = await Geolocation.requestPermissions({ permissions: ["location"] });
+  return ok(perm);
+}
+
 export const nativeSource = {
   isAvailable: () => true,
 
@@ -64,21 +76,37 @@ export const nativeSource = {
     const handle = { id: null, removed: false, background };
 
     if (background) {
-      BackgroundGeolocation.addWatcher(
-        {
-          requestPermissions: true,
-          stale: false,
-          backgroundTitle: "Recording run",
-          backgroundMessage: "Tap to return to Running Coach",
-        },
-        (location, error) => {
-          if (error) { onErr?.(adaptBgError(error)); return; }
-          if (location) onPos(adaptBgLocation(location));
-        },
-      ).then((id) => {
-        if (handle.removed) BackgroundGeolocation.removeWatcher({ id });
-        else handle.id = id;
-      }).catch((e) => onErr?.(adaptBgError(e)));
+      (async () => {
+        // Step 1: foreground/fine location — a guaranteed prompt. Step 2 below
+        // (addWatcher requestPermissions) escalates to "Allow all the time" for
+        // screen-off recording. This two-step order is the Android-correct flow.
+        try {
+          if (!(await ensureForegroundPermission())) {
+            onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: "Location permission denied" }));
+            return;
+          }
+        } catch { /* plugin unavailable — let addWatcher request below */ }
+        if (handle.removed) return;
+        try {
+          const id = await BackgroundGeolocation.addWatcher(
+            {
+              requestPermissions: true,
+              stale: false,
+              distanceFilter: 5,
+              backgroundTitle: "Recording run",
+              backgroundMessage: "Tap to return to Running Coach",
+            },
+            (location, error) => {
+              if (error) { onErr?.(adaptBgError(error)); return; }
+              if (location) onPos(adaptBgLocation(location));
+            },
+          );
+          if (handle.removed) BackgroundGeolocation.removeWatcher({ id });
+          else handle.id = id;
+        } catch (e) {
+          onErr?.(adaptBgError(e));
+        }
+      })();
     } else {
       geoPlugin().then((Geolocation) =>
         Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 15000 }, (pos, err) => {
