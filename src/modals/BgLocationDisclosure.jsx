@@ -28,9 +28,9 @@ export function BgLocationDisclosure({ onAccept, onCancel }) {
           <p className="text-[13px] text-slate-400">
             See our{" "}
             <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
-              className="text-orange-400 underline">Privacy Policy</a>. Next, Android
-            will ask permission — choose <strong>“Allow all the time”</strong> for
-            screen-off tracking.
+              className="text-orange-400 underline">Privacy Policy</a>. When you start a
+            run, Android will ask to allow location — choose <strong>“Allow all the
+            time”</strong> for screen-off tracking.
           </p>
           <div className="grid grid-cols-2 gap-2 pt-1">
             <button onClick={onCancel}

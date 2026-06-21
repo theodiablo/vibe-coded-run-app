@@ -32,15 +32,17 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
   const t = useRunTracker();
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
-  const [showDisclosure, setShowDisclosure] = useState(false);
+  const disclosed = () => {
+    try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
+  };
+  // On native, surface the disclosure the moment the tracker opens (not only on
+  // Start), so consent is the first thing shown — until accepted once per install.
+  // guardedStart still gates Start/Resume as a backstop if the user dismisses it.
+  const [showDisclosure, setShowDisclosure] = useState(() => isNative && !disclosed());
   const [pendingStart, setPendingStart] = useState(null); // action to run once disclosed
 
   const hasTrack = stats.n > 0;
   const live = state === "tracking" || state === "paused";
-
-  const disclosed = () => {
-    try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
-  };
   // Run `fn` — which starts a background watch on native — but gate the FIRST one
   // behind the prominent-disclosure (Play requirement). Covers BOTH the idle
   // "Start run" and the paused "Resume" (incl. the crash-recovery resume, which
