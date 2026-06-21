@@ -34,6 +34,11 @@ export function useRunTracker() {
   const [error, setError] = useState(null);
   const [movingSec, setMovingSec] = useState(0);
   const [location, setLocation] = useState(null); // preview position shown before recording starts
+  // Whether location is usable. On the web the browser handles its own prompt, so
+  // the idle preview can always run (true). On native it gates the preview so we
+  // never auto-prompt out of context — it flips true once permission is granted
+  // (already-granted users via the check below, or via the consent accept flow).
+  const [permGranted, setPermGranted] = useState(!isNative);
   // A recoverable in-progress run from a previous session, read once on mount. A
   // buffer older than the cutoff is dropped so a days-old run can't reappear.
   const [pending, setPending] = useState(() => {
@@ -161,6 +166,7 @@ export function useRunTracker() {
         return false;
       }
       setError(null);
+      setPermGranted(true); // unlocks the idle position preview on native
       return true;
     } catch {
       setError("Couldn't request location permission. Please try again.");
@@ -288,6 +294,18 @@ export function useRunTracker() {
   // Tear down on unmount.
   useEffect(() => () => { stopWatch(); releaseWake(); }, [stopWatch, releaseWake]);
 
+  // Native, returning user: location may already be granted from a prior session.
+  // Check WITHOUT prompting so the idle preview can show straight away (the lazy
+  // initial state covers the web, which is always true).
+  useEffect(() => {
+    if (!isNative || !geoSource.checkPermissions) return;
+    let cancelled = false;
+    geoSource.checkPermissions()
+      .then(ok => { if (!cancelled && ok) setPermGranted(true); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   // Live preview fix while idle so the user can see their position AND its
   // accuracy (the map draws a circle around it) and calibrate before hitting
   // Start. Runs only in idle; the cleanup stops it the moment recording begins,
@@ -296,11 +314,11 @@ export function useRunTracker() {
   useEffect(() => {
     if (state !== "idle") return;
     if (!geoSource.isAvailable()) return;
-    // Web only. On native this would auto-fire the OS fine-location prompt the
-    // moment the tracker opens — before the prominent disclosure and Start tap —
-    // undercutting the disclosure→prompt sequence (and a denial here poisons the
-    // later background request). The native location appears once recording starts.
-    if (isNative) return;
+    // On native, only after permission is granted — never auto-prompt out of
+    // context before the disclosure. Once granted (returning user, or via the
+    // consent accept), the preview shows the current position + accuracy just like
+    // the web build. The web is always permitted (permGranted starts true).
+    if (!permGranted) return;
     // Foreground-only preview (background:false) — no foreground service /
     // notification while the user is still on the start screen.
     const handle = geoSource.watchPosition(
@@ -313,7 +331,7 @@ export function useRunTracker() {
       { background: false },
     );
     return () => geoSource.clearWatch(handle);
-  }, [state]);
+  }, [state, permGranted]);
 
   // ── derived stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {

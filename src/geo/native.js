@@ -66,6 +66,13 @@ async function ensureForegroundPermission() {
 export const nativeSource = {
   isAvailable: () => true,
 
+  // Non-prompting check — true if location is already granted. Lets the idle
+  // preview show for returning users without firing an out-of-context dialog.
+  async checkPermissions() {
+    const p = await Geolocation.checkPermissions();
+    return p && (p.location === "granted" || p.coarseLocation === "granted");
+  },
+
   // Request foreground location, showing the OS dialog. Called from the consent
   // flow so the prompt appears right after the user accepts the disclosure — not
   // only when recording starts. Returns true if usable; may reject (caller wraps).

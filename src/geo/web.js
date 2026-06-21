@@ -11,8 +11,9 @@
 export const webSource = {
   isAvailable: () => typeof navigator !== "undefined" && "geolocation" in navigator,
 
-  // No-op on the web: the browser shows its own permission prompt the first time
-  // watchPosition runs, so there's nothing to request up front.
+  // The browser handles its own permission prompt on watchPosition, so the idle
+  // preview is always allowed and there's nothing to request up front.
+  checkPermissions: async () => true,
   requestPermissions: async () => true,
 
   // Third arg (the shared `{ background }` option) is intentionally ignored — a
