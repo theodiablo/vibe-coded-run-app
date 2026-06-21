@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "lucide-react";
+import { App as CapApp } from "@capacitor/app";
 import { supabase } from "./supabase";
 import { isNative } from "./native";
 import { initStore, clearStore } from "./db";
@@ -103,14 +104,14 @@ export default function App() {
       }
     };
 
-    import("@capacitor/app").then(async ({ App: CapApp }) => {
+    (async () => {
       listener = await CapApp.addListener("appUrlOpen", ({ url }) => processUrl(url));
       // Cold start: when the OS kills the app while the OAuth tab is open, the
       // callback intent that relaunches MainActivity is delivered as the launch
       // URL, not as appUrlOpen — so read it explicitly once on mount.
       const launch = await CapApp.getLaunchUrl();
       if (launch?.url) processUrl(launch.url);
-    });
+    })();
 
     return () => { listener?.remove?.(); };
   }, []);

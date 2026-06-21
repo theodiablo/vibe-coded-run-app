@@ -1,4 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
+import { Geolocation } from "@capacitor/geolocation";
 
 // Native geolocation source for the Capacitor shell. It exposes the SAME
 // interface as the web source (isAvailable / watchPosition / clearWatch) so
@@ -12,10 +13,11 @@ import { registerPlugin } from "@capacitor/core";
 //     addWatcher, which runs an Android foreground service + persistent
 //     notification so fixes keep coming with the screen off / app backgrounded.
 //
-// The plugins are loaded lazily (dynamic import) so they never enter the web
-// bundle's eager graph. The background plugin is addressed via registerPlugin by
-// name — its native code is discovered by `cap sync`, so we don't depend on the
-// package's JS export shape, only on it being installed.
+// @capacitor/geolocation is imported STATICALLY (not lazily): a dynamic import
+// can fail to load its chunk inside the WebView, which previously left the
+// permission request silently broken. The background plugin is addressed via
+// registerPlugin by name — its native code is discovered by `cap sync`, so we
+// don't depend on the package's JS export shape, only on it being installed.
 
 const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
 
@@ -49,21 +51,15 @@ export function adaptBgError(error) {
   };
 }
 
-let _geoPlugin = null;
-async function geoPlugin() {
-  if (!_geoPlugin) _geoPlugin = (await import("@capacitor/geolocation")).Geolocation;
-  return _geoPlugin;
-}
-
-// Explicitly request foreground (fine) location, reliably showing the OS dialog.
-// Relying on addWatcher's own requestPermissions alone proved flaky (no prompt on
-// some devices). Returns true if location is usable. Throws are swallowed by the
-// caller, which then falls back to addWatcher's built-in request.
+// Request foreground (fine) location, reliably showing the OS dialog. Returns
+// true if location is usable. Errors propagate to the caller, which surfaces them
+// — they are NOT swallowed (a swallowed throw here is exactly what hid the missing
+// prompt before).
 async function ensureForegroundPermission() {
-  const Geolocation = await geoPlugin();
+  const ok = (p) => p && (p.location === "granted" || p.coarseLocation === "granted");
   let perm = await Geolocation.checkPermissions();
-  const ok = (p) => p.location === "granted" || p.coarseLocation === "granted";
-  if (!ok(perm)) perm = await Geolocation.requestPermissions({ permissions: ["location"] });
+  if (ok(perm)) return true;
+  perm = await Geolocation.requestPermissions({ permissions: ["location"] });
   return ok(perm);
 }
 
@@ -77,15 +73,20 @@ export const nativeSource = {
 
     if (background) {
       (async () => {
-        // Step 1: foreground/fine location — a guaranteed prompt. Step 2 below
+        // Step 1: foreground/fine location — a guaranteed OS prompt. Step 2
         // (addWatcher requestPermissions) escalates to "Allow all the time" for
         // screen-off recording. This two-step order is the Android-correct flow.
+        let granted;
         try {
-          if (!(await ensureForegroundPermission())) {
-            onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: "Location permission denied" }));
-            return;
-          }
-        } catch { /* plugin unavailable — let addWatcher request below */ }
+          granted = await ensureForegroundPermission();
+        } catch (e) {
+          onErr?.(adaptBgError(e)); // surface — do not hide a broken prompt
+          return;
+        }
+        if (!granted) {
+          onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: "Location permission was not granted." }));
+          return;
+        }
         if (handle.removed) return;
         try {
           const id = await BackgroundGeolocation.addWatcher(
@@ -108,13 +109,11 @@ export const nativeSource = {
         }
       })();
     } else {
-      geoPlugin().then((Geolocation) =>
-        Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 15000 }, (pos, err) => {
-          if (err) { onErr?.(err); return; }
-          if (pos) onPos(pos); // already a GeolocationPosition-shaped object
-        }),
-      ).then((id) => {
-        if (handle.removed) geoPlugin().then((G) => G.clearWatch({ id }));
+      Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 15000 }, (pos, err) => {
+        if (err) { onErr?.(err); return; }
+        if (pos) onPos(pos); // already a GeolocationPosition-shaped object
+      }).then((id) => {
+        if (handle.removed) Geolocation.clearWatch({ id });
         else handle.id = id;
       }).catch((e) => onErr?.(e));
     }
@@ -127,6 +126,6 @@ export const nativeSource = {
     handle.removed = true;
     if (handle.id == null) return; // not yet started; the resolver above will remove it
     if (handle.background) BackgroundGeolocation.removeWatcher({ id: handle.id });
-    else geoPlugin().then((Geolocation) => Geolocation.clearWatch({ id: handle.id }));
+    else Geolocation.clearWatch({ id: handle.id });
   },
 };

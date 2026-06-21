@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Activity, Loader, Mail, Lock } from "lucide-react";
+import { Browser } from "@capacitor/browser";
 import { supabase, authRedirectTo } from "./supabase";
 import { isNative } from "./native";
 import { PRIVACY_URL } from "./constants";
@@ -33,7 +34,6 @@ export default function LoginScreen({ authError, onClearAuthError }) {
       return;
     }
     if (isNative && data?.url) {
-      const { Browser } = await import("@capacitor/browser");
       await Browser.open({ url: data.url });
       // The external tab handles the rest; the WebView itself is NOT redirected, so
       // re-enable the form. Otherwise dismissing/cancelling the OAuth tab (no
