@@ -11,9 +11,12 @@
 export const webSource = {
   isAvailable: () => typeof navigator !== "undefined" && "geolocation" in navigator,
 
-  watchPosition(onPos, onErr, { highAccuracy = true } = {}) {
+  // Third arg (the shared `{ background }` option) is intentionally ignored — a
+  // browser can't record in the background. Always high-accuracy, matching the
+  // Phase-1 inline behaviour.
+  watchPosition(onPos, onErr) {
     return navigator.geolocation.watchPosition(onPos, onErr, {
-      enableHighAccuracy: highAccuracy, maximumAge: 0, timeout: 15000,
+      enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
     });
   },
 

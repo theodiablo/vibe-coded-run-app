@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
 import { geoSource } from "../geo/source";
+import { isNative } from "../native";
 
 // Live GPS run tracker. All geolocation access is funnelled through this one hook
 // so a Phase-2 native shell can swap watchPosition for a background-location
@@ -105,8 +106,12 @@ export function useRunTracker() {
       const minMove = Math.max(MIN_MOVE_M, (accuracy || 0) * 0.5);
       if (haversineM(last, [latitude, longitude]) < minMove) return; // not moving
       if (sinceLastFix > GAP_MS) next = [...pts, null];   // lost signal → break track
-    } else if (accuracy != null && accuracy > ACC_WARMUP_M) {
-      return; // warm-up: don't anchor the track on a coarse pre-lock fix
+    } else if (accuracy == null || accuracy > ACC_WARMUP_M) {
+      // Warm-up: don't anchor the track on a coarse — or unknown-accuracy — pre-lock
+      // fix. The web GeolocationPosition always carries a numeric accuracy, so this
+      // is unchanged for web; it only tightens the native path, where a plugin fix
+      // can report null accuracy (the next fix with a known-good reading anchors).
+      return;
     }
     const np = [latitude, longitude, t, altitude == null ? null : Math.round(altitude)];
     pointsRef.current = [...next, np];
@@ -268,6 +273,11 @@ export function useRunTracker() {
   useEffect(() => {
     if (state !== "idle") return;
     if (!geoSource.isAvailable()) return;
+    // Web only. On native this would auto-fire the OS fine-location prompt the
+    // moment the tracker opens — before the prominent disclosure and Start tap —
+    // undercutting the disclosure→prompt sequence (and a denial here poisons the
+    // later background request). The native location appears once recording starts.
+    if (isNative) return;
     // Foreground-only preview (background:false) — no foreground service /
     // notification while the user is still on the start screen.
     const handle = geoSource.watchPosition(

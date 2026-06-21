@@ -23,6 +23,7 @@ function Splash() {
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = still resolving
   const [storeReady, setStoreReady] = useState(false);
+  const [authError, setAuthError] = useState(null); // native deep-link sign-in failure
   // Which user id the store is currently loaded for. Guards against reloading
   // (and clobbering the in-memory cache) on every auth event — Supabase fires
   // onAuthStateChange on token refresh, tab refocus, and repeat SIGNED_IN, each
@@ -70,22 +71,47 @@ export default function App() {
   }, []);
 
   // Inside the Capacitor shell, OAuth / magic-link redirects come back as a deep
-  // link (see authRedirectTo). Catch it, pull the PKCE `code`, and complete the
-  // exchange so the WebView signs in. No-op on the web (handled by
-  // detectSessionInUrl). Plugin imported lazily so it stays out of the web bundle.
+  // link (see authRedirectTo). Complete the PKCE exchange so the WebView signs in.
+  // No-op on the web (handled by detectSessionInUrl). Plugin imported lazily so it
+  // stays out of the web bundle.
   useEffect(() => {
     if (!isNative) return;
     let listener;
-    import("@capacitor/app").then(({ App: CapApp }) =>
-      CapApp.addListener("appUrlOpen", async ({ url }) => {
-        try {
-          const code = new URL(url).searchParams.get("code");
-          if (code) await supabase.auth.exchangeCodeForSession(code);
-        } catch (err) {
-          console.error("Deep-link auth exchange failed", err);
-        }
-      }),
-    ).then((h) => { listener = h; });
+    let lastUrl = null;
+
+    // Surface an auth failure on the login screen (passed down as a prop). When
+    // there's no session, LoginScreen is rendered as our child, so this re-render
+    // reaches it for both the warm-return and cold-start cases.
+    const reportAuthError = (text) => setAuthError(text);
+
+    const processUrl = async (url) => {
+      if (!url || url === lastUrl) return; // de-dupe appUrlOpen vs getLaunchUrl
+      lastUrl = url;
+      let params;
+      try { params = new URL(url).searchParams; } catch { return; }
+      // Provider-side denial/error (e.g. user cancels Google consent) carries no
+      // `code` — surface it instead of silently no-oping.
+      const provErr = params.get("error_description") || params.get("error");
+      if (provErr) { reportAuthError(provErr); return; }
+      const code = params.get("code");
+      if (!code) return; // not an auth callback
+      try {
+        await supabase.auth.exchangeCodeForSession(code);
+      } catch (err) {
+        console.error("Deep-link auth exchange failed", err);
+        reportAuthError(err?.message || "Sign-in failed. Please try again.");
+      }
+    };
+
+    import("@capacitor/app").then(async ({ App: CapApp }) => {
+      listener = await CapApp.addListener("appUrlOpen", ({ url }) => processUrl(url));
+      // Cold start: when the OS kills the app while the OAuth tab is open, the
+      // callback intent that relaunches MainActivity is delivered as the launch
+      // URL, not as appUrlOpen — so read it explicitly once on mount.
+      const launch = await CapApp.getLaunchUrl();
+      if (launch?.url) processUrl(launch.url);
+    });
+
     return () => { listener?.remove?.(); };
   }, []);
 
@@ -117,7 +143,7 @@ export default function App() {
   }, [session]);
 
   if (session === undefined) return <Splash />;
-  if (!session) return <LoginScreen />;
+  if (!session) return <LoginScreen authError={authError} onClearAuthError={() => setAuthError(null)} />;
   if (!storeReady) return <Splash />;
   return <RunningCoach onSignOut={() => supabase.auth.signOut()} />;
 }

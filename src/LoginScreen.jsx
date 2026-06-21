@@ -4,14 +4,18 @@ import { supabase, authRedirectTo } from "./supabase";
 import { isNative } from "./native";
 import { PRIVACY_URL } from "./constants";
 
-export default function LoginScreen() {
+// `authError` is a native deep-link sign-in failure surfaced by App.jsx (e.g. the
+// user cancels Google consent); shown until the user takes another action.
+export default function LoginScreen({ authError, onClearAuthError }) {
   const [mode, setMode] = useState("signin"); // signin | signup | magic
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null); // { type: "err"|"ok", text }
 
-  const note = (type, text) => setMsg({ type, text });
+  const note = (type, text) => { onClearAuthError?.(); setMsg({ type, text }); };
+  // Local form messages take precedence; otherwise fall back to a deep-link error.
+  const shownMsg = msg || (authError ? { type: "err", text: authError } : null);
 
   async function withGoogle() {
     setBusy(true);
@@ -31,8 +35,14 @@ export default function LoginScreen() {
     if (isNative && data?.url) {
       const { Browser } = await import("@capacitor/browser");
       await Browser.open({ url: data.url });
+      // The external tab handles the rest; the WebView itself is NOT redirected, so
+      // re-enable the form. Otherwise dismissing/cancelling the OAuth tab (no
+      // appUrlOpen, no auth event) would leave the UI locked until a restart. On
+      // success, App.jsx's deep-link handler drives the transition to the app.
+      setBusy(false);
+      return;
     }
-    // on success the browser is redirected, so no need to reset busy
+    // Web: the page itself is redirected to the provider, so leave busy=true.
   }
 
   async function onSubmit(e) {
@@ -70,7 +80,7 @@ export default function LoginScreen() {
   const tab = (id, label) => (
     <button
       type="button"
-      onClick={() => { setMode(id); setMsg(null); }}
+      onClick={() => { onClearAuthError?.(); setMode(id); setMsg(null); }}
       className={
         "flex-1 py-2 text-sm font-medium rounded-lg transition " +
         (mode === id ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200")
@@ -157,14 +167,14 @@ export default function LoginScreen() {
             Continue with Google
           </button>
 
-          {msg && (
+          {shownMsg && (
             <p
               className={
                 "mt-4 text-sm text-center " +
-                (msg.type === "err" ? "text-red-400" : "text-emerald-400")
+                (shownMsg.type === "err" ? "text-red-400" : "text-emerald-400")
               }
             >
-              {msg.text}
+              {shownMsg.text}
             </p>
           )}
         </div>

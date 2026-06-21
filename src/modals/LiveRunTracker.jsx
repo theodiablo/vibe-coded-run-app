@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Play, Pause, Square, X, Loader, MapPin } from "lucide-react";
 import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
@@ -6,12 +6,8 @@ import { saveRoute, queuePendingRoute } from "../routes";
 import { useRunTracker } from "../hooks/useRunTracker";
 import { RouteMap } from "../components/RouteMap";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
+import { isNative } from "../native";
 import { BG_LOC_DISCLOSED_KEY } from "../constants";
-
-// Detect the Phase-2 native shell (a TWA/Capacitor build that DOES track in the
-// background) so we don't nag those users with the browser-only screen-on notice.
-const inNativeShell = typeof window !== "undefined" &&
-  (window.__NATIVE_SHELL__ === true || (document.referrer || "").startsWith("android-app://"));
 
 function Stat({ label, value }) {
   return (
@@ -37,25 +33,41 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
   const [showDisclosure, setShowDisclosure] = useState(false);
+  const [pendingStart, setPendingStart] = useState(null); // action to run once disclosed
 
   const hasTrack = stats.n > 0;
   const live = state === "tracking" || state === "paused";
 
-  // In the native shell, show the background-location prominent disclosure before
-  // the first recording (which triggers the OS permission prompt). On the web, or
-  // once accepted, start straight away.
   const disclosed = () => {
     try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
   };
-  const handleStart = () => {
-    if (inNativeShell && !disclosed()) setShowDisclosure(true);
-    else t.start();
+  // Run `fn` — which starts a background watch on native — but gate the FIRST one
+  // behind the prominent-disclosure (Play requirement). Covers BOTH the idle
+  // "Start run" and the paused "Resume" (incl. the crash-recovery resume, which
+  // starts a fresh watch), so a background-location request never fires without a
+  // prior disclosure. No-op gate on the web / once already disclosed.
+  const guardedStart = (fn) => {
+    if (isNative && !disclosed()) { setPendingStart(() => fn); setShowDisclosure(true); }
+    else fn();
   };
   const acceptDisclosure = () => {
     try { localStorage.setItem(BG_LOC_DISCLOSED_KEY, "1"); } catch { /* quota — non-fatal */ }
     setShowDisclosure(false);
-    t.start();
+    const run = pendingStart;
+    setPendingStart(null);
+    run?.();
   };
+  const cancelDisclosure = () => { setShowDisclosure(false); setPendingStart(null); };
+
+  // If a background-location permission error surfaces, the once-per-install
+  // assumption was wrong (the user denied or downgraded the grant). Clear the flag
+  // so the disclosure explains it again on the next attempt instead of silently
+  // never working.
+  useEffect(() => {
+    if (isNative && error && /permission/i.test(error)) {
+      try { localStorage.removeItem(BG_LOC_DISCLOSED_KEY); } catch { /* ignore */ }
+    }
+  }, [error]);
 
   const handleClose = () => {
     if ((live || state === "stopped") && hasTrack &&
@@ -144,7 +156,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
                 {location.acc <= 15 ? " — good to go" : " — wait for it to settle for a cleaner start"}
               </p>
             )}
-            <Ctrl onClick={handleStart} color="bg-orange-500 hover:bg-orange-600 text-white">
+            <Ctrl onClick={() => guardedStart(t.start)} color="bg-orange-500 hover:bg-orange-600 text-white">
               <Play size={20} />Start run
             </Ctrl>
           </>
@@ -157,7 +169,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
         )}
         {state === "paused" && (
           <div className="flex gap-2">
-            <Ctrl onClick={t.resume} color="bg-orange-500 hover:bg-orange-600 text-white"><Play size={20} />Resume</Ctrl>
+            <Ctrl onClick={() => guardedStart(t.resume)} color="bg-orange-500 hover:bg-orange-600 text-white"><Play size={20} />Resume</Ctrl>
             <Ctrl onClick={t.stop} color="bg-red-500 hover:bg-red-600 text-white"><Square size={18} />Finish</Ctrl>
           </div>
         )}
@@ -170,7 +182,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
           </div>
         )}
 
-        {live && !inNativeShell && (
+        {live && !isNative && (
           <p className="text-[11px] text-slate-500 text-center leading-snug">
             Keep this screen on while running — browsers can't track in the background, so it
             pauses if the screen locks. A native app version tracks with the screen off (less battery).
@@ -179,7 +191,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
       </div>
 
       {showDisclosure && (
-        <BgLocationDisclosure onAccept={acceptDisclosure} onCancel={() => setShowDisclosure(false)} />
+        <BgLocationDisclosure onAccept={acceptDisclosure} onCancel={cancelDisclosure} />
       )}
     </div>
   );
