@@ -73,6 +73,7 @@ jobs:
             const marker = '<!-- android-pr-apk -->';
             const url = process.env.ARTIFACT_URL;
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = (context.payload.pull_request.head.sha || '').slice(0, 7);
             const body = [
               marker,
               '📱 **Android debug APK built for this PR**',
@@ -80,11 +81,15 @@ jobs:
               `**[⬇️ Download the APK](${url})** (GitHub login required) — unzip and ` +
               'sideload `app-debug.apk` (see README → Android app → *Install a build on your phone*).',
               '',
-              `<sub>Built from <a href="${runUrl}">this run</a>.</sub>`,
+              `<sub>Built from <a href="${runUrl}">run #${context.runNumber}</a> · commit \`${sha}\`. ` +
+              'Refreshed automatically on every push.</sub>',
             ].join('\n');
-            const { data: comments } = await github.rest.issues.listComments({
+            // Paginate ALL comments — on an active PR the bot's comment scrolls off
+            // the first page, which would otherwise post a duplicate with a stale
+            // URL instead of updating the existing one.
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
+              issue_number: context.payload.pull_request.number, per_page: 100,
             });
             const existing = comments.find(c => c.body && c.body.includes(marker));
             if (existing) {
