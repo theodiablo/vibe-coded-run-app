@@ -105,11 +105,14 @@ export default function App() {
     };
 
     (async () => {
-      listener = await CapApp.addListener("appUrlOpen", ({ url }) => processUrl(url));
-      // Cold start: when the OS kills the app while the OAuth tab is open, the
-      // callback intent that relaunches MainActivity is delivered as the launch
-      // URL, not as appUrlOpen — so read it explicitly once on mount.
-      const launch = await CapApp.getLaunchUrl();
+      // Independent bridge calls — run them concurrently. getLaunchUrl covers the
+      // cold start where the OS killed the app while the OAuth tab was open: that
+      // callback intent relaunches MainActivity as the launch URL, not appUrlOpen.
+      const [handle, launch] = await Promise.all([
+        CapApp.addListener("appUrlOpen", ({ url }) => processUrl(url)),
+        CapApp.getLaunchUrl(),
+      ]);
+      listener = handle;
       if (launch?.url) processUrl(launch.url);
     })();
 

@@ -6,9 +6,9 @@ import { Capacitor } from "@capacitor/core";
 // the web app behaves exactly as it did in Phase 1.
 export const isNative = Capacitor.isNativePlatform();
 
-// Phase 1's tracker UI (LiveRunTracker.jsx) already hides the browser-only
-// "keep this screen on" notice when window.__NATIVE_SHELL__ === true. Light it
-// up inside the shell so that detection works without touching the UI.
+// Public signal that the app is running inside the native shell, for any
+// consumer that can't import this module (external scripts, analytics, manual
+// debugging). The app itself branches on the `isNative` export above.
 if (typeof window !== "undefined" && isNative) {
   window.__NATIVE_SHELL__ = true;
 }

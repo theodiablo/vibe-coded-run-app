@@ -33,13 +33,13 @@ export function adaptBgLocation(loc) {
     coords: {
       latitude: loc.latitude,
       longitude: loc.longitude,
-      altitude: loc.altitude == null ? null : loc.altitude,
-      accuracy: loc.accuracy == null ? null : loc.accuracy,
-      altitudeAccuracy: loc.altitudeAccuracy == null ? null : loc.altitudeAccuracy,
-      speed: loc.speed == null ? null : loc.speed,
-      heading: loc.bearing == null ? null : loc.bearing,
+      altitude: loc.altitude ?? null,
+      accuracy: loc.accuracy ?? null,
+      altitudeAccuracy: loc.altitudeAccuracy ?? null,
+      speed: loc.speed ?? null,
+      heading: loc.bearing ?? null, // plugin's `bearing` → GeolocationCoordinates `heading`
     },
-    timestamp: loc.time == null ? Date.now() : loc.time,
+    timestamp: loc.time ?? Date.now(),
   };
 }
 
@@ -51,16 +51,16 @@ export function adaptBgError(error) {
   };
 }
 
+// True if a Geolocation permission status grants fine or coarse location.
+const isGranted = (p) => !!p && (p.location === "granted" || p.coarseLocation === "granted");
+
 // Request foreground (fine) location, reliably showing the OS dialog. Returns
 // true if location is usable. Errors propagate to the caller, which surfaces them
 // — they are NOT swallowed (a swallowed throw here is exactly what hid the missing
 // prompt before).
 async function ensureForegroundPermission() {
-  const ok = (p) => p && (p.location === "granted" || p.coarseLocation === "granted");
-  let perm = await Geolocation.checkPermissions();
-  if (ok(perm)) return true;
-  perm = await Geolocation.requestPermissions({ permissions: ["location"] });
-  return ok(perm);
+  if (isGranted(await Geolocation.checkPermissions())) return true;
+  return isGranted(await Geolocation.requestPermissions({ permissions: ["location"] }));
 }
 
 export const nativeSource = {
@@ -69,8 +69,7 @@ export const nativeSource = {
   // Non-prompting check — true if location is already granted. Lets the idle
   // preview show for returning users without firing an out-of-context dialog.
   async checkPermissions() {
-    const p = await Geolocation.checkPermissions();
-    return p && (p.location === "granted" || p.coarseLocation === "granted");
+    return isGranted(await Geolocation.checkPermissions());
   },
 
   // Request foreground location, showing the OS dialog. Called from the consent

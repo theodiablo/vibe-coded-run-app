@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Play, Pause, Square, X, Loader, MapPin } from "lucide-react";
 import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
@@ -35,11 +35,15 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
   const disclosed = () => {
     try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
   };
+  const markDisclosed = () => {
+    try { localStorage.setItem(BG_LOC_DISCLOSED_KEY, "1"); } catch { /* quota — non-fatal */ }
+  };
   // On native, surface the disclosure the moment the tracker opens (not only on
-  // Start), so consent is the first thing shown — until accepted once per install.
-  // guardedStart still gates Start/Resume as a backstop if the user dismisses it.
+  // Start), so consent is the first thing shown. The flag is set only once the OS
+  // grant succeeds (acceptDisclosure), so a denial naturally re-shows the disclosure
+  // next time — no need to watch the error text. guardedStart gates Start/Resume too.
   const [showDisclosure, setShowDisclosure] = useState(() => isNative && !disclosed());
-  const [pendingStart, setPendingStart] = useState(null); // action to run once disclosed
+  const pendingStartRef = useRef(null); // deferred Start/Resume action, run once consented
 
   const hasTrack = stats.n > 0;
   const live = state === "tracking" || state === "paused";
@@ -49,31 +53,23 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
   // starts a fresh watch), so a background-location request never fires without a
   // prior disclosure. No-op gate on the web / once already disclosed.
   const guardedStart = (fn) => {
-    if (isNative && !disclosed()) { setPendingStart(() => fn); setShowDisclosure(true); }
+    if (isNative && !disclosed()) { pendingStartRef.current = fn; setShowDisclosure(true); }
     else fn();
   };
   const acceptDisclosure = async () => {
-    try { localStorage.setItem(BG_LOC_DISCLOSED_KEY, "1"); } catch { /* quota — non-fatal */ }
     setShowDisclosure(false);
-    const run = pendingStart;
-    setPendingStart(null);
-    // Ask the OS for location right after consent (native) so the prompt is part
-    // of the disclosure flow, not deferred to Start. Only record if granted — and
-    // the upfront grant means a later Start won't prompt again.
+    const run = pendingStartRef.current;
+    pendingStartRef.current = null;
+    // Ask the OS for location right after consent (native) so the prompt is part of
+    // the disclosure flow, not deferred to Start. Mark disclosed only on success, so
+    // a denial leaves it unset and the disclosure re-explains next time; the upfront
+    // grant also means a later Start won't prompt again.
     const granted = isNative ? await t.requestPermissions() : true;
-    if (granted) run?.();
+    if (!granted) return;
+    markDisclosed();
+    run?.();
   };
-  const cancelDisclosure = () => { setShowDisclosure(false); setPendingStart(null); };
-
-  // If a background-location permission error surfaces, the once-per-install
-  // assumption was wrong (the user denied or downgraded the grant). Clear the flag
-  // so the disclosure explains it again on the next attempt instead of silently
-  // never working.
-  useEffect(() => {
-    if (isNative && error && /permission/i.test(error)) {
-      try { localStorage.removeItem(BG_LOC_DISCLOSED_KEY); } catch { /* ignore */ }
-    }
-  }, [error]);
+  const cancelDisclosure = () => { setShowDisclosure(false); pendingStartRef.current = null; };
 
   const handleClose = () => {
     if ((live || state === "stopped") && hasTrack &&

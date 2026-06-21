@@ -22,6 +22,12 @@ const TICK_MS = 1000;         // UI clock refresh while tracking
 const CUR_PACE_WINDOW_MS = 30000; // current-pace look-back
 const RESUME_MAX_AGE_MS = 6 * 3600 * 1000; // offer to resume a buffer this fresh
 
+// Permission-denied copy, shared by onErr and requestPermissions so the native
+// and web wording can't drift between the two. isNative is fixed at module load.
+const PERMISSION_DENIED_MSG = isNative
+  ? "Location permission is needed to record your run. Enable it (“Allow all the time”) in this app's settings, then try again."
+  : "Location permission denied. Enable it for this site in your browser settings, then try again.";
+
 const readBuffer = () => {
   try { return JSON.parse(localStorage.getItem(LIVE_RUN_KEY)); }
   catch { return null; }
@@ -126,9 +132,7 @@ export function useRunTracker() {
 
   const onErr = useCallback((err) => {
     if (err.code === err.PERMISSION_DENIED)
-      setError(isNative
-        ? "Location permission is needed to record your run. Enable it (“Allow all the time”) in this app's settings, then try again."
-        : "Location permission denied. Enable it for this site in your browser settings, then try again.");
+      setError(PERMISSION_DENIED_MSG);
     else if (err.code === err.POSITION_UNAVAILABLE)
       setError("Couldn't get a GPS fix. Make sure location is on and you're outdoors.");
     else if (err.code === err.TIMEOUT)
@@ -156,13 +160,10 @@ export function useRunTracker() {
   // shown as part of the consent flow rather than only when recording starts.
   // Returns whether location is usable; sets an actionable error if denied.
   const requestPermissions = useCallback(async () => {
-    if (!geoSource.requestPermissions) return true;
     try {
       const granted = await geoSource.requestPermissions();
       if (!granted) {
-        setError(isNative
-          ? "Location permission is needed to record your run. Enable it (“Allow all the time”) in this app's settings, then try again."
-          : "Location permission denied. Enable it for this site in your browser settings, then try again.");
+        setError(PERMISSION_DENIED_MSG);
         return false;
       }
       setError(null);
@@ -298,7 +299,7 @@ export function useRunTracker() {
   // Check WITHOUT prompting so the idle preview can show straight away (the lazy
   // initial state covers the web, which is always true).
   useEffect(() => {
-    if (!isNative || !geoSource.checkPermissions) return;
+    if (!isNative) return;
     let cancelled = false;
     geoSource.checkPermissions()
       .then(ok => { if (!cancelled && ok) setPermGranted(true); })
