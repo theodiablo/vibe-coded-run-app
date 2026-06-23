@@ -15,7 +15,10 @@ const ACC_WARMUP_M = 20;     // require a fix at least this good before the FIRS
                              // the GNSS chip emits coarse network fixes until satellites lock
 const MIN_INTERVAL_MS = 2000; // thin the stream to ~1 point / 2s (battery/storage)
 const MIN_MOVE_M = 5;         // base jitter gate (scaled up for less-accurate fixes below)
-const GAP_MS = 12000;         // a fix after this long a silence starts a new segment
+const GAP_MS = 60000;         // silence longer than this starts a new segment (gap).
+                             // Sized for native background location, which batches
+                             // fixes tens of seconds apart — those are real positions,
+                             // not lost signal, so we don't break the track over them.
 const TICK_MS = 1000;         // UI clock refresh while tracking
 const CUR_PACE_WINDOW_MS = 30000; // current-pace look-back
 const RESUME_MAX_AGE_MS = 6 * 3600 * 1000; // offer to resume a buffer this fresh

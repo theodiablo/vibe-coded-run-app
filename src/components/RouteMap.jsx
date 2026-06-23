@@ -68,12 +68,22 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
 
     const segs = segments(points);
     const all = [];
+    let prevEnd = null;
     segs.forEach(seg => {
-      if (seg.length) {
-        const line = L.polyline(seg, { color: "#f97316", weight: 4, opacity: 0.9 }).addTo(map);
-        linesRef.current.push(line);
-        all.push(...seg);
+      if (!seg.length) return;
+      // Bridge a gap (signal loss / suspended background) with a faded dashed line
+      // so the route reads as one continuous run while still marking the stretch we
+      // didn't actually track — distinct from the solid, recorded segments.
+      if (prevEnd) {
+        const bridge = L.polyline([prevEnd, seg[0]], {
+          color: "#f97316", weight: 3, opacity: 0.5, dashArray: "4 8",
+        }).addTo(map);
+        linesRef.current.push(bridge);
       }
+      const line = L.polyline(seg, { color: "#f97316", weight: 4, opacity: 0.9 }).addTo(map);
+      linesRef.current.push(line);
+      all.push(...seg);
+      prevEnd = seg[seg.length - 1];
     });
 
     // Current-position dot (CSS divIcon — no external marker image, so no CSP
