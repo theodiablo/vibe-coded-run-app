@@ -20,16 +20,21 @@ export function haversineM(a, b) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 
-// Total distance (km) along a point array. Segments shorter than `minM` are
-// treated as GPS jitter and skipped, so a near-stationary runner doesn't
-// accumulate phantom distance. Gap markers break accumulation.
+// Total distance (km) along a point array. Legs shorter than `minM` are treated
+// as GPS jitter and skipped, so a near-stationary runner doesn't accumulate
+// phantom distance. Gap markers (null) are bridged with the straight-line
+// distance to the next real fix: that geodesic is the *minimum* the runner could
+// have covered between the two fixes, so counting it gets closer to the truth
+// than dropping the stretch — and can't overestimate.
 export function distanceKm(points, minM = 3) {
-  let m = 0;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1], b = points[i];
-    if (!a || !b) continue;
-    const d = haversineM(a, b);
-    if (d >= minM) m += d;
+  let m = 0, prev = null;
+  for (const p of points) {
+    if (!p) continue; // gap marker: bridge to the next real fix
+    if (prev) {
+      const d = haversineM(prev, p);
+      if (d >= minM) m += d;
+    }
+    prev = p;
   }
   return m / 1000;
 }

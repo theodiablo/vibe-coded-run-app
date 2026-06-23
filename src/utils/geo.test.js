@@ -28,10 +28,10 @@ describe("distanceKm", () => {
     const pts = [[48.0, 2.0], [48.000001, 2.0]];
     expect(distanceKm(pts)).toBe(0);
   });
-  it("breaks accumulation at gap markers", () => {
+  it("bridges gap markers with the straight-line (minimum) distance", () => {
     const withGap = distanceKm([[0, 0], [0, 1], null, [0, 5], [0, 6]]);
-    const twoSegs = distanceKm([[0, 0], [0, 1]]) + distanceKm([[0, 5], [0, 6]]);
-    expect(withGap).toBeCloseTo(twoSegs, 5);
+    const noGap = distanceKm([[0, 0], [0, 1], [0, 5], [0, 6]]);
+    expect(withGap).toBeCloseTo(noGap, 5);
   });
 });
 

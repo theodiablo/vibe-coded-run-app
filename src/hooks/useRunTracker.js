@@ -212,9 +212,11 @@ export function useRunTracker() {
       const buf = prev;
       if (!buf) return prev;
       // Break the track between the recovered points and whatever gets recorded
-      // next: an unknown (possibly large) amount of time and distance may have
-      // passed since the crash, so resuming must start a fresh segment rather
-      // than bridge the gap with a phantom straight line that inflates distance.
+      // next: an unknown amount of time may have passed since the crash, so the
+      // join is a gap (drawn dashed, not a solid recorded line). Note distanceKm
+      // still bridges it with the straight-line minimum — fine for an in-run
+      // crash, but if the runner travelled by other means before resuming that
+      // leg will be counted; the runner can edit the saved distance if so.
       const recovered = buf.points || [];
       if (recovered.length && recovered[recovered.length - 1] != null) recovered.push(null);
       pointsRef.current = recovered;
