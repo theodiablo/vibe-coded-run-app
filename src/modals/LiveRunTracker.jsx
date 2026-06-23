@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Square, X, Loader, MapPin } from "lucide-react";
 import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
@@ -44,6 +44,8 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
   // next time — no need to watch the error text. guardedStart gates Start/Resume too.
   const [showDisclosure, setShowDisclosure] = useState(() => isNative && !disclosed());
   const pendingStartRef = useRef(null); // deferred Start/Resume action, run once consented
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const hasTrack = stats.n > 0;
   const live = state === "tracking" || state === "paused";
@@ -65,7 +67,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
     // a denial leaves it unset and the disclosure re-explains next time; the upfront
     // grant also means a later Start won't prompt again.
     const granted = isNative ? await t.requestPermissions() : true;
-    if (!granted) return;
+    if (!granted || !mountedRef.current) return;
     markDisclosed();
     run?.();
   };
