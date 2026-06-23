@@ -39,6 +39,13 @@ and delete anything that becomes stale.
 - **Multi-user:** The app is open to public signups — don't make single-user
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.
+- **App versioning / update gate (native only):** build version is NOT in the DB
+  — `versionCode` is the CI run number, `versionName` is the `android-v*` tag
+  (`android/app/build.gradle` reads them from env). The world-readable `app_config`
+  row owns *policy*: `latest_version` (soft "update available" banner, written by
+  the release workflow) and `min_supported_version` (hard gate, bumped by hand on a
+  breaking change). `App.jsx` compares the installed version (`App.getInfo()`) via
+  `versionStatus` (`src/utils/version.js`); a failed check never blocks the user.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.jsx`. Follow that style.
 - **Layout:** views in `src/views/`, modals/full-screen flows in `src/modals/`,

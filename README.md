@@ -59,12 +59,14 @@ Go to [supabase.com](https://supabase.com), create a new project, then grab your
 
 ### 2. Set up the database schema
 
-In your Supabase project, open the **SQL Editor** and run the three migration files
+In your Supabase project, open the **SQL Editor** and run the migration files
 in order from `supabase/migrations/`:
 
 1. `20260607114706_init_schema.sql`
 2. `20260607165159_grant_table_privileges.sql`
 3. `20260614120000_harden_security_definer_functions.sql`
+4. `20260620120000_run_routes.sql` — GPS route traces
+5. `20260623120000_app_config.sql` — app version gate (in-app update prompt)
 
 Alternatively, if you have the [Supabase CLI](https://supabase.com/docs/guides/cli)
 and Docker installed, you can run a full local stack:
@@ -154,6 +156,37 @@ Debug builds need no signing. Release AABs for the Play Store are built by
 `.github/workflows/android.yml` (manual or on an `android-v*` tag) and need these
 extra repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+
+### Versioning & releases
+
+Don't hand-edit the version — it's derived at build time, so a release is just a tag:
+
+```sh
+git tag android-v1.2.0 && git push origin android-v1.2.0
+```
+
+- **`versionName`** (e.g. `1.2.0`) comes from the `android-v*` tag.
+- **`versionCode`** (what Play orders uploads by — must always increase) is the
+  GitHub Actions **run number**, injected automatically. No manual bumping.
+- Local/debug builds fall back to `1` / `1.0`.
+
+### In-app update prompt
+
+The app compares its installed `versionName` against the `app_config` row
+(`supabase/migrations/20260623120000_app_config.sql`) on launch:
+
+- `latest_version` — set **automatically** by the release workflow after a tagged
+  build, so users on an older version see a dismissible "update available" banner.
+- `min_supported_version` — **you bump this by hand** in Supabase only when you ship
+  a breaking change; clients below it get a non-dismissible "update required" screen.
+
+For the workflow to write `latest_version`, add two more repository secrets (the
+service-role key bypasses RLS and must **never** be put in the app bundle — CI only):
+
+| Secret | Value |
+|--------|-------|
+| `SUPABASE_URL` | your project URL (e.g. `https://xxxx.supabase.co`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | *Settings → API → service_role* secret key |
 
 ### Install a build on your phone
 

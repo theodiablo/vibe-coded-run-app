@@ -22,6 +22,10 @@ export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
 // for background-location apps.
 export const PRIVACY_URL = "https://run.camboulive.solutions/privacy.html";
 
+// Play Store listing — used by the in-app update prompt (see UpdatePrompt.jsx).
+export const PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=solutions.camboulive.run";
+
 // Map basemap. A keyed free-tier provider (MapTiler) — raw OSM tiles aren't
 // allowed for a multi-user app under the OSMF tile policy. Set VITE_MAPTILER_KEY
 // (a publishable, domain-restricted client key) at build. No default key is

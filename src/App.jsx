@@ -3,6 +3,8 @@ import { Loader } from "lucide-react";
 import { App as CapApp } from "@capacitor/app";
 import { supabase } from "./supabase";
 import { isNative } from "./native";
+import { versionStatus } from "./utils/version";
+import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
 import RunningCoach from "./RunningCoach.jsx";
 import LoginScreen from "./LoginScreen.jsx";
@@ -25,6 +27,7 @@ export default function App() {
   const [session, setSession] = useState(undefined); // undefined = still resolving
   const [storeReady, setStoreReady] = useState(false);
   const [authError, setAuthError] = useState(null); // native deep-link sign-in failure
+  const [updateState, setUpdateState] = useState("ok"); // version gate: ok | update-available | must-update
   // Which user id the store is currently loaded for. Guards against reloading
   // (and clobbering the in-memory cache) on every auth event — Supabase fires
   // onAuthStateChange on token refresh, tab refocus, and repeat SIGNED_IN, each
@@ -119,6 +122,26 @@ export default function App() {
     return () => { listener?.remove?.(); };
   }, []);
 
+  // Native-only version gate: compare the installed app version against the
+  // remote app_config row. A failed check (offline, etc.) is ignored so it can
+  // never lock the user out. Web is always "latest" (continuously deployed).
+  useEffect(() => {
+    if (!isNative) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await CapApp.getInfo();
+        const { data } = await supabase
+          .from("app_config")
+          .select("min_supported_version, latest_version")
+          .eq("id", 1)
+          .maybeSingle();
+        if (!cancelled && data) setUpdateState(versionStatus(info.version, data));
+      } catch { /* never block the app on a failed version check */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Load (or clear) the per-user store when the *user* changes. Keyed on the
   // user id, not the session object, so token refresh / refocus events don't
   // re-run initStore and overwrite the in-memory cache with stale DB data.
@@ -146,8 +169,15 @@ export default function App() {
     };
   }, [session]);
 
+  // Hard version gate blocks everything, even the login screen.
+  if (updateState === "must-update") return <UpdateRequired />;
   if (session === undefined) return <Splash />;
   if (!session) return <LoginScreen authError={authError} onClearAuthError={() => setAuthError(null)} />;
   if (!storeReady) return <Splash />;
-  return <RunningCoach onSignOut={() => supabase.auth.signOut()} />;
+  return (
+    <>
+      {updateState === "update-available" && <UpdateBanner />}
+      <RunningCoach onSignOut={() => supabase.auth.signOut()} />
+    </>
+  );
 }
