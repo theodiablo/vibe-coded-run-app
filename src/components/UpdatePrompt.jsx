@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Download, X } from "lucide-react";
-import { Browser } from "@capacitor/browser";
 import { PLAY_STORE_URL } from "../constants";
 
 // Open the Play Store listing (native: in the Play app via the system browser
 // handler; falls back to a normal new tab if the plugin isn't available).
 async function openStore() {
-  try { await Browser.open({ url: PLAY_STORE_URL }); }
-  catch { window.open(PLAY_STORE_URL, "_blank", "noopener"); }
+  try {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url: PLAY_STORE_URL });
+  } catch { window.open(PLAY_STORE_URL, "_blank", "noopener"); }
 }
 
 // Hard gate: the installed app is below the minimum supported version (e.g. after

@@ -78,10 +78,14 @@ export default function App() {
   // link (see authRedirectTo). Complete the PKCE exchange so the WebView signs in.
   // No-op on the web (handled by detectSessionInUrl). Plugin imported lazily so it
   // stays out of the web bundle.
+  // Persists the last-processed URL across Strict Mode remounts so a PKCE code
+  // is never exchanged twice (codes are single-use; a double call yields invalid_grant).
+  const lastUrlRef = useRef(null);
+
   useEffect(() => {
     if (!isNative) return;
-    let listener;
-    let lastUrl = null;
+    let mounted = true;
+    let listenerHandle = null;
 
     // Surface an auth failure on the login screen (passed down as a prop). When
     // there's no session, LoginScreen is rendered as our child, so this re-render
@@ -89,8 +93,8 @@ export default function App() {
     const reportAuthError = (text) => setAuthError(text);
 
     const processUrl = async (url) => {
-      if (!url || url === lastUrl) return; // de-dupe appUrlOpen vs getLaunchUrl
-      lastUrl = url;
+      if (!url || url === lastUrlRef.current) return; // de-dupe appUrlOpen vs getLaunchUrl
+      lastUrlRef.current = url;
       let params;
       try { params = new URL(url).searchParams; } catch { return; }
       // Provider-side denial/error (e.g. user cancels Google consent) carries no
@@ -115,11 +119,12 @@ export default function App() {
         CapApp.addListener("appUrlOpen", ({ url }) => processUrl(url)),
         CapApp.getLaunchUrl(),
       ]);
-      listener = handle;
+      if (!mounted) { handle?.remove?.(); return; }
+      listenerHandle = handle;
       if (launch?.url) processUrl(launch.url);
     })();
 
-    return () => { listener?.remove?.(); };
+    return () => { mounted = false; listenerHandle?.remove?.(); };
   }, []);
 
   // Native-only version gate: compare the installed app version against the

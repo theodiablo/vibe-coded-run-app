@@ -7,9 +7,8 @@ import { PRIVACY_URL } from "../constants";
 // the actual grant. See LiveRunTracker for the once-per-install gating.
 export function BgLocationDisclosure({ onAccept, onCancel }) {
   return (
-    <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700"
-        onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4">
+      <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700">
         <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
           <MapPin size={16} className="text-orange-400" />
           <p className="font-semibold text-sm">Background location</p>

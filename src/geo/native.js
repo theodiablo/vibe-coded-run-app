@@ -121,12 +121,12 @@ export const nativeSource = {
       })();
     } else {
       Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 15000 }, (pos, err) => {
-        if (err) { onErr?.(err); return; }
+        if (err) { onErr?.(adaptBgError(err)); return; }
         if (pos) onPos(pos); // already a GeolocationPosition-shaped object
       }).then((id) => {
         if (handle.removed) Geolocation.clearWatch({ id });
         else handle.id = id;
-      }).catch((e) => onErr?.(e));
+      }).catch((e) => onErr?.(adaptBgError(e)));
     }
 
     return handle;
