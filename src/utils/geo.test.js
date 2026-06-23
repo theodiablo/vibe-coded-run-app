@@ -28,10 +28,10 @@ describe("distanceKm", () => {
     const pts = [[48.0, 2.0], [48.000001, 2.0]];
     expect(distanceKm(pts)).toBe(0);
   });
-  it("breaks accumulation at gap markers", () => {
+  it("bridges gap markers with the straight-line (minimum) distance", () => {
     const withGap = distanceKm([[0, 0], [0, 1], null, [0, 5], [0, 6]]);
-    const twoSegs = distanceKm([[0, 0], [0, 1]]) + distanceKm([[0, 5], [0, 6]]);
-    expect(withGap).toBeCloseTo(twoSegs, 5);
+    const noGap = distanceKm([[0, 0], [0, 1], [0, 5], [0, 6]]);
+    expect(withGap).toBeCloseTo(noGap, 5);
   });
 });
 
@@ -44,6 +44,12 @@ describe("elevGainM", () => {
   });
   it("ignores descents", () => {
     expect(elevGainM([[0, 0, 0, 200], [0, 0, 0, 100]])).toBe(0);
+  });
+  it("filters GPS vertical noise on flat ground", () => {
+    // Altitude jittering ±a few metres around 55m on a flat run must read ~0,
+    // not accumulate every +1/+2 wiggle.
+    const flat = [55, 56, 55, 54, 56, 57, 55, 53, 56, 55].map(a => [0, 0, 0, a]);
+    expect(elevGainM(flat)).toBe(0);
   });
 });
 
