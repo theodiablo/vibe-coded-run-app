@@ -1,10 +1,10 @@
-import { Activity, Award, Check, ChevronRight, Plus, Zap } from "lucide-react";
+import { Activity, Award, Check, ChevronRight, Plus, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
 import { HRTarget } from "../components/HRTarget";
 import { RunRow } from "../components/RunRow";
 
-export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, openSettings}) {
+export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, skipSess, openSettings}) {
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
@@ -12,7 +12,7 @@ export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, openS
   // done actions can target the right session via goLog / toggleSess.
   const nextSess = plan
     ? plan.weeks.flatMap(w => w.sessions.map(s => ({...s, wNum: w.weekNumber})))
-        .filter(s => !s.done && new Date(s.date + "T00:00:00") >= today)
+        .filter(s => !s.done && !s.skipped && new Date(s.date + "T00:00:00") >= today)
         .sort((a, b) => a.date.localeCompare(b.date))[0]
     : null;
   const nextIsToday = nextSess && nextSess.date === ymd(today);
@@ -91,7 +91,13 @@ export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, openS
               <button
                 onClick={() => toggleSess(nextSess.wNum, nextSess.id)}
                 className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                <Check size={15}/>Mark done
+                <Check size={15}/>Done
+              </button>
+              <button
+                onClick={() => skipSess(nextSess.wNum, nextSess.id)}
+                className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                title="Skip this session">
+                <X size={15}/>Skip
               </button>
             </div>
           </div>
