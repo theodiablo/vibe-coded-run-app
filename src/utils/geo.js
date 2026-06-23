@@ -37,7 +37,11 @@ export function distanceKm(points, minM = 3) {
 // Cumulative positive elevation gain (metres). Counts only ascents above `minM`
 // (hysteresis band that filters GPS/barometric noise) and ignores points whose
 // altitude is null — many phones don't report it. Gap markers reset the band.
-export function elevGainM(points, minM = 1) {
+// GPS vertical error is ~2-3x the horizontal and phones quantise altitude to
+// whole metres, so a small band (e.g. 1m) lets every noise wiggle through and a
+// flat run accumulates phantom climb — keep the band at ~5m, the usual floor for
+// GPS-only (barometer-less) elevation.
+export function elevGainM(points, minM = 5) {
   let gain = 0, prev = null;
   for (const p of points) {
     if (!p) { prev = null; continue; }

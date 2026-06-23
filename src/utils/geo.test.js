@@ -45,6 +45,12 @@ describe("elevGainM", () => {
   it("ignores descents", () => {
     expect(elevGainM([[0, 0, 0, 200], [0, 0, 0, 100]])).toBe(0);
   });
+  it("filters GPS vertical noise on flat ground", () => {
+    // Altitude jittering ±a few metres around 55m on a flat run must read ~0,
+    // not accumulate every +1/+2 wiggle.
+    const flat = [55, 56, 55, 54, 56, 57, 55, 53, 56, 55].map(a => [0, 0, 0, a]);
+    expect(elevGainM(flat)).toBe(0);
+  });
 });
 
 describe("simplify", () => {
