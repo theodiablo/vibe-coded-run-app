@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowDown, Check, ChevronRight, Plus, RotateCcw } from "lucide-react";
+import { ArrowDown, Check, ChevronRight, Plus, RotateCcw, X } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { SessionConfigurator } from "../components/SessionConfigurator";
@@ -16,7 +16,7 @@ const PHASE_DESC = {
   RACE:  "Race week",
 };
 
-export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, openSettings, goLog}) {
+export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -280,9 +280,10 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
               {isExp && (
                 <div className="border-t border-slate-700/50">
                   {wk.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).map(s => {
-                    const rowCls = "flex items-start gap-3 px-4 py-3 border-b border-slate-700/30 last:border-0 " + (s.done ? "opacity-40" : "");
+                    const isSkipped = !!s.skipped && !s.done;
+                    const rowCls = "flex items-start gap-3 px-4 py-3 border-b border-slate-700/30 last:border-0 " + (s.done ? "opacity-40" : isSkipped ? "opacity-50" : "");
                     const checkCls = "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
-                    const descCls = "text-sm mt-0.5 leading-snug " + (s.done ? "line-through text-slate-600" : "text-slate-300");
+                    const descCls = "text-sm mt-0.5 leading-snug " + (s.done ? "line-through text-slate-600" : isSkipped ? "line-through text-slate-500" : "text-slate-300");
                     const typeCls = "text-xs font-bold uppercase " + (TCLR[s.type] || "text-violet-400");
                     return (
                       <div key={s.id} className={rowCls}>
@@ -290,17 +291,28 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={typeCls}>{s.type}</span>
                             <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
+                            {isSkipped && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">skipped</span>
+                            )}
                           </div>
                           <p className={descCls}>{cleanDesc(s.desc)}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{s.km + " km · ~" + estMin(s.km, s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 self-center">
-                          {!s.done && (
+                          {!s.done && !isSkipped && (
                             <button
                               onClick={() => goLog({date: s.date, type: s.type, km: s.km, pace: s.pace, wNum: wk.weekNumber, sId: s.id})}
                               className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors">
                               <Plus size={13}/>Record
+                            </button>
+                          )}
+                          {!s.done && (
+                            <button
+                              onClick={() => skipSess(wk.weekNumber, s.id)}
+                              className={"flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors " + (isSkipped ? "bg-slate-600/40 text-slate-300 hover:bg-slate-600/60" : "bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200")}
+                              title={isSkipped ? "Undo skip" : "Skip this session"}>
+                              {isSkipped ? "Undo" : <X size={13}/>}
                             </button>
                           )}
                           <button onClick={() => toggleSess(wk.weekNumber, s.id)} className={checkCls}
