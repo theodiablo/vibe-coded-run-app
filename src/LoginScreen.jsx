@@ -179,13 +179,11 @@ export default function LoginScreen({ authError, onClearAuthError }) {
           )}
         </div>
 
-        {!isNative && (
-          <p className="text-center text-xs text-slate-600 mt-4">
-            Your data syncs securely to your account.{" "}
-            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
-              className="text-slate-500 underline hover:text-slate-300">Privacy</a>
-          </p>
-        )}
+        <p className="text-center text-xs text-slate-600 mt-4">
+          Your data syncs securely to your account.{" "}
+          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
+            className="text-slate-500 underline hover:text-slate-300">Privacy</a>
+        </p>
       </div>
     </div>
   );
