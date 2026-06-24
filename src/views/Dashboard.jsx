@@ -29,8 +29,14 @@ export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, skipS
   return (
     <div className="p-4 space-y-5 max-w-lg mx-auto">
       <div className="pt-4">
-        <p className="text-slate-400 text-sm">Good to see you,</p>
-        <h1 className="text-2xl font-bold">{settings.name + " 🏃‍♂️"}</h1>
+        {settings.name ? (
+          <>
+            <p className="text-slate-400 text-sm">Good to see you,</p>
+            <h1 className="text-2xl font-bold">{settings.name + " 🏃‍♂️"}</h1>
+          </>
+        ) : (
+          <h1 className="text-2xl font-bold">Good to see you 🏃‍♂️</h1>
+        )}
       </div>
 
       <div className="rounded-2xl p-5 border border-orange-500/30"

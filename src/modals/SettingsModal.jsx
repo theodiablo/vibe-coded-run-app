@@ -11,11 +11,10 @@ export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore
   const [saved, setSaved] = useState(false);
   const saveName = () => {
     const n = name.trim();
-    if (!n) return;
     saveSettings({...settings, name: n});
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-    if (showToast) showToast("Name updated.");
+    if (showToast) showToast(n ? "Name updated." : "Name cleared.");
   };
 
   return (
@@ -35,8 +34,8 @@ export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore
                 onChange={e => setName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") saveName(); }} className={INPUT_CLS}/>
             </div>
-            <button onClick={saveName} disabled={!name.trim()}
-              className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-40 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
+            <button onClick={saveName}
+              className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
               {saved ? <><Check size={16}/>Saved</> : "Save name"}
             </button>
           </div>
