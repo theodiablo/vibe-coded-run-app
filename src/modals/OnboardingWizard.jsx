@@ -80,16 +80,16 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, onSkip})
               </div>
               <div>
                 <p className="font-bold text-lg">Welcome to Running Coach</p>
-                <p className="text-sm text-slate-400 mt-1">What should we call you?</p>
+                <p className="text-sm text-slate-400 mt-1">What should we call you? (optional)</p>
               </div>
               <input autoFocus type="text" value={name} maxLength={40}
                 onChange={e => setName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && trimmedName) goStep(1, {name: trimmedName}); }}
+                onKeyDown={e => { if (e.key === "Enter") goStep(1, {name: trimmedName}); }}
                 placeholder="Your name"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white text-center focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-              <button onClick={() => goStep(1, {name: trimmedName})} disabled={!trimmedName}
-                className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                Continue
+              <button onClick={() => goStep(1, {name: trimmedName})}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+                {trimmedName ? "Continue" : "Skip for now"}
               </button>
             </div>
           )}
