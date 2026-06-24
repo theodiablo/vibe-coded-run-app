@@ -9,6 +9,7 @@ import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
 import { RestoreModal } from "./modals/RestoreModal";
 import { SettingsModal } from "./modals/SettingsModal";
+import { DeleteAccountModal } from "./modals/DeleteAccountModal";
 import { LiveRunTracker } from "./modals/LiveRunTracker";
 import { Dashboard } from "./views/Dashboard";
 import { PlanView } from "./views/PlanView";
@@ -32,6 +33,7 @@ export default function RunningCoach({ onSignOut }) {
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
   const [showSettings,setShowSettings]= useState(false);
+  const [showDeleteAccount,setShowDeleteAccount]= useState(false);
   const [onboarding,  setOnboarding]  = useState(false);
   const [showTracker, setShowTracker] = useState(false);
   const [backupRoutes,setBackupRoutes]= useState([]);
@@ -198,7 +200,11 @@ export default function RunningCoach({ onSignOut }) {
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
+        onDeleteAccount={() => { setShowSettings(false); setShowDeleteAccount(true); }}
         onClose={()   => setShowSettings(false)}/>}
+      {showDeleteAccount && <DeleteAccountModal
+        onSignOut={onSignOut}
+        onClose={() => setShowDeleteAccount(false)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
         <div className="flex items-center gap-1.5">
