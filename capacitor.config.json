@@ -1,0 +1,14 @@
+{
+  "appId": "solutions.camboulive.run",
+  "appName": "Running Coach",
+  "webDir": "dist",
+  "android": {
+    "useLegacyBridge": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "backgroundColor": "#0f172a",
+      "showSpinner": false
+    }
+  }
+}

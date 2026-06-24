@@ -59,12 +59,14 @@ Go to [supabase.com](https://supabase.com), create a new project, then grab your
 
 ### 2. Set up the database schema
 
-In your Supabase project, open the **SQL Editor** and run the three migration files
+In your Supabase project, open the **SQL Editor** and run the migration files
 in order from `supabase/migrations/`:
 
 1. `20260607114706_init_schema.sql`
 2. `20260607165159_grant_table_privileges.sql`
 3. `20260614120000_harden_security_definer_functions.sql`
+4. `20260620120000_run_routes.sql` — GPS route traces
+5. `20260623120000_app_config.sql` — app version gate (in-app update prompt)
 
 Alternatively, if you have the [Supabase CLI](https://supabase.com/docs/guides/cli)
 and Docker installed, you can run a full local stack:
@@ -132,6 +134,113 @@ npm run preview       # preview the production build locally
 
 ---
 
+## Android app (background GPS tracking)
+
+The web app records runs only while the screen is on — browsers can't track in the
+background. The **Android app** wraps the same web build in a [Capacitor](https://capacitorjs.com)
+shell and swaps the GPS source for a native background-location plugin, so a run
+keeps recording with the screen off or the app backgrounded. The UI, save path, and
+`run_routes` storage are reused unchanged; the web app is unaffected (a single bundle
+serves both — `Capacitor.isNativePlatform()` is `false` in the browser).
+
+**Build it locally** (needs Android Studio / the Android SDK + JDK 21):
+
+```sh
+npm install
+npm run build              # → dist/
+npx cap sync android       # copy web assets + native plugins into android/
+npx cap open android       # open in Android Studio, run on a device/emulator
+```
+
+Debug builds need no signing. Release AABs for the Play Store are built by
+`.github/workflows/android.yml` (manual or on an `android-v*` tag) and need these
+extra repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+
+### Versioning & releases
+
+Don't hand-edit the version — it's derived at build time, so a release is just a tag:
+
+```sh
+git tag android-v1.2.0 && git push origin android-v1.2.0
+```
+
+- **`versionName`** (e.g. `1.2.0`) comes from the `android-v*` tag.
+- **`versionCode`** (what Play orders uploads by — must always increase) is the
+  GitHub Actions **run number**, injected automatically. No manual bumping.
+- Local/debug builds fall back to `1` / `1.0`.
+
+### In-app update prompt
+
+The app compares its installed `versionName` against the `app_config` row
+(`supabase/migrations/20260623120000_app_config.sql`) on launch:
+
+- `latest_version` — set **automatically** by the release workflow after a tagged
+  build, so users on an older version see a dismissible "update available" banner.
+- `min_supported_version` — **you bump this by hand** in Supabase only when you ship
+  a breaking change; clients below it get a non-dismissible "update required" screen.
+
+For the workflow to write `latest_version`, add two more repository secrets (the
+service-role key bypasses RLS and must **never** be put in the app bundle — CI only):
+
+| Secret | Value |
+|--------|-------|
+| `SUPABASE_URL` | your project URL — the same one in `src/config.js` (e.g. `https://xxxx.supabase.co`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | a service-role / secret key (see below) |
+
+**Getting the service-role key.** You don't create it from scratch — a service-role
+credential is generated when the Supabase project is created. How you obtain it
+depends on the key system your project uses:
+
+- **New key system** (this project — `config.js` holds an `sb_publishable_…` key):
+  Dashboard → **Settings → API Keys → Secret keys → Create new secret key**, name it
+  e.g. `github-actions-release`, and copy the `sb_secret_…` value (**shown once**).
+  A dedicated named key is preferred — you can revoke just it later if it leaks.
+- **Legacy key system:** Dashboard → **Settings → API → Project API keys →
+  `service_role`** → reveal and copy the `eyJ…` JWT.
+
+Either works (the workflow sends the key as both the `apikey` and `Authorization`
+header). ⚠️ This key has **full read/write to every user's data and bypasses RLS** —
+treat it like a root password: CI/server secrets only, never in `config.js`, the app
+bundle, or any `VITE_*` var. If it leaks, revoke it (new system) or rotate it
+(legacy). Without these two secrets the release step just prints "skipping" and the
+build still succeeds.
+
+### Install a build on your phone
+
+Every PR builds a sideloadable **debug APK** via `.github/workflows/android-pr.yml`
+(a bot comment links to it). To install one:
+
+1. Download the `running-coach-pr<N>-debug-apk` artifact from the PR's workflow run
+   and unzip it to get `app-debug.apk`. (Locally: `cd android && ./gradlew assembleDebug`
+   → `android/app/build/outputs/apk/debug/app-debug.apk`.)
+2. Get it onto the phone — easiest is `adb install app-debug.apk` over USB
+   (enable **Developer options → USB debugging**), or transfer the file and tap it.
+3. When tapping the file, Android asks to **allow installing unknown apps** for
+   whichever app opened it (Files, Chrome, Drive) — allow it, then install.
+
+The debug APK is signed with a throwaway debug key, so it can't be updated *over* a
+Play Store install of the same app (uninstall one first). Background GPS, the
+foreground-service notification, and the location prompts all work in debug builds —
+no Play release or plugin license required.
+
+> ⚠️ The PR APK uses the same `applicationId` (`solutions.camboulive.run`) and talks
+> to the **production Supabase project** — runs you log from a test build are real
+> data on your account.
+
+**Before release**, three things must be configured outside the repo:
+
+- **Supabase Auth → URL Configuration:** add `solutions.camboulive.run://auth-callback`
+  to the redirect allow-list so OAuth / magic-link sign-in returns to the app.
+- **MapTiler key origins:** the WebView's origin is **`https://localhost`**, not the
+  web domain, so an origin-restricted key returns *"Invalid key"* and tiles won't
+  load. Add `https://localhost` (and `http://localhost`) to the key's allowed
+  origins in the MapTiler dashboard — see [Maps](#maps).
+- **Play Console:** background location requires a prominent in-app disclosure, a
+  public privacy policy URL, and the "Location permissions" declaration form
+  justifying `ACCESS_BACKGROUND_LOCATION` (core feature: recording a run with the
+  screen off). Test on an internal track first.
+
 ## Maps
 
 Live GPS run tracking renders the route on a map using [MapTiler](https://www.maptiler.com/)
@@ -159,6 +268,12 @@ them for a multi-user app.
 > and used to drain your tile quota from another site. PR previews are served
 > from the same origin, so one entry covers them too. Never use an unrestricted
 > key here.
+>
+> **Android app:** the Capacitor WebView loads from `https://localhost`, *not* the
+> web domain, so a key restricted only to the production domain returns
+> *"Invalid key"* and tiles won't render (the run still records). Add
+> `https://localhost` (and `http://localhost`) to the allowed origins so the app's
+> map works too.
 
 ## Security
 

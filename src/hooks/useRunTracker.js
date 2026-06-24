@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
+import { geoSource } from "../geo/source";
+import { isNative } from "../native";
 
 // Live GPS run tracker. All geolocation access is funnelled through this one hook
 // so a Phase-2 native shell can swap watchPosition for a background-location
@@ -23,6 +25,12 @@ const TICK_MS = 1000;         // UI clock refresh while tracking
 const CUR_PACE_WINDOW_MS = 30000; // current-pace look-back
 const RESUME_MAX_AGE_MS = 6 * 3600 * 1000; // offer to resume a buffer this fresh
 
+// Permission-denied copy, shared by onErr and requestPermissions so the native
+// and web wording can't drift between the two. isNative is fixed at module load.
+const PERMISSION_DENIED_MSG = isNative
+  ? "Location permission is needed to record your run. Enable it (“Allow all the time”) in this app's settings, then try again."
+  : "Location permission denied. Enable it for this site in your browser settings, then try again.";
+
 const readBuffer = () => {
   try { return JSON.parse(localStorage.getItem(LIVE_RUN_KEY)); }
   catch { return null; }
@@ -35,6 +43,11 @@ export function useRunTracker() {
   const [error, setError] = useState(null);
   const [movingSec, setMovingSec] = useState(0);
   const [location, setLocation] = useState(null); // preview position shown before recording starts
+  // Whether location is usable. On the web the browser handles its own prompt, so
+  // the idle preview can always run (true). On native it gates the preview so we
+  // never auto-prompt out of context — it flips true once permission is granted
+  // (already-granted users via the check below, or via the consent accept flow).
+  const [permGranted, setPermGranted] = useState(!isNative);
   // A recoverable in-progress run from a previous session, read once on mount. A
   // buffer older than the cutoff is dropped so a days-old run can't reappear.
   const [pending, setPending] = useState(() => {
@@ -107,8 +120,12 @@ export function useRunTracker() {
       const minMove = Math.max(MIN_MOVE_M, (accuracy || 0) * 0.5);
       if (haversineM(last, [latitude, longitude]) < minMove) return; // not moving
       if (sinceLastFix > GAP_MS) next = [...pts, null];   // lost signal → break track
-    } else if (accuracy != null && accuracy > ACC_WARMUP_M) {
-      return; // warm-up: don't anchor the track on a coarse pre-lock fix
+    } else if (accuracy == null || accuracy > ACC_WARMUP_M) {
+      // Warm-up: don't anchor the track on a coarse — or unknown-accuracy — pre-lock
+      // fix. The web GeolocationPosition always carries a numeric accuracy, so this
+      // is unchanged for web; it only tightens the native path, where a plugin fix
+      // can report null accuracy (the next fix with a known-good reading anchors).
+      return;
     }
     const np = [latitude, longitude, t, altitude == null ? null : Math.round(altitude)];
     pointsRef.current = [...next, np];
@@ -118,7 +135,7 @@ export function useRunTracker() {
 
   const onErr = useCallback((err) => {
     if (err.code === err.PERMISSION_DENIED)
-      setError("Location permission denied. Enable it for this site in your browser settings, then try again.");
+      setError(PERMISSION_DENIED_MSG);
     else if (err.code === err.POSITION_UNAVAILABLE)
       setError("Couldn't get a GPS fix. Make sure location is on and you're outdoors.");
     else if (err.code === err.TIMEOUT)
@@ -127,19 +144,38 @@ export function useRunTracker() {
   }, []);
 
   const startWatch = useCallback(() => {
-    if (!("geolocation" in navigator)) {
+    if (!geoSource.isAvailable()) {
       setError("This browser/device doesn't support GPS (geolocation). Geolocation also needs a secure (https) connection.");
       return false;
     }
-    watchRef.current = navigator.geolocation.watchPosition(onPos, onErr, {
-      enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
-    });
+    // background:true → the native source runs a foreground service so recording
+    // continues with the screen off; on web the flag is ignored (no-op).
+    watchRef.current = geoSource.watchPosition(onPos, onErr, { background: true });
     return true;
   }, [onPos, onErr]);
 
   const stopWatch = useCallback(() => {
-    if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current);
+    if (watchRef.current != null) geoSource.clearWatch(watchRef.current);
     watchRef.current = null;
+  }, []);
+
+  // Proactively request the OS location permission (native), so the prompt can be
+  // shown as part of the consent flow rather than only when recording starts.
+  // Returns whether location is usable; sets an actionable error if denied.
+  const requestPermissions = useCallback(async () => {
+    try {
+      const granted = await geoSource.requestPermissions();
+      if (!granted) {
+        setError(PERMISSION_DENIED_MSG);
+        return false;
+      }
+      setError(null);
+      setPermGranted(true); // unlocks the idle position preview on native
+      return true;
+    } catch {
+      setError("Couldn't request location permission. Please try again.");
+      return false;
+    }
   }, []);
 
   // ── controls ─────────────────────────────────────────────────────────────
@@ -264,6 +300,18 @@ export function useRunTracker() {
   // Tear down on unmount.
   useEffect(() => () => { stopWatch(); releaseWake(); }, [stopWatch, releaseWake]);
 
+  // Native, returning user: location may already be granted from a prior session.
+  // Check WITHOUT prompting so the idle preview can show straight away (the lazy
+  // initial state covers the web, which is always true).
+  useEffect(() => {
+    if (!isNative) return;
+    let cancelled = false;
+    geoSource.checkPermissions()
+      .then(ok => { if (!cancelled && ok) setPermGranted(true); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   // Live preview fix while idle so the user can see their position AND its
   // accuracy (the map draws a circle around it) and calibrate before hitting
   // Start. Runs only in idle; the cleanup stops it the moment recording begins,
@@ -271,18 +319,25 @@ export function useRunTracker() {
   // Silent on error — recording's own watch surfaces permission issues.
   useEffect(() => {
     if (state !== "idle") return;
-    if (!("geolocation" in navigator)) return;
-    const id = navigator.geolocation.watchPosition(
+    if (!geoSource.isAvailable()) return;
+    // On native, only after permission is granted — never auto-prompt out of
+    // context before the disclosure. Once granted (returning user, or via the
+    // consent accept), the preview shows the current position + accuracy just like
+    // the web build. The web is always permitted (permGranted starts true).
+    if (!permGranted) return;
+    // Foreground-only preview (background:false) — no foreground service /
+    // notification while the user is still on the start screen.
+    const handle = geoSource.watchPosition(
       pos => setLocation({
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
         acc: pos.coords.accuracy ?? null,
       }),
       () => {},
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      { background: false },
     );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [state]);
+    return () => geoSource.clearWatch(handle);
+  }, [state, permGranted]);
 
   // ── derived stats ──────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -307,7 +362,7 @@ export function useRunTracker() {
 
   return {
     state, points, stats, error, pending, location,
-    start, pause, resume, stop, reset,
+    start, pause, resume, stop, reset, requestPermissions,
     resumePrevious, discardPrevious, finalize,
   };
 }

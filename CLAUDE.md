@@ -39,6 +39,13 @@ and delete anything that becomes stale.
 - **Multi-user:** The app is open to public signups — don't make single-user
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.
+- **App versioning / update gate (native only):** build version is NOT in the DB
+  — `versionCode` is the CI run number, `versionName` is the `android-v*` tag
+  (`android/app/build.gradle` reads them from env). The world-readable `app_config`
+  row owns *policy*: `latest_version` (soft "update available" banner, written by
+  the release workflow) and `min_supported_version` (hard gate, bumped by hand on a
+  breaking change). `App.jsx` compares the installed version (`App.getInfo()`) via
+  `versionStatus` (`src/utils/version.js`); a failed check never blocks the user.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.jsx`. Follow that style.
 - **Layout:** views in `src/views/`, modals/full-screen flows in `src/modals/`,
@@ -71,8 +78,24 @@ and delete anything that becomes stale.
   hysteresis `elevGainM`, Douglas–Peucker `simplify`, `segments`). A point is the
   tuple `[lat, lng, tEpochMs, alt|null]`; a `null` entry is a GAP marker (don't
   bridge it). Map basemap is MapTiler — needs `VITE_MAPTILER_KEY` (records fine
-  without it, just no tiles). Browser tracking is **foreground-only** (screen must
-  stay on); true background needs a native shell — a deliberate platform limit.
+  without it, just no tiles).
+- **Phase 2 — native background tracking:** browser tracking is foreground-only
+  (screen must stay on). True background recording runs in a **Capacitor Android
+  shell** that swaps the GPS source behind `useRunTracker`'s interface. The hook
+  never touches `navigator.geolocation` directly anymore — it goes through
+  `geoSource` (`src/geo/source.js`), which picks `webSource` (`src/geo/web.js`,
+  `navigator.geolocation`, unchanged web behaviour) or `nativeSource`
+  (`src/geo/native.js`: @capacitor-community/background-geolocation foreground
+  service for `background:true`, @capacitor/geolocation for the idle preview).
+  Selection is by `isNative` (`src/native.js` → `Capacitor.isNativePlatform()`),
+  which also sets `window.__NATIVE_SHELL__` for the UI. **One bundle serves both**
+  web and shell; `isNative` is false in any browser, so the web build is unchanged
+  — keep it that way. To add a GPS source, implement the
+  `isAvailable / watchPosition(onPos,onErr,{background}) / clearWatch` interface and
+  hand `onPos` a `{coords:{latitude,longitude,altitude,accuracy}, timestamp}` object
+  (see `adaptBgLocation`). Native auth uses a deep link (`AUTH_DEEP_LINK` in
+  `src/supabase.js`, completed in `App.jsx`). Build: `npx cap sync android` then
+  `.github/workflows/android.yml`; the web S3/CloudFront deploy stays untouched.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`

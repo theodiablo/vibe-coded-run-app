@@ -1,0 +1,108 @@
+name: Build Android PR APK
+
+# Builds an installable DEBUG APK for every PR so changes can be tested on a real
+# device (the AAB from android.yml is for Play and can't be sideloaded). Debug
+# builds are signed with the auto-generated debug key — no secrets required, so
+# this also works for fork PRs (just without the MapTiler key / tiles).
+on:
+  pull_request:
+    branches: [main]
+  # Manual re-run (e.g. when a push doesn't fire the pull_request event).
+  # Becomes available once this workflow is on the default branch.
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: android-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Capacitor 8 CLI requires Node >= 22.
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+        env:
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: running-coach-pr${{ github.event.pull_request.number }}-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # Post (and keep updated) a comment linking straight to the APK artifact.
+      # Skipped for fork PRs, whose pull_request token is read-only.
+      - name: Comment with download link
+        if: ${{ github.event.pull_request.head.repo.fork == false }}
+        uses: actions/github-script@v7
+        env:
+          # Direct artifact download URL (requires GitHub login). Exposed by
+          # actions/upload-artifact@v4.
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        with:
+          script: |
+            const marker = '<!-- android-pr-apk -->';
+            const url = process.env.ARTIFACT_URL;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = (context.payload.pull_request.head.sha || '').slice(0, 7);
+            const body = [
+              marker,
+              '📱 **Android debug APK built for this PR**',
+              '',
+              `**[⬇️ Download the APK](${url})** (GitHub login required) — unzip and ` +
+              'sideload `app-debug.apk` (see README → Android app → *Install a build on your phone*).',
+              '',
+              `<sub>Built from <a href="${runUrl}">run #${context.runNumber}</a> · commit \`${sha}\`. ` +
+              'Refreshed automatically on every push.</sub>',
+            ].join('\n');
+            // Paginate ALL comments — on an active PR the bot's comment scrolls off
+            // the first page, which would otherwise post a duplicate with a stale
+            // URL instead of updating the existing one.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number, body,
+              });
+            }

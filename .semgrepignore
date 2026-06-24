@@ -5,3 +5,8 @@ package-lock.json
 # These rule definitions contain the very patterns they forbid (in messages and
 # pattern-regex), so exclude them from scanning to avoid self-matches.
 .semgrep/
+# Generated Capacitor native project. The launcher MainActivity is required to be
+# android:exported="true" (it must be launchable, and our auth deep-link filter
+# needs it too), which trips the owasp exported-activity rule as a false positive.
+# The hand-written code that matters is the web app under src/, still fully scanned.
+android/
