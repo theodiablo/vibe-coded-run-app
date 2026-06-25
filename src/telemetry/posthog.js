@@ -12,6 +12,11 @@ const KEY = import.meta.env.VITE_POSTHOG_KEY || "";
 // Default to PostHog EU Cloud (privacy hosting, per the project's data-handling
 // choice); override with VITE_POSTHOG_HOST for a different region/self-host.
 const HOST = import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
+// Tags every event so production / PR-preview / local traffic is filterable in
+// PostHog. Set per build by the deploy workflows; "development" when unset
+// (local). Vite's own MODE can't tell production from preview — both are a
+// `vite build` — so this is an explicit var.
+const ENV = import.meta.env.VITE_APP_ENV || "development";
 
 let ph = null; // resolved posthog instance, once loaded + init'd
 let loading = null; // in-flight dynamic import; null again if it fails (retryable)
@@ -37,6 +42,9 @@ function ensureLoaded() {
         person_profiles: "identified_only",
         opt_out_capturing_by_default: true,
       });
+      // Super properties — merged into every event, including $exception, so
+      // crashes carry the environment/platform too.
+      posthog.register({ environment: ENV, native: isNative });
       ph = posthog;
       queue.forEach((fn) => fn(ph));
       queue.length = 0;
@@ -72,7 +80,8 @@ export const posthogProvider = {
   },
 
   track(event, props) {
-    withPH((p) => p.capture(event, { ...props, native: isNative }));
+    // `environment` and `native` ride along as super properties (see register).
+    withPH((p) => p.capture(event, props));
   },
 
   // May be called while opted out — the native per-crash "Send report" path.

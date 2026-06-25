@@ -20,10 +20,18 @@ Set at build time (e.g. `.env.local`), same pattern as `VITE_MAPTILER_KEY`:
 | -------------------- | -------- | ----------------------------- | ----- |
 | `VITE_POSTHOG_KEY`   | yes      | — (telemetry off without it)  | PostHog **project API key** (public, client-side). |
 | `VITE_POSTHOG_HOST`  | no       | `https://eu.i.posthog.com`    | EU Cloud by default (privacy hosting). Use `https://us.i.posthog.com` or a self-host URL to change region. |
+| `VITE_APP_ENV`       | no       | `development`                 | Tags every event + crash with an `environment` super property. The deploy workflows set `production`; the PR-preview workflows set `preview`; unset (local builds) is `development`. |
 
 The PostHog SDK is initialised with autocapture, pageviews, pageleave and
 session recording all **off** (this is a no-router SPA — we send a small curated
 set of explicit events) and `person_profiles: 'identified_only'`.
+
+Every event (and every crash) carries two super properties: `environment`
+(above) and `native` (true in the Capacitor shell). **PR previews send to the
+same PostHog project as production** — filter on `environment = 'production'` in
+your insights to exclude preview/local noise. Vite's own `MODE` can't tell
+production from preview (both are a `vite build`), which is why `VITE_APP_ENV` is
+an explicit var.
 
 ## Consent model
 

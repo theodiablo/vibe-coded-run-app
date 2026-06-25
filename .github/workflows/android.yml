@@ -38,6 +38,8 @@ jobs:
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
           # Same PostHog project key as the web deploy (see docs/telemetry.md).
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Released Android app — production telemetry (PR APKs tag "preview").
+          VITE_APP_ENV: production
 
       - name: Sync Capacitor
         run: npx cap sync android

@@ -46,6 +46,10 @@ jobs:
         run: npm run build
         env:
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          # Tagged "preview" so PR-APK traffic is filterable out of production.
+          # Empty (no-op) on fork PRs, which don't get secrets — that's fine.
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_APP_ENV: preview
 
       - name: Sync Capacitor
         run: npx cap sync android
