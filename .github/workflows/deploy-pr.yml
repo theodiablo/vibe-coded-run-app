@@ -80,6 +80,10 @@ jobs:
           # Inlined into the client bundle by Vite at build time. Domain-restricted
           # publishable key — see src/constants.js. Set in repo Actions secrets.
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          # Same PostHog project as production, but tagged "preview" so this
+          # traffic is filterable out of production insights — see docs/telemetry.md.
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_APP_ENV: preview
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

@@ -4,10 +4,19 @@ import './index.css'
 // Sets window.__NATIVE_SHELL__ inside the Capacitor shell before the app renders
 // (no-op in the browser). Imported first so the flag is ready for everything.
 import './native'
+import { initTelemetry, installGlobalErrorHandlers } from './telemetry'
+import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import App from './App.jsx'
+
+// Start telemetry (no-op until a provider is wired in and the user consents)
+// and catch foreground errors that escape React. Both honour the consent flag.
+initTelemetry()
+installGlobalErrorHandlers()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )

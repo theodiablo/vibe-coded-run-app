@@ -48,6 +48,22 @@ and delete anything that becomes stale.
   `versionStatus` (`src/utils/version.js`); a failed check never blocks the user.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.jsx`. Follow that style.
+- **Telemetry (analytics + crash reporting):** all routed through one
+  vendor-agnostic seam, `src/telemetry/index.js`; the vendor (**PostHog**) lives
+  behind it in `src/telemetry/posthog.js`, the **only** file that imports an SDK.
+  App code never imports the SDK directly. It's a **no-op until keyed**
+  (`VITE_POSTHOG_KEY`; default host `https://eu.i.posthog.com`), and `posthog-js`
+  is a **dynamic import** so it stays out of the main bundle / any keyless build.
+  Consent is **opt-in** (EU/ePrivacy): nothing collected until the user accepts
+  the first-run `ConsentBanner` (`src/components/ConsentBanner.jsx`, rendered in
+  `App.jsx` over login + app); changeable in Settings → Privacy. The single
+  source of truth is `localStorage` (`rc_telemetry_consent_v2`), **per-device** (NOT
+  the synced blob — a fresh browser re-asks) and tri-state (`"1"`/`"0"`/absent =
+  granted/denied/undecided; see `getConsentDecision`). The `ErrorBoundary`
+  (`src/components/ErrorBoundary.jsx`, wraps `<App/>` in `main.jsx`) auto-reports
+  on web but, on **native, prompts per-crash before sending**. `track`/
+  `identifyUser` are consent-gated; `captureError` is gated by its call sites.
+  See `docs/telemetry.md` before adding/swapping a provider or an event.
 - **Layout:** views in `src/views/`, modals/full-screen flows in `src/modals/`,
   reusable widgets in `src/components/`, pure helpers in `src/utils/`.
 - `settings` is the central config object (race fields, HR profile, `planSessions`,

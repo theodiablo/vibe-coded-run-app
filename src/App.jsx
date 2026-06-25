@@ -6,6 +6,8 @@ import { isNative } from "./native";
 import { versionStatus } from "./utils/version";
 import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
+import { identifyUser, resetUser } from "./telemetry";
+import { ConsentBanner } from "./components/ConsentBanner.jsx";
 import RunningCoach from "./RunningCoach.jsx";
 import LoginScreen from "./LoginScreen.jsx";
 
@@ -155,6 +157,8 @@ export default function App() {
     let cancelled = false;
     if (session) {
       if (loadedUidRef.current === session.user.id) return; // already loaded
+      // Tie telemetry to the Supabase user id (no-op without consent/provider).
+      identifyUser(session.user.id);
       setStoreReady(false);
       initStore(session.user.id).then(() => {
         if (!cancelled) {
@@ -167,6 +171,7 @@ export default function App() {
       // No need to reset storeReady here — we render <LoginScreen/> whenever
       // there's no session, and the next sign-in resets it before reloading.
       loadedUidRef.current = null;
+      resetUser();
       clearStore();
     }
     return () => {
@@ -177,12 +182,23 @@ export default function App() {
   // Hard version gate blocks everything, even the login screen.
   if (updateState === "must-update") return <UpdateRequired />;
   if (session === undefined) return <Splash />;
-  if (!session) return <LoginScreen authError={authError} onClearAuthError={() => setAuthError(null)} />;
+  // First-run telemetry opt-in. Shown over both the login screen and the app so
+  // a visitor sees it at first visit; self-gates to nothing once decided (or if
+  // telemetry isn't configured). Telemetry collects nothing until accepted here.
+  if (!session) {
+    return (
+      <>
+        <LoginScreen authError={authError} onClearAuthError={() => setAuthError(null)} />
+        <ConsentBanner />
+      </>
+    );
+  }
   if (!storeReady) return <Splash />;
   return (
     <>
       {updateState === "update-available" && <UpdateBanner />}
       <RunningCoach onSignOut={() => supabase.auth.signOut()} />
+      <ConsentBanner onConsentChange={(ok) => { if (ok) identifyUser(session.user.id); }} />
     </>
   );
 }
