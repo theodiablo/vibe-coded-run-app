@@ -3,6 +3,7 @@ import { Check, Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
 import { INPUT_CLS, PRIVACY_URL } from "../constants";
 import { HRZones } from "../views/HRZones";
 import { isNative } from "../native";
+import { getConsent, setConsent } from "../telemetry";
 
 // Full-screen settings: editable profile name, heart-rate zones, and the
 // less-frequently-used data actions (Backup / Restore) tucked away here so
@@ -18,12 +19,15 @@ export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore
     if (showToast) showToast(n ? "Name updated." : "Name cleared.");
   };
 
-  // Telemetry consent (opt-out: undefined counts as on). Writing it to settings
-  // is enough — RunningCoach mirrors the flag into the telemetry module.
-  const analyticsOn = settings.analyticsEnabled !== false;
+  // Telemetry consent (opt-in). The source of truth is the telemetry module's
+  // per-device localStorage flag, set first via the first-run ConsentBanner;
+  // this toggle just lets the user change their mind. Local state mirrors it so
+  // the switch re-renders on tap.
+  const [analyticsOn, setAnalyticsOn] = useState(getConsent());
   const toggleAnalytics = () => {
     const next = !analyticsOn;
-    saveSettings({...settings, analyticsEnabled: next});
+    setConsent(next);
+    setAnalyticsOn(next);
     if (showToast) showToast(next ? "Sharing enabled." : "Sharing disabled.");
   };
 

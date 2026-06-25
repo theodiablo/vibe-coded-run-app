@@ -300,13 +300,15 @@ When you sign up, the app stores (in your own RLS-isolated rows):
 No ads, ever. I will never sell your data or use it for anything other than running the app.
 
 **Analytics & crash reporting.** If the app is built with a PostHog key
-(`VITE_POSTHOG_KEY`), it sends a small set of product-usage events (e.g. a run
+(`VITE_POSTHOG_KEY`), it can send a small set of product-usage events (e.g. a run
 was logged, a plan generated) and crash reports — processed by
 [PostHog](https://posthog.com) (EU hosting) as a sub-processor, to help fix bugs
 and see what's used. It does **not** send your run contents, routes, notes, or
-HR. This is **opt-out**: on by default, with a toggle in **Settings → Privacy**,
-and your choice is remembered across sessions. On the Android app, every crash
-asks before it's sent. Builds without the key send nothing at all.
+HR. This is **opt-in**: nothing is collected until you accept the consent banner
+shown on first visit — decline and it stays fully off. You can change your mind
+any time in **Settings → Privacy** (the choice is remembered per device). On the
+Android app, every crash also asks before it's sent. Builds without the key send
+nothing at all.
 
 The app is open source — you can read exactly what gets stored in
 `supabase/migrations/` and `src/db.js`, and exactly what telemetry is sent in

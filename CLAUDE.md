@@ -54,13 +54,16 @@ and delete anything that becomes stale.
   App code never imports the SDK directly. It's a **no-op until keyed**
   (`VITE_POSTHOG_KEY`; default host `https://eu.i.posthog.com`), and `posthog-js`
   is a **dynamic import** so it stays out of the main bundle / any keyless build.
-  Consent is **opt-out** (`settings.analyticsEnabled`, default on, toggle in
-  Settings → Privacy), mirrored to `localStorage` (`rc_telemetry_consent`) so
-  it's known at boot. The `ErrorBoundary` (`src/components/ErrorBoundary.jsx`,
-  wraps `<App/>` in `main.jsx`) auto-reports on web but, on **native, prompts
-  per-crash before sending**. `track`/`identifyUser` are consent-gated;
-  `captureError` is gated by its call sites. See `docs/telemetry.md` before
-  adding/swapping a provider or an event.
+  Consent is **opt-in** (EU/ePrivacy): nothing collected until the user accepts
+  the first-run `ConsentBanner` (`src/components/ConsentBanner.jsx`, rendered in
+  `App.jsx` over login + app); changeable in Settings → Privacy. The single
+  source of truth is `localStorage` (`rc_telemetry_consent`), **per-device** (NOT
+  the synced blob — a fresh browser re-asks) and tri-state (`"1"`/`"0"`/absent =
+  granted/denied/undecided; see `getConsentDecision`). The `ErrorBoundary`
+  (`src/components/ErrorBoundary.jsx`, wraps `<App/>` in `main.jsx`) auto-reports
+  on web but, on **native, prompts per-crash before sending**. `track`/
+  `identifyUser` are consent-gated; `captureError` is gated by its call sites.
+  See `docs/telemetry.md` before adding/swapping a provider or an event.
 - **Layout:** views in `src/views/`, modals/full-screen flows in `src/modals/`,
   reusable widgets in `src/components/`, pure helpers in `src/utils/`.
 - `settings` is the central config object (race fields, HR profile, `planSessions`,

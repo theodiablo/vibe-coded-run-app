@@ -35,11 +35,18 @@ an explicit var.
 
 ## Consent model
 
-- **Opt-out.** On by default, with a toggle in **Settings → Privacy** the user
-  can flip off and on at any time. The choice is stored in
-  `settings.analyticsEnabled` (synced to Supabase like the rest of settings) and
-  mirrored to `localStorage` (`rc_telemetry_consent`) so it's known
-  synchronously at boot, before the app_state blob loads.
+- **Opt-in (EU/ePrivacy).** Telemetry collects **nothing** until the user accepts
+  via the first-run **`ConsentBanner`** (`src/components/ConsentBanner.jsx`),
+  shown over both the login screen and the app. Until then the SDK never inits,
+  so no cookie / `localStorage` entry is written on the user's behalf. The choice
+  is changeable any time in **Settings → Privacy**.
+- **Consent is per-device.** The single source of truth is `localStorage`
+  (`rc_telemetry_consent`), tri-state: `"1"` granted, `"0"` denied, **absent =
+  undecided** (banner not answered → reads as not consented). It is deliberately
+  *not* in the synced app_state blob: consent to store data on a device is
+  inherently per-device, so a fresh browser should ask again. `getConsent()`
+  returns true only for `"1"`; `getConsentDecision()` exposes the tri-state for
+  the banner's visibility.
 - **Native crashes get a second gate.** Even with analytics consent on, a native
   crash is held by the `ErrorBoundary` and uploaded only after the user taps
   **Send report** on the crash screen. Nothing leaves the device on a per-crash
@@ -52,10 +59,12 @@ an explicit var.
 
 - `initTelemetry()` / `installGlobalErrorHandlers()` — `src/main.jsx`.
 - `ErrorBoundary` around `<App/>` — `src/main.jsx` / `src/components/ErrorBoundary.jsx`.
-- `identifyUser` / `resetUser` on auth — `src/App.jsx`.
-- Consent mirror + events (`onboarding_completed`, `run_logged`,
-  `plan_generated`) — `src/RunningCoach.jsx`.
-- Settings toggle — `src/modals/SettingsModal.jsx`.
+- First-run opt-in `ConsentBanner` + `identifyUser` / `resetUser` on auth —
+  `src/App.jsx`.
+- Events (`onboarding_completed`, `run_logged`, `plan_generated`) —
+  `src/RunningCoach.jsx`.
+- Settings → Privacy toggle (reads/writes consent directly) —
+  `src/modals/SettingsModal.jsx`.
 
 ## How the PostHog adapter maps to the seam
 

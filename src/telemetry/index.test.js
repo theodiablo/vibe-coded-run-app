@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   TELEMETRY_CONSENT_KEY,
   getConsent,
+  getConsentDecision,
   setConsent,
   isTelemetryConfigured,
   track,
@@ -9,26 +10,36 @@ import {
   identifyUser,
 } from "./index";
 
-// Consent is the security boundary here: nothing should ship without it, and
-// the opt-out default (absent flag == on) has to hold so the Settings toggle
-// reads correctly for users who never touched it.
+// Consent is the security boundary here: nothing ships without it. Opt-in model
+// (EU/ePrivacy) — an absent flag means "undecided", which must read as NOT
+// consented so the SDK never inits before the first-run banner is answered.
 describe("telemetry consent", () => {
   beforeEach(() => localStorage.clear());
 
-  it("defaults to consented when no flag is stored (opt-out model)", () => {
-    expect(getConsent()).toBe(true);
+  it("defaults to NOT consented and 'unset' when no flag is stored (opt-in)", () => {
+    expect(getConsent()).toBe(false);
+    expect(getConsentDecision()).toBe("unset");
   });
 
-  it("persists an explicit opt-out as '0' and reflects it", () => {
+  it("persists an explicit grant as '1' and reflects it", () => {
+    setConsent(true);
+    expect(localStorage.getItem(TELEMETRY_CONSENT_KEY)).toBe("1");
+    expect(getConsent()).toBe(true);
+    expect(getConsentDecision()).toBe("granted");
+  });
+
+  it("persists an explicit decline as '0' (distinct from undecided)", () => {
     setConsent(false);
     expect(localStorage.getItem(TELEMETRY_CONSENT_KEY)).toBe("0");
     expect(getConsent()).toBe(false);
+    expect(getConsentDecision()).toBe("denied");
   });
 
-  it("re-enabling clears the opt-out", () => {
-    setConsent(false);
+  it("can be toggled back off after being granted", () => {
     setConsent(true);
-    expect(getConsent()).toBe(true);
+    setConsent(false);
+    expect(getConsent()).toBe(false);
+    expect(getConsentDecision()).toBe("denied");
   });
 });
 

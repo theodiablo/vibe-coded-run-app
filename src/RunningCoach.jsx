@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Activity, Calendar, TrendingUp, Plus, Loader, History, Settings } from "lucide-react";
 import { db } from "./db";
 import { STORAGE_KEYS } from "./constants";
-import { setConsent, track } from "./telemetry";
+import { track } from "./telemetry";
 import { buildPlan } from "./utils/plan";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { Toast } from "./components/Toast";
@@ -27,7 +27,6 @@ export default function RunningCoach({ onSignOut }) {
     raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
     age:0, maxHR:0, restHR:60, hrMethod:"karvonen", onboarded:false, onboardStep:0,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
-    analyticsEnabled:true, // opt-out: telemetry on unless the user turns it off
   });
   const [toast,       setToast]       = useState(null);
   const [logPrefill,  setLogPrefill]  = useState(null);
@@ -65,14 +64,6 @@ export default function RunningCoach({ onSignOut }) {
       });
     })();
   }, []);
-
-  // Keep the telemetry consent flag in sync with the user's setting (opt-out:
-  // undefined counts as on). Idempotent; runs on load and whenever the toggle
-  // flips. setConsent also starts/stops the provider to match.
-  useEffect(() => {
-    if (loading) return;
-    setConsent(settings.analyticsEnabled !== false);
-  }, [loading, settings.analyticsEnabled]);
 
   const showToast = (msg, type) => setToast({msg, type: type || "ok"});
 

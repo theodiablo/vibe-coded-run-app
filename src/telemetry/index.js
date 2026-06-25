@@ -5,10 +5,11 @@
 //      (isTelemetryConfigured()), and
 //   2. the user has consented.
 //
-// Consent is opt-out: on by default, with a Settings toggle the user can flip
-// off (and back on) at any time. Native crashes get an *additional* per-crash
-// "send report?" prompt (see ErrorBoundary), so a crash is never uploaded
-// without an explicit, in-the-moment OK even when analytics consent is on.
+// Consent is opt-IN: nothing is collected until the user accepts via the
+// first-run ConsentBanner (EU/ePrivacy). The choice is changeable any time in
+// Settings → Privacy. Native crashes get an *additional* per-crash "send
+// report?" prompt (see ErrorBoundary), so a crash is never uploaded without an
+// explicit, in-the-moment OK even when analytics consent is on.
 //
 // The provider is PostHog (see ./posthog.js — the only file that imports an
 // SDK). Without a key (VITE_POSTHOG_KEY) the adapter reports itself
@@ -19,9 +20,9 @@ import { isNative } from "../native";
 import { posthogProvider } from "./posthog";
 
 // localStorage so consent is known *synchronously at boot*, before the Supabase
-// app_state blob loads (same reason the live-run/bg-location flags live there).
-// The source of truth for the UI is settings.analyticsEnabled; RunningCoach
-// mirrors it here whenever settings load or the toggle changes.
+// app_state blob loads (same reason the live-run/bg-location flags live there)
+// and so the SDK never inits pre-consent. It is the single source of truth for
+// consent — the ConsentBanner and the Settings toggle both read/write it here.
 export const TELEMETRY_CONSENT_KEY = "rc_telemetry_consent";
 
 // ---- Provider seam -------------------------------------------------------
@@ -42,15 +43,24 @@ const provider = posthogProvider;
 // ---- Consent -------------------------------------------------------------
 let started = false;
 
-// Opt-out model: an absent flag counts as consented; a stored "0" is an
-// explicit opt-out. Wrapped in try/catch because storage can be unavailable
-// (private mode / locked) — in which case the safe default is "off".
-export function getConsent() {
+// Opt-IN model (EU/ePrivacy): nothing is collected until the user explicitly
+// accepts via the first-run ConsentBanner. The flag is per-device (localStorage,
+// not the synced app_state blob) because consent to store data on a device is
+// inherently per-device — a fresh browser should ask again. Three states:
+//   "1"  granted     "0"  denied     absent  undecided (banner not answered yet)
+// Wrapped in try/catch because storage can be unavailable (private mode / locked)
+// — in which case the safe default is "undecided", i.e. off.
+export function getConsentDecision() {
   try {
-    return localStorage.getItem(TELEMETRY_CONSENT_KEY) !== "0";
+    const v = localStorage.getItem(TELEMETRY_CONSENT_KEY);
+    return v === "1" ? "granted" : v === "0" ? "denied" : "unset";
   } catch {
-    return false;
+    return "unset";
   }
+}
+
+export function getConsent() {
+  return getConsentDecision() === "granted";
 }
 
 // Whether a real provider is wired in AND keyed. The Settings toggle still
@@ -78,7 +88,7 @@ export function initTelemetry() {
 }
 
 // Persist the user's choice and start/stop the provider to match. Called from
-// the Settings toggle (via RunningCoach mirroring settings.analyticsEnabled).
+// the first-run ConsentBanner and the Settings → Privacy toggle.
 export function setConsent(enabled) {
   try {
     localStorage.setItem(TELEMETRY_CONSENT_KEY, enabled ? "1" : "0");
