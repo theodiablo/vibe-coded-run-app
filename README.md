@@ -111,6 +111,7 @@ syncs `dist/` to an S3 bucket behind a CloudFront distribution. Set these
 | `S3_BUCKET_NAME` | target S3 bucket (serve as a static website or via CloudFront) |
 | `CLOUDFRONT_DISTRIBUTION_ID` | distribution to invalidate after each deploy |
 | `VITE_MAPTILER_KEY` | *(optional)* MapTiler key for the map basemap on GPS-tracked runs — see [Maps](#maps). Omit it and the app still records runs, just without tiles. |
+| `VITE_POSTHOG_KEY` | *(optional)* PostHog project API key for analytics + crash reporting — see [docs/telemetry.md](docs/telemetry.md). Omit it and the app sends no telemetry at all. |
 
 The workflow uses GitHub's OIDC provider to assume the IAM role — no long-lived
 AWS credentials stored in GitHub. The role needs S3 write access and these
@@ -289,18 +290,27 @@ them for a multi-user app.
 
 ## Your data
 
-When you sign up, the app stores:
+When you sign up, the app stores (in your own RLS-isolated rows):
 
 - Your email address (for login)
-- Your runs (date, distance, duration, HR, effort, notes)
+- Your runs (date, distance, duration, HR, effort, notes) and GPS routes
 - Your training plan and race settings
 - Your name, if you enter one during onboarding
 
-That's it. No tracking, no analytics, no ads.
+No ads, ever. I will never sell your data or use it for anything other than running the app.
 
-I will never use your data for any purpose other than running the app, and I will never sell it or share it with third parties.
+**Analytics & crash reporting.** If the app is built with a PostHog key
+(`VITE_POSTHOG_KEY`), it sends a small set of product-usage events (e.g. a run
+was logged, a plan generated) and crash reports — processed by
+[PostHog](https://posthog.com) (EU hosting) as a sub-processor, to help fix bugs
+and see what's used. It does **not** send your run contents, routes, notes, or
+HR. This is **opt-out**: on by default, with a toggle in **Settings → Privacy**,
+and your choice is remembered across sessions. On the Android app, every crash
+asks before it's sent. Builds without the key send nothing at all.
 
-The app is open source — you can read exactly what gets stored in `supabase/migrations/` and `src/db.js`.
+The app is open source — you can read exactly what gets stored in
+`supabase/migrations/` and `src/db.js`, and exactly what telemetry is sent in
+`src/telemetry/`.
 
 The workflow uses GitHub's OIDC provider to assume an AWS IAM role
 (`aws-actions/configure-aws-credentials`) — no long-lived AWS keys stored in

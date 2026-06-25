@@ -36,6 +36,8 @@ jobs:
         env:
           # Same domain-restricted MapTiler key as the web deploy (see README → Maps).
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          # Same PostHog project key as the web deploy (see docs/telemetry.md).
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
 
       - name: Sync Capacitor
         run: npx cap sync android
