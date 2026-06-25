@@ -23,7 +23,12 @@ import { posthogProvider } from "./posthog";
 // app_state blob loads (same reason the live-run/bg-location flags live there)
 // and so the SDK never inits pre-consent. It is the single source of truth for
 // consent — the ConsentBanner and the Settings toggle both read/write it here.
-export const TELEMETRY_CONSENT_KEY = "rc_telemetry_consent";
+//
+// `_v2`: the earlier opt-out build *auto-wrote* the v1 key ("rc_telemetry_consent")
+// to "1" on load (default-on, mirrored from settings), so a stored v1 value means
+// "defaulted", NOT "user agreed". Rotating the key discards those and forces a
+// genuine opt-in decision for everyone — the compliant migration to opt-in.
+export const TELEMETRY_CONSENT_KEY = "rc_telemetry_consent_v2";
 
 // ---- Provider seam -------------------------------------------------------
 // The single point of vendor coupling. Swap this for a different adapter to

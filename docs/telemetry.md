@@ -41,7 +41,8 @@ an explicit var.
   so no cookie / `localStorage` entry is written on the user's behalf. The choice
   is changeable any time in **Settings → Privacy**.
 - **Consent is per-device.** The single source of truth is `localStorage`
-  (`rc_telemetry_consent`), tri-state: `"1"` granted, `"0"` denied, **absent =
+  (`rc_telemetry_consent_v2` — rotated from `rc_telemetry_consent`, which the old
+  opt-out build auto-populated), tri-state: `"1"` granted, `"0"` denied, **absent =
   undecided** (banner not answered → reads as not consented). It is deliberately
   *not* in the synced app_state blob: consent to store data on a device is
   inherently per-device, so a fresh browser should ask again. `getConsent()`

@@ -57,7 +57,7 @@ and delete anything that becomes stale.
   Consent is **opt-in** (EU/ePrivacy): nothing collected until the user accepts
   the first-run `ConsentBanner` (`src/components/ConsentBanner.jsx`, rendered in
   `App.jsx` over login + app); changeable in Settings → Privacy. The single
-  source of truth is `localStorage` (`rc_telemetry_consent`), **per-device** (NOT
+  source of truth is `localStorage` (`rc_telemetry_consent_v2`), **per-device** (NOT
   the synced blob — a fresh browser re-asks) and tri-state (`"1"`/`"0"`/absent =
   granted/denied/undecided; see `getConsentDecision`). The `ErrorBoundary`
   (`src/components/ErrorBoundary.jsx`, wraps `<App/>` in `main.jsx`) auto-reports
