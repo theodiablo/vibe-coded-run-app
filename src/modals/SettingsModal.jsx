@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Check, Download, Upload, LogOut, Trash2 } from "lucide-react";
-import { INPUT_CLS } from "../constants";
+import { Check, Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
+import { INPUT_CLS, PRIVACY_URL } from "../constants";
 import { HRZones } from "../views/HRZones";
 import { isNative } from "../native";
 
@@ -16,6 +16,15 @@ export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     if (showToast) showToast(n ? "Name updated." : "Name cleared.");
+  };
+
+  // Telemetry consent (opt-out: undefined counts as on). Writing it to settings
+  // is enough — RunningCoach mirrors the flag into the telemetry module.
+  const analyticsOn = settings.analyticsEnabled !== false;
+  const toggleAnalytics = () => {
+    const next = !analyticsOn;
+    saveSettings({...settings, analyticsEnabled: next});
+    if (showToast) showToast(next ? "Sharing enabled." : "Sharing disabled.");
   };
 
   return (
@@ -58,6 +67,38 @@ export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore
                 <Upload size={15}/>Restore
               </button>
             </div>
+          </div>
+
+          {/* Privacy */}
+          <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Shield size={15} className="text-orange-400"/>
+              <p className="text-sm font-semibold text-slate-200">Privacy</p>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-slate-200">Share usage &amp; crash reports</p>
+                <p className="text-xs text-slate-400">
+                  Anonymous app analytics and crash diagnostics. No run data or
+                  routes are ever sent. You can change this any time.
+                </p>
+              </div>
+              <button onClick={toggleAnalytics} role="switch" aria-checked={analyticsOn}
+                aria-label="Share usage and crash reports"
+                className={"relative shrink-0 w-11 h-6 rounded-full transition-colors " + (analyticsOn ? "bg-orange-500" : "bg-slate-600")}>
+                <span className={"absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform " + (analyticsOn ? "translate-x-5" : "translate-x-0")}/>
+              </button>
+            </div>
+            {isNative && (
+              <p className="text-xs text-slate-500">
+                If the app crashes, you&apos;ll still be asked before any crash
+                report is sent.
+              </p>
+            )}
+            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
+              className="inline-block text-xs text-orange-400 hover:text-orange-300">
+              Privacy policy
+            </a>
           </div>
 
           {/* Account */}

@@ -6,6 +6,7 @@ import { isNative } from "./native";
 import { versionStatus } from "./utils/version";
 import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
+import { identifyUser, resetUser } from "./telemetry";
 import RunningCoach from "./RunningCoach.jsx";
 import LoginScreen from "./LoginScreen.jsx";
 
@@ -155,6 +156,8 @@ export default function App() {
     let cancelled = false;
     if (session) {
       if (loadedUidRef.current === session.user.id) return; // already loaded
+      // Tie telemetry to the Supabase user id (no-op without consent/provider).
+      identifyUser(session.user.id);
       setStoreReady(false);
       initStore(session.user.id).then(() => {
         if (!cancelled) {
@@ -167,6 +170,7 @@ export default function App() {
       // No need to reset storeReady here — we render <LoginScreen/> whenever
       // there's no session, and the next sign-in resets it before reloading.
       loadedUidRef.current = null;
+      resetUser();
       clearStore();
     }
     return () => {

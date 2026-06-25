@@ -48,6 +48,16 @@ and delete anything that becomes stale.
   `versionStatus` (`src/utils/version.js`); a failed check never blocks the user.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.jsx`. Follow that style.
+- **Telemetry (analytics + crash reporting):** all routed through one
+  vendor-agnostic seam, `src/telemetry.js`, which is a **no-op until a provider
+  is wired into `provider` and keyed** (like the map without a MapTiler key). App
+  code never imports an SDK directly. Consent is **opt-out**
+  (`settings.analyticsEnabled`, default on, toggle in Settings → Privacy),
+  mirrored to `localStorage` (`rc_telemetry_consent`) so it's known at boot. The
+  `ErrorBoundary` (`src/components/ErrorBoundary.jsx`, wraps `<App/>` in
+  `main.jsx`) auto-reports on web but, on **native, prompts per-crash before
+  sending**. `track`/`identifyUser` are consent-gated; `captureError` is gated by
+  its call sites. See `docs/telemetry.md` before adding a provider or an event.
 - **Layout:** views in `src/views/`, modals/full-screen flows in `src/modals/`,
   reusable widgets in `src/components/`, pure helpers in `src/utils/`.
 - `settings` is the central config object (race fields, HR profile, `planSessions`,
