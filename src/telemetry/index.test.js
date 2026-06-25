@@ -7,7 +7,7 @@ import {
   track,
   captureError,
   identifyUser,
-} from "./telemetry";
+} from "./index";
 
 // Consent is the security boundary here: nothing should ship without it, and
 // the opt-out default (absent flag == on) has to hold so the Settings toggle
@@ -32,10 +32,11 @@ describe("telemetry consent", () => {
   });
 });
 
-// Until a real provider is wired into telemetry.js the whole module is inert —
-// no key, no network, and every entry point is a safe no-op. Guards the "ships
-// disabled by default" contract.
-describe("telemetry without a provider", () => {
+// Without VITE_POSTHOG_KEY the adapter is unconfigured, so the whole module is
+// inert — no SDK load, no network, every entry point a safe no-op. Guards the
+// "ships disabled by default" contract (and keeps this suite from touching
+// posthog-js).
+describe("telemetry without a key", () => {
   it("reports itself as unconfigured", () => {
     expect(isTelemetryConfigured()).toBe(false);
   });

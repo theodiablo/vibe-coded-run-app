@@ -10,13 +10,13 @@
 // "send report?" prompt (see ErrorBoundary), so a crash is never uploaded
 // without an explicit, in-the-moment OK even when analytics consent is on.
 //
-// Until a provider is chosen this module is fully inert — every call is a
-// no-op, exactly like the map records fine without a MapTiler key. That's
-// deliberate: the consent machinery ships first, and a real SDK (Sentry /
-// PostHog / …) slots into `provider` below without the rest of the app
-// changing. See docs/telemetry.md for how to plug one in.
+// The provider is PostHog (see ./posthog.js — the only file that imports an
+// SDK). Without a key (VITE_POSTHOG_KEY) the adapter reports itself
+// unconfigured and this whole module stays inert — every call a no-op, exactly
+// like the map records fine without a MapTiler key. See docs/telemetry.md.
 
-import { isNative } from "./native";
+import { isNative } from "../native";
+import { posthogProvider } from "./posthog";
 
 // localStorage so consent is known *synchronously at boot*, before the Supabase
 // app_state blob loads (same reason the live-run/bg-location flags live there).
@@ -25,9 +25,9 @@ import { isNative } from "./native";
 export const TELEMETRY_CONSENT_KEY = "rc_telemetry_consent";
 
 // ---- Provider seam -------------------------------------------------------
-// Replace `provider` with a real adapter to enable telemetry. Keep it the ONLY
-// place an SDK is imported, so everything below stays vendor-neutral. The
-// adapter must implement:
+// The single point of vendor coupling. Swap this for a different adapter to
+// change vendors; nothing else below knows which SDK is behind it. The adapter
+// implements:
 //
 //   isConfigured(): boolean              key present in env, safe to init
 //   init(): void                         start the SDK (once consent is given)
@@ -37,17 +37,7 @@ export const TELEMETRY_CONSENT_KEY = "rc_telemetry_consent";
 //   track(event, props): void
 //   captureError(error, context): void
 //
-const noopProvider = {
-  isConfigured: () => false,
-  init() {},
-  shutdown() {},
-  identify() {},
-  reset() {},
-  track() {},
-  captureError() {},
-};
-
-const provider = noopProvider;
+const provider = posthogProvider;
 
 // ---- Consent -------------------------------------------------------------
 let started = false;
@@ -124,9 +114,9 @@ export function track(event, props) {
 //     (even if analytics consent is already on).
 export function captureError(error, context) {
   if (!provider.isConfigured()) return;
-  // The native "send this one report" path may reach here with the SDK not yet
-  // started (analytics consent off); bring it up so it can take the error.
-  start();
+  // No start()/consent flip here: the adapter loads the SDK on demand and sends
+  // just this one error even while opted out, so an opted-out user's per-crash
+  // "Send report" never silently re-enables analytics.
   provider.captureError(error, context || {});
 }
 

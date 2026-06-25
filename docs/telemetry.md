@@ -1,10 +1,29 @@
 # Telemetry (analytics + crash reporting)
 
-Telemetry is **vendor-agnostic and off by the time it reaches the network**: a
-single seam, `src/telemetry.js`, is all the app talks to. Until a provider is
-wired in there, every call is a no-op — nothing is sent, no SDK is bundled.
-This is intentional. The consent machinery shipped first; the vendor is a later,
-isolated change.
+Telemetry is **vendor-agnostic at the call sites and off by the time it reaches
+the network**. The app only ever talks to one seam, `src/telemetry/index.js`;
+the vendor lives behind it in a single adapter (`src/telemetry/posthog.js`, the
+only file that imports an SDK). Swapping vendors means replacing that adapter and
+nothing else.
+
+The provider is **PostHog** (product analytics *and* error tracking in one SDK).
+It is **off until keyed**: without `VITE_POSTHOG_KEY` the adapter reports itself
+unconfigured and the whole module is a no-op — and `posthog-js` is a dynamic
+import, so it isn't even fetched until telemetry activates at runtime (it stays
+out of the main bundle and out of any keyless build).
+
+## Configuration
+
+Set at build time (e.g. `.env.local`), same pattern as `VITE_MAPTILER_KEY`:
+
+| Env var              | Required | Default                       | Notes |
+| -------------------- | -------- | ----------------------------- | ----- |
+| `VITE_POSTHOG_KEY`   | yes      | — (telemetry off without it)  | PostHog **project API key** (public, client-side). |
+| `VITE_POSTHOG_HOST`  | no       | `https://eu.i.posthog.com`    | EU Cloud by default (privacy hosting). Use `https://us.i.posthog.com` or a self-host URL to change region. |
+
+The PostHog SDK is initialised with autocapture, pageviews, pageleave and
+session recording all **off** (this is a no-router SPA — we send a small curated
+set of explicit events) and `person_profiles: 'identified_only'`.
 
 ## Consent model
 
@@ -30,32 +49,37 @@ isolated change.
   `plan_generated`) — `src/RunningCoach.jsx`.
 - Settings toggle — `src/modals/SettingsModal.jsx`.
 
-## Adding a provider
+## How the PostHog adapter maps to the seam
 
-Implement the adapter interface and replace `const provider = noopProvider;` in
-`src/telemetry.js`. Keep the SDK import confined to that file.
+`src/telemetry/posthog.js` implements:
 
 ```js
-isConfigured(): boolean              // key present in env, safe to init
-init(): void                         // start the SDK (once consent is given)
-shutdown(): void                     // stop/flush the SDK (on opt-out)
-identify(id): void
-reset(): void
-track(event, props): void
-captureError(error, context): void   // context may carry { kind, componentStack }
+isConfigured(): boolean              // !!VITE_POSTHOG_KEY
+init(): void                         // load SDK (dynamic import) + opt_in_capturing
+shutdown(): void                     // opt_out_capturing
+identify(id): void                   // posthog.identify(supabaseUserId)
+reset(): void                        // posthog.reset()
+track(event, props): void            // posthog.capture(event, { ...props, native })
+captureError(error, context): void   // posthog.captureException; context: { kind, componentStack }
 ```
 
-Notes for whichever vendor is chosen:
+Consent is driven entirely from `opt_in_capturing` / `opt_out_capturing` (the
+SDK loads in `opt_out_capturing_by_default` mode), so a single import serves both
+states. `init`/`track`/`identify` run through a tiny queue that replays calls
+made before the dynamic import resolves.
 
-- **One bundle serves web and the Capacitor shell.** Gate native-only SDK pieces
-  on `isNative` (`src/native.js`); the web build must stay unchanged when no key
-  is set. Read keys from `import.meta.env.VITE_*` with no baked-in default, the
-  same way `MAP_KEY` does — `isConfigured()` returns false without the env var.
-- **EU / privacy hosting.** Prefer the provider's EU region/host where offered
-  (matches the "opt-out + privacy hosting" decision).
-- **Sentry** (crash-first): `@sentry/react` for web + `@sentry/capacitor` for
-  native crashes/source maps. Wire its `beforeSend` to drop the event when
-  `getConsent()` is false, so even native background errors honour consent.
-- **PostHog** (analytics-first, also error tracking): `posthog-js`; call
-  `posthog.opt_out_capturing()` / `opt_in_capturing()` from `shutdown()` /
-  `init()` to match consent.
+The opted-out **native per-crash** path (`captureError` while opted out) opts in
+just long enough to send the one exception and does **not** synchronously
+re-opt-out — that would risk dropping the still-queued report. It's safe because
+the app is on the crash screen (no other events firing) and the next reload
+re-reads the persisted opt-out and starts paused again.
+
+## Swapping vendors
+
+Replace `const provider = posthogProvider;` in `src/telemetry/index.js` with
+another adapter implementing the interface above; keep the SDK import confined to
+that one adapter file, read keys from `import.meta.env.VITE_*` (no baked-in
+default, like `MAP_KEY`), gate any native-only SDK pieces on `isNative`, and
+prefer the vendor's EU/privacy host. For example **Sentry** (`@sentry/react` +
+`@sentry/capacitor`) would wire its `beforeSend` to drop events when
+`getConsent()` is false, so even native background errors honour consent.
