@@ -11,6 +11,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The `secrets` context can't be used in step-level `if:` conditions
+    # (GitHub evaluates `if:` before the job reaches the runner). Hoist the
+    # secrets we branch on into job-level env vars and gate on `env.*` instead.
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,8 +63,8 @@ jobs:
       # Release signing. Store a base64 keystore + credentials as Actions secrets.
       # Debug builds need no signing; only release AABs uploaded to Play do.
       - name: Decode keystore
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
 
       - name: Build AAB
         working-directory: android
@@ -77,6 +82,21 @@ jobs:
           name: running-coach-release-aab
           path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: warn
+
+      # Push the signed AAB to Google Play. Only on a real release tag. Starts on
+      # the internal track to validate the pipeline end-to-end; bump `track` to
+      # production (and grant the service account the production-release
+      # permission in Play Console) when you're ready to ship to users. Needs the
+      # GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret (the service-account JSON key).
+      - name: Deploy to Google Play
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: solutions.camboulive.run
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: internal
+          status: completed
 
       # On a real release (android-v* tag), tell the app the new latest version so
       # outdated clients can be nudged to update. Uses the service-role key (CI
