@@ -156,7 +156,11 @@ npx cap open android       # open in Android Studio, run on a device/emulator
 Debug builds need no signing. Release AABs for the Play Store are built by
 `.github/workflows/android.yml` (manual or on an `android-v*` tag) and need these
 extra repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. On an `android-v*` tag the workflow
+also uploads the AAB to Google Play (internal track) — that step needs
+`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (a Play Developer API service-account JSON key;
+grant the account "Release to testing tracks" in Play Console → Users &
+permissions). Bump the step's `track` to `production` to ship to users.
 
 ### Versioning & releases
 
