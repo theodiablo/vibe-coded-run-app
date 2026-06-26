@@ -5,6 +5,10 @@ export const STORAGE_KEYS = {
   RUNS: "rc_runs",
   PLAN: "rc_plan",
   SETTINGS: "rc_settings",
+  // Personal races layer: wishlist / completed participations + seen-badge set.
+  // The race *catalogue* is NOT here — it's shared/heavy (a bundled seed in
+  // Phase 1, a Supabase table in Phase 2); only per-user data lives in the blob.
+  RACES: "rc_races",
 };
 
 // localStorage key for the in-progress live run buffer (crash/refresh recovery).

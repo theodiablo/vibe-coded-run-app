@@ -1,10 +1,12 @@
 import { Activity, Award, Check, ChevronRight, Plus, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
+import { computeBadges, nextBadge } from "../utils/badges";
 import { HRTarget } from "../components/HRTarget";
 import { RunRow } from "../components/RunRow";
 
-export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, skipSess, openSettings}) {
+export function Dashboard({runs, plan, settings, races, goTab, goLog, toggleSess, skipSess, openSettings}) {
+  const nb = nextBadge(computeBadges(runs, races?.participations || []));
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
@@ -74,6 +76,21 @@ export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, skipS
         ))}
       </div>
 
+      {nb && (
+        <button onClick={() => goTab("progress")}
+          className="w-full bg-slate-800 rounded-xl p-3 flex items-center gap-3 text-left hover:bg-slate-700/70 transition-colors">
+          <Award size={20} className="text-orange-400 flex-shrink-0"/>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-400">Next badge</p>
+            <p className="text-sm font-semibold truncate">{nb.label + (nb.hint ? " · " + nb.hint : "")}</p>
+            <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mt-1.5">
+              <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full" style={{width: Math.round(nb.progress * 100) + "%"}}/>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-slate-600 flex-shrink-0"/>
+        </button>
+      )}
+
       {nextSess ? (
         <div>
           <p className="text-orange-300 text-xs font-bold uppercase tracking-widest mb-2">
@@ -126,7 +143,7 @@ export function Dashboard({runs, plan, settings, goTab, goLog, toggleSess, skipS
           <div className="flex items-center justify-between mb-2">
             <p className="text-slate-500 text-xs uppercase tracking-widest">Recent runs</p>
             {runs.length > 3 && goTab && (
-              <button onClick={() => goTab("history")}
+              <button onClick={() => goTab("progress")}
                 className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-0.5 transition-colors">
                 View all<ChevronRight size={13}/>
               </button>

@@ -16,7 +16,7 @@ const PHASE_DESC = {
   RACE:  "Race week",
 };
 
-export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog}) {
+export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -54,6 +54,21 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     setExp(currentWeekIndex());
   }
 
+  // A promote ("Set as target") prefills the setup with a catalogue edition.
+  // With an existing plan, open the Edit form pre-filled; the generate form
+  // already reflects settings (promoteEdition wrote them) when there's no plan.
+  const [prevPrefill, setPrevPrefill] = useState(planPrefill);
+  if (planPrefill !== prevPrefill) {
+    setPrevPrefill(planPrefill);
+    if (planPrefill) {
+      setDraftDate(planPrefill.raceDate);
+      setDraftDist(planPrefill.distanceKm);
+      setDraftElev(planPrefill.raceElevation || 0);
+      setDraftGoal(settings.goalSec);
+      if (plan) setEdit(true);
+    }
+  }
+
   const genPlan = opts => {
     const o    = opts || {};
     const ps   = o.planSessions || draft;
@@ -62,9 +77,15 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     const dist = o.distanceKm   || settings.distanceKm || 20;
     // 0 is a valid climb, so coalesce on nullish rather than falsy.
     const elev = o.raceElevation ?? settings.raceElevation ?? 0;
-    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: elev});
+    // Keep the catalogue link only when building the promoted race unchanged;
+    // any hand-edit of the date/distance decouples it from the target edition.
+    const sameAsPrefill = planPrefill && date === planPrefill.raceDate && Number(dist) === Number(planPrefill.distanceKm);
+    const sameAsTarget  = date === settings.raceDate && Number(dist) === Number(settings.distanceKm);
+    const targetEditionId = sameAsPrefill ? planPrefill.editionId : (sameAsTarget ? (settings.targetEditionId ?? null) : null);
+    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: elev, targetEditionId});
     savePlan(buildPlan(date, goal, ps, dist, elev));
     setEdit(false); setConfirmRegen(false);
+    clearPlanPrefill?.();
   };
 
   if (!plan) return (

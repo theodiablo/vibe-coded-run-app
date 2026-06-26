@@ -1,0 +1,49 @@
+import { useState } from "react";
+import { HistoryView } from "./HistoryView";
+import { StatsView } from "./StatsView";
+import { Badge } from "../components/Badge";
+import { computeBadges } from "../utils/badges";
+
+// "Progress" merges the former History + Stats tabs and adds Badges, under a
+// segmented toggle. Each sub-view is the existing component, unchanged.
+const TABS = [["log", "Log"], ["stats", "Stats"], ["badges", "Badges"]];
+
+export function ProgressView(props) {
+  const [sub, setSub] = useState("log");
+  const { runs, races } = props;
+  const badges = computeBadges(runs, races?.participations || []);
+  const unlocked = badges.filter(b => b.unlocked).length;
+
+  return (
+    <div>
+      <div className="max-w-lg mx-auto px-4 pt-4">
+        <div className="flex bg-slate-800 rounded-xl p-1 gap-1">
+          {TABS.map(([id, label]) => (
+            <button key={id} onClick={() => setSub(id)}
+              className={"flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors " +
+                (sub === id ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200")}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {sub === "log" && <HistoryView {...props}/>}
+      {sub === "stats" && <StatsView {...props}/>}
+      {sub === "badges" && (
+        <div className="max-w-lg mx-auto p-4">
+          <div className="mt-2 mb-4">
+            <h2 className="text-xl font-bold">Badges</h2>
+            <p className="text-slate-400 text-xs mt-0.5">{unlocked + " of " + badges.length + " earned"}</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            {badges.map(b => <Badge key={b.id} badge={b}/>)}
+          </div>
+          <p className="text-slate-500 text-xs text-center mt-5">
+            Keep running and racing to unlock more — walks count too.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
