@@ -33,6 +33,18 @@ your insights to exclude preview/local noise. Vite's own `MODE` can't tell
 production from preview (both are a `vite build`), which is why `VITE_APP_ENV` is
 an explicit var.
 
+**Two gotchas if events don't arrive:**
+
+- **CSP.** PostHog's host is allow-listed in `connect-src` in `index.html`
+  (`https://*.i.posthog.com`, covering EU + US). Without it the browser / Android
+  WebView silently blocks every request and you'll see nothing. We also set
+  `disable_external_dependency_loading: true` so PostHog never injects remote
+  `<script>`s, keeping `script-src 'self'`. If you point `VITE_POSTHOG_HOST` at a
+  self-hosted/custom domain, add it to `connect-src` too.
+- **Region must match the key.** The default host is **EU** (`eu.i.posthog.com`).
+  A **US** project's key only works against `https://us.i.posthog.com` — set
+  `VITE_POSTHOG_HOST` accordingly. The `*.i.posthog.com` CSP already allows both.
+
 ## Consent model
 
 - **Opt-in (EU/ePrivacy).** Telemetry collects **nothing** until the user accepts
