@@ -92,14 +92,20 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     clearPlanPrefill?.();
   };
 
+  // Arriving from "Set as target": the setup is pre-filled for a chosen race and
+  // we focus the screen on building it.
+  const promoting = !!planPrefill;
+  const cancelPromote = () => { clearPlanPrefill?.(); setEdit(false); };
+
   if (!plan) return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mt-4 mb-5">
         <h2 className="text-xl font-bold">Training Plan</h2>
         <PlanInfo/>
       </div>
+      {promoting && <PromoteBanner prefill={planPrefill} onCancel={cancelPromote}/>}
       <div className="bg-slate-800 rounded-2xl p-5 space-y-5">
-        <p className="text-slate-400 text-sm">Configure your goal and available training days.</p>
+        <p className="text-slate-400 text-sm">{promoting ? "Set your goal time, then build your plan." : "Configure your goal and available training days."}</p>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
           <input type="date" value={draftDate || ""}
@@ -135,7 +141,7 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
           disabled={!draftDate || !draftDist}
           className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-3.5 rounded-xl font-semibold transition-colors">
-          Generate My Training Plan
+          {promoting ? "Build my plan" : "Generate My Training Plan"}
         </button>
       </div>
     </div>
@@ -172,28 +178,33 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           <h2 className="text-xl font-bold">Training Plan</h2>
           <PlanInfo/>
         </div>
-        <div className="flex gap-1 items-center">
-          {confirmRegen ? (
-            <div className="flex gap-1">
-              <button onClick={() => setConfirmRegen(false)}
-                className="px-2 py-1.5 text-slate-400 hover:text-white text-xs rounded-lg hover:bg-slate-700 transition-colors">
-                Cancel
+        {!promoting && (
+          <div className="flex gap-1 items-center">
+            {confirmRegen ? (
+              <div className="flex gap-1">
+                <button onClick={() => setConfirmRegen(false)}
+                  className="px-2 py-1.5 text-slate-400 hover:text-white text-xs rounded-lg hover:bg-slate-700 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={() => genPlan()}
+                  className="px-2 py-1.5 text-red-400 hover:text-white text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-colors">
+                  Reset ✓
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmRegen(true)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                title="Regenerate plan">
+                <RotateCcw size={16}/>
               </button>
-              <button onClick={() => genPlan()}
-                className="px-2 py-1.5 text-red-400 hover:text-white text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-colors">
-                Reset ✓
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setConfirmRegen(true)}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-              title="Regenerate plan">
-              <RotateCcw size={16}/>
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {promoting && <PromoteBanner prefill={planPrefill} onCancel={cancelPromote}/>}
+
+      {!promoting && (<>
       <div className="bg-slate-800 rounded-xl p-4 mb-3">
         <div className="flex justify-between text-sm mb-2">
           <span className="text-slate-400">{done + " / " + all.length + " sessions"}</span>
@@ -241,8 +252,9 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         </span>
         <span className="text-orange-400 font-semibold ml-2 flex-shrink-0">{editSessions ? "Close" : "Edit plan"}</span>
       </button>
+      </>)}
 
-      {editSessions && (
+      {(editSessions || promoting) && (
         <div className="bg-slate-800 rounded-xl p-4 mb-3 border border-orange-500/30 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -272,13 +284,15 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
             disabled={!draftDate || !draftDist}
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-            Regenerate plan
+            {promoting ? "Build my plan" : "Regenerate plan"}
           </button>
-          <p className="text-xs text-slate-500 text-center">Regenerating rebuilds the schedule — completed sessions will reset.</p>
+          <p className="text-xs text-slate-500 text-center">
+            {promoting ? "Builds a fresh plan for this race — any existing plan is replaced." : "Regenerating rebuilds the schedule — completed sessions will reset."}
+          </p>
         </div>
       )}
 
-      <div className="space-y-2">
+      {!promoting && <div className="space-y-2">
         {plan.weeks.map((wk, i) => {
           const wS = new Date(wk.startDate + "T00:00:00");
           const wE = new Date(wS); wE.setDate(wS.getDate() + 7);
@@ -353,7 +367,24 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
             </div>
           );
         })}
-      </div>
+      </div>}
+    </div>
+  );
+}
+
+// Focused header shown when arriving from "Set as target": names the race so it's
+// clear what the setup below is building, with a way out.
+function PromoteBanner({ prefill, onCancel }) {
+  return (
+    <div className="rounded-2xl p-4 mb-4 border border-orange-500/40"
+      style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
+      <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">New training target</p>
+      <p className="font-semibold">{prefill.label || "Your race"}</p>
+      <p className="text-slate-400 text-sm mt-0.5">
+        {fmt.date(prefill.raceDate) + " · " + prefill.distanceKm + " km" + (prefill.raceElevation ? " · +" + prefill.raceElevation + "m" : "")}
+      </p>
+      <p className="text-slate-300 text-sm mt-2">Set your goal time below, then build your plan.</p>
+      <button onClick={onCancel} className="text-xs text-slate-400 hover:text-slate-200 mt-2 transition-colors">Cancel</button>
     </div>
   );
 }

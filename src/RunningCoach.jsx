@@ -125,7 +125,7 @@ export default function RunningCoach({ onSignOut }) {
   // unrealistic auto-goal behind. targetEditionId is set by PlanView on build.
   const promoteEdition = joined => {
     const e = joined.edition;
-    setPlanPrefill({ raceDate: e.date, distanceKm: e.distanceKm, raceElevation: e.elevation || 0, editionId: e.id });
+    setPlanPrefill({ raceDate: e.date, distanceKm: e.distanceKm, raceElevation: e.elevation || 0, editionId: e.id, label: editionLabel(joined, e) });
     setTab("plan");
     track("race_target_set");
   };
