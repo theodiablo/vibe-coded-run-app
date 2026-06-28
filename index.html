@@ -4,8 +4,11 @@
     <meta charset="UTF-8" />
     <!--
       Content-Security-Policy: limits where scripts, styles and network requests
-      may come from, as defence-in-depth against XSS. The app only talks to its
-      own origin and Supabase (REST + realtime websockets). 'unsafe-inline' is
+      may come from, as defence-in-depth against XSS. The app talks to its own
+      origin, Supabase (REST + realtime websockets), MapTiler, and PostHog
+      (telemetry — connect-src only; the SDK is bundled and we disable PostHog's
+      remote script loading, so script-src stays 'self'). The *.i.posthog.com
+      wildcard covers both EU and US ingestion/asset hosts. 'unsafe-inline' is
       required for style because React/recharts use inline style attributes.
       Note: frame-ancestors is ignored in a <meta> CSP — set it (and
       X-Frame-Options) as a response header at CloudFront for clickjacking
@@ -13,7 +16,7 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.maptiler.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.maptiler.com; base-uri 'self'; object-src 'none'; form-action 'self'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.maptiler.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.maptiler.com https://*.i.posthog.com; base-uri 'self'; object-src 'none'; form-action 'self'"
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

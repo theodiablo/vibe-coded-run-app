@@ -39,6 +39,11 @@ function ensureLoaded() {
         capture_pageleave: false,
         capture_exceptions: false,
         disable_session_recording: true,
+        // Don't fetch PostHog's optional remote scripts (recorder, surveys,
+        // toolbar, …). We use none of them, and this keeps the CSP tight: only
+        // connect-src needs *.i.posthog.com, script-src stays 'self'. Event
+        // capture + manual captureException are bundled, so they're unaffected.
+        disable_external_dependency_loading: true,
         person_profiles: "identified_only",
         opt_out_capturing_by_default: true,
       });
