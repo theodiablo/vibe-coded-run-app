@@ -9,8 +9,12 @@ import { computeBadges } from "../utils/badges";
 const TABS = [["log", "Log"], ["stats", "Stats"], ["badges", "Badges"]];
 
 export function ProgressView(props) {
-  const [sub, setSub] = useState("log");
-  const { runs, races } = props;
+  const { runs, races, initialSub, navKey } = props;
+  const [sub, setSub] = useState(initialSub || "log");
+  // Re-apply the requested sub-tab whenever we're navigated here (navKey bumps),
+  // even if it's the same target as last time. Render-time sync, not an effect.
+  const [prevKey, setPrevKey] = useState(navKey);
+  if (navKey !== prevKey) { setPrevKey(navKey); setSub(initialSub || "log"); }
   const badges = computeBadges(runs, races?.participations || []);
   const unlocked = badges.filter(b => b.unlocked).length;
 

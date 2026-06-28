@@ -45,6 +45,10 @@ export default function RunningCoach({ onSignOut }) {
   const [races,       setRaces]       = useState({ participations: [], seenBadges: null });
   // Stash from a "Set as target" promote → consumed by PlanView's setup form.
   const [planPrefill, setPlanPrefill] = useState(null);
+  // Which Progress sub-tab to open, and a nonce so navigating there again (even
+  // to the same sub-tab) re-applies it.
+  const [progressSub,  setProgressSub]  = useState("log");
+  const [progressNonce,setProgressNonce]= useState(0);
 
   useEffect(() => {
     (async () => {
@@ -245,7 +249,8 @@ export default function RunningCoach({ onSignOut }) {
   );
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
-  const shared = {runs, plan, settings, races, addRuns, savePlan, saveSettings, saveRaces, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
+  const goProgress = sub => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
+  const shared = {runs, plan, settings, races, addRuns, savePlan, saveSettings, saveRaces, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   const TABS   = [
@@ -305,7 +310,7 @@ export default function RunningCoach({ onSignOut }) {
           onSaved={() => { if (logPrefill?.wNum != null && logPrefill?.sId) toggleSess(logPrefill.wNum, logPrefill.sId); }}
           onDone={() => { setLogPrefill(null); setTab("dash"); }}/>}
         {tab === "races" && <RacesView {...shared}/>}
-        {tab === "progress" && <ProgressView {...shared}/>}
+        {tab === "progress" && <ProgressView {...shared} initialSub={progressSub} navKey={progressNonce}/>}
       </div>
 
       <nav className="fixed bottom-0 inset-x-0 bg-slate-800 border-t border-slate-700 flex items-stretch z-20" style={{height:64}}>

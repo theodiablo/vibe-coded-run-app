@@ -5,7 +5,7 @@ import { computeBadges, nextBadge } from "../utils/badges";
 import { HRTarget } from "../components/HRTarget";
 import { RunRow } from "../components/RunRow";
 
-export function Dashboard({runs, plan, settings, races, goTab, goLog, toggleSess, skipSess, openSettings}) {
+export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings}) {
   const nb = nextBadge(computeBadges(runs, races?.participations || []));
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
@@ -77,7 +77,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goLog, toggleSess
       </div>
 
       {nb && (
-        <button onClick={() => goTab("progress")}
+        <button onClick={() => goProgress("badges")}
           className="w-full bg-slate-800 rounded-xl p-3 flex items-center gap-3 text-left hover:bg-slate-700/70 transition-colors">
           <Award size={20} className="text-orange-400 flex-shrink-0"/>
           <div className="flex-1 min-w-0">
@@ -142,8 +142,8 @@ export function Dashboard({runs, plan, settings, races, goTab, goLog, toggleSess
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-slate-500 text-xs uppercase tracking-widest">Recent runs</p>
-            {runs.length > 3 && goTab && (
-              <button onClick={() => goTab("progress")}
+            {runs.length > 3 && (
+              <button onClick={() => goProgress("log")}
                 className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-0.5 transition-colors">
                 View all<ChevronRight size={13}/>
               </button>
