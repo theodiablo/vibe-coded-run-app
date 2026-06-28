@@ -11,6 +11,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Defensive trigger gate. `on.push` is already limited to `android-v*` tags,
+    # but in practice GitHub has been starting this workflow on ordinary branch
+    # and `main` pushes too (e.g. every commit on a PR branch), producing noisy
+    # failing 0.0.0 builds. Gate the job so it only ever runs for a real release
+    # tag or a manual dispatch — never on a feature-branch or `main` push. If the
+    # event still leaks through, the run shows up but the build is skipped.
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/android-v') }}
     # The `secrets` context can't be used in step-level `if:` conditions
     # (GitHub evaluates `if:` before the job reaches the runner). Hoist the
     # secrets we branch on into job-level env vars and gate on `env.*` instead.
