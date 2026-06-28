@@ -118,12 +118,13 @@ export default function RunningCoach({ onSignOut }) {
   // Passed to children: persist a races change and reconcile badges off it.
   const saveRaces  = next => commitRaces(reconcileBadges(runs, next));
 
-  // Promote a catalogue edition to the training target: prefill the plan setup
-  // with its date/distance/elevation, then send the user to PlanView to pick a
-  // goal and build. targetEditionId is set by PlanView when the plan is built.
+  // Promote a catalogue edition to the training target: stash the prefill and
+  // send the user to PlanView's setup, which fills the date/distance/elevation
+  // and a fresh realistic goal suggestion. Nothing is committed (no settings or
+  // plan change) until the user picks a goal and builds — so we never leave an
+  // unrealistic auto-goal behind. targetEditionId is set by PlanView on build.
   const promoteEdition = joined => {
     const e = joined.edition;
-    saveSettings({...settings, raceDate: e.date, distanceKm: e.distanceKm, raceElevation: e.elevation || 0});
     setPlanPrefill({ raceDate: e.date, distanceKm: e.distanceKm, raceElevation: e.elevation || 0, editionId: e.id });
     setTab("plan");
     track("race_target_set");

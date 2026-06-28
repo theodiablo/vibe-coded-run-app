@@ -30,7 +30,8 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
   };
 
   const [exp,          setExp]         = useState(currentWeekIndex);
-  const [editSessions, setEdit]        = useState(false);
+  // A promote ("Set as target") opens the setup pre-filled, so start in edit mode.
+  const [editSessions, setEdit]        = useState(!!planPrefill);
   // The current-week card, so we can scroll the runner to "now" in a long plan.
   const weekRef = useRef(null);
   const jumpToWeek = () => weekRef.current?.scrollIntoView({behavior: "smooth", block: "center"});
@@ -39,11 +40,14 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     if (currentWeekIndex() >= 4) weekRef.current?.scrollIntoView({block: "center"});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Setup drafts. When promoting an edition, seed date/distance/elevation from
+  // the prefill and leave the goal blank so GoalConfigurator offers a fresh,
+  // realistic mid-pack suggestion for the (possibly new) distance.
   const [draft,        setDraft]       = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
-  const [draftDate,    setDraftDate]   = useState(settings.raceDate);
-  const [draftGoal,    setDraftGoal]   = useState(settings.goalSec);
-  const [draftDist,    setDraftDist]   = useState(settings.distanceKm || "");
-  const [draftElev,    setDraftElev]   = useState(settings.raceElevation || 0);
+  const [draftDate,    setDraftDate]   = useState(planPrefill?.raceDate ?? settings.raceDate);
+  const [draftGoal,    setDraftGoal]   = useState(planPrefill ? "" : settings.goalSec);
+  const [draftDist,    setDraftDist]   = useState(planPrefill?.distanceKm ?? (settings.distanceKm || ""));
+  const [draftElev,    setDraftElev]   = useState(planPrefill?.raceElevation ?? (settings.raceElevation || 0));
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   // Re-expand the current week whenever the plan changes (e.g. regenerate),
@@ -64,8 +68,8 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
       setDraftDate(planPrefill.raceDate);
       setDraftDist(planPrefill.distanceKm);
       setDraftElev(planPrefill.raceElevation || 0);
-      setDraftGoal(settings.goalSec);
-      if (plan) setEdit(true);
+      setDraftGoal(""); // blank → GoalConfigurator suggests a realistic goal
+      setEdit(true);
     }
   }
 
@@ -98,25 +102,25 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         <p className="text-slate-400 text-sm">Configure your goal and available training days.</p>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
-          <input type="date" value={settings.raceDate || ""}
-            onChange={e => saveSettings({...settings, raceDate: e.target.value})}
+          <input type="date" value={draftDate || ""}
+            onChange={e => setDraftDate(e.target.value)}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-          <input type="number" min="1" max="200" step="0.1" value={settings.distanceKm || ""} placeholder="e.g. 21.1"
-            onChange={e => { const n = parseFloat(e.target.value); saveSettings({...settings, distanceKm: isNaN(n) ? "" : n}); }}
+          <input type="number" min="1" max="200" step="0.1" value={draftDist} placeholder="e.g. 21.1"
+            onChange={e => { const n = parseFloat(e.target.value); setDraftDist(isNaN(n) ? "" : n); }}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
-          <input type="number" min="0" max="10000" step="10" value={settings.raceElevation ?? ""} placeholder="0"
-            onChange={e => { const v = e.target.value; saveSettings({...settings, raceElevation: v === "" ? "" : Math.max(0, parseInt(v) || 0)}); }}
+          <input type="number" min="0" max="10000" step="10" value={draftElev} placeholder="0"
+            onChange={e => { const v = e.target.value; setDraftElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); }}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
           <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
         </div>
-        <GoalConfigurator distanceKm={settings.distanceKm} goalSec={settings.goalSec}
-          onChange={g => saveSettings({...settings, goalSec: g})}/>
+        <GoalConfigurator distanceKm={draftDist} goalSec={draftGoal}
+          onChange={setDraftGoal}/>
         <div>
           <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
@@ -128,8 +132,8 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
             <span>Add your HR profile in Settings to unlock heart rate targets on every session.</span>
           </button>
         )}
-        <button onClick={() => genPlan({planSessions: draft})}
-          disabled={!settings.raceDate || !settings.distanceKm}
+        <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
+          disabled={!draftDate || !draftDist}
           className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-3.5 rounded-xl font-semibold transition-colors">
           Generate My Training Plan
         </button>
