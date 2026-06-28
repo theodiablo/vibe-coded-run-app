@@ -16,7 +16,7 @@ const PHASE_DESC = {
   RACE:  "Race week",
 };
 
-export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog}) {
+export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -30,7 +30,8 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
   };
 
   const [exp,          setExp]         = useState(currentWeekIndex);
-  const [editSessions, setEdit]        = useState(false);
+  // A promote ("Set as target") opens the setup pre-filled, so start in edit mode.
+  const [editSessions, setEdit]        = useState(!!planPrefill);
   // The current-week card, so we can scroll the runner to "now" in a long plan.
   const weekRef = useRef(null);
   const jumpToWeek = () => weekRef.current?.scrollIntoView({behavior: "smooth", block: "center"});
@@ -39,11 +40,14 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     if (currentWeekIndex() >= 4) weekRef.current?.scrollIntoView({block: "center"});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Setup drafts. When promoting an edition, seed date/distance/elevation from
+  // the prefill and leave the goal blank so GoalConfigurator offers a fresh,
+  // realistic mid-pack suggestion for the (possibly new) distance.
   const [draft,        setDraft]       = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
-  const [draftDate,    setDraftDate]   = useState(settings.raceDate);
-  const [draftGoal,    setDraftGoal]   = useState(settings.goalSec);
-  const [draftDist,    setDraftDist]   = useState(settings.distanceKm || "");
-  const [draftElev,    setDraftElev]   = useState(settings.raceElevation || 0);
+  const [draftDate,    setDraftDate]   = useState(planPrefill?.raceDate ?? settings.raceDate);
+  const [draftGoal,    setDraftGoal]   = useState(planPrefill ? "" : settings.goalSec);
+  const [draftDist,    setDraftDist]   = useState(planPrefill?.distanceKm ?? (settings.distanceKm || ""));
+  const [draftElev,    setDraftElev]   = useState(planPrefill?.raceElevation ?? (settings.raceElevation || 0));
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   // Re-expand the current week whenever the plan changes (e.g. regenerate),
@@ -54,6 +58,21 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     setExp(currentWeekIndex());
   }
 
+  // A promote ("Set as target") prefills the setup with a catalogue edition.
+  // With an existing plan, open the Edit form pre-filled; the generate form
+  // already reflects settings (promoteEdition wrote them) when there's no plan.
+  const [prevPrefill, setPrevPrefill] = useState(planPrefill);
+  if (planPrefill !== prevPrefill) {
+    setPrevPrefill(planPrefill);
+    if (planPrefill) {
+      setDraftDate(planPrefill.raceDate);
+      setDraftDist(planPrefill.distanceKm);
+      setDraftElev(planPrefill.raceElevation || 0);
+      setDraftGoal(""); // blank → GoalConfigurator suggests a realistic goal
+      setEdit(true);
+    }
+  }
+
   const genPlan = opts => {
     const o    = opts || {};
     const ps   = o.planSessions || draft;
@@ -62,10 +81,21 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     const dist = o.distanceKm   || settings.distanceKm || 20;
     // 0 is a valid climb, so coalesce on nullish rather than falsy.
     const elev = o.raceElevation ?? settings.raceElevation ?? 0;
-    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: elev});
+    // Keep the catalogue link only when building the promoted race unchanged;
+    // any hand-edit of the date/distance decouples it from the target edition.
+    const sameAsPrefill = planPrefill && date === planPrefill.raceDate && Number(dist) === Number(planPrefill.distanceKm);
+    const sameAsTarget  = date === settings.raceDate && Number(dist) === Number(settings.distanceKm);
+    const targetEditionId = sameAsPrefill ? planPrefill.editionId : (sameAsTarget ? (settings.targetEditionId ?? null) : null);
+    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: elev, targetEditionId});
     savePlan(buildPlan(date, goal, ps, dist, elev));
     setEdit(false); setConfirmRegen(false);
+    clearPlanPrefill?.();
   };
+
+  // Arriving from "Set as target": the setup is pre-filled for a chosen race and
+  // we focus the screen on building it.
+  const promoting = !!planPrefill;
+  const cancelPromote = () => { clearPlanPrefill?.(); setEdit(false); };
 
   if (!plan) return (
     <div className="p-4 max-w-lg mx-auto">
@@ -73,29 +103,30 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         <h2 className="text-xl font-bold">Training Plan</h2>
         <PlanInfo/>
       </div>
+      {promoting && <PromoteBanner prefill={planPrefill} onCancel={cancelPromote}/>}
       <div className="bg-slate-800 rounded-2xl p-5 space-y-5">
-        <p className="text-slate-400 text-sm">Configure your goal and available training days.</p>
+        <p className="text-slate-400 text-sm">{promoting ? "Set your goal time, then build your plan." : "Configure your goal and available training days."}</p>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
-          <input type="date" value={settings.raceDate || ""}
-            onChange={e => saveSettings({...settings, raceDate: e.target.value})}
+          <input type="date" value={draftDate || ""}
+            onChange={e => setDraftDate(e.target.value)}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-          <input type="number" min="1" max="200" step="0.1" value={settings.distanceKm || ""} placeholder="e.g. 21.1"
-            onChange={e => { const n = parseFloat(e.target.value); saveSettings({...settings, distanceKm: isNaN(n) ? "" : n}); }}
+          <input type="number" min="1" max="200" step="0.1" value={draftDist} placeholder="e.g. 21.1"
+            onChange={e => { const n = parseFloat(e.target.value); setDraftDist(isNaN(n) ? "" : n); }}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
-          <input type="number" min="0" max="10000" step="10" value={settings.raceElevation ?? ""} placeholder="0"
-            onChange={e => { const v = e.target.value; saveSettings({...settings, raceElevation: v === "" ? "" : Math.max(0, parseInt(v) || 0)}); }}
+          <input type="number" min="0" max="10000" step="10" value={draftElev} placeholder="0"
+            onChange={e => { const v = e.target.value; setDraftElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); }}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
           <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
         </div>
-        <GoalConfigurator distanceKm={settings.distanceKm} goalSec={settings.goalSec}
-          onChange={g => saveSettings({...settings, goalSec: g})}/>
+        <GoalConfigurator distanceKm={draftDist} goalSec={draftGoal}
+          onChange={setDraftGoal}/>
         <div>
           <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
@@ -107,10 +138,10 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
             <span>Add your HR profile in Settings to unlock heart rate targets on every session.</span>
           </button>
         )}
-        <button onClick={() => genPlan({planSessions: draft})}
-          disabled={!settings.raceDate || !settings.distanceKm}
+        <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
+          disabled={!draftDate || !draftDist}
           className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-3.5 rounded-xl font-semibold transition-colors">
-          Generate My Training Plan
+          {promoting ? "Build my plan" : "Generate My Training Plan"}
         </button>
       </div>
     </div>
@@ -147,28 +178,33 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           <h2 className="text-xl font-bold">Training Plan</h2>
           <PlanInfo/>
         </div>
-        <div className="flex gap-1 items-center">
-          {confirmRegen ? (
-            <div className="flex gap-1">
-              <button onClick={() => setConfirmRegen(false)}
-                className="px-2 py-1.5 text-slate-400 hover:text-white text-xs rounded-lg hover:bg-slate-700 transition-colors">
-                Cancel
+        {!promoting && (
+          <div className="flex gap-1 items-center">
+            {confirmRegen ? (
+              <div className="flex gap-1">
+                <button onClick={() => setConfirmRegen(false)}
+                  className="px-2 py-1.5 text-slate-400 hover:text-white text-xs rounded-lg hover:bg-slate-700 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={() => genPlan()}
+                  className="px-2 py-1.5 text-red-400 hover:text-white text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-colors">
+                  Reset ✓
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmRegen(true)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                title="Regenerate plan">
+                <RotateCcw size={16}/>
               </button>
-              <button onClick={() => genPlan()}
-                className="px-2 py-1.5 text-red-400 hover:text-white text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-colors">
-                Reset ✓
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setConfirmRegen(true)}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-              title="Regenerate plan">
-              <RotateCcw size={16}/>
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {promoting && <PromoteBanner prefill={planPrefill} onCancel={cancelPromote}/>}
+
+      {!promoting && (<>
       <div className="bg-slate-800 rounded-xl p-4 mb-3">
         <div className="flex justify-between text-sm mb-2">
           <span className="text-slate-400">{done + " / " + all.length + " sessions"}</span>
@@ -216,8 +252,9 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         </span>
         <span className="text-orange-400 font-semibold ml-2 flex-shrink-0">{editSessions ? "Close" : "Edit plan"}</span>
       </button>
+      </>)}
 
-      {editSessions && (
+      {(editSessions || promoting) && (
         <div className="bg-slate-800 rounded-xl p-4 mb-3 border border-orange-500/30 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -247,13 +284,15 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
           <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
             disabled={!draftDate || !draftDist}
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-            Regenerate plan
+            {promoting ? "Build my plan" : "Regenerate plan"}
           </button>
-          <p className="text-xs text-slate-500 text-center">Regenerating rebuilds the schedule — completed sessions will reset.</p>
+          <p className="text-xs text-slate-500 text-center">
+            {promoting ? "Builds a fresh plan for this race — any existing plan is replaced." : "Regenerating rebuilds the schedule — completed sessions will reset."}
+          </p>
         </div>
       )}
 
-      <div className="space-y-2">
+      {!promoting && <div className="space-y-2">
         {plan.weeks.map((wk, i) => {
           const wS = new Date(wk.startDate + "T00:00:00");
           const wE = new Date(wS); wE.setDate(wS.getDate() + 7);
@@ -328,7 +367,24 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
             </div>
           );
         })}
-      </div>
+      </div>}
+    </div>
+  );
+}
+
+// Focused header shown when arriving from "Set as target": names the race so it's
+// clear what the setup below is building, with a way out.
+function PromoteBanner({ prefill, onCancel }) {
+  return (
+    <div className="rounded-2xl p-4 mb-4 border border-orange-500/40"
+      style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
+      <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">New training target</p>
+      <p className="font-semibold">{prefill.label || "Your race"}</p>
+      <p className="text-slate-400 text-sm mt-0.5">
+        {fmt.date(prefill.raceDate) + " · " + prefill.distanceKm + " km" + (prefill.raceElevation ? " · +" + prefill.raceElevation + "m" : "")}
+      </p>
+      <p className="text-slate-300 text-sm mt-2">Set your goal time below, then build your plan.</p>
+      <button onClick={onCancel} className="text-xs text-slate-400 hover:text-slate-200 mt-2 transition-colors">Cancel</button>
     </div>
   );
 }

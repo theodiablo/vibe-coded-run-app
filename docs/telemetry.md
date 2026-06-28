@@ -74,8 +74,10 @@ an explicit var.
 - `ErrorBoundary` around `<App/>` — `src/main.jsx` / `src/components/ErrorBoundary.jsx`.
 - First-run opt-in `ConsentBanner` + `identifyUser` / `resetUser` on auth —
   `src/App.jsx`.
-- Events (`onboarding_completed`, `run_logged`, `plan_generated`) —
-  `src/RunningCoach.jsx`.
+- Events (`onboarding_completed`, `run_logged`, `plan_generated`,
+  `race_target_set`, `race_completed` `{source:"manual"|"auto"}`) —
+  `src/RunningCoach.jsx`. All anonymous: counts/enums only, never race
+  names/notes/times. (Reserved for Phase 2: `race_contributed`, `discover_opened`.)
 - Settings → Privacy toggle (reads/writes consent directly) —
   `src/modals/SettingsModal.jsx`.
 

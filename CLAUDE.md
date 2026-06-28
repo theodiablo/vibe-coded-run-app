@@ -113,6 +113,39 @@ and delete anything that becomes stale.
   `src/supabase.js`, completed in `App.jsx`). Build: `npx cap sync android` then
   `.github/workflows/android.yml`; the web S3/CloudFront deploy stays untouched.
 
+## Races & badges (gamification)
+- **Catalogue (Race → Edition):** a "race" is the recurring event, an "edition" a
+  dated running of it (the thing you wishlist / target / complete). Phase 1 ships
+  a **read-only bundled seed** (`src/data/races.js`, ~global majors + ES/FR/UK)
+  with stable slug ids; edition id = `slug-YYYY-MM-DD`. Phase 2 (not built) moves
+  this to **shared Supabase tables** with a `src/races.js` module behind the same
+  shape — keep catalogue lookups going through `src/utils/races.js` (`allEditions`,
+  `findEdition`) so that swap is local.
+- **Personal layer lives in the blob**, key `STORAGE_KEYS.RACES` (`rc_races`), NOT
+  in the catalogue: `{participations:[...], seenBadges:[...]}`. A participation
+  snapshots `label/raceDate/distanceKm` alongside the `editionId` so a wishlist
+  entry survives if the catalogue edition disappears (orphan tolerance). It's in
+  the synced blob, so it's covered by backup/restore (add to both when extending).
+- **One training target:** `settings.targetEditionId` marks which edition the plan
+  was built from. Promote via `promoteEdition` (`RunningCoach.jsx`) → prefills
+  PlanView's setup; the plan is built there (reusing `buildPlan`), which sets
+  `targetEditionId`. Hand-editing the race in PlanView **clears** it (decouple).
+- **Two ways to complete:** manual "log result" (RacesView, optionally also adds a
+  RACE run via `addRuns(..., {skipDetect:true})`), or **auto-detect** — a saved run
+  on `settings.raceDate` within ±18% of the target distance triggers an undoable
+  "mark done" toast (`detectRaceCompletion` + `detectCompletion` in
+  `RunningCoach.jsx`).
+- **Badges are pure & derived** (`computeBadges(runs, participations)` in
+  `src/utils/badges.js`) — never stored except `seenBadges`. Reconcile in event
+  handlers, NOT an effect (the `react-hooks` rule forbids sync setState in
+  effects): `reconcileBadges` seeds `seenBadges` silently on first run, then toasts
+  only new unlocks. Icons are lucide *names* mapped in `Badge.jsx` to keep
+  `badges.js` React-free/testable. Tone is gentle: cumulative active-weeks (not
+  fragile streaks) and WALK counts.
+- **Nav:** Record is a center **FAB** (it's an action, not a destination); the four
+  row tabs are Home · Plan · Races · Progress. **Progress** (`ProgressView.jsx`)
+  merges the old History + Stats under a toggle and adds Badges.
+
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
   plus, for GPS-tracked runs, `{source:"gps", routeId}` (the `run_routes` ref).
