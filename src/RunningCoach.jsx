@@ -28,6 +28,7 @@ export default function RunningCoach({ onSignOut }) {
   const [settings,    setSettings]    = useState({
     raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
     age:0, maxHR:0, restHR:60, onboarded:false, onboardStep:0,
+    healthAck:null,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState(null);
