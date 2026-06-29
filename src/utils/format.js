@@ -39,6 +39,15 @@ export const parseDur = str => {
 // the Sunday before), so we read the date parts in local time instead.
 export const ymd = d => d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
 
+// A YYYY-MM-DD date `n` weeks from `from` (default today, local). Used to
+// synthesize a target date for the no-race "get fit" onboarding branch so
+// buildPlan has a timeline to size the plan against.
+export const addWeeks = (n, from = new Date()) => {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  d.setDate(d.getDate() + n * 7);
+  return ymd(d);
+};
+
 // Estimated session duration (rounded minutes) for the prescribed distance/pace.
 export const estMin = (km, pace) => (km && pace) ? Math.round(km * pace / 60) + " min" : "";
 

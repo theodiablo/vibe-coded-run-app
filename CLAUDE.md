@@ -179,23 +179,36 @@ and delete anything that becomes stale.
 - Dates are `YYYY-MM-DD` strings; use `ymd()` and the `fmt.*` helpers
   (`src/utils/format.js`) for durations/paces. Parse local dates as
   `new Date(s + "T00:00:00")`.
-- First-run onboarding lives in `src/modals/OnboardingWizard.jsx` (Name → Plan →
-  Heart rate → **Health & safety**). The final Health & safety step is an
-  **unskippable** medical-disclaimer + screening gate: it's the only exit from
-  onboarding (header "Skip" jumps *to* it, never around it), so the user sees the
-  exciting setup first but can't reach the app without acknowledging the
-  disclaimer. Completion routes solely through `onComplete`, which records
-  `settings.healthAck = {v: DISCLAIMER_VERSION, at}` and only builds a plan when
-  race date+distance were set (skipping setup is allowed). The screening answer is
-  GDPR health data — kept in local state only, never persisted. It's gated in
-  `RunningCoach.jsx` by `settings.onboarded` (and legacy `settings.name`); set
-  `onboarded: true` whenever you complete or dismiss a first-run flow so it
-  doesn't re-trigger.
-- Onboarding **persists per-step**: each step saves its entered data plus an
-  `onboardStep` index via `onSaveProgress`, so a mid-flow refresh resumes on the
-  same step. The gate treats a set `onboardStep` (with `!onboarded`) as "in
-  progress, resume" — so don't key first-run detection on `name` alone, and clear
-  the marker (`onboardStep: 0`) on complete/skip.
+- First-run onboarding lives in `src/modals/OnboardingWizard.jsx`. It **branches
+  on `settings.intent`** (`"race"` | `"fitness"`): Welcome → Intent ─┬─ race: Pick
+  race → Goal & days ─┐ └─ fitness: Your training ─┤ → Heart rate → **Health &
+  safety** → Summary. The branch order is the pure `onboardingSteps(intent)`
+  (`src/utils/onboarding.js`, unit-tested); both branches share an identical
+  `[welcome, intent]` prefix and end with the health gate then summary.
+  - **Race branch** uses the catalogue: a search (`searchEditions` in
+    `src/utils/races.js`, upcoming-only) autofills date/distance/elevation and sets
+    `targetEditionId` (same target wiring as `promoteEdition`); an "enter manually"
+    toggle is the fallback and **clears** `targetEditionId` (decouple).
+  - **Fitness branch** synthesizes a race-shaped target on exit — a `distanceKm`
+    pick, a horizon via `addWeeks` (`src/utils/format.js`), and a goal from
+    `suggestedGoalSec` — so `buildPlan` always has a timeline (no empty dashboard).
+    `targetEditionId` stays unset (auto-detect correctly never fires).
+- The **Health & safety** step is the **unskippable** medical-disclaimer +
+  screening gate and the only way into the app (header "Skip" jumps *to* it, never
+  around it). `summary` is an **in-memory-only** celebration *after* the gate;
+  passing the gate advances to it and **`summary`'s "Get started" is the sole
+  caller of `onComplete`**, which records `settings.healthAck = {v:
+  DISCLAIMER_VERSION, at}` and a plan (built in `RunningCoach.jsx` from the merged
+  race fields, incl. `targetEditionId`). The screening answer is GDPR health data —
+  local state only, never persisted. Gated by `settings.onboarded` (+ legacy
+  `settings.name`); set `onboarded: true` on any first-run completion/dismissal.
+- Onboarding **persists per-step** via `onSaveProgress`: each step saves its data,
+  the `intent`, and an `onboardStep` index into the active branch sequence —
+  **capped at the health step** (`summary` is never persisted), so a refresh on the
+  summary resumes at the gate and `healthAck` is always captured fresh. A set
+  `onboardStep` (with `!onboarded`) means "in progress, resume" — don't key
+  first-run detection on `name` alone. Clear the scaffolding (`onboardStep: 0`,
+  `intent: null`) on complete/skip so it doesn't linger in the synced blob.
 - `LogView` accepts a `prefill` prop and an `onSaved` callback (fires only on a
   real manual save, not CSV import/cancel) — used to log a run straight from a
   plan session and auto-tick it.

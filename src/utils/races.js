@@ -21,6 +21,19 @@ export function findRace(raceId) {
   return CURATED_RACES.find(r => r.id === raceId) || null;
 }
 
+// Free-text search over joined editions for the onboarding race picker. Matches
+// the race name / city / country, and by default hides editions whose date has
+// already passed (a stale past date would build a degenerate plan). `today` is a
+// YYYY-MM-DD string; pass it from the caller so the function stays pure.
+export function searchEditions(query, today, { upcomingOnly = true } = {}) {
+  const q = (query || "").trim().toLowerCase();
+  return CURATED_EDITIONS.filter(e => {
+    if (upcomingOnly && today && e.edition.date < today) return false;
+    if (!q) return true;
+    return (e.name + " " + e.city + " " + e.country).toLowerCase().includes(q);
+  });
+}
+
 // A human label for a participation/edition, e.g. "Behobia-San Sebastián 2026".
 export function editionLabel(race, edition) {
   const year = (edition?.date || "").slice(0, 4);
