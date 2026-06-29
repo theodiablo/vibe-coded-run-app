@@ -180,9 +180,17 @@ and delete anything that becomes stale.
   (`src/utils/format.js`) for durations/paces. Parse local dates as
   `new Date(s + "T00:00:00")`.
 - First-run onboarding lives in `src/modals/OnboardingWizard.jsx` (Name → Plan →
-  Heart rate). It's gated in `RunningCoach.jsx` by `settings.onboarded` (and legacy
-  `settings.name`); set `onboarded: true` whenever you complete or dismiss a
-  first-run flow so it doesn't re-trigger.
+  Heart rate → **Health & safety**). The final Health & safety step is an
+  **unskippable** medical-disclaimer + screening gate: it's the only exit from
+  onboarding (header "Skip" jumps *to* it, never around it), so the user sees the
+  exciting setup first but can't reach the app without acknowledging the
+  disclaimer. Completion routes solely through `onComplete`, which records
+  `settings.healthAck = {v: DISCLAIMER_VERSION, at}` and only builds a plan when
+  race date+distance were set (skipping setup is allowed). The screening answer is
+  GDPR health data — kept in local state only, never persisted. It's gated in
+  `RunningCoach.jsx` by `settings.onboarded` (and legacy `settings.name`); set
+  `onboarded: true` whenever you complete or dismiss a first-run flow so it
+  doesn't re-trigger.
 - Onboarding **persists per-step**: each step saves its entered data plus an
   `onboardStep` index via `onSaveProgress`, so a mid-flow refresh resumes on the
   same step. The gate treats a set `onboardStep` (with `!onboarded`) as "in
