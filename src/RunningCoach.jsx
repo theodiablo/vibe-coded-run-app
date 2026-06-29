@@ -267,16 +267,15 @@ export default function RunningCoach({ onSignOut }) {
       {toast       && <Toast {...toast}/>}
       {onboarding  && <OnboardingWizard settings={settings}
         onSaveProgress={(partial, step) => saveSettings({...settings, ...partial, onboardStep: step})}
-        onComplete={({name, plan, hr}) => {
-          const next = {...settings, name, onboarded: true, onboardStep: 0, ...plan, ...(hr || {})};
+        onComplete={({name, plan, hr, healthAck}) => {
+          const next = {...settings, name, onboarded: true, onboardStep: 0, healthAck, ...plan, ...(hr || {})};
           saveSettings(next);
-          savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation));
+          // Only build a plan if the race was actually set up (the user may have
+          // skipped straight to the health gate) — buildPlan needs date+distance.
+          if (next.raceDate && next.distanceKm)
+            savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation));
           setOnboarding(false);
           track("onboarding_completed");
-        }}
-        onSkip={({name}) => {
-          saveSettings({...settings, onboarded: true, onboardStep: 0, ...(name ? {name} : {})});
-          setOnboarding(false);
         }}/>}
       {showTracker && <LiveRunTracker showToast={showToast}
         onFinish={prefill => { setShowTracker(false); goLog(prefill); }}
