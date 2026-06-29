@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
-import { INPUT_CLS, PRIVACY_URL } from "../constants";
+import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL } from "../constants";
 import { HRZones } from "../views/HRZones";
 import { isNative } from "../native";
 import { getConsent, setConsent } from "../telemetry";
@@ -74,10 +74,17 @@ export function SettingsModal({settings, saveSettings, onBackup, onRestore, onSi
                 report is sent.
               </p>
             )}
-            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
-              className="inline-block text-xs text-orange-400 hover:text-orange-300">
-              Privacy policy
-            </a>
+            <div className="flex items-center gap-2 text-xs">
+              <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
+                className="text-orange-400 hover:text-orange-300">
+                Privacy policy
+              </a>
+              <span className="text-slate-600">·</span>
+              <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer"
+                className="text-orange-400 hover:text-orange-300">
+                Health &amp; safety disclaimer
+              </a>
+            </div>
           </div>
 
           {/* Backup & restore */}
