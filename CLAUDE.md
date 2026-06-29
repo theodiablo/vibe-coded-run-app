@@ -191,6 +191,11 @@ and delete anything that becomes stale.
 - `LogView` accepts a `prefill` prop and an `onSaved` callback (fires only on a
   real manual save, not CSV import/cancel) — used to log a run straight from a
   plan session and auto-tick it.
+- **Settings fields auto-save** — the name and heart-rate inputs in
+  `SettingsModal.jsx` / `HRZones.jsx` commit on blur/Enter via `saveSettings`
+  (no Save buttons), following the commit-on-blur pattern in `GoalConfigurator`.
+  Keep number fields as local string state and coalesce in the `commit` handler,
+  not in `onChange`.
 
 ## Git / PR workflow
 - Do not open or merge PRs unless explicitly asked.

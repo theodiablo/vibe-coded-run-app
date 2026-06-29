@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
+import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
 import { INPUT_CLS, PRIVACY_URL } from "../constants";
 import { HRZones } from "../views/HRZones";
 import { isNative } from "../native";
@@ -9,14 +9,11 @@ import { getConsent, setConsent } from "../telemetry";
 // less-frequently-used data actions (Backup / Restore) tucked away here so
 // they don't clutter the header.
 export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore, onSignOut, onDeleteAccount, onClose, showToast}) {
-  const [name,  setName]  = useState(settings.name || "");
-  const [saved, setSaved] = useState(false);
-  const saveName = () => {
+  const [name, setName] = useState(settings.name || "");
+  // Auto-save on blur/Enter — no Save button (matches the HR fields below).
+  const commitName = () => {
     const n = name.trim();
-    saveSettings({...settings, name: n});
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    if (showToast) showToast(n ? "Name updated." : "Name cleared.");
+    if (n !== (settings.name || "")) saveSettings({...settings, name: n});
   };
 
   // Telemetry consent (opt-in). The source of truth is the telemetry module's
@@ -45,17 +42,13 @@ export function SettingsModal({settings, saveSettings, runs, onBackup, onRestore
             <div>
               <label className="text-xs text-slate-400 block mb-1.5">Your name</label>
               <input type="text" maxLength={40} value={name} placeholder="Your name"
-                onChange={e => setName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") saveName(); }} className={INPUT_CLS}/>
+                onChange={e => setName(e.target.value)} onBlur={commitName}
+                onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} className={INPUT_CLS}/>
             </div>
-            <button onClick={saveName}
-              className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
-              {saved ? <><Check size={16}/>Saved</> : "Save name"}
-            </button>
           </div>
 
           {/* Heart rate */}
-          <HRZones settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}/>
+          <HRZones settings={settings} saveSettings={saveSettings} runs={runs}/>
 
           {/* Data */}
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">

@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { Check, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { INPUT_CLS } from "../constants";
 import { fmt } from "../utils/format";
 import { HR_ZONES, hrZoneBpm } from "../utils/hr";
 
-export function HRZones({settings, saveSettings, runs, showToast}) {
+export function HRZones({settings, saveSettings, runs}) {
   const [age,    setAge]    = useState(String(settings.age || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));
   const [maxHRHint, setMaxHRHint] = useState("");
-  const [saved,  setSaved]  = useState(false);
 
   const ageN  = parseInt(age)    || 0;
   const mhrN  = parseInt(maxHR)  || 0;
@@ -21,11 +20,18 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
 
   const getZone = z => hrZoneBpm(z.lo, z.hi, effMax, rhrN);
 
+  // Settings fields auto-save on blur (no Save button) — commit reads the
+  // coalesced numbers; estimateHR persists explicitly since setState is async.
+  const commit = () => {
+    saveSettings({...settings, age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN});
+  };
+
   const estimateHR = () => {
     if (!tanakaMax) { setMaxHRHint("Enter your age above to estimate it."); return; }
     setMaxHR(String(tanakaMax));
     setRestHR("60");
     setMaxHRHint("Estimated from age (Tanaka, 208 − 0.7×age): " + tanakaMax + " bpm max HR, with a typical 60 bpm resting HR.");
+    saveSettings({...settings, age:ageN, maxHR:tanakaMax, restHR:60});
   };
 
   const getRunZone = hr => {
@@ -38,12 +44,6 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
     return idx >= 0 ? idx + 1 : null;
   };
 
-  const save   = () => {
-    saveSettings({...settings, age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN});
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    if (showToast) showToast(ready ? "Profile saved — HR zones updated." : "Profile saved.");
-  };
   const hrRuns = runs.filter(r => r.hr).slice(0, 6);
 
   return (
@@ -52,11 +52,11 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
         <p className="text-sm font-semibold text-slate-200">Heart Rate</p>
         <div className="grid grid-cols-3 gap-3">
           <div><label className="text-xs text-slate-400 block mb-1.5">Age</label>
-            <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} className={INPUT_CLS}/></div>
+            <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} onBlur={commit} className={INPUT_CLS}/></div>
           <div><label className="text-xs text-slate-400 block mb-1.5">Max HR</label>
-            <input type="number" min="100" max="230" placeholder="auto" value={maxHR} onChange={e => setMaxHR(e.target.value)} className={INPUT_CLS}/></div>
+            <input type="number" min="100" max="230" placeholder="auto" value={maxHR} onChange={e => setMaxHR(e.target.value)} onBlur={commit} className={INPUT_CLS}/></div>
           <div><label className="text-xs text-slate-400 block mb-1.5">Rest HR</label>
-            <input type="number" min="30" max="120" placeholder="60" value={restHR} onChange={e => setRestHR(e.target.value)} className={INPUT_CLS}/></div>
+            <input type="number" min="30" max="120" placeholder="60" value={restHR} onChange={e => setRestHR(e.target.value)} onBlur={commit} className={INPUT_CLS}/></div>
         </div>
 
         <div>
@@ -68,11 +68,6 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
           )}
           {maxHRHint && <p className="text-xs text-slate-500 mt-1.5">{maxHRHint}</p>}
         </div>
-
-        <button onClick={save}
-          className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
-          {saved ? <><Check size={16}/>Saved</> : "Save heart rate"}
-        </button>
       </div>
 
       {ready ? (
