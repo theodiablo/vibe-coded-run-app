@@ -3,7 +3,7 @@ import { MapPin, Check, Plus, AlertTriangle, Loader } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
 import { geoSource } from "../geo/source";
-import { notifyContribution } from "../races";
+import { notifyContribution, deleteRace } from "../races";
 
 // "Add a race" — contributes to the SHARED catalogue (instant + global). New
 // entries are always unverified; the UI tags them so. Includes a live duplicate
@@ -49,6 +49,9 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
     if (!selected && !f.name.trim()) { setErr("A race name is required."); return; }
     const elevation = f.elevation ? parseInt(f.elevation) : 0;
     setBusy(true);
+    // Track a race we create here so we can roll it back if the follow-up
+    // addEdition fails — otherwise a childless race lingers in the catalogue.
+    let createdRaceSlug = null;
     try {
       let raceSlug, name;
       if (selected) {
@@ -63,6 +66,7 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
           lat: loc?.lat ?? null, lng: loc?.lng ?? null, distances: [dist], url: f.url.trim() || null,
         });
         raceSlug = race.slug;
+        createdRaceSlug = race.slug;
         await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
         track("race_contributed", { kind: "race" });
         notifyContribution({ type: "race", raceSlug, name, city: f.city.trim() || null, country: f.country.trim().toUpperCase() || null, url: f.url.trim() || null, date: f.date, distanceKm: dist });
@@ -72,6 +76,9 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
       onClose();
     } catch (e) {
       console.error("add race failed", e);
+      // Roll back a just-created race whose edition didn't land, so we don't
+      // leave an orphan in the shared catalogue. Best-effort — already failing.
+      if (createdRaceSlug) deleteRace(createdRaceSlug).catch(() => {});
       setErr("Couldn't save that race. Please try again.");
       setBusy(false);
     }

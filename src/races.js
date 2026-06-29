@@ -81,6 +81,14 @@ export async function addRace({ name, city, country, lat, lng, distances, url })
   throw lastErr || new Error("Could not add race");
 }
 
+// Best-effort rollback: delete a race we just created (RLS allows deleting only
+// your own rows). Used when the follow-up addEdition fails, so a childless race
+// never lingers in the shared catalogue. on-delete-cascade clears any editions.
+export async function deleteRace(slug) {
+  const { error } = await supabase.from("races").delete().eq("slug", slug);
+  if (error) throw error;
+}
+
 // Add an edition (dated running) to an existing race. id is `slug-date`; if that
 // is already taken (same race + date, different distance) the distance is
 // appended so the unique(race_slug,date,distance_km) constraint still holds.

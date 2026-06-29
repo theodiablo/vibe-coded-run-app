@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Activity, Calendar, TrendingUp, Plus, Loader, Trophy, Settings } from "lucide-react";
 import { db, currentUserId } from "./db";
 import { STORAGE_KEYS } from "./constants";
@@ -65,6 +65,12 @@ export default function RunningCoach({ onSignOut }) {
   // Personal races layer (wishlist / completed + seen-badge set). seenBadges is
   // null until first-run seeding so we can tell "never computed" from "none".
   const [races,       setRaces]       = useState({ participations: [], seenBadges: null });
+  // Always-fresh mirror of `races` so async callbacks (the boot catalogue load)
+  // merge onto the latest state, not a stale snapshot captured before the user
+  // could touch their races mid-load. Synced in an effect (the catalogue resolves
+  // well after any concurrent change has committed).
+  const racesRef = useRef(races);
+  useEffect(() => { racesRef.current = races; }, [races]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState([]);
@@ -103,8 +109,12 @@ export default function RunningCoach({ onSignOut }) {
       // user for any of their contributions that a maintainer has since verified.
       loadCatalogue().then(cat => {
         setCatalogue(cat);
-        const { next, fresh } = computeVerifiedThanks(cat, loaded, currentUserId());
-        if (next !== loaded) { setRaces(next); db.set(STORAGE_KEYS.RACES, next); }
+        // Merge onto the freshest races (racesRef), NOT the boot snapshot: the
+        // user may have wishlisted/logged during the load, and that change must
+        // not be clobbered by re-persisting a stale object.
+        const cur = racesRef.current;
+        const { next, fresh } = computeVerifiedThanks(cat, cur, currentUserId());
+        if (next !== cur) { setRaces(next); db.set(STORAGE_KEYS.RACES, next); }
         if (fresh.length) {
           setToast({ type: "ok", msg: fresh.length === 1
             ? "Your race contribution was verified — thanks! 🎉"
