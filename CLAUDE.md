@@ -191,6 +191,20 @@ and delete anything that becomes stale.
 - `LogView` accepts a `prefill` prop and an `onSaved` callback (fires only on a
   real manual save, not CSV import/cancel) — used to log a run straight from a
   plan session and auto-tick it.
+- **Settings fields auto-save** — the name and heart-rate inputs in
+  `SettingsModal.jsx` / `HRZones.jsx` commit on blur/Enter via `saveSettings`
+  (no Save buttons), following the commit-on-blur pattern in `GoalConfigurator`.
+  Keep number fields as local string state and coalesce in the `commit` handler,
+  not in `onChange`.
+- **Settings = configure, not analyse.** `SettingsModal` sections, in order:
+  **Profile** (name + the `HRZones` HR editor, all "about you"), **Privacy**,
+  **Backup & restore**, then **Account** (destructive actions last). `HRZones`
+  is the lean *editor* (inputs + "I don't know my heart rate" helper + a compact
+  `HRZoneBar` preview) and renders **without its own card** so it nests in the
+  Profile card. The full zones reference (table + Karvonen explainer + recent-run
+  zone analysis) lives in **Progress → Stats** as `HRZonesCard`. `HRZoneBar`
+  (the slim colour bar) is shared by both so they don't drift; HR-to-zone
+  classification is the pure `runZoneIndex` in `src/utils/hr.js`.
 
 ## Git / PR workflow
 - Do not open or merge PRs unless explicitly asked.

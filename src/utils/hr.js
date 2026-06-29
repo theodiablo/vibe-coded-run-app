@@ -20,16 +20,26 @@ export const SESSION_ZONES = {
   WALK:      {zones:[1],   label:"Z1 · Recovery",            clr:"#60a5fa"},
 };
 
-// Compute the bpm range for a zone using either % of MaxHR or the Karvonen
-// (heart-rate reserve) method.
-export function hrZoneBpm(loPct, hiPct, maxHR, restHR, method) {
+// Compute the bpm range for a zone using the Karvonen (heart-rate reserve)
+// method — it accounts for resting HR, so it's more accurate than plain % of
+// MaxHR.
+export function hrZoneBpm(loPct, hiPct, maxHR, restHR) {
   if (!maxHR) return null;
-  if (method === "pct") {
-    return {lo: Math.round(maxHR * loPct), hi: Math.round(maxHR * hiPct)};
-  }
   const hrr = maxHR - restHR;
   if (hrr <= 0) return null;
   return {lo: Math.round(hrr * loPct + restHR), hi: Math.round(hrr * hiPct + restHR)};
+}
+
+// Classify an average HR into its zone number (1..5) for the given profile,
+// or null if it can't be computed. Last zone is open-ended at the top.
+export function runZoneIndex(hr, maxHR, restHR) {
+  if (!hr || !maxHR) return null;
+  const idx = HR_ZONES.findIndex((z, i) => {
+    const r = hrZoneBpm(z.lo, z.hi, maxHR, restHR);
+    if (!r) return false;
+    return i === HR_ZONES.length - 1 ? hr >= r.lo : hr >= r.lo && hr < r.hi;
+  });
+  return idx >= 0 ? idx + 1 : null;
 }
 
 // Resolve a session type's target bpm range from settings.
@@ -37,7 +47,7 @@ export function sessionHR(type, settings) {
   const cfg    = SESSION_ZONES[type] || SESSION_ZONES.EASY;
   const loZone = HR_ZONES[cfg.zones[0] - 1];
   const hiZone = HR_ZONES[cfg.zones[cfg.zones.length - 1] - 1];
-  const r = hrZoneBpm(loZone.lo, hiZone.hi, settings.maxHR || 0, settings.restHR || 60, settings.hrMethod || "karvonen");
+  const r = hrZoneBpm(loZone.lo, hiZone.hi, settings.maxHR || 0, settings.restHR || 60);
   if (!r) return null;
   return {lo:r.lo, hi:r.hi, label:cfg.label, clr:cfg.clr};
 }
