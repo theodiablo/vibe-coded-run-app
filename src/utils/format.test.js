@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { p2, fmt, ymd, estMin, cleanDesc, parseDur } from "./format";
+import { p2, fmt, ymd, addWeeks, estMin, cleanDesc, parseDur } from "./format";
 
 describe("p2", () => {
   it("zero-pads single digits", () => {
@@ -80,6 +80,17 @@ describe("ymd", () => {
     // Construct via local Date parts; ymd must echo them back regardless of TZ.
     const d = new Date(2026, 0, 5, 0, 0, 0); // 5 Jan 2026, local midnight
     expect(ymd(d)).toBe("2026-01-05");
+  });
+});
+
+describe("addWeeks", () => {
+  it("adds whole weeks from a fixed date", () => {
+    const from = new Date(2026, 0, 5); // Mon 5 Jan 2026
+    expect(addWeeks(12, from)).toBe("2026-03-30");
+    expect(addWeeks(0, from)).toBe("2026-01-05");
+  });
+  it("crosses month/year boundaries", () => {
+    expect(addWeeks(4, new Date(2026, 11, 21))).toBe("2027-01-18");
   });
 });
 

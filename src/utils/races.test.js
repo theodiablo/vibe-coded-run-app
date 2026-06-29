@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectRaceCompletion, bestTimesByDistance, isPersonalBest, findEdition } from "./races";
+import { detectRaceCompletion, bestTimesByDistance, isPersonalBest, findEdition, searchEditions } from "./races";
 
 const target = { targetEditionId: "behobia-san-sebastian-2026", raceDate: "2026-11-08", distanceKm: 20 };
 
@@ -54,5 +54,33 @@ describe("findEdition", () => {
   it("returns null for an unknown / orphaned id", () => {
     expect(findEdition("nope-2099")).toBeNull();
     expect(findEdition(null)).toBeNull();
+  });
+});
+
+describe("searchEditions", () => {
+  const past = "1900-01-01";   // keep every curated edition in range
+  const future = "2999-01-01"; // exclude every curated edition
+  it("matches on race name (case-insensitive)", () => {
+    const hits = searchEditions("berlin", past);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.every(e => e.name.toLowerCase().includes("berlin"))).toBe(true);
+  });
+  it("matches on city", () => {
+    expect(searchEditions("paris", past).length).toBeGreaterThan(0);
+  });
+  it("returns joined editions usable as a promote target", () => {
+    const [e] = searchEditions("berlin", past);
+    expect(e.raceId).toBeTruthy();
+    expect(e.edition.date).toBeTruthy();
+    expect(e.edition.distanceKm).toBeGreaterThan(0);
+  });
+  it("hides past editions by default", () => {
+    expect(searchEditions("", future)).toHaveLength(0);
+  });
+  it("includes past editions when upcomingOnly is false", () => {
+    expect(searchEditions("", future, { upcomingOnly: false }).length).toBeGreaterThan(0);
+  });
+  it("returns all upcoming editions for an empty query", () => {
+    expect(searchEditions("", past).length).toBeGreaterThan(1);
   });
 });

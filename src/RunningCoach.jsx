@@ -27,7 +27,7 @@ export default function RunningCoach({ onSignOut }) {
   const [plan,        setPlan]        = useState(null);
   const [settings,    setSettings]    = useState({
     raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
-    age:0, maxHR:0, restHR:60, onboarded:false, onboardStep:0,
+    age:0, maxHR:0, restHR:60, onboarded:false, onboardStep:0, intent:null,
     healthAck:null,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
@@ -268,7 +268,10 @@ export default function RunningCoach({ onSignOut }) {
       {onboarding  && <OnboardingWizard settings={settings}
         onSaveProgress={(partial, step) => saveSettings({...settings, ...partial, onboardStep: step})}
         onComplete={({name, plan, hr, healthAck}) => {
-          const next = {...settings, name, onboarded: true, onboardStep: 0, healthAck, ...plan, ...(hr || {})};
+          // `plan` carries the race-shaped fields incl. targetEditionId (set when
+          // a catalogue edition was picked, null otherwise). Clear the onboarding
+          // scaffolding (onboardStep/intent) so it doesn't linger in the blob.
+          const next = {...settings, name, onboarded: true, onboardStep: 0, intent: null, healthAck, ...plan, ...(hr || {})};
           saveSettings(next);
           // Only build a plan if the race was actually set up (the user may have
           // skipped straight to the health gate) — buildPlan needs date+distance.
