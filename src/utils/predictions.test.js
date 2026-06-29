@@ -52,7 +52,7 @@ describe("bestEffortAnchor", () => {
 
 describe("hrModelAnchor", () => {
   it("returns null without an effective max HR", () => {
-    expect(hrModelAnchor([], 0, 60, "pct")).toBeNull();
+    expect(hrModelAnchor([], 0, 60)).toBeNull();
   });
 
   it("fits pace against HR and projects to threshold effort", () => {
@@ -63,11 +63,11 @@ describe("hrModelAnchor", () => {
       {km: 10, durationSec: 3400, hr: 150},
       {km: 10, durationSec: 3300, hr: 160},
     ];
-    const r = hrModelAnchor(runs, 190, 60, "pct");
+    const r = hrModelAnchor(runs, 190, 60);
     expect(r.n).toBe(4);
     expect(r.durationSec).toBe(3600);
     expect(r.spread).toBe(30);
-    expect(r.thrHR).toBe(167); // round(190 * 0.88)
+    expect(r.thrHR).toBe(174); // Karvonen: round((190 - 60) * 0.88 + 60)
     expect(r.slope).toBeCloseTo(-1, 6);
     expect(r.km).toBeGreaterThan(0);
   });

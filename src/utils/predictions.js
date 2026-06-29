@@ -50,7 +50,7 @@ export const linReg = pts => {
 // {km covered in 3600 s, 3600 s} for Riegel to project from. A fast pace held at
 // a low HR therefore pulls the predicted threshold pace faster ("handled well"),
 // and vice-versa. Returns the anchor plus fit stats so the caller can gate it.
-export const hrModelAnchor = (runs, effMax, restHR, method) => {
+export const hrModelAnchor = (runs, effMax, restHR) => {
   if (!effMax) return null;
   // y is grade-adjusted pace: a hilly run's slow pace at high HR becomes a fast
   // flat-equivalent pace at high HR, consistent with the rest of the data.
@@ -61,7 +61,7 @@ export const hrModelAnchor = (runs, effMax, restHR, method) => {
   if (!fit) return null;
   const hrs = pts.map(p => p.x);
   const spread = Math.max(...hrs) - Math.min(...hrs);
-  const thr = hrZoneBpm(0.88, 0.90, effMax, restHR, method);
+  const thr = hrZoneBpm(0.88, 0.90, effMax, restHR);
   if (!thr) return null;
   const thrPace = fit.a + fit.b * thr.lo;
   if (thrPace <= 0) return null;

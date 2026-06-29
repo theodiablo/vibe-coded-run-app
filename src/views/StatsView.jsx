@@ -189,10 +189,9 @@ function RacePredictions({runs, settings}) {
     || (settings.age ? Math.round(208 - 0.7 * settings.age) : 0)
     || fRuns.reduce((m, r) => Math.max(m, r.hrMax || r.hr || 0), 0);
   const restHR = settings.restHR || 60;
-  const method = settings.hrMethod || "karvonen";
 
   const best = bestEffortAnchor(fRuns);
-  const hr   = hrModelAnchor(fRuns, effMax, restHR, method);
+  const hr   = hrModelAnchor(fRuns, effMax, restHR);
   // Only trust the HR model with a real spread of efforts and a sane fit.
   const hrOk = hr && hr.n >= 8 && hr.spread >= 15 && hr.slope < 0 && hr.r2 >= 0.3;
 

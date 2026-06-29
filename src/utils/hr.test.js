@@ -2,23 +2,20 @@ import { describe, it, expect } from "vitest";
 import { hrZoneBpm, sessionHR, HR_ZONES, SESSION_ZONES } from "./hr";
 
 describe("hrZoneBpm", () => {
-  it("computes percent-of-max ranges", () => {
-    expect(hrZoneBpm(0.5, 0.6, 200, 60, "pct")).toEqual({lo: 100, hi: 120});
-  });
   it("computes Karvonen (heart-rate reserve) ranges", () => {
     // HRR = 200 - 60 = 140; lo = 140*0.5 + 60, hi = 140*0.6 + 60
-    expect(hrZoneBpm(0.5, 0.6, 200, 60, "karvonen")).toEqual({lo: 130, hi: 144});
+    expect(hrZoneBpm(0.5, 0.6, 200, 60)).toEqual({lo: 130, hi: 144});
   });
   it("returns null without a max HR", () => {
-    expect(hrZoneBpm(0.5, 0.6, 0, 60, "karvonen")).toBeNull();
+    expect(hrZoneBpm(0.5, 0.6, 0, 60)).toBeNull();
   });
   it("returns null when heart-rate reserve is non-positive", () => {
-    expect(hrZoneBpm(0.5, 0.6, 60, 60, "karvonen")).toBeNull();
+    expect(hrZoneBpm(0.5, 0.6, 60, 60)).toBeNull();
   });
 });
 
 describe("sessionHR", () => {
-  const settings = {maxHR: 200, restHR: 60, hrMethod: "karvonen"};
+  const settings = {maxHR: 200, restHR: 60};
 
   it("maps EASY to its Z2 range", () => {
     const r = sessionHR("EASY", settings);

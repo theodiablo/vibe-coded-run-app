@@ -8,19 +8,24 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
   const [age,    setAge]    = useState(String(settings.age || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));
-  const [method, setMethod] = useState(settings.hrMethod || "karvonen");
+  const [maxHRHint, setMaxHRHint] = useState("");
   const [saved,  setSaved]  = useState(false);
 
   const ageN  = parseInt(age)    || 0;
   const mhrN  = parseInt(maxHR)  || 0;
   const rhrN  = parseInt(restHR) || 60;
   const tanakaMax  = ageN ? Math.round(208 - 0.7 * ageN) : null;
-  const classicMax = ageN ? 220 - ageN : null;
   const effMax = mhrN || tanakaMax || 0;
   const hrr    = effMax - rhrN;
   const ready  = effMax > 0 && rhrN > 0 && hrr > 0;
 
-  const getZone = z => hrZoneBpm(z.lo, z.hi, effMax, rhrN, method);
+  const getZone = z => hrZoneBpm(z.lo, z.hi, effMax, rhrN);
+
+  const estimateMaxHR = () => {
+    if (!tanakaMax) { setMaxHRHint("Enter your age above to estimate it."); return; }
+    setMaxHR(String(tanakaMax));
+    setMaxHRHint("Estimated from age (Tanaka, 208 − 0.7×age): " + tanakaMax + " bpm.");
+  };
 
   const getRunZone = hr => {
     if (!ready || !hr) return null;
@@ -33,17 +38,12 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
   };
 
   const save   = () => {
-    saveSettings({...settings, age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN, hrMethod:method});
+    saveSettings({...settings, age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN});
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     if (showToast) showToast(ready ? "Profile saved — HR zones updated." : "Profile saved.");
   };
   const hrRuns = runs.filter(r => r.hr).slice(0, 6);
-
-  const methodOpts = [
-    {v:"karvonen", l:"Karvonen (HRR)",  sub:"Uses resting HR — more personalised"},
-    {v:"pct",      l:"% of Max HR",     sub:"Simpler, doesn't need resting HR"},
-  ];
 
   return (
     <div className="space-y-5">
@@ -58,36 +58,14 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
             <input type="number" min="30" max="120" placeholder="60" value={restHR} onChange={e => setRestHR(e.target.value)} className={INPUT_CLS}/></div>
         </div>
 
-        {ageN > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-500">Max HR formulas — tap to apply:</p>
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={() => setMaxHR(String(tanakaMax))}
-                className="text-xs bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 px-3 py-2 rounded-lg transition-colors text-left">
-                <span className="font-semibold">{"Tanaka: " + tanakaMax + " bpm"}</span>
-                <span className="block opacity-70 text-xs">208 - 0.7×age · more accurate</span>
-              </button>
-              <button onClick={() => setMaxHR(String(classicMax))}
-                className="text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 px-3 py-2 rounded-lg transition-colors text-left">
-                <span className="font-semibold">{"Classic: " + classicMax + " bpm"}</span>
-                <span className="block text-slate-500 text-xs">220 - age · simple method</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         <div>
-          <p className="text-xs text-slate-400 mb-2">Zone calculation method:</p>
-          <div className="grid grid-cols-2 gap-2">
-            {methodOpts.map(opt => (
-              <button key={opt.v} onClick={() => setMethod(opt.v)}
-                className={"py-2.5 px-3 rounded-xl border text-left transition-colors " + (method === opt.v ? "bg-orange-500/15 border-orange-500/50 text-orange-300" : "bg-slate-700 border-slate-600 text-slate-400 hover:text-slate-300")}>
-                <p className="text-xs font-semibold">{opt.l}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{opt.sub}</p>
-              </button>
-            ))}
-          </div>
+          <button type="button" onClick={estimateMaxHR}
+            className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
+            I don&apos;t know my max heart rate
+          </button>
+          {maxHRHint && <p className="text-xs text-slate-500 mt-1.5">{maxHRHint}</p>}
         </div>
+
         <button onClick={save}
           className={"w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 " + (saved ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
           {saved ? <><Check size={16}/>Saved</> : "Save heart rate"}
@@ -140,10 +118,8 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
           </div>
 
           <div className="bg-slate-800 rounded-xl p-3 text-xs text-slate-500 leading-relaxed">
-            <span className="text-slate-300 font-medium">{method === "karvonen" ? "Karvonen method: " : "% of Max HR: "}</span>
-            {method === "karvonen"
-              ? "Zone HR = ((MaxHR - RestHR) x intensity%) + RestHR. HRR = " + effMax + " - " + rhrN + " = " + hrr + " bpm. More accurate as it accounts for individual fitness."
-              : "Zone HR = MaxHR x intensity%. Simple and widely used, but doesn't account for resting HR or fitness level."}
+            <span className="text-slate-300 font-medium">Karvonen method: </span>
+            {"Zone HR = ((MaxHR - RestHR) x intensity%) + RestHR. HRR = " + effMax + " - " + rhrN + " = " + hrr + " bpm. Accounts for your resting HR and fitness, so it's more accurate than plain % of Max HR."}
           </div>
 
           {hrRuns.length > 0 && (
