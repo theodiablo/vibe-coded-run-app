@@ -48,22 +48,6 @@ export function SettingsModal({settings, saveSettings, onBackup, onRestore, onSi
             <HRZones settings={settings} saveSettings={saveSettings}/>
           </div>
 
-          {/* Backup & restore */}
-          <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-200">Backup &amp; restore</p>
-            <p className="text-xs text-slate-400">Save a copy of your runs &amp; plan, or reload from a previous backup.</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={onBackup}
-                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
-                <Download size={15}/>Backup
-              </button>
-              <button onClick={onRestore}
-                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
-                <Upload size={15}/>Restore
-              </button>
-            </div>
-          </div>
-
           {/* Privacy */}
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -94,6 +78,22 @@ export function SettingsModal({settings, saveSettings, onBackup, onRestore, onSi
               className="inline-block text-xs text-orange-400 hover:text-orange-300">
               Privacy policy
             </a>
+          </div>
+
+          {/* Backup & restore */}
+          <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+            <p className="text-sm font-semibold text-slate-200">Backup &amp; restore</p>
+            <p className="text-xs text-slate-400">Save a copy of your runs &amp; plan, or reload from a previous backup.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={onBackup}
+                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
+                <Download size={15}/>Backup
+              </button>
+              <button onClick={onRestore}
+                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
+                <Upload size={15}/>Restore
+              </button>
+            </div>
           </div>
 
           {/* Account */}

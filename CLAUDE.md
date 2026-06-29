@@ -197,8 +197,8 @@ and delete anything that becomes stale.
   Keep number fields as local string state and coalesce in the `commit` handler,
   not in `onChange`.
 - **Settings = configure, not analyse.** `SettingsModal` sections, in order:
-  **Profile** (name + the `HRZones` HR editor, all "about you"), **Backup &
-  restore**, **Privacy**, then **Account** (destructive actions last). `HRZones`
+  **Profile** (name + the `HRZones` HR editor, all "about you"), **Privacy**,
+  **Backup & restore**, then **Account** (destructive actions last). `HRZones`
   is the lean *editor* (inputs + "I don't know my heart rate" helper + a compact
   `HRZoneBar` preview) and renders **without its own card** so it nests in the
   Profile card. The full zones reference (table + Karvonen explainer + recent-run
