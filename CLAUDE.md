@@ -68,8 +68,26 @@ and delete anything that becomes stale.
   reusable widgets in `src/components/`, pure helpers in `src/utils/`.
 - `settings` is the central config object (race fields, HR profile, `planSessions`,
   `name`, `onboarded`). The training plan is (re)built by
-  `buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation)`
-  (`src/utils/plan.js`).
+  `buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation, opts)`
+  (`src/utils/plan.js`). The `opts` object is additive (positional call sites keep
+  working): `recentRuns` seeds a **fitness-aware** BASE start (longest run in the
+  last ~5 weeks, clamped to the race-scaled peak) so a fit athlete isn't reset to a
+  tiny long run; `mainEditionId` + `races` drive the **secondary-race overlay**.
+  The long run is scaled to **race distance** (~0.9× for ≤half, ~30-32 km marathon,
+  ≤36 km ceiling for ultras), NOT capped by the long-session minutes — so it can
+  exceed the configured long-day duration; PlanView shows an honest nudge when it
+  does. `plan.longRunPeakKm` exposes the peak for that nudge.
+- **Multi-race plans (no user-facing priority):** the plan peaks/tapers for the
+  **main** race (`settings.targetEditionId`, the "Training target"); other races the
+  user flags with `participation.inPlan` are folded in as RACE sessions (id
+  `race-{editionId}`) by `buildPlan` when before the target and inside the window.
+  A *substantial* secondary race (≥ half the main distance) auto-gets a mini-taper
+  week; a small one just drops in — the user picks nothing (no A/B/C). Toggling a
+  race in/out goes through `setRaceInPlan` (`RunningCoach.jsx`), which rebuilds the
+  plan **preserving done/skipped by session id** (`carryProgress`) so progress isn't
+  wiped. Every RACE session is stamped with its `editionId`; race-day auto-detect
+  (`detectAnyRace` in `src/utils/races.js`) matches a logged run against **all** plan
+  races, not just the target.
 - `raceDate`, `distanceKm`, and `goalSec` start **empty** (`""`) — there are no
   seeded race defaults. Anything reading them before setup must guard (the
   Dashboard race card and Generate buttons gate on `raceDate && distanceKm`),

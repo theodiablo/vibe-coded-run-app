@@ -58,4 +58,140 @@ describe("buildPlan", () => {
     const plan = buildPlan(raceDateInDays(7), 7200, SESSIONS, 20, 0);
     expect(plan.weeks.length).toBeGreaterThanOrEqual(5);
   });
+
+  // ── Phase 1: distance-scaled long run ──────────────────────────────────────
+  // Peak long run is driven by race distance, NOT the session minutes budget.
+  const longKms = plan => plan.weeks.slice(0, -1)
+    .flatMap(w => w.sessions).filter(s => s.type === "LONG").map(s => s.km);
+  const firstLong = plan => {
+    for (const w of plan.weeks.slice(0, -1)) {
+      const l = w.sessions.find(s => s.type === "LONG");
+      if (l) return l.km;
+    }
+    return null;
+  };
+
+  it("scales the peak long run toward race distance, not the 60-min session cap", () => {
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200);
+    // 0.9 * 20 = 18 km — far beyond the old ~9.8 km time-cap from a 60-min long day.
+    expect(plan.longRunPeakKm).toBe(18);
+    expect(Math.max(...longKms(plan))).toBeGreaterThanOrEqual(16);
+  });
+
+  it("targets a marathon long run around 30-32 km", () => {
+    const plan = buildPlan(raceDateInDays(180), 14400, SESSIONS, 42.2, 0);
+    expect(plan.longRunPeakKm).toBe(32);
+    expect(Math.max(...longKms(plan))).toBeGreaterThanOrEqual(28);
+  });
+
+  it("clamps ultra long runs to a sane ceiling (no 150 km long run)", () => {
+    const plan = buildPlan(raceDateInDays(200), 108000, SESSIONS, 171, 10000);
+    expect(plan.longRunPeakKm).toBeLessThanOrEqual(36);
+    expect(Math.max(...longKms(plan))).toBeLessThanOrEqual(36);
+  });
+
+  // ── Phase 1: fitness-aware start ───────────────────────────────────────────
+  it("does not regress a fit athlete's first long run to 4.5 km", () => {
+    const recentRuns = [{date: raceDateInDays(-7), km: 12, type: "LONG"}];
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {recentRuns});
+    // 0.8 * 12 = 9.6 km floor — well above the old 4.5 km BASE start.
+    expect(firstLong(plan)).toBeGreaterThanOrEqual(9);
+  });
+
+  it("never inflates the start above the race-scaled peak (big runs, short race)", () => {
+    const recentRuns = [{date: raceDateInDays(-5), km: 18, type: "LONG"}];
+    const plan = buildPlan(raceDateInDays(120), 2700, SESSIONS, 10, 0, {recentRuns});
+    expect(firstLong(plan)).toBeLessThanOrEqual(plan.longRunPeakKm);
+  });
+
+  it("ignores runs older than the recent window for the fitness floor", () => {
+    const recentRuns = [{date: raceDateInDays(-90), km: 18, type: "LONG"}];
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {recentRuns});
+    expect(firstLong(plan)).toBeLessThanOrEqual(6);
+  });
+
+  // ── Phase 2: secondary-race overlay ────────────────────────────────────────
+  const raceSessions = plan => plan.weeks.flatMap(w => w.sessions).filter(s => s.type === "RACE");
+
+  it("inserts a secondary race as a RACE session without adding weeks", () => {
+    const base = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200);
+    const races = [{editionId: "tuneup-10k", date: raceDateInDays(60), distanceKm: 10, elevation: 90}];
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
+    expect(plan.weeks.length).toBe(base.weeks.length); // no extra weeks / renumber
+    const sec = raceSessions(plan).find(s => s.editionId === "tuneup-10k");
+    expect(sec).toBeTruthy();
+    expect(sec.date).toBe(raceDateInDays(60));
+    expect(sec.km).toBe(10);
+    expect(sec.id).toBe("race-tuneup-10k");
+    expect(sec.pace).toBeLessThan(plan.weeks.at(-1).sessions[0].pace); // 10k faster than 20k pace
+  });
+
+  it("stamps the main race session with mainEditionId", () => {
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {mainEditionId: "main-ed"});
+    const main = plan.weeks.at(-1).sessions[0];
+    expect(main.id).toBe("race");
+    expect(main.editionId).toBe("main-ed");
+  });
+
+  it("leaves the main race editionId null for a hand-entered target", () => {
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200);
+    expect(plan.weeks.at(-1).sessions[0].editionId).toBe(null);
+  });
+
+  it("does not insert a race too close to the main race (taper guard)", () => {
+    const races = [{editionId: "too-late", date: raceDateInDays(137), distanceKm: 10}];
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
+    expect(raceSessions(plan).some(s => s.editionId === "too-late")).toBe(false);
+  });
+
+  it("does not insert a race outside the plan window", () => {
+    const races = [
+      {editionId: "after", date: raceDateInDays(160), distanceKm: 10},
+      {editionId: "before", date: raceDateInDays(-10), distanceKm: 10},
+    ];
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
+    expect(raceSessions(plan).some(s => s.editionId === "after" || s.editionId === "before")).toBe(false);
+  });
+
+  it("dedupes to one race per date", () => {
+    const races = [
+      {editionId: "a", date: raceDateInDays(60), distanceKm: 10},
+      {editionId: "b", date: raceDateInDays(60), distanceKm: 12},
+    ];
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
+    const onDate = raceSessions(plan).filter(s => s.date === raceDateInDays(60));
+    expect(onDate).toHaveLength(1);
+  });
+
+  it("replaces a same-day training session rather than duplicating it", () => {
+    // Drop the race on the exact date of an existing mid-plan session so the
+    // collision (replace) branch always fires — not left to calendar luck.
+    const base = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200);
+    const victimWeek = base.weeks[5];
+    const victim = victimWeek.sessions[0];
+    const races = [{editionId: "collide", date: victim.date, distanceKm: 10}];
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
+    const wk = plan.weeks.find(w => w.weekNumber === victimWeek.weekNumber);
+    const onDate = wk.sessions.filter(s => s.date === victim.date);
+    expect(onDate).toHaveLength(1);                              // replaced, not duplicated
+    expect(onDate[0].type).toBe("RACE");                         // the race took the slot
+    expect(wk.sessions.length).toBe(victimWeek.sessions.length); // same count → replaced
+  });
+
+  it("eases the week around a substantial secondary race (mini-taper)", () => {
+    const races = [{editionId: "half-tuneup", date: raceDateInDays(60), distanceKm: 10}]; // 10 of 20 km
+    const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
+    const wk = plan.weeks.find(w => w.sessions.some(s => s.editionId === "half-tuneup"));
+    const nonRace = wk.sessions.filter(s => s.type !== "RACE");
+    expect(nonRace.every(s => s.type === "EASY")).toBe(true);
+  });
+
+  it("just drops in a small secondary race without easing the week", () => {
+    const races = [{editionId: "parkrun", date: raceDateInDays(60), distanceKm: 5}]; // 5 of 42 km
+    const plan = buildPlan(raceDateInDays(160), 14400, SESSIONS, 42.2, 0, {races});
+    const wk = plan.weeks.find(w => w.sessions.some(s => s.editionId === "parkrun"));
+    const nonRace = wk.sessions.filter(s => s.type !== "RACE");
+    // No mini-taper: the week's other session keeps its normal prescription.
+    expect(nonRace.some(s => s.desc !== "Easy run — keep it light around your race")).toBe(true);
+  });
 });

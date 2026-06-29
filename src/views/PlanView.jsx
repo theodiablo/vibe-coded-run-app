@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowDown, Check, ChevronRight, Plus, RotateCcw, X } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
+import { findEdition } from "../utils/races";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
@@ -16,7 +17,7 @@ const PHASE_DESC = {
   RACE:  "Race week",
 };
 
-export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog, planPrefill, clearPlanPrefill}) {
+export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -87,7 +88,14 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     const sameAsTarget  = date === settings.raceDate && Number(dist) === Number(settings.distanceKm);
     const targetEditionId = sameAsPrefill ? planPrefill.editionId : (sameAsTarget ? (settings.targetEditionId ?? null) : null);
     saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: elev, targetEditionId});
-    savePlan(buildPlan(date, goal, ps, dist, elev));
+    // Secondary races the user has added to the plan (not the main target). buildPlan
+    // does the window filtering; we just hand it the flagged wishlist races, enriched
+    // with the catalogue elevation when available.
+    const secRaces = (races?.participations || [])
+      .filter(p => p.status === "wishlist" && p.inPlan && p.editionId !== targetEditionId)
+      .map(p => ({ editionId: p.editionId, date: p.raceDate, distanceKm: p.distanceKm,
+        elevation: findEdition(p.editionId)?.edition?.elevation || 0 }));
+    savePlan(buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId}));
     setEdit(false); setConfirmRegen(false);
     clearPlanPrefill?.();
   };
@@ -163,6 +171,13 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
     .sort((a, b) => a.dayOffset - b.dayOffset)
     .map(s => DAYS[s.dayOffset] + " (" + fmt.mins(s.minutes) + ")")
     .join(" · ");
+  // The peak long run is driven by race distance, so on a short long-session
+  // setting it runs longer than configured. Surface that honestly (rather than
+  // silently capping the long run) so the user can lengthen their long day.
+  const easyPace = Math.round((plan.targetPace || 0) * 1.25);
+  const peakLongMin = plan.longRunPeakKm && easyPace ? Math.round(plan.longRunPeakKm * easyPace / 60) : 0;
+  const longestSessMin = ps.reduce((m, s) => Math.max(m, s.minutes || 0), 0);
+  const longRunNudge = peakLongMin > longestSessMin + 20;
 
   const phaseClass = phase => {
     if (phase === "TAPER") return "bg-emerald-500/15 text-emerald-400";
@@ -252,6 +267,15 @@ export function PlanView({plan, settings, savePlan, saveSettings, buildPlan, tog
         </span>
         <span className="text-orange-400 font-semibold ml-2 flex-shrink-0">{editSessions ? "Close" : "Edit plan"}</span>
       </button>
+
+      {longRunNudge && !editSessions && (
+        <div className="w-full mb-3 rounded-xl px-4 py-2.5 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/25 flex gap-2 items-start">
+          <span className="flex-shrink-0 text-base leading-none">💡</span>
+          <span>Your goal builds long runs up to ~{fmt.mins(peakLongMin)}, longer than your
+          longest training day ({fmt.mins(longestSessMin)}). That's expected for this
+          distance — consider lengthening your long day in Edit plan.</span>
+        </div>
+      )}
       </>)}
 
       {(editSessions || promoting) && (

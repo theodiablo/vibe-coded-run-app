@@ -10,6 +10,12 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
   const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
+  // The soonest secondary race folded into the plan before the main race — a
+  // checkpoint to flag under the main-race countdown.
+  const todayStr = ymd(today);
+  const nextRace = (races?.participations || [])
+    .filter(p => p.status === "wishlist" && p.inPlan && p.raceDate >= todayStr && p.raceDate < settings.raceDate)
+    .sort((a, b) => a.raceDate.localeCompare(b.raceDate))[0];
   // Carry the week number alongside each session so the card's Record / Mark
   // done actions can target the right session via goLog / toggleSess.
   const nextSess = plan
@@ -44,6 +50,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
       <div className="rounded-2xl p-5 border border-orange-500/30"
         style={{background:"linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))"}}>
         {settings.raceDate && settings.distanceKm ? (
+        <>
         <div className="flex justify-between items-center">
           <div>
             <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>
@@ -57,6 +64,17 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
             <p className="text-slate-400 text-xs mt-1">days to go</p>
           </div>
         </div>
+        {nextRace && (
+          <button onClick={() => goTab("races")}
+            className="w-full text-left mt-3 pt-3 border-t border-orange-500/20 flex justify-between items-center gap-2">
+            <span className="text-xs text-slate-300 truncate">
+              <span className="text-orange-300/80 font-semibold">Next up: </span>
+              {nextRace.label + " · " + nextRace.distanceKm + "km"}
+            </span>
+            <span className="text-xs text-slate-400 flex-shrink-0">{Math.max(0, Math.ceil((new Date(nextRace.raceDate + "T00:00:00") - today) / 86400000)) + "d"}</span>
+          </button>
+        )}
+        </>
         ) : (
           <button onClick={() => goTab("plan")} className="w-full text-left">
             <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>

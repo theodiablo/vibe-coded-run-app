@@ -2,10 +2,16 @@
 import { VERT_COST } from "../constants";
 import { fmt, ymd } from "./format";
 
-export function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation) {
+// `opts` is additive so the positional call sites keep working:
+//   { recentRuns: Run[] }  — recent logged runs, used to seed a fitness-aware
+//                            starting volume so the plan doesn't regress a fit
+//                            athlete back to a 4.5 km "long" run.
+// (Phase 2 adds `mainEditionId` / `races` for the secondary-race overlay.)
+export function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation, opts = {}) {
   if (!goalSec) goalSec = 7200;
   if (!distanceKm) distanceKm = 20;
   if (!planSessions) planSessions = [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}];
+  const recentRuns = opts.recentRuns || [];
   const today = new Date(); today.setHours(0,0,0,0);
   const race  = new Date(raceDate + "T00:00:00");
   const dow   = today.getDay();
@@ -26,6 +32,31 @@ export function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceEleva
   const sorted = planSessions.slice().sort((a, b) => b.minutes - a.minutes);
   const longSess = sorted[0];
   const qualSessions = sorted.slice(1);
+
+  // Peak long-run distance is driven by the RACE distance, not the session time
+  // budget — you can't train for 20 km on 60-min long runs. ~0.9x for short/half
+  // races; the marathon is run a bit short in training; everything is hard-capped
+  // so an ultra (UTMB 171 km) can't generate an absurd long run. The session
+  // `minutes` no longer caps the long run (it still informs the shown duration and
+  // the quality-session sizing) — see PlanView's long-run nudge.
+  const peakLong = Math.min(36,
+    distanceKm <= 25 ? distanceKm * 0.9
+    : distanceKm <= 43 ? Math.min(32, distanceKm * 0.78)
+    : 34);
+
+  // Fitness-aware floor (a generation-time snapshot). The longest run in the last
+  // ~5 weeks sets a starting long run so a fit athlete isn't sent back to square
+  // one — but never above the race-scaled peak (don't inflate a 10 km block off
+  // big long runs). Empty recentRuns → 0 floor → today's gentle default start.
+  const RECENT_MS = 35 * 86400000;
+  const cutoff = ymd(new Date(today.getTime() - RECENT_MS));
+  const longestRecent = recentRuns.reduce(
+    (m, r) => (r && r.date && r.date >= cutoff && r.km > 0 ? Math.max(m, r.km) : m), 0);
+  const fitFloor = Math.min(longestRecent * 0.8, peakLong);
+  // Long run ramps linearly from this start to the peak over the pre-taper weeks.
+  const startLong = Math.max(4.5, fitFloor);
+  const lastBuildW = N - 4; // 0-based index of the final pre-taper week (peak hits here)
+
   const weeks = [];
 
   for (let w = 0; w < N; w++) {
@@ -48,18 +79,17 @@ export function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceEleva
       });
     };
 
-    const maxLong = longSess.minutes * 60 / easy;
     let longKm;
     if (isTaper) {
+      // Taper long runs scale off the peak — shed volume, keep some endurance.
       const taperIdx = w - (N - 3);
       const taperMults = [0.85, 0.65, 0.45];
-      longKm = maxLong * (taperMults[taperIdx] !== undefined ? taperMults[taperIdx] : 0.45);
-    } else if (isPeak) {
-      longKm = Math.min(maxLong * 0.95, 9 + (w - (N - 7)) * 0.4);
-    } else if (isBase) {
-      longKm = Math.min(maxLong * 0.75, 4.5 + w * 0.5);
+      longKm = peakLong * (taperMults[taperIdx] !== undefined ? taperMults[taperIdx] : 0.45);
     } else {
-      longKm = Math.min(maxLong * 0.9, 6.5 + (w - 4) * 0.3);
+      // Ramp from the fitness-aware start to the race-scaled peak across the
+      // pre-taper weeks (peak reached at the last build/peak week).
+      const ramp = lastBuildW > 0 ? Math.min(1, w / lastBuildW) : 1;
+      longKm = startLong + (peakLong - startLong) * ramp;
     }
     addS(longSess.dayOffset, "LONG", longKm,
       "Long run — easy effort at " + fmt.pace(easy) + "/km", easy);
@@ -92,6 +122,50 @@ export function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceEleva
     weeks.push({weekNumber: w+1, startDate: ymd(wS), phase, sessions: ss});
   }
 
+  // ── Secondary-race overlay ────────────────────────────────────────────────
+  // Drop any user-added races that fall inside the plan window onto their week as
+  // RACE sessions. The plan still peaks/tapers for the *main* race — these are
+  // extra checkpoints. Pace is a Riegel estimate off the main goal and never
+  // feeds back into the prescribed training paces. Phase 3 adds taper/recovery
+  // around them. `opts.races`: [{editionId, date, distanceKm, elevation}].
+  const MIN_GAP_MS = 7 * 86400000; // keep a hard race out of the final taper days
+  const seenDates = new Set();
+  (opts.races || []).forEach(r => {
+    if (!r || !r.date || !r.distanceKm) return;
+    const d = new Date(r.date + "T00:00:00");
+    if (d < w0 || d >= race) return;          // outside the plan window
+    if (race - d < MIN_GAP_MS) return;        // too close to the main race
+    if (seenDates.has(r.date)) return;        // one race per date
+    const wi = Math.floor((d - w0) / (7 * 86400000));
+    if (wi < 0 || wi >= weeks.length) return;
+    seenDates.add(r.date);
+    const secKm = r.distanceKm;
+    // Riegel projection of the main goal to this distance (t2 = t1·(d2/d1)^1.06).
+    const secPace = Math.round(goalSec * Math.pow(secKm / distanceKm, 1.06) / secKm);
+    const session = {
+      id: "race-" + (r.editionId || r.date), date: r.date, type: "RACE",
+      desc: "Race — " + secKm + "km" + (r.elevation > 0 ? " · +" + Math.round(r.elevation) + "m" : ""),
+      km: secKm, pace: secPace, done: false, runId: null, editionId: r.editionId || null,
+    };
+    const wk = weeks[wi];
+    // Replace a same-day training session if one exists, else add an extra one.
+    const same = wk.sessions.findIndex(s => s.date === r.date);
+    if (same >= 0) wk.sessions[same] = session;
+    else wk.sessions.push(session);
+    // Automatic, distance-scaled treatment (the user picks nothing): a substantial
+    // race (≥ half the main distance) gets a mini-taper — ease the rest of that
+    // week to recovery so we don't stack hard quality around it. A small race
+    // (e.g. a 5 km before a marathon) just drops in.
+    if (secKm >= 0.5 * distanceKm) {
+      wk.sessions = wk.sessions.map(s => s.type === "RACE" ? s : {
+        ...s, type: "EASY", pace: easy,
+        km: Math.round(Math.min(s.km, 6) * 10) / 10,
+        desc: "Easy run — keep it light around your race",
+      });
+    }
+    wk.sessions.sort((a, b) => a.date.localeCompare(b.date));
+  });
+
   const rWS = new Date(w0); rWS.setDate(w0.getDate() + N * 7);
   weeks.push({
     weekNumber: N + 1,
@@ -103,7 +177,12 @@ export function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceEleva
         + (gain > 0 ? " · +" + Math.round(gain) + "m climb" : "")
         + "! Everything you trained for.",
       km: distanceKm, pace: racePace, done: false, runId: null,
+      // Stamp the main race so multi-race detection reads all RACE sessions
+      // uniformly off the plan. Null for a hand-entered (non-catalogue) target,
+      // which then stays un-detected, exactly as before.
+      editionId: opts.mainEditionId ?? null,
     }],
   });
-  return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt, planSessions, weeks};
+  return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt,
+    longRunPeakKm: Math.round(peakLong * 10) / 10, planSessions, weeks};
 }
