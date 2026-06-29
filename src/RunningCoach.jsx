@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from "./constants";
 import { track } from "./telemetry";
 import { buildPlan } from "./utils/plan";
 import { computeBadges, unlockedIds } from "./utils/badges";
-import { detectRaceCompletion, findEdition, editionLabel } from "./utils/races";
+import { detectAnyRace, findEdition, editionLabel } from "./utils/races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
@@ -119,6 +119,38 @@ export default function RunningCoach({ onSignOut }) {
   // Passed to children: persist a races change and reconcile badges off it.
   const saveRaces  = next => commitRaces(reconcileBadges(runs, next));
 
+  // Re-apply done/skipped/runId from an old plan onto a freshly built one by
+  // session id (ids are stable: w{n}d{dOff} for training, race-{editionId} for
+  // races). Lets us add/remove a race without wiping weeks of progress.
+  const carryProgress = (oldPlan, np) => {
+    if (!oldPlan) return np;
+    const flags = {};
+    oldPlan.weeks.forEach(w => w.sessions.forEach(s => {
+      flags[s.id] = { done: s.done, skipped: s.skipped, runId: s.runId };
+    }));
+    return { ...np, weeks: np.weeks.map(w => ({ ...w,
+      sessions: w.sessions.map(s => flags[s.id] ? { ...s, ...flags[s.id] } : s) })) };
+  };
+
+  // Toggle whether a wishlisted race is folded into the current plan. Persists the
+  // flag and, if there's an active plan, rebuilds it preserving progress — so
+  // adding a race shows up immediately without nuking completed sessions.
+  const setRaceInPlan = (editionId, inPlan) => {
+    const parts = (races.participations || []).map(p => p.editionId === editionId ? { ...p, inPlan } : p);
+    saveRaces({ ...races, participations: parts });
+    if (inPlan) track("plan_race_added");
+    if (plan && settings.raceDate && settings.distanceKm) {
+      const secRaces = parts
+        .filter(p => p.status === "wishlist" && p.inPlan && p.editionId !== settings.targetEditionId)
+        .map(p => ({ editionId: p.editionId, date: p.raceDate, distanceKm: p.distanceKm,
+          elevation: findEdition(p.editionId)?.edition?.elevation || 0 }));
+      const np = buildPlan(settings.raceDate, settings.goalSec, settings.planSessions,
+        settings.distanceKm, settings.raceElevation,
+        { recentRuns: runs, races: secRaces, mainEditionId: settings.targetEditionId ?? null });
+      savePlan(carryProgress(plan, np));
+    }
+  };
+
   // Promote a catalogue edition to the training target: stash the prefill and
   // send the user to PlanView's setup, which fills the date/distance/elevation
   // and a fresh realistic goal suggestion. Nothing is committed (no settings or
@@ -131,24 +163,45 @@ export default function RunningCoach({ onSignOut }) {
     track("race_target_set");
   };
 
-  // Race-day auto-detect: when a just-saved run matches the target race's date +
-  // distance, return the races object with that edition marked done (plus the
-  // pre-change participations for Undo). null when nothing matches.
+  // Race-day auto-detect: when a just-saved run matches the date + distance of any
+  // race on the plan (main or secondary), return the races object with that edition
+  // marked done (plus the pre-change participations for Undo). `isMain` flags the
+  // training target so the caller can prompt for the next race only then. null when
+  // nothing matches.
   const detectCompletion = (added, baseRaces) => {
-    if (!settings.targetEditionId) return null;
-    const match = added.find(r => detectRaceCompletion(r, settings));
+    // Candidate races = every RACE session on the plan carrying an editionId,
+    // deduped. This covers the main race (stamped from targetEditionId) and any
+    // secondary races; a hand-entered target has no editionId and stays undetected.
+    const cands = [];
+    const seen = new Set();
+    (plan?.weeks || []).forEach(w => w.sessions.forEach(s => {
+      if (s.type === "RACE" && s.editionId && !seen.has(s.editionId)) {
+        seen.add(s.editionId);
+        cands.push({ editionId: s.editionId, date: s.date, distanceKm: s.km });
+      }
+    }));
+    // Fallback for plans built before RACE sessions carried editionId: detect the
+    // main target off settings so existing users keep race-day auto-detect.
+    if (settings.targetEditionId && settings.raceDate && settings.distanceKm && !seen.has(settings.targetEditionId)) {
+      cands.push({ editionId: settings.targetEditionId, date: settings.raceDate, distanceKm: Number(settings.distanceKm) });
+    }
+    if (!cands.length) return null;
+    let match = null, edId = null;
+    for (const r of added) {
+      const id = detectAnyRace(r, cands);
+      if (id) { match = r; edId = id; break; }
+    }
     if (!match) return null;
-    const edId = settings.targetEditionId;
     const parts = baseRaces.participations || [];
     const prev = parts.find(p => p.editionId === edId) || null;
     if (prev?.status === "done") return null; // already logged — don't double-mark
     const joined = findEdition(edId);
-    const ed = joined?.edition || { id: edId, date: settings.raceDate, distanceKm: Number(settings.distanceKm) };
+    const ed = joined?.edition || { id: edId, date: match.date, distanceKm: match.km };
     const label = prev?.label || (joined ? editionLabel(joined, ed) : "your race");
     const snapshot = { editionId: edId, raceId: joined?.raceId, label, raceDate: ed.date, distanceKm: ed.distanceKm };
     const done = { ...(prev || snapshot), status: "done", timeSec: match.durationSec, runId: match.id, source: "auto", notes: prev?.notes || "" };
     const next = prev ? parts.map(p => p.editionId === edId ? done : p) : [...parts, done];
-    return { nextRaces: { ...baseRaces, participations: next }, undoParts: parts, label };
+    return { nextRaces: { ...baseRaces, participations: next }, undoParts: parts, label, isMain: edId === settings.targetEditionId };
   };
 
   // `opts.skipDetect` is set when the run is created by the Races "log result"
@@ -252,7 +305,7 @@ export default function RunningCoach({ onSignOut }) {
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
   const goProgress = sub => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
-  const shared = {runs, plan, settings, races, addRuns, savePlan, saveSettings, saveRaces, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
+  const shared = {runs, plan, settings, races, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   const TABS   = [
@@ -276,7 +329,7 @@ export default function RunningCoach({ onSignOut }) {
           // Only build a plan if the race was actually set up (the user may have
           // skipped straight to the health gate) — buildPlan needs date+distance.
           if (next.raceDate && next.distanceKm)
-            savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation));
+            savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation, {recentRuns: runs}));
           // A catalogue race picked in onboarding is the training target — also
           // surface it in the Races tab as a wishlist participation (the tab lists
           // participations, not the settings target). Skip if already present.

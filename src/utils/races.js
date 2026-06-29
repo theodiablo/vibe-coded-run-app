@@ -56,6 +56,21 @@ export function detectRaceCompletion(run, settings, tolerance = 0.18) {
   return editionId;
 }
 
+// Multi-race version: match a just-logged run against ANY race on the plan.
+// `candidates` is a list of {editionId, date, distanceKm} — typically every RACE
+// session on the plan that carries an editionId (the main race + any secondary
+// races). Returns the matched editionId, or null. Same date + distance-tolerance
+// rule as detectRaceCompletion.
+export function detectAnyRace(run, candidates = [], tolerance = 0.18) {
+  if (!run || !run.date || !run.km) return null;
+  for (const c of candidates) {
+    if (!c || !c.editionId || !c.date || !c.distanceKm) continue;
+    if (run.date !== c.date) continue;
+    if (Math.abs(run.km - c.distanceKm) <= c.distanceKm * tolerance) return c.editionId;
+  }
+  return null;
+}
+
 // Fastest done time per distance bucket, used to flag personal bests. Distances
 // are bucketed to the nearest 0.1 km so 21.1 and 21.10 group together.
 export function bestTimesByDistance(participations = []) {

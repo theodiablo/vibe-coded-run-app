@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectRaceCompletion, bestTimesByDistance, isPersonalBest, findEdition, searchEditions } from "./races";
+import { detectRaceCompletion, detectAnyRace, bestTimesByDistance, isPersonalBest, findEdition, searchEditions } from "./races";
 
 const target = { targetEditionId: "behobia-san-sebastian-2026", raceDate: "2026-11-08", distanceKm: 20 };
 
@@ -23,6 +23,29 @@ describe("detectRaceCompletion", () => {
   it("handles missing run fields gracefully", () => {
     expect(detectRaceCompletion(null, target)).toBeNull();
     expect(detectRaceCompletion({ date: "2026-11-08" }, target)).toBeNull();
+  });
+});
+
+describe("detectAnyRace", () => {
+  const cands = [
+    { editionId: "main-20k", date: "2026-11-08", distanceKm: 20 },
+    { editionId: "tuneup-10k", date: "2026-10-04", distanceKm: 10 },
+  ];
+  it("matches the correct race among several candidates", () => {
+    expect(detectAnyRace({ date: "2026-10-04", km: 10.2 }, cands)).toBe("tuneup-10k");
+    expect(detectAnyRace({ date: "2026-11-08", km: 19.5 }, cands)).toBe("main-20k");
+  });
+  it("returns null when no candidate matches (wrong date or wrong distance)", () => {
+    expect(detectAnyRace({ date: "2026-09-01", km: 10 }, cands)).toBeNull(); // no date match
+    expect(detectAnyRace({ date: "2026-10-04", km: 20 }, cands)).toBeNull(); // right day, wrong distance
+  });
+  it("ignores candidates without an editionId", () => {
+    expect(detectAnyRace({ date: "2026-10-04", km: 10 }, [{ date: "2026-10-04", distanceKm: 10 }])).toBeNull();
+  });
+  it("handles empty candidates / missing fields", () => {
+    expect(detectAnyRace({ date: "2026-10-04", km: 10 }, [])).toBeNull();
+    expect(detectAnyRace(null, cands)).toBeNull();
+    expect(detectAnyRace({ date: "2026-10-04" }, cands)).toBeNull();
   });
 });
 

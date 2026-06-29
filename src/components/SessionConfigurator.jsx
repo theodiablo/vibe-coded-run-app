@@ -31,10 +31,10 @@ export function SessionConfigurator({sessions, onChange}) {
         {sessions.slice().sort((a, b) => a.dayOffset - b.dayOffset).map(s => (
           <div key={s.dayOffset} className="flex items-center gap-3 bg-slate-700/60 rounded-xl px-3 py-2.5">
             <span className="text-sm font-bold text-orange-300 w-8 flex-shrink-0">{DAYS[s.dayOffset]}</span>
-            <div className="flex flex-1 gap-1">
-              {[20, 30, 45, 60, 75, 90].map(m => (
+            <div className="grid grid-cols-6 gap-1 flex-1">
+              {[20, 30, 45, 60, 75, 90, 120, 150, 180].map(m => (
                 <button key={m} onClick={() => setMins(s.dayOffset, m)}
-                  className={"flex-1 py-1 rounded-md text-xs transition-colors " + (s.minutes === m ? "bg-orange-500 text-white" : "bg-slate-600 text-slate-400 hover:text-white")}>
+                  className={"py-1 rounded-md text-xs transition-colors " + (s.minutes === m ? "bg-orange-500 text-white" : "bg-slate-600 text-slate-400 hover:text-white")}>
                   {fmt.mins(m)}
                 </button>
               ))}

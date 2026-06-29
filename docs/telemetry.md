@@ -75,9 +75,11 @@ an explicit var.
 - First-run opt-in `ConsentBanner` + `identifyUser` / `resetUser` on auth —
   `src/App.jsx`.
 - Events (`onboarding_completed`, `run_logged`, `plan_generated`,
-  `race_target_set`, `race_completed` `{source:"manual"|"auto"}`) —
+  `race_target_set`, `race_completed` `{source:"manual"|"auto"}`,
+  `plan_race_added` — a secondary race folded into the plan) —
   `src/RunningCoach.jsx`. All anonymous: counts/enums only, never race
-  names/notes/times. (Reserved for Phase 2: `race_contributed`, `discover_opened`.)
+  names/notes/times. `plan_race_added` carries no properties (there is no race
+  priority/tier). (Reserved for Phase 2: `race_contributed`, `discover_opened`.)
 - Settings → Privacy toggle (reads/writes consent directly) —
   `src/modals/SettingsModal.jsx`.
 

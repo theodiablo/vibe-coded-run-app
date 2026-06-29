@@ -19,7 +19,7 @@ function resolveJoined(part) {
   };
 }
 
-export function RacesView({ races, saveRaces, settings, promoteEdition, addRuns, showToast }) {
+export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceInPlan, addRuns, showToast }) {
   const [seg, setSeg] = useState("mine");
   const [query, setQuery] = useState("");
   const [logFor, setLogFor] = useState(null); // editionId being logged
@@ -111,6 +111,12 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, addRuns,
                 const joined = resolveJoined(p);
                 const days = daysUntil(p.raceDate, today);
                 const isTarget = settings.targetEditionId === p.editionId;
+                // A race can be folded into the current plan when there's an active
+                // plan (a race date is set) and this race falls before the main race
+                // — a checkpoint along the way. We key off settings.raceDate rather
+                // than targetEditionId so a hand-entered main race (no catalogue
+                // edition) can still have tune-ups added.
+                const inPlannable = settings.raceDate && !isTarget && p.raceDate < settings.raceDate;
                 return (
                   <div key={p.editionId} className="rounded-2xl p-4 border border-orange-500/30"
                     style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
@@ -119,6 +125,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, addRuns,
                         <p className="font-semibold truncate">{p.label}</p>
                         <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
                         {isTarget && <span className="inline-flex items-center gap-1 text-xs text-orange-300 mt-1.5 font-semibold"><Target size={12}/>Training target</span>}
+                        {inPlannable && p.inPlan && <span className="inline-flex items-center gap-1 text-xs text-orange-300/80 mt-1.5 font-semibold"><Check size={12}/>In your plan</span>}
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-3xl font-black text-orange-400 leading-none">{Math.max(0, days)}</p>
@@ -130,6 +137,13 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, addRuns,
                         <button onClick={() => setTarget(joined)}
                           className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
                           <Target size={14}/>Set as target
+                        </button>
+                      )}
+                      {inPlannable && (
+                        <button onClick={() => setRaceInPlan(p.editionId, !p.inPlan)}
+                          title={p.inPlan ? "Remove from plan" : "Add this race to your plan"}
+                          className={"flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors " + (p.inPlan ? "bg-orange-500/20 text-orange-300 hover:bg-orange-500/30" : "bg-slate-700 hover:bg-slate-600 text-slate-200")}>
+                          {p.inPlan ? <><Check size={14}/>In plan</> : <><Plus size={14}/>Add to plan</>}
                         </button>
                       )}
                       <button onClick={() => setLogFor(p.editionId)}
