@@ -32,10 +32,11 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, onSkip})
   const ageN = parseInt(age) || 0;
   const tanakaMax  = ageN ? Math.round(208 - 0.7 * ageN) : null;
 
-  const estimateMaxHR = () => {
+  const estimateHR = () => {
     if (!tanakaMax) { setMaxHRHint("Enter your age above to estimate it."); return; }
     setMaxHR(String(tanakaMax));
-    setMaxHRHint("Estimated from age (Tanaka, 208 − 0.7×age): " + tanakaMax + " bpm.");
+    setRestHR("60");
+    setMaxHRHint("Estimated from age (Tanaka, 208 − 0.7×age): " + tanakaMax + " bpm max HR, with a typical 60 bpm resting HR.");
   };
 
   const finish = withHR => {
@@ -146,10 +147,12 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, onSkip})
               </div>
 
               <div>
-                <button type="button" onClick={estimateMaxHR}
-                  className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
-                  I don&apos;t know my max heart rate
-                </button>
+                {!(parseInt(maxHR) || 0) && (
+                  <button type="button" onClick={estimateHR}
+                    className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
+                    I don&apos;t know my heart rate
+                  </button>
+                )}
                 {maxHRHint && <p className="text-xs text-slate-500 mt-1.5">{maxHRHint}</p>}
               </div>
 
@@ -160,7 +163,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, onSkip})
                 </button>
                 <button onClick={() => finish(false)}
                   className="w-full border border-slate-500 hover:border-slate-300 text-slate-400 hover:text-white py-2.5 rounded-xl text-xs transition-colors">
-                  I don't know my heart rate
+                  Finish without heart rate
                 </button>
               </div>
             </div>

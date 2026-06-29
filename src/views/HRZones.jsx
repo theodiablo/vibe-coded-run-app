@@ -21,10 +21,11 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
 
   const getZone = z => hrZoneBpm(z.lo, z.hi, effMax, rhrN);
 
-  const estimateMaxHR = () => {
+  const estimateHR = () => {
     if (!tanakaMax) { setMaxHRHint("Enter your age above to estimate it."); return; }
     setMaxHR(String(tanakaMax));
-    setMaxHRHint("Estimated from age (Tanaka, 208 − 0.7×age): " + tanakaMax + " bpm.");
+    setRestHR("60");
+    setMaxHRHint("Estimated from age (Tanaka, 208 − 0.7×age): " + tanakaMax + " bpm max HR, with a typical 60 bpm resting HR.");
   };
 
   const getRunZone = hr => {
@@ -59,10 +60,12 @@ export function HRZones({settings, saveSettings, runs, showToast}) {
         </div>
 
         <div>
-          <button type="button" onClick={estimateMaxHR}
-            className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
-            I don&apos;t know my max heart rate
-          </button>
+          {!mhrN && (
+            <button type="button" onClick={estimateHR}
+              className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
+              I don&apos;t know my heart rate
+            </button>
+          )}
           {maxHRHint && <p className="text-xs text-slate-500 mt-1.5">{maxHRHint}</p>}
         </div>
 
