@@ -133,17 +133,41 @@ and delete anything that becomes stale.
 
 ## Races & badges (gamification)
 - **Catalogue (Race → Edition):** a "race" is the recurring event, an "edition" a
-  dated running of it (the thing you wishlist / target / complete). Phase 1 ships
-  a **read-only bundled seed** (`src/data/races.js`, ~global majors + ES/FR/UK)
-  with stable slug ids; edition id = `slug-YYYY-MM-DD`. Phase 2 (not built) moves
-  this to **shared Supabase tables** with a `src/races.js` module behind the same
-  shape — keep catalogue lookups going through `src/utils/races.js` (`allEditions`,
-  `findEdition`) so that swap is local.
+  dated running of it (the thing you wishlist / target / complete). Edition id =
+  `slug-YYYY-MM-DD` (stable across reloads; `addEdition` suffixes `-distanceKm`
+  only on a same-race-same-date collision). **Phase 2 = shared, global, live:**
+  the catalogue lives in Supabase tables `races` + `race_editions`
+  (`supabase/migrations/20260629120000_races_catalogue.sql`; world-readable like
+  `app_config`, owner-scoped writes like `run_routes`, with a hard `verified = false`
+  with-check so a contributor can never self-verify — only the service role does).
+  `src/races.js` is the access module (mirrors `src/routes.js`: direct queries —
+  `listRaces`/`addRace`/`addEdition`/`reportRace`/`notifyContribution`). **The old
+  bundle is gone** — keep ALL catalogue lookups going through `src/utils/races.js`
+  (`allRaces`, `allEditions`, `findEdition`, `findRace`), which holds the fetched
+  catalogue in a module cache (`hydrateCatalogue`) loaded once at boot by
+  `loadCatalogue`. **Failure-tolerant:** a failed fetch leaves the cache `[]` and
+  the app still renders (My Races falls back to participation snapshots); the boot
+  load is fired **unawaited** so a slow/down Supabase never blocks the splash.
+- **Contributions are instant + global + unverified.** "Add a race"
+  (`src/modals/RaceFormModal.jsx`, opened via `shared.openRaceForm`) does a live
+  duplicate search and inserts `verified:false, created_by=uid`; the UI tags any
+  unverified race/edition. After a contribution, `refreshCatalogue` (RunningCoach)
+  re-fetches so it shows immediately. **Discover** is a RacesView segment: one-off
+  `geoSource.getCurrentPosition()` (web/native), sort by `haversineM`, distance-band
+  + radius chips. **km-only**; coordinates are never persisted or sent to telemetry.
+- **Moderation:** `reportRace` writes a `race_reports` row (insert-only RLS, no
+  client SELECT — so insert WITHOUT `.select()`) and best-effort invokes the
+  `notify-contribution` edge function (`supabase/functions/`), which emails the
+  maintainer + thanks the contributor via Resend (`RESEND_API_KEY`; degrades to a
+  no-op if unset). The "verified → thank-you" half is in-app: `reconcileVerifiedThanks`
+  (RunningCoach) toasts once when a maintainer verifies the user's own contribution.
 - **Personal layer lives in the blob**, key `STORAGE_KEYS.RACES` (`rc_races`), NOT
-  in the catalogue: `{participations:[...], seenBadges:[...]}`. A participation
-  snapshots `label/raceDate/distanceKm` alongside the `editionId` so a wishlist
-  entry survives if the catalogue edition disappears (orphan tolerance). It's in
-  the synced blob, so it's covered by backup/restore (add to both when extending).
+  in the catalogue: `{participations:[...], seenBadges:[...], ackVerified:[...]}`
+  (`ackVerified` = which of the user's verified contributions we've already thanked
+  them for). A participation snapshots `label/raceDate/distanceKm` alongside the
+  `editionId` so a wishlist entry survives if the catalogue edition disappears
+  (orphan tolerance). It's in the synced blob, so it's covered by backup/restore
+  (add to both when extending) — the shared catalogue is NOT exported.
 - **One training target:** `settings.targetEditionId` marks which edition the plan
   was built from. Promote via `promoteEdition` (`RunningCoach.jsx`) → prefills
   PlanView's setup; the plan is built there (reusing `buildPlan`), which sets

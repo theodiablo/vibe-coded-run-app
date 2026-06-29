@@ -1,0 +1,161 @@
+import { useState, useMemo } from "react";
+import { MapPin, Check, Plus, AlertTriangle, Loader } from "lucide-react";
+import { INPUT_CLS, LABEL_CLS } from "../constants";
+import { track } from "../telemetry";
+import { geoSource } from "../geo/source";
+import { notifyContribution } from "../races";
+
+// "Add a race" — contributes to the SHARED catalogue (instant + global). New
+// entries are always unverified; the UI tags them so. Includes a live duplicate
+// search so a user who's really just adding a new date gets steered to the
+// existing race (→ add an edition) instead of creating a near-duplicate.
+//
+// Props: catalogue (grouped races, for dup search), addRace/addEdition (src/races
+// via RunningCoach), onContributed (refresh the catalogue), showToast, onClose.
+export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, showToast, onClose }) {
+  const [selected, setSelected] = useState(null); // an existing race to add a date to
+  const [f, setF] = useState({ name: "", city: "", country: "", url: "", date: "", distanceKm: "", elevation: "" });
+  const [loc, setLoc] = useState(null);   // { lat, lng } from "use my location"
+  const [locating, setLocating] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
+
+  // Live duplicate search on the name field (skipped once a race is selected).
+  const matches = useMemo(() => {
+    const q = f.name.trim().toLowerCase();
+    if (selected || q.length < 2) return [];
+    return (catalogue || [])
+      .filter(r => (r.name + " " + (r.city || "") + " " + (r.country || "")).toLowerCase().includes(q))
+      .slice(0, 5);
+  }, [catalogue, f.name, selected]);
+
+  const useMyLocation = async () => {
+    setErr(""); setLocating(true);
+    try {
+      const p = await geoSource.getCurrentPosition();
+      setLoc(p);
+    } catch {
+      setErr("Couldn't get your location — you can still add the race without it.");
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  const submit = async () => {
+    setErr("");
+    const dist = parseFloat(f.distanceKm);
+    if (!f.date || !dist) { setErr("A date and distance are required."); return; }
+    if (!selected && !f.name.trim()) { setErr("A race name is required."); return; }
+    const elevation = f.elevation ? parseInt(f.elevation) : 0;
+    setBusy(true);
+    try {
+      let raceSlug, name;
+      if (selected) {
+        raceSlug = selected.slug; name = selected.name;
+        await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
+        track("race_contributed", { kind: "edition" });
+        notifyContribution({ type: "edition", raceSlug, name, date: f.date, distanceKm: dist });
+      } else {
+        name = f.name.trim();
+        const race = await addRace({
+          name, city: f.city.trim() || null, country: f.country.trim().toUpperCase() || null,
+          lat: loc?.lat ?? null, lng: loc?.lng ?? null, distances: [dist], url: f.url.trim() || null,
+        });
+        raceSlug = race.slug;
+        await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
+        track("race_contributed", { kind: "race" });
+        notifyContribution({ type: "race", raceSlug, name, city: f.city.trim() || null, country: f.country.trim().toUpperCase() || null, url: f.url.trim() || null, date: f.date, distanceKm: dist });
+      }
+      await onContributed?.();
+      showToast("Added — thanks! It's live for everyone (unverified until reviewed).");
+      onClose();
+    } catch (e) {
+      console.error("add race failed", e);
+      setErr("Couldn't save that race. Please try again.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700 shrink-0">
+          <p className="font-semibold text-sm">Add a race</p>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+        </div>
+
+        <div className="p-4 space-y-4 overflow-y-auto">
+          {selected ? (
+            <div className="flex items-center justify-between gap-2 bg-slate-700/50 rounded-xl p-3">
+              <div className="min-w-0">
+                <p className="text-xs text-slate-400">Adding a date to</p>
+                <p className="font-semibold truncate">{selected.name}</p>
+              </div>
+              <button onClick={() => setSelected(null)} className="text-xs text-orange-400 hover:text-orange-300 shrink-0">Change</button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className={LABEL_CLS}>Race name</label>
+                <input value={f.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Lyon Marathon" className={INPUT_CLS}/>
+              </div>
+              {matches.length > 0 && (
+                <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-2 space-y-1">
+                  <p className="text-[11px] text-slate-400 px-1">Already listed? Add your date to an existing race:</p>
+                  {matches.map(r => (
+                    <button key={r.slug} onClick={() => setSelected(r)}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-700/60 text-sm flex items-center gap-2">
+                      <Check size={13} className="text-emerald-400 shrink-0"/>
+                      <span className="truncate">{r.name}<span className="text-slate-500"> · {[r.city, r.country].filter(Boolean).join(", ")}</span></span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className={LABEL_CLS}>City</label>
+                  <input value={f.city} onChange={e => set("city", e.target.value)} placeholder="Lyon" className={INPUT_CLS}/></div>
+                <div><label className={LABEL_CLS}>Country</label>
+                  <input value={f.country} onChange={e => set("country", e.target.value)} placeholder="FR" maxLength={2} className={INPUT_CLS}/></div>
+              </div>
+              <div><label className={LABEL_CLS}>Official site (optional)</label>
+                <input value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://…" className={INPUT_CLS}/></div>
+              <div>
+                <label className={LABEL_CLS}>Location (for “races near me”)</label>
+                <button onClick={useMyLocation} disabled={locating}
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60">
+                  {locating ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>}
+                  {loc ? "Location set ✓" : "Use my current location"}
+                </button>
+              </div>
+            </>
+          )}
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1"><label className={LABEL_CLS}>Date</label>
+              <input type="date" value={f.date} onChange={e => set("date", e.target.value)} className={INPUT_CLS}/></div>
+            <div><label className={LABEL_CLS}>Distance (km)</label>
+              <input type="number" step="0.1" min="0" value={f.distanceKm} onChange={e => set("distanceKm", e.target.value)} placeholder="42.2" className={INPUT_CLS}/></div>
+            <div><label className={LABEL_CLS}>Elev. (m)</label>
+              <input type="number" min="0" value={f.elevation} onChange={e => set("elevation", e.target.value)} placeholder="0" className={INPUT_CLS}/></div>
+          </div>
+
+          <div className="flex items-start gap-2 text-[11px] text-slate-400 bg-amber-500/5 border border-amber-500/20 rounded-xl p-2.5">
+            <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5"/>
+            <span>Races can be added by anyone and are user-submitted until a maintainer verifies them. Always confirm the date on the official site before planning around it.</span>
+          </div>
+
+          {err && <p className="text-sm text-red-400">{err}</p>}
+
+          <div className="flex gap-2">
+            <button onClick={submit} disabled={busy}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-60">
+              {busy ? <Loader size={16} className="animate-spin"/> : <Plus size={16}/>}Add race
+            </button>
+            <button onClick={onClose} className="px-3 text-sm text-slate-400 hover:text-slate-200">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

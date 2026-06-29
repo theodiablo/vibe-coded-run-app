@@ -139,4 +139,13 @@ export const nativeSource = {
     if (handle.background) BackgroundGeolocation.removeWatcher({ id: handle.id });
     else Geolocation.clearWatch({ id: handle.id });
   },
+
+  // One-off coarse fix for "races near me" (Discover). Ensures foreground
+  // permission (showing the OS dialog if needed), then a single getCurrentPosition.
+  // Resolves { lat, lng }; rejects on denial/unavailable so the UI can react.
+  async getCurrentPosition() {
+    if (!(await ensureForegroundPermission())) throw new Error("Location permission was not granted.");
+    const p = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 });
+    return { lat: p.coords.latitude, lng: p.coords.longitude };
+  },
 };

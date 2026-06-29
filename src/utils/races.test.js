@@ -1,5 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { detectRaceCompletion, detectAnyRace, bestTimesByDistance, isPersonalBest, findEdition, searchEditions } from "./races";
+import { describe, it, expect, beforeAll } from "vitest";
+import { detectRaceCompletion, detectAnyRace, bestTimesByDistance, isPersonalBest, findEdition, searchEditions, hydrateCatalogue } from "./races";
+
+// The catalogue is now fetched data, not a bundle, so hydrate a tiny fixture
+// before the lookup tests (mirrors what loadCatalogue does at runtime).
+beforeAll(() => {
+  hydrateCatalogue([
+    {
+      id: "behobia-san-sebastian", name: "Behobia-San Sebastián", city: "San Sebastián",
+      country: "ES", lat: 43.3183, lng: -1.9812, distances: [20], verified: true,
+      editions: [{ id: "behobia-san-sebastian-2026-11-08", date: "2026-11-08", distanceKm: 20, elevation: 200, verified: true }],
+    },
+  ]);
+});
 
 const target = { targetEditionId: "behobia-san-sebastian-2026", raceDate: "2026-11-08", distanceKm: 20 };
 
