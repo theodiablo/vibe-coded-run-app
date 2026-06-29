@@ -283,7 +283,7 @@ export default function RunningCoach({ onSignOut }) {
       {showBackup  && <BackupModal  data={{runs, plan, settings, races, ...(backupRoutes.length ? {routes: backupRoutes} : {})}} onClose={() => setShowBackup(false)}/>}
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showSettings && <SettingsModal
-        settings={settings} saveSettings={saveSettings} runs={runs} showToast={showToast}
+        settings={settings} saveSettings={saveSettings} showToast={showToast}
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}

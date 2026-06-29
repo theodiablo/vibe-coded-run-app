@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hrZoneBpm, sessionHR, HR_ZONES, SESSION_ZONES } from "./hr";
+import { hrZoneBpm, sessionHR, runZoneIndex, HR_ZONES, SESSION_ZONES } from "./hr";
 
 describe("hrZoneBpm", () => {
   it("computes Karvonen (heart-rate reserve) ranges", () => {
@@ -32,6 +32,22 @@ describe("sessionHR", () => {
   });
   it("returns null without a max HR", () => {
     expect(sessionHR("EASY", {restHR: 60})).toBeNull();
+  });
+});
+
+describe("runZoneIndex", () => {
+  // Karvonen on maxHR 200 / restHR 60 (HRR 140): Z1 130-144, Z2 144-158,
+  // Z3 158-172, Z4 172-186, Z5 186+.
+  it("classifies an HR into its Karvonen zone", () => {
+    expect(runZoneIndex(150, 200, 60)).toBe(2);
+    expect(runZoneIndex(180, 200, 60)).toBe(4);
+  });
+  it("treats the top zone as open-ended", () => {
+    expect(runZoneIndex(210, 200, 60)).toBe(5);
+  });
+  it("returns null without an HR or max HR", () => {
+    expect(runZoneIndex(0, 200, 60)).toBeNull();
+    expect(runZoneIndex(150, 0, 60)).toBeNull();
   });
 });
 

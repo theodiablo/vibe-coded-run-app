@@ -5,6 +5,7 @@ import { VERT_COST } from "../constants";
 import { fmt, ymd } from "../utils/format";
 import { riegel, bestEffortAnchor, hrModelAnchor } from "../utils/predictions";
 import { PredictionsInfo } from "../components/PredictionsInfo";
+import { HRZonesCard } from "../components/HRZonesCard";
 
 export function StatsView({runs, settings}) {
   return (
@@ -14,6 +15,7 @@ export function StatsView({runs, settings}) {
       </div>
       <Overview runs={runs} settings={settings}/>
       <RacePredictions runs={runs} settings={settings}/>
+      <HRZonesCard runs={runs} settings={settings}/>
     </div>
   );
 }

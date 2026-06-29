@@ -30,6 +30,18 @@ export function hrZoneBpm(loPct, hiPct, maxHR, restHR) {
   return {lo: Math.round(hrr * loPct + restHR), hi: Math.round(hrr * hiPct + restHR)};
 }
 
+// Classify an average HR into its zone number (1..5) for the given profile,
+// or null if it can't be computed. Last zone is open-ended at the top.
+export function runZoneIndex(hr, maxHR, restHR) {
+  if (!hr || !maxHR) return null;
+  const idx = HR_ZONES.findIndex((z, i) => {
+    const r = hrZoneBpm(z.lo, z.hi, maxHR, restHR);
+    if (!r) return false;
+    return i === HR_ZONES.length - 1 ? hr >= r.lo : hr >= r.lo && hr < r.hi;
+  });
+  return idx >= 0 ? idx + 1 : null;
+}
+
 // Resolve a session type's target bpm range from settings.
 export function sessionHR(type, settings) {
   const cfg    = SESSION_ZONES[type] || SESSION_ZONES.EASY;
