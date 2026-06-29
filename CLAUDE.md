@@ -192,6 +192,15 @@ and delete anything that becomes stale.
   real manual save, not CSV import/cancel) — used to log a run straight from a
   plan session and auto-tick it.
 
+## Android release process
+- Create releases via the GitHub UI at `github.com/theodiablo/vibe-coded-run-app/releases/new`.
+  Set the tag to `android-v<semver>` targeting `main`; publishing the release pushes the tag,
+  which triggers `android.yml` (signed AAB → Play Store internal track → Supabase
+  `latest_version` update). Update `CHANGELOG.md` in the same PR before tagging.
+- **Remote sessions:** `git push` of tags is blocked by the proxy — always use the GitHub
+  UI to create the tag+release, never `git push <tagname>`.
+- Version bump guide: patch for bug fixes, minor for new features, major for breaking changes.
+
 ## Git / PR workflow
 - Do not open or merge PRs unless explicitly asked.
 - We squash-merge PRs. After a squash-merge, a branch that keeps being reused
