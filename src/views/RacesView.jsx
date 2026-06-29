@@ -112,8 +112,11 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                 const days = daysUntil(p.raceDate, today);
                 const isTarget = settings.targetEditionId === p.editionId;
                 // A race can be folded into the current plan when there's an active
-                // target and this race falls before it (a checkpoint along the way).
-                const inPlannable = settings.targetEditionId && !isTarget && settings.raceDate && p.raceDate < settings.raceDate;
+                // plan (a race date is set) and this race falls before the main race
+                // — a checkpoint along the way. We key off settings.raceDate rather
+                // than targetEditionId so a hand-entered main race (no catalogue
+                // edition) can still have tune-ups added.
+                const inPlannable = settings.raceDate && !isTarget && p.raceDate < settings.raceDate;
                 return (
                   <div key={p.editionId} className="rounded-2xl p-4 border border-orange-500/30"
                     style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
