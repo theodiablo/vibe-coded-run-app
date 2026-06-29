@@ -277,6 +277,18 @@ export default function RunningCoach({ onSignOut }) {
           // skipped straight to the health gate) — buildPlan needs date+distance.
           if (next.raceDate && next.distanceKm)
             savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation));
+          // A catalogue race picked in onboarding is the training target — also
+          // surface it in the Races tab as a wishlist participation (the tab lists
+          // participations, not the settings target). Skip if already present.
+          const joined = findEdition(next.targetEditionId);
+          if (joined && !(races.participations || []).some(p => p.editionId === next.targetEditionId)) {
+            const ed = joined.edition;
+            saveRaces({ ...races, participations: [...(races.participations || []), {
+              editionId: ed.id, raceId: joined.raceId, label: editionLabel(joined, ed),
+              raceDate: ed.date, distanceKm: ed.distanceKm,
+              status: "wishlist", timeSec: null, runId: null, source: "onboarding", notes: "",
+            }] });
+          }
           setOnboarding(false);
           track("onboarding_completed");
         }}/>}
