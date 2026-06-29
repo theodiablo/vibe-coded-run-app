@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Activity, ChevronLeft, ShieldAlert, AlertTriangle } from "lucide-react";
-import { INPUT_CLS, DISCLAIMER_VERSION } from "../constants";
+import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 
@@ -263,6 +263,10 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
                   excludes or limits any liability that cannot be excluded or
                   limited under applicable law.
                 </p>
+                <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer"
+                  className="inline-block text-xs text-orange-400 hover:text-orange-300">
+                  Read the full disclaimer
+                </a>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" checked={ackChecked} onChange={e => setAckChecked(e.target.checked)}
                     className="mt-0.5 w-4 h-4 rounded accent-orange-500 shrink-0"/>

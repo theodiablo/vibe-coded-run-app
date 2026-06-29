@@ -26,6 +26,10 @@ export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
 // for background-location apps.
 export const PRIVACY_URL = "https://run.camboulive.solutions/privacy.html";
 
+// Public health & safety / medical disclaimer (static page in public/disclaimer.html).
+// Linked from the in-app onboarding disclaimer so the full version is reachable.
+export const DISCLAIMER_URL = "https://run.camboulive.solutions/disclaimer.html";
+
 // Version of the medical/liability disclaimer shown in onboarding. Stored
 // alongside the user's acknowledgment (`settings.healthAck`) so a future change
 // to the disclaimer copy can detect a stale acknowledgment and re-prompt. Bump
