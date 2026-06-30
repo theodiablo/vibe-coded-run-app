@@ -66,7 +66,7 @@ export function findRace(raceId) {
 // YYYY-MM-DD string; pass it from the caller so the function stays pure.
 export function searchEditions(query, today, { upcomingOnly = true } = {}) {
   const q = (query || "").trim().toLowerCase();
-  return CURATED_EDITIONS.filter(e => {
+  return _editions.filter(e => {
     if (upcomingOnly && today && e.edition.date < today) return false;
     if (!q) return true;
     return (e.name + " " + e.city + " " + e.country).toLowerCase().includes(q);
