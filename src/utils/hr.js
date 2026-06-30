@@ -42,6 +42,42 @@ export function runZoneIndex(hr, maxHR, restHR) {
   return idx >= 0 ? idx + 1 : null;
 }
 
+// Parse a Bluetooth Heart Rate Measurement characteristic value (GATT 0x2A37),
+// as delivered by Web Bluetooth and the @capacitor-community/bluetooth-le
+// notification callback (both hand us a DataView). Returns { bpm, rr } where rr
+// is R-R intervals in milliseconds (empty array if none present), or null when
+// the value is unusable. Pure + unit-tested — no SDK/React imports.
+//
+// Layout: byte 0 is flags; bit 0 picks the HR value format (0 = uint8,
+// 1 = uint16), bit 3 flags an optional energy-expended uint16, bit 4 flags
+// trailing R-R intervals (uint16, units of 1/1024 s).
+export function parseHrMeasurement(view) {
+  if (!view || typeof view.getUint8 !== "function" || view.byteLength < 2) return null;
+  const flags = view.getUint8(0);
+  let i = 1;
+  let bpm;
+  if (flags & 0x01) { bpm = view.getUint16(i, true); i += 2; } // uint16, little-endian
+  else { bpm = view.getUint8(i); i += 1; }
+  if (!bpm) return null; // 0 bpm = no skin contact / invalid reading
+  if (flags & 0x08) i += 2; // skip energy expended
+  const rr = [];
+  if (flags & 0x10) {
+    for (; i + 2 <= view.byteLength; i += 2) {
+      rr.push(Math.round(view.getUint16(i, true) * 1000 / 1024)); // 1/1024 s → ms
+    }
+  }
+  return { bpm, rr };
+}
+
+// Reduce a stream of { bpm, t } samples to the summary a run stores: latest
+// (live display), rounded average, and peak. Empty stream → all null.
+export function hrSummary(samples) {
+  if (!samples || !samples.length) return { hr: null, hrAvg: null, hrMax: null };
+  let sum = 0, max = 0;
+  for (const s of samples) { sum += s.bpm; if (s.bpm > max) max = s.bpm; }
+  return { hr: samples[samples.length - 1].bpm, hrAvg: Math.round(sum / samples.length), hrMax: max };
+}
+
 // Resolve a session type's target bpm range from settings.
 export function sessionHR(type, settings) {
   const cfg    = SESSION_ZONES[type] || SESSION_ZONES.EASY;

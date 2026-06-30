@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
+import { hrSummary } from "../utils/hr";
 import { geoSource } from "../geo/source";
+import { getHrSource } from "../hr/source";
+import { getPairedDevice } from "../hr/device";
 import { isNative } from "../native";
 
 // Live GPS run tracker. All geolocation access is funnelled through this one hook
@@ -37,9 +40,13 @@ const readBuffer = () => {
 };
 const clearBuffer = () => { try { localStorage.removeItem(LIVE_RUN_KEY); } catch { /* ignore */ } };
 
-export function useRunTracker() {
+// `hrMethod` (settings.hrMethod) selects an optional live heart-rate source. A
+// LIVE source (Bluetooth) streams here alongside GPS; a post-run source (Health
+// Connect) is handled at save time in LiveRunTracker, not here. Absent/web → no HR.
+export function useRunTracker({ hrMethod } = {}) {
   const [state, setState] = useState("idle"); // idle | tracking | paused | stopped
   const [points, setPoints] = useState([]);
+  const [hrSamples, setHrSamples] = useState([]); // { bpm, t } from a live HR sensor
   const [error, setError] = useState(null);
   const [movingSec, setMovingSec] = useState(0);
   const [location, setLocation] = useState(null); // preview position shown before recording starts
@@ -59,6 +66,8 @@ export function useRunTracker() {
 
   const stateRef = useRef(state);
   const pointsRef = useRef(points);
+  const hrSamplesRef = useRef(hrSamples); // mirror so the async HR callback sees latest
+  const hrWatchRef = useRef(null);  // live HR source watch handle (null when not streaming)
   const accRef = useRef(0);        // completed moving seconds
   const startRef = useRef(null);   // epoch ms the current active segment began
   const watchRef = useRef(null);
@@ -70,11 +79,12 @@ export function useRunTracker() {
   // geolocation callback always sees the latest values.
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { pointsRef.current = points; }, [points]);
+  useEffect(() => { hrSamplesRef.current = hrSamples; }, [hrSamples]);
 
   const persist = useCallback(() => {
     try {
       localStorage.setItem(LIVE_RUN_KEY, JSON.stringify({
-        points: pointsRef.current, accSec: accRef.current,
+        points: pointsRef.current, accSec: accRef.current, hrSamples: hrSamplesRef.current,
         startAt: startRef.current, state: stateRef.current, savedAt: Date.now(),
       }));
     } catch { /* quota — non-fatal */ }
@@ -133,6 +143,31 @@ export function useRunTracker() {
     persist();
   }, [persist]);
 
+  // ── live heart-rate callback ─────────────────────────────────────────────
+  // Append a sample only while actively tracking (mirrors onPos ignoring fixes
+  // when paused) so a paused breather doesn't drag the average down.
+  const onHrSample = useCallback((sample) => {
+    if (stateRef.current !== "tracking") return;
+    hrSamplesRef.current = [...hrSamplesRef.current, sample];
+    setHrSamples(hrSamplesRef.current);
+    persist();
+  }, [persist]);
+
+  const startHrWatch = useCallback(() => {
+    if (hrWatchRef.current) return; // already streaming (e.g. resume)
+    const src = getHrSource(hrMethod);
+    if (!src || !src.live) return;  // off / web / post-run source → nothing to stream
+    const device = getPairedDevice();
+    hrWatchRef.current = src.watch(onHrSample, () => { /* non-fatal; run continues */ },
+      { deviceId: device?.id });
+  }, [hrMethod, onHrSample]);
+
+  const stopHrWatch = useCallback(() => {
+    const src = getHrSource(hrMethod);
+    if (hrWatchRef.current && src) src.clearWatch(hrWatchRef.current);
+    hrWatchRef.current = null;
+  }, [hrMethod]);
+
   const onErr = useCallback((err) => {
     if (err.code === err.PERMISSION_DENIED)
       setError(PERMISSION_DENIED_MSG);
@@ -183,6 +218,8 @@ export function useRunTracker() {
     setError(null);
     pointsRef.current = [];
     setPoints([]);
+    hrSamplesRef.current = [];
+    setHrSamples([]);
     accRef.current = 0;
     startRef.current = Date.now();
     lastFixRef.current = 0;
@@ -190,9 +227,10 @@ export function useRunTracker() {
     stateRef.current = "tracking";
     setState("tracking");
     setMovingSec(0);
+    startHrWatch();
     acquireWake();
     persist();
-  }, [startWatch, acquireWake, persist]);
+  }, [startWatch, startHrWatch, acquireWake, persist]);
 
   const pause = useCallback(() => {
     if (stateRef.current !== "tracking") return;
@@ -211,27 +249,32 @@ export function useRunTracker() {
     if (watchRef.current == null) startWatch();
     stateRef.current = "tracking";
     setState("tracking");
+    startHrWatch();
     acquireWake();
     persist();
-  }, [startWatch, acquireWake, persist]);
+  }, [startWatch, startHrWatch, acquireWake, persist]);
 
   const stop = useCallback(() => {
     if (stateRef.current === "tracking" && startRef.current)
       accRef.current += (Date.now() - startRef.current) / 1000;
     startRef.current = null;
     stopWatch();
+    stopHrWatch();
     releaseWake();
     stateRef.current = "stopped";
     setState("stopped");
     setMovingSec(computeMoving());
     persist();
-  }, [stopWatch, releaseWake, persist, computeMoving]);
+  }, [stopWatch, stopHrWatch, releaseWake, persist, computeMoving]);
 
   const reset = useCallback(() => {
     stopWatch();
+    stopHrWatch();
     releaseWake();
     pointsRef.current = [];
     setPoints([]);
+    hrSamplesRef.current = [];
+    setHrSamples([]);
     accRef.current = 0;
     startRef.current = null;
     lastFixRef.current = 0;
@@ -240,7 +283,7 @@ export function useRunTracker() {
     stateRef.current = "idle";
     setState("idle");
     clearBuffer();
-  }, [stopWatch, releaseWake]);
+  }, [stopWatch, stopHrWatch, releaseWake]);
 
   // Load a recoverable buffer into an active (paused) session.
   const resumePrevious = useCallback(() => {
@@ -257,6 +300,8 @@ export function useRunTracker() {
       if (recovered.length && recovered[recovered.length - 1] != null) recovered.push(null);
       pointsRef.current = recovered;
       setPoints(pointsRef.current);
+      hrSamplesRef.current = buf.hrSamples || [];
+      setHrSamples(hrSamplesRef.current);
       accRef.current = buf.accSec || 0;
       startRef.current = null;
       lastFixRef.current = 0;
@@ -298,7 +343,7 @@ export function useRunTracker() {
   }, [acquireWake, persist]);
 
   // Tear down on unmount.
-  useEffect(() => () => { stopWatch(); releaseWake(); }, [stopWatch, releaseWake]);
+  useEffect(() => () => { stopWatch(); stopHrWatch(); releaseWake(); }, [stopWatch, stopHrWatch, releaseWake]);
 
   // Native, returning user: location may already be granted from a prior session.
   // Check WITHOUT prompting so the idle preview can show straight away (the lazy
@@ -357,8 +402,9 @@ export function useRunTracker() {
         }
       }
     }
-    return { km, elevation, movingSec, avgPace, curPace, n: points.filter(Boolean).length };
-  }, [points, movingSec]);
+    return { km, elevation, movingSec, avgPace, curPace, n: points.filter(Boolean).length,
+      ...hrSummary(hrSamples) };
+  }, [points, movingSec, hrSamples]);
 
   return {
     state, points, stats, error, pending, location,

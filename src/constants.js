@@ -21,6 +21,16 @@ export const LIVE_RUN_KEY = "rc_live_run";
 // before the first OS permission prompt but don't nag on every run.
 export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
 
+// ── Heart-rate sensor (native) — all PER-DEVICE, never in the synced blob ──
+// The *method* preference (off/bluetooth/healthconnect) lives in synced settings
+// (settings.hrMethod); the concrete paired device and one-shot UI flags are local
+// because Bluetooth bonding is inherently per-device (a synced device id would
+// show as "paired" on a phone where it isn't bonded). Mirrors the telemetry-
+// consent / bg-disclosure decision to keep device-specific state out of the blob.
+export const HR_DEVICE_KEY = "rc_hr_device";          // JSON {id,name} of the bonded BLE sensor
+export const HR_BLE_DISCLOSED_KEY = "rc_hr_ble_disclosed"; // BLE permission disclosure seen
+export const HR_SETUP_SEEN_KEY = "rc_hr_setup_seen";  // first-run "set up a sensor?" nudge shown
+
 // Public privacy policy (static page in public/privacy.html, served at the site
 // root). Linked from the disclosure + login screen and required by the app stores
 // for background-location apps.

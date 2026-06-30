@@ -131,6 +131,40 @@ and delete anything that becomes stale.
   `src/supabase.js`, completed in `App.jsx`). Build: `npx cap sync android` then
   `.github/workflows/android.yml`; the web S3/CloudFront deploy stays untouched.
 
+## Heart-rate sources (native HR capture)
+- **Same seam shape as GPS.** External HR capture mirrors `geoSource`: `getHrSource`
+  (`src/hr/source.js`) returns a source or **null** (off / web / unknown), gated by
+  `isNative`, so the web build is unaffected (HR capture is native-only). Two **narrow
+  capability contracts**, not one fat interface — a source carries a `live` flag:
+  - **Live** (`src/hr/ble.js`, `bleSource`): a standard BLE Heart Rate Profile sensor
+    (chest strap / armband / watch broadcasting, e.g. Amazfit "Heart Rate Push").
+    `isAvailable / scan / requestPermissions / watch(onSample,onErr,{deviceId}) /
+    clearWatch`. `useRunTracker` streams it **alongside GPS**; samples are `{bpm,t}`,
+    appended only while `state==="tracking"` (mirrors `onPos`), summarised by
+    `hrSummary` into `stats.{hr,hrAvg,hrMax}`, and persisted in the `LIVE_RUN_KEY`
+    recovery buffer. Parsing of the `0x2A37` characteristic is the pure, unit-tested
+    `parseHrMeasurement` in `src/utils/hr.js` (takes the plugin/Web-Bluetooth DataView).
+  - **Post-run** (`src/hr/healthconnect.js`, `healthConnectSource`): reads HR from
+    Android Health Connect after the run. `useRunTracker` never streams it —
+    `LiveRunTracker.handleSave` calls `fetchRange(start,end)`; if the watch hasn't
+    synced yet it stamps `hrPending:{start,end}` and `flushPendingHr` relinks on next
+    load (the `flushPendingRoutes` deferred pattern). Registered **by name**
+    (`registerPlugin`, the BackgroundGeolocation precedent) so it's build/web-safe; a
+    compatible HC plugin must be added to the shell (community ones lag Capacitor 8's
+    peer — install with `--legacy-peer-deps`). Reading HR needs a Play health-data
+    declaration + privacy policy before release.
+- **Method preference syncs; the device does NOT.** `settings.hrMethod`
+  (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
+  `{id,name}` is **per-device localStorage** (`src/hr/device.js`, `HR_DEVICE_KEY`) —
+  like the consent / bg-disclosure flags — because Bluetooth bonding is per-phone.
+  Config UI is `HrSensor` (`src/views/HrSensor.jsx`), nested in Settings → Profile,
+  native-only. BLE pairing reuses the disclosure→OS-prompt pattern
+  (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable one-time nudge
+  (`HR_SETUP_SEEN_KEY`) offers setup before the first live run; it never blocks Start.
+- HR lands in the **existing** run `hr`/`hrMax` fields (no shape change) via the
+  `LogView` prefill — still user-editable — so all HR display (`HRZonesCard`,
+  `runZoneIndex`, Stats) works unchanged.
+
 ## Races & badges (gamification)
 - **Catalogue (Race → Edition):** a "race" is the recurring event, an "edition" a
   dated running of it (the thing you wishlist / target / complete). Edition id =

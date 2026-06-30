@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Square, X, Loader, MapPin } from "lucide-react";
+import { Play, Pause, Square, X, Loader, MapPin, HeartPulse } from "lucide-react";
 import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
 import { saveRoute, queuePendingRoute } from "../routes";
 import { useRunTracker } from "../hooks/useRunTracker";
+import { getHrSource } from "../hr/source";
 import { RouteMap } from "../components/RouteMap";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
 import { isNative } from "../native";
-import { BG_LOC_DISCLOSED_KEY } from "../constants";
+import { BG_LOC_DISCLOSED_KEY, HR_SETUP_SEEN_KEY } from "../constants";
 
 function Stat({ label, value }) {
   return (
@@ -28,10 +29,23 @@ function Ctrl({ onClick, color, children, disabled }) {
   );
 }
 
-export function LiveRunTracker({ onFinish, onClose, showToast }) {
-  const t = useRunTracker();
+export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, onConfigureHr }) {
+  const t = useRunTracker({ hrMethod });
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
+  // Live HR streams only from a Bluetooth (live) source; Health Connect is fetched
+  // post-run in handleSave, so no live tile for it.
+  const liveHr = isNative && hrMethod === "bluetooth";
+  // One-time, skippable nudge to set up a heart-rate source before the first live
+  // run (native, when nothing is configured). Per-device flag; never blocks Start.
+  const hrSetupSeen = () => {
+    try { return localStorage.getItem(HR_SETUP_SEEN_KEY) === "1"; } catch { return false; }
+  };
+  const markHrSetupSeen = () => {
+    try { localStorage.setItem(HR_SETUP_SEEN_KEY, "1"); } catch { /* quota — non-fatal */ }
+  };
+  const [showHrNudge, setShowHrNudge] = useState(
+    () => isNative && (hrMethod || "off") === "off" && !hrSetupSeen());
   const disclosed = () => {
     try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
   };
@@ -100,6 +114,20 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
       queuePendingRoute({ tmpId: routeTmp, points: simplified, stats: statObj });
       showToast?.("Couldn't upload the route — saved on this device, will retry syncing.", "err");
     }
+    // Heart rate: a live (Bluetooth) source has already filled stats.hrAvg/hrMax.
+    // A post-run source (Health Connect) is queried now over the run's time window;
+    // if it isn't synced yet, stamp hrPending so RunningCoach relinks on next load.
+    let hr = null, hrMax = null, hrPending = null;
+    if (stats.hrAvg != null) { hr = stats.hrAvg; hrMax = stats.hrMax; }
+    else if (hrMethod === "healthconnect") {
+      const startMs = points.find(Boolean)?.[2] || Date.now();
+      let endMs = startMs;
+      for (let i = points.length - 1; i >= 0; i--) { if (points[i]) { endMs = points[i][2]; break; } }
+      let res = null;
+      try { res = await getHrSource("healthconnect")?.fetchRange(startMs, endMs); } catch { /* unsynced — leave null */ }
+      if (res && res.hrAvg) { hr = res.hrAvg; hrMax = res.hrMax; }
+      else hrPending = { start: startMs, end: endMs };
+    }
     t.finalize();
     setBusy(false);
     onFinish({
@@ -109,6 +137,8 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
       source: "gps",
       ...(routeId ? { routeId } : {}),
       ...(routeTmp ? { routeTmp, routePending: true } : {}),
+      ...(hr != null ? { hr, hrMax } : {}),
+      ...(hrPending ? { hrPending } : {}),
     });
   };
 
@@ -150,6 +180,17 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
           <Stat label="pace" value={fmt.pace(state === "tracking" ? stats.curPace : stats.avgPace)} />
           <Stat label="elev" value={stats.elevation + "m"} />
         </div>
+
+        {liveHr && (
+          <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2">
+            <HeartPulse size={18} className={stats.hr != null ? "text-red-400" : "text-slate-500"} />
+            <span className="text-2xl font-bold text-white tabular-nums leading-none">{stats.hr ?? "--"}</span>
+            <span className="text-[11px] text-slate-400 uppercase tracking-wide">bpm</span>
+            {stats.hrAvg != null
+              ? <span className="text-[11px] text-slate-500 ml-2">avg {stats.hrAvg} · max {stats.hrMax}</span>
+              : <span className="text-[11px] text-slate-500 ml-2">connecting…</span>}
+          </div>
+        )}
 
         {state === "idle" && (
           <>
@@ -196,6 +237,33 @@ export function LiveRunTracker({ onFinish, onClose, showToast }) {
 
       {showDisclosure && (
         <BgLocationDisclosure onAccept={acceptDisclosure} onCancel={cancelDisclosure} />
+      )}
+
+      {/* Skippable one-time nudge to set up a heart-rate source (shown only when the
+          bg-location disclosure isn't up, to avoid stacked sheets). */}
+      {showHrNudge && !showDisclosure && (
+        <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <HeartPulse size={16} className="text-orange-400" />
+              <p className="font-semibold text-sm">Track your heart rate?</p>
+            </div>
+            <p className="text-sm text-slate-300">
+              Connect a Bluetooth sensor or Health Connect to capture heart rate
+              automatically — no need to type it in. You can set this up later in Settings.
+            </p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button onClick={() => { markHrSetupSeen(); setShowHrNudge(false); }}
+                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200">
+                Not now
+              </button>
+              <button onClick={() => { markHrSetupSeen(); setShowHrNudge(false); onConfigureHr?.(); }}
+                className="py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white">
+                Set up
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

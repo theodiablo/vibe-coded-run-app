@@ -62,4 +62,27 @@
 
     <!-- Persistent "recording run" notification (runtime-requested on Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Live heart-rate sensor over Bluetooth LE (chest strap / armband / watch
+         broadcasting HR). Scanning is flagged neverForLocation so it never implies
+         location access; connect is needed to read the sensor. Used only while a
+         run is recording — the GPS foreground service already holds the app then,
+         so no extra HR foreground service is declared. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Health Connect: read heart rate recorded by the user's watch post-run.
+         Requires a Google Play health-data declaration + privacy policy before
+         release. The chosen Health Connect Capacitor plugin supplies the native
+         permission-rationale activity; this declares the read scope and lets the
+         app discover the Health Connect package. -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+    </queries>
 </manifest>

@@ -8,6 +8,7 @@ import { computeBadges, unlockedIds } from "./utils/badges";
 import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils/races";
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
+import { flushPendingHr } from "./hr/healthconnect";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -49,7 +50,7 @@ export default function RunningCoach({ onSignOut }) {
   const [settings,    setSettings]    = useState({
     raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
     age:0, maxHR:0, restHR:60, onboarded:false, onboardStep:0, intent:null,
-    healthAck:null,
+    healthAck:null, hrMethod:"off",
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState(null);
@@ -127,6 +128,15 @@ export default function RunningCoach({ onSignOut }) {
         setRuns(prev => {
           const next = prev.map(r => r.routeTmp === tmpId
             ? { ...r, routeId, routePending: false, routeTmp: undefined } : r);
+          db.set(STORAGE_KEYS.RUNS, next);
+          return next;
+        });
+      });
+      // Same deferred-relink for Health Connect HR: a run saved before the watch
+      // had synced its HR is stamped hrPending — retry now and patch it in.
+      flushPendingHr(r || [], (runId, patch) => {
+        setRuns(prev => {
+          const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
           db.set(STORAGE_KEYS.RUNS, next);
           return next;
         });
@@ -399,7 +409,8 @@ export default function RunningCoach({ onSignOut }) {
           setOnboarding(false);
           track("onboarding_completed");
         }}/>}
-      {showTracker && <LiveRunTracker showToast={showToast}
+      {showTracker && <LiveRunTracker showToast={showToast} hrMethod={settings.hrMethod}
+        onConfigureHr={() => { setShowTracker(false); setShowSettings(true); }}
         onFinish={prefill => { setShowTracker(false); goLog(prefill); }}
         onClose={() => setShowTracker(false)}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings, races, ...(backupRoutes.length ? {routes: backupRoutes} : {})}} onClose={() => setShowBackup(false)}/>}

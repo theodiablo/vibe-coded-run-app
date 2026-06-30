@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
 import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL } from "../constants";
 import { HRZones } from "../views/HRZones";
+import { HrSensor } from "../views/HrSensor";
 import { isNative } from "../native";
 import { getConsent, setConsent } from "../telemetry";
 
@@ -46,6 +47,8 @@ export function SettingsModal({settings, saveSettings, onBackup, onRestore, onSi
                 onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} className={INPUT_CLS}/>
             </div>
             <HRZones settings={settings} saveSettings={saveSettings}/>
+            {/* Heart-rate sensor capture is native-only (BLE / Health Connect). */}
+            {isNative && <HrSensor settings={settings} saveSettings={saveSettings} showToast={showToast}/>}
           </div>
 
           {/* Privacy */}
