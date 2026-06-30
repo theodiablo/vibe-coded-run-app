@@ -371,6 +371,8 @@ export default function RunningCoach({ onSignOut }) {
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
       {toast       && <Toast {...toast}/>}
       {onboarding  && <OnboardingWizard settings={settings}
+        catalogue={catalogue} addRace={addRace} addEdition={addEdition}
+        refreshCatalogue={refreshCatalogue} showToast={showToast}
         onSaveProgress={(partial, step) => saveSettings({...settings, ...partial, onboardStep: step})}
         onComplete={({name, plan, hr, healthAck}) => {
           // `plan` carries the race-shaped fields incl. targetEditionId (set when

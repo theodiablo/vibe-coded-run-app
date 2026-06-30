@@ -12,9 +12,14 @@ import { notifyContribution, deleteRace } from "../races";
 //
 // Props: catalogue (grouped races, for dup search), addRace/addEdition (src/races
 // via RunningCoach), onContributed (refresh the catalogue), showToast, onClose.
-export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, showToast, onClose }) {
+// Optional: prefill ({date, distanceKm, elevation}) seeds the form; onCreated
+// (editionId) — when present, the caller wants the freshly-created edition back
+// (e.g. onboarding promotes it to the training target) instead of the default
+// toast-and-close.
+export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, showToast, onClose, prefill, onCreated }) {
   const [selected, setSelected] = useState(null); // an existing race to add a date to
-  const [f, setF] = useState({ name: "", city: "", country: "", url: "", date: "", distanceKm: "", elevation: "" });
+  const [f, setF] = useState({ name: "", city: "", country: "", url: "",
+    date: prefill?.date || "", distanceKm: prefill?.distanceKm ?? "", elevation: prefill?.elevation ?? "" });
   const [loc, setLoc] = useState(null);   // { lat, lng } from "use my location"
   const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -53,10 +58,10 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
     // addEdition fails — otherwise a childless race lingers in the catalogue.
     let createdRaceSlug = null;
     try {
-      let raceSlug, name;
+      let raceSlug, name, created;
       if (selected) {
         raceSlug = selected.slug; name = selected.name;
-        await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
+        created = await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
         track("race_contributed", { kind: "edition" });
         notifyContribution({ type: "edition", raceSlug, name, date: f.date, distanceKm: dist });
       } else {
@@ -67,12 +72,15 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
         });
         raceSlug = race.slug;
         createdRaceSlug = race.slug;
-        await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
+        created = await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
         track("race_contributed", { kind: "race" });
         notifyContribution({ type: "race", raceSlug, name, city: f.city.trim() || null, country: f.country.trim().toUpperCase() || null, url: f.url.trim() || null, date: f.date, distanceKm: dist });
       }
       await onContributed?.();
-      showToast("Added — thanks! It's live for everyone (unverified until reviewed).");
+      // Hand the new edition back when the caller wants it (onboarding promotes it
+      // to the training target + shows its own confirmation); otherwise toast.
+      if (onCreated) onCreated(created.id);
+      else showToast("Added — thanks! It's live for everyone (unverified until reviewed).");
       onClose();
     } catch (e) {
       console.error("add race failed", e);

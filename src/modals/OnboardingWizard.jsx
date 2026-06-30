@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, Trophy } from "lucide-react";
+import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, Trophy, Plus } from "lucide-react";
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
+import { RaceFormModal } from "./RaceFormModal";
 import { onboardingSteps } from "../utils/onboarding";
 import { searchEditions, editionLabel, findEdition } from "../utils/races";
 import { suggestedGoalSec } from "../utils/goal";
@@ -17,7 +18,7 @@ import { addWeeks, ymd, fmt } from "../utils/format";
 // step is the mandatory gate and the only way into the app (header "Skip" jumps
 // TO it, never around it); `summary` is an in-memory-only celebration after the
 // gate. All input is held in local draft state and only committed via onComplete.
-export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
+export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogue, addRace, addEdition, refreshCatalogue, showToast}) {
   const today = ymd(new Date());
 
   const [intent, setIntent] = useState(settings.intent || null); // null | "race" | "fitness"
@@ -45,6 +46,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
   // Race-picker UI state.
   const [query,   setQuery]   = useState("");
   const [manual,  setManual]  = useState(false);
+  const [showAddRace, setShowAddRace] = useState(false);
 
   // No-race ("get fit") branch picks. `selKey` tracks the chosen tile (so "5K"
   // and "Just run more" both map to 5 km but stay visually distinct).
@@ -112,6 +114,17 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
   // Manual edits decouple from the catalogue (no targetEditionId → no auto-detect
   // against a now-irrelevant edition).
   const onManualEdit = () => { if (targetEditionId) { setTargetEditionId(undefined); setPickedLabel(""); } };
+
+  // A race contributed to the catalogue from here becomes the training target:
+  // feed it back into the same pick() path. The catalogue is already refreshed by
+  // the modal, so findEdition resolves; if it lags, keep the typed values as-is.
+  const onRaceCreated = editionId => {
+    const j = findEdition(editionId);
+    if (j) pick(j);
+    setManual(false);
+    setShowAddRace(false);
+    showToast("Added to the catalogue — set as your race.");
+  };
 
   // Leaving the no-race step: synthesize a race-shaped target so buildPlan has a
   // timeline. Goal comes from the mid-pack suggestion (always defined for a valid
@@ -283,7 +296,12 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
                         </button>
                       ))}
                       {editionResults.length === 0 && (
-                        <p className="text-xs text-slate-500 text-center py-4">No races match — enter yours manually below.</p>
+                        <div className="text-center py-4 space-y-2">
+                          <p className="text-xs text-slate-500">No races match — enter yours manually below.</p>
+                          <button onClick={() => setShowAddRace(true)} className="text-xs text-orange-400 hover:text-orange-300 font-semibold">
+                            Add it to the catalogue →
+                          </button>
+                        </div>
                       )}
                     </div>
                   </>
@@ -308,6 +326,9 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
                     <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
                   </div>
+                  <button onClick={() => setShowAddRace(true)} className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 font-semibold">
+                    <Plus size={13}/> Help others find it — add it to the catalogue
+                  </button>
                 </div>
               )}
 
@@ -546,6 +567,13 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
           })()}
         </div>
       </div>
+
+      {showAddRace && <RaceFormModal
+        catalogue={catalogue} addRace={addRace} addEdition={addEdition}
+        onContributed={refreshCatalogue} showToast={showToast}
+        prefill={{date: raceDate, distanceKm, elevation: raceElevation}}
+        onCreated={onRaceCreated}
+        onClose={() => setShowAddRace(false)}/>}
     </div>
   );
 }
