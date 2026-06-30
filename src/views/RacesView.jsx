@@ -4,6 +4,7 @@ import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
 import { fmt, ymd } from "../utils/format";
 import { findEdition, editionLabel, isPersonalBest } from "../utils/races";
+import { AddRaceCard } from "../components/AddRaceCard";
 import { haversineM } from "../utils/geo";
 import { geoSource } from "../geo/source";
 import { reportRace } from "../races";
@@ -324,15 +325,12 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
             })}
           </div>
 
-          <div className="mt-6 space-y-3">
-            <button onClick={openRaceForm}
-              className="w-full flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-              <Plus size={15}/>Add a race
-            </button>
-            <p className="text-slate-500 text-[11px] text-center px-4">
-              Can't find a race? Add it — it's instantly visible to everyone. Races are user-submitted and
-              tagged unverified until a maintainer reviews them.
-            </p>
+          <div className="mt-6">
+            <AddRaceCard onClick={openRaceForm} subtitle="Add it — instantly visible to everyone.">
+              <p className="text-slate-500 text-[11px] px-1">
+                Races are user-submitted and tagged unverified until a maintainer reviews them.
+              </p>
+            </AddRaceCard>
           </div>
         </div>
       )}

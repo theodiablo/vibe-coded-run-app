@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, Trophy, Plus } from "lucide-react";
+import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, Trophy } from "lucide-react";
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { RaceFormModal } from "./RaceFormModal";
+import { AddRaceCard } from "../components/AddRaceCard";
 import { onboardingSteps } from "../utils/onboarding";
 import { searchEditions, editionLabel, findEdition } from "../utils/races";
 import { suggestedGoalSec } from "../utils/goal";
@@ -265,28 +266,28 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
             <div className="space-y-5">
               <div>
                 <p className="font-bold text-lg">Your race</p>
-                <p className="text-sm text-slate-400 mt-1">Search the catalogue, or enter the details yourself.</p>
+                <p className="text-sm text-slate-400 mt-1">Search the catalogue for your race.</p>
               </div>
 
-              {!manual ? (
-                pickedLabel ? (
-                  <div className="bg-slate-800 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
-                      <Check size={18} className="text-emerald-400"/>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{pickedLabel}</p>
-                      <p className="text-xs text-slate-400">{fmt.date(raceDate) + " · " + distanceKm + " km" + (raceElevation ? " · +" + raceElevation + "m" : "")}</p>
-                    </div>
-                    <button onClick={clearPick} className="text-xs text-slate-400 hover:text-white shrink-0">Change</button>
+              {pickedLabel ? (
+                <div className="bg-slate-800 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                    <Check size={18} className="text-emerald-400"/>
                   </div>
-                ) : (
-                  <>
-                    <div className="relative">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
-                      <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
-                        className={INPUT_CLS + " pl-9"}/>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{pickedLabel}</p>
+                    <p className="text-xs text-slate-400">{fmt.date(raceDate) + " · " + distanceKm + " km" + (raceElevation ? " · +" + raceElevation + "m" : "")}</p>
+                  </div>
+                  <button onClick={clearPick} className="text-xs text-slate-400 hover:text-white shrink-0">Change</button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
+                    <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
+                      className={INPUT_CLS + " pl-9"}/>
+                  </div>
+                  {editionResults.length > 0 && (
                     <div className="space-y-2 max-h-72 overflow-y-auto">
                       {editionResults.slice(0, 25).map(e => (
                         <button key={e.edition.id} onClick={() => pick(e)}
@@ -295,53 +296,39 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                           <p className="text-xs text-slate-400">{[e.city, e.country].filter(Boolean).join(", ") + " · " + fmt.date(e.edition.date) + " · " + e.edition.distanceKm + " km"}</p>
                         </button>
                       ))}
-                      {editionResults.length === 0 && (
-                        <div className="text-center py-4 space-y-2">
-                          <p className="text-xs text-slate-500">No races match — enter yours manually below.</p>
-                          <button onClick={() => setShowAddRace(true)} className="text-xs text-orange-400 hover:text-orange-300 font-semibold">
-                            Add it to the catalogue →
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  </>
-                )
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
-                    <input type="date" value={raceDate} onChange={e => { setRaceDate(e.target.value); onManualEdit(); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-                    <input type="number" min="1" max="200" step="0.1" value={distanceKm} placeholder="e.g. 21.1"
-                      onChange={e => { const n = parseFloat(e.target.value); setDist(isNaN(n) ? "" : n); onManualEdit(); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
-                    <input type="number" min="0" max="10000" step="10" value={raceElevation} placeholder="0"
-                      onChange={e => { const v = e.target.value; setElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); onManualEdit(); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-                    <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
-                  </div>
-                  <button onClick={() => setShowAddRace(true)}
-                    className="w-full flex items-center gap-3 text-left rounded-xl border border-dashed border-orange-400/50 bg-orange-500/10 hover:bg-orange-500/15 hover:border-orange-400 px-4 py-3 transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
-                      <Plus size={16} className="text-orange-300"/>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-orange-200">Add it to the catalogue</p>
-                      <p className="text-xs text-slate-400">Help others find it — and we&apos;ll set it as your race.</p>
-                    </div>
-                  </button>
-                </div>
-              )}
+                  )}
 
-              <button onClick={() => setManual(m => !m)} className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
-                {manual ? "Search the race catalogue instead" : "Enter a race manually instead"}
-              </button>
+                  <AddRaceCard onClick={() => setShowAddRace(true)} subtitle="Sets it as your race — and helps others find it.">
+                    {!manual ? (
+                      <button onClick={() => setManual(true)} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">
+                        Just enter it for myself →
+                      </button>
+                    ) : (
+                      <div className="space-y-4 pt-1">
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
+                          <input type="date" value={raceDate} onChange={e => { setRaceDate(e.target.value); onManualEdit(); }}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
+                          <input type="number" min="1" max="200" step="0.1" value={distanceKm} placeholder="e.g. 21.1"
+                            onChange={e => { const n = parseFloat(e.target.value); setDist(isNaN(n) ? "" : n); onManualEdit(); }}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+                          <input type="number" min="0" max="10000" step="10" value={raceElevation} placeholder="0"
+                            onChange={e => { const v = e.target.value; setElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); onManualEdit(); }}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
+                          <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+                        </div>
+                      </div>
+                    )}
+                  </AddRaceCard>
+                </>
+              )}
 
               <button onClick={() => go("raceGoal", {raceDate, distanceKm, raceElevation, targetEditionId})} disabled={!raceDate || !distanceKm}
                 className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
