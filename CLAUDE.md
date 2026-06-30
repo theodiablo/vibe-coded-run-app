@@ -158,8 +158,9 @@ and delete anything that becomes stale.
 - **Moderation:** `reportRace` writes a `race_reports` row (insert-only RLS, no
   client SELECT — so insert WITHOUT `.select()`) and best-effort invokes the
   `notify-contribution` edge function (`supabase/functions/`), which emails the
-  maintainer + thanks the contributor via Resend (`RESEND_API_KEY`; degrades to a
-  no-op if unset). The "verified → thank-you" half is in-app: `reconcileVerifiedThanks`
+  maintainer + thanks the contributor via AWS SES (SigV4-signed with `aws4fetch`;
+  keys in `SES_AWS_ACCESS_KEY_ID`/`SES_AWS_SECRET_ACCESS_KEY`, optional
+  `SES_REGION`/`FROM_EMAIL`/`MAINTAINER_EMAIL`; degrades to a no-op if unset). The "verified → thank-you" half is in-app: `reconcileVerifiedThanks`
   (RunningCoach) toasts once when a maintainer verifies the user's own contribution.
 - **Personal layer lives in the blob**, key `STORAGE_KEYS.RACES` (`rc_races`), NOT
   in the catalogue: `{participations:[...], seenBadges:[...], ackVerified:[...]}`
