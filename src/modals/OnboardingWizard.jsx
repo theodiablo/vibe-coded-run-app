@@ -326,8 +326,15 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                       className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
                     <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
                   </div>
-                  <button onClick={() => setShowAddRace(true)} className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 font-semibold">
-                    <Plus size={13}/> Help others find it — add it to the catalogue
+                  <button onClick={() => setShowAddRace(true)}
+                    className="w-full flex items-center gap-3 text-left rounded-xl border border-dashed border-orange-400/50 bg-orange-500/10 hover:bg-orange-500/15 hover:border-orange-400 px-4 py-3 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                      <Plus size={16} className="text-orange-300"/>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-orange-200">Add it to the catalogue</p>
+                      <p className="text-xs text-slate-400">Help others find it — and we&apos;ll set it as your race.</p>
+                    </div>
                   </button>
                 </div>
               )}
