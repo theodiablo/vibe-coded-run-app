@@ -1,5 +1,27 @@
-import { describe, it, expect } from "vitest";
-import { detectRaceCompletion, detectAnyRace, bestTimesByDistance, isPersonalBest, findEdition, searchEditions } from "./races";
+import { describe, it, expect, beforeAll } from "vitest";
+import { detectRaceCompletion, detectAnyRace, bestTimesByDistance, isPersonalBest, findEdition, searchEditions, hydrateCatalogue } from "./races";
+
+// The catalogue is now fetched data, not a bundle, so hydrate a tiny fixture
+// before the lookup tests (mirrors what loadCatalogue does at runtime).
+beforeAll(() => {
+  hydrateCatalogue([
+    {
+      id: "behobia-san-sebastian", name: "Behobia-San Sebastián", city: "San Sebastián",
+      country: "ES", lat: 43.3183, lng: -1.9812, distances: [20], verified: true,
+      editions: [{ id: "behobia-san-sebastian-2026-11-08", date: "2026-11-08", distanceKm: 20, elevation: 200, verified: true }],
+    },
+    {
+      id: "berlin-marathon", name: "Berlin Marathon", city: "Berlin",
+      country: "DE", lat: 52.5163, lng: 13.3777, distances: [42.2], verified: true,
+      editions: [{ id: "berlin-marathon-2026-09-27", date: "2026-09-27", distanceKm: 42.2, elevation: 80, verified: true }],
+    },
+    {
+      id: "paris-marathon", name: "Paris Marathon", city: "Paris",
+      country: "FR", lat: 48.8656, lng: 2.3212, distances: [42.2], verified: true,
+      editions: [{ id: "paris-marathon-2027-04-11", date: "2027-04-11", distanceKm: 42.2, elevation: 60, verified: true }],
+    },
+  ]);
+});
 
 const target = { targetEditionId: "behobia-san-sebastian-2026", raceDate: "2026-11-08", distanceKm: 20 };
 

@@ -79,7 +79,12 @@ an explicit var.
   `plan_race_added` — a secondary race folded into the plan) —
   `src/RunningCoach.jsx`. All anonymous: counts/enums only, never race
   names/notes/times. `plan_race_added` carries no properties (there is no race
-  priority/tier). (Reserved for Phase 2: `race_contributed`, `discover_opened`.)
+  priority/tier).
+- Catalogue events (Phase 2): `race_contributed` `{kind:"race"|"edition"}` when a
+  user adds to the shared catalogue (`src/modals/RaceFormModal.jsx`); `discover_opened`
+  `{}` the first time the Races → Discover segment is opened (`src/views/RacesView.jsx`).
+  Both anonymous — enum/no-args only, **never** race names, free text, or the user's
+  location/coordinates.
 - Settings → Privacy toggle (reads/writes consent directly) —
   `src/modals/SettingsModal.jsx`.
 

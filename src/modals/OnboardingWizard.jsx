@@ -3,6 +3,8 @@ import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Targe
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
+import { RaceFormModal } from "./RaceFormModal";
+import { AddRaceCard } from "../components/AddRaceCard";
 import { onboardingSteps } from "../utils/onboarding";
 import { searchEditions, editionLabel, findEdition } from "../utils/races";
 import { suggestedGoalSec } from "../utils/goal";
@@ -17,7 +19,7 @@ import { addWeeks, ymd, fmt } from "../utils/format";
 // step is the mandatory gate and the only way into the app (header "Skip" jumps
 // TO it, never around it); `summary` is an in-memory-only celebration after the
 // gate. All input is held in local draft state and only committed via onComplete.
-export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
+export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogue, addRace, addEdition, refreshCatalogue, showToast}) {
   const today = ymd(new Date());
 
   const [intent, setIntent] = useState(settings.intent || null); // null | "race" | "fitness"
@@ -45,6 +47,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
   // Race-picker UI state.
   const [query,   setQuery]   = useState("");
   const [manual,  setManual]  = useState(false);
+  const [showAddRace, setShowAddRace] = useState(false);
 
   // No-race ("get fit") branch picks. `selKey` tracks the chosen tile (so "5K"
   // and "Just run more" both map to 5 km but stay visually distinct).
@@ -112,6 +115,17 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
   // Manual edits decouple from the catalogue (no targetEditionId → no auto-detect
   // against a now-irrelevant edition).
   const onManualEdit = () => { if (targetEditionId) { setTargetEditionId(undefined); setPickedLabel(""); } };
+
+  // A race contributed to the catalogue from here becomes the training target:
+  // feed it back into the same pick() path. The catalogue is already refreshed by
+  // the modal, so findEdition resolves; if it lags, keep the typed values as-is.
+  const onRaceCreated = editionId => {
+    const j = findEdition(editionId);
+    if (j) pick(j);
+    setManual(false);
+    setShowAddRace(false);
+    showToast("Added to the catalogue — set as your race.");
+  };
 
   // Leaving the no-race step: synthesize a race-shaped target so buildPlan has a
   // timeline. Goal comes from the mid-pack suggestion (always defined for a valid
@@ -252,28 +266,28 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
             <div className="space-y-5">
               <div>
                 <p className="font-bold text-lg">Your race</p>
-                <p className="text-sm text-slate-400 mt-1">Search the catalogue, or enter the details yourself.</p>
+                <p className="text-sm text-slate-400 mt-1">Search the catalogue for your race.</p>
               </div>
 
-              {!manual ? (
-                pickedLabel ? (
-                  <div className="bg-slate-800 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
-                      <Check size={18} className="text-emerald-400"/>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{pickedLabel}</p>
-                      <p className="text-xs text-slate-400">{fmt.date(raceDate) + " · " + distanceKm + " km" + (raceElevation ? " · +" + raceElevation + "m" : "")}</p>
-                    </div>
-                    <button onClick={clearPick} className="text-xs text-slate-400 hover:text-white shrink-0">Change</button>
+              {pickedLabel ? (
+                <div className="bg-slate-800 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                    <Check size={18} className="text-emerald-400"/>
                   </div>
-                ) : (
-                  <>
-                    <div className="relative">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
-                      <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
-                        className={INPUT_CLS + " pl-9"}/>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{pickedLabel}</p>
+                    <p className="text-xs text-slate-400">{fmt.date(raceDate) + " · " + distanceKm + " km" + (raceElevation ? " · +" + raceElevation + "m" : "")}</p>
+                  </div>
+                  <button onClick={clearPick} className="text-xs text-slate-400 hover:text-white shrink-0">Change</button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
+                    <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
+                      className={INPUT_CLS + " pl-9"}/>
+                  </div>
+                  {editionResults.length > 0 && (
                     <div className="space-y-2 max-h-72 overflow-y-auto">
                       {editionResults.slice(0, 25).map(e => (
                         <button key={e.edition.id} onClick={() => pick(e)}
@@ -282,38 +296,39 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
                           <p className="text-xs text-slate-400">{[e.city, e.country].filter(Boolean).join(", ") + " · " + fmt.date(e.edition.date) + " · " + e.edition.distanceKm + " km"}</p>
                         </button>
                       ))}
-                      {editionResults.length === 0 && (
-                        <p className="text-xs text-slate-500 text-center py-4">No races match — enter yours manually below.</p>
-                      )}
                     </div>
-                  </>
-                )
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
-                    <input type="date" value={raceDate} onChange={e => { setRaceDate(e.target.value); onManualEdit(); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-                    <input type="number" min="1" max="200" step="0.1" value={distanceKm} placeholder="e.g. 21.1"
-                      onChange={e => { const n = parseFloat(e.target.value); setDist(isNaN(n) ? "" : n); onManualEdit(); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
-                    <input type="number" min="0" max="10000" step="10" value={raceElevation} placeholder="0"
-                      onChange={e => { const v = e.target.value; setElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); onManualEdit(); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-                    <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              <button onClick={() => setManual(m => !m)} className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
-                {manual ? "Search the race catalogue instead" : "Enter a race manually instead"}
-              </button>
+                  <AddRaceCard onClick={() => setShowAddRace(true)} subtitle="Sets it as your race — and helps others find it.">
+                    {!manual ? (
+                      <button onClick={() => setManual(true)} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">
+                        Just enter it for myself →
+                      </button>
+                    ) : (
+                      <div className="space-y-4 pt-1">
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
+                          <input type="date" value={raceDate} onChange={e => { setRaceDate(e.target.value); onManualEdit(); }}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
+                          <input type="number" min="1" max="200" step="0.1" value={distanceKm} placeholder="e.g. 21.1"
+                            onChange={e => { const n = parseFloat(e.target.value); setDist(isNaN(n) ? "" : n); onManualEdit(); }}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+                          <input type="number" min="0" max="10000" step="10" value={raceElevation} placeholder="0"
+                            onChange={e => { const v = e.target.value; setElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); onManualEdit(); }}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
+                          <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+                        </div>
+                      </div>
+                    )}
+                  </AddRaceCard>
+                </>
+              )}
 
               <button onClick={() => go("raceGoal", {raceDate, distanceKm, raceElevation, targetEditionId})} disabled={!raceDate || !distanceKm}
                 className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
@@ -546,6 +561,13 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete}) {
           })()}
         </div>
       </div>
+
+      {showAddRace && <RaceFormModal
+        catalogue={catalogue} addRace={addRace} addEdition={addEdition}
+        onContributed={refreshCatalogue} showToast={showToast}
+        prefill={{date: raceDate, distanceKm, elevation: raceElevation}}
+        onCreated={onRaceCreated}
+        onClose={() => setShowAddRace(false)}/>}
     </div>
   );
 }

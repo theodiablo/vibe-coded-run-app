@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Activity, Calendar, TrendingUp, Plus, Loader, Trophy, Settings } from "lucide-react";
-import { db } from "./db";
+import { db, currentUserId } from "./db";
 import { STORAGE_KEYS } from "./constants";
 import { track } from "./telemetry";
 import { buildPlan } from "./utils/plan";
 import { computeBadges, unlockedIds } from "./utils/badges";
-import { detectAnyRace, findEdition, editionLabel } from "./utils/races";
+import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils/races";
+import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
@@ -13,12 +14,32 @@ import { BackupModal } from "./modals/BackupModal";
 import { RestoreModal } from "./modals/RestoreModal";
 import { SettingsModal } from "./modals/SettingsModal";
 import { DeleteAccountModal } from "./modals/DeleteAccountModal";
+import { RaceFormModal } from "./modals/RaceFormModal";
 import { LiveRunTracker } from "./modals/LiveRunTracker";
 import { Dashboard } from "./views/Dashboard";
 import { PlanView } from "./views/PlanView";
 import { LogView } from "./views/LogView";
 import { RacesView } from "./views/RacesView";
 import { ProgressView } from "./views/ProgressView";
+
+// In-app "review notification" helper (pure, module-level so it isn't a hook
+// dependency): when a maintainer verifies one of the user's OWN catalogue
+// contributions, we thank them once. `ackVerified` (in the personal blob, so it
+// rides backup) records which verified ids we've already acknowledged. Returns
+// the (possibly updated) races object plus the freshly-verified ids — the caller
+// toasts. Seeds silently on the first reconcile so a pre-existing set never floods.
+function computeVerifiedThanks(cat, racesObj, uid) {
+  if (!uid) return { next: racesObj, fresh: [] };
+  const mine = [];
+  for (const r of cat) {
+    if (r.createdBy === uid && r.verified) mine.push("race:" + r.slug);
+    for (const e of r.editions || []) if (e.createdBy === uid && e.verified) mine.push("ed:" + e.id);
+  }
+  if (racesObj.ackVerified == null) return { next: { ...racesObj, ackVerified: mine }, fresh: [] };
+  const fresh = mine.filter(id => !racesObj.ackVerified.includes(id));
+  if (!fresh.length) return { next: racesObj, fresh: [] };
+  return { next: { ...racesObj, ackVerified: [...racesObj.ackVerified, ...fresh] }, fresh };
+}
 
 export default function RunningCoach({ onSignOut }) {
   const [loading,     setLoading]     = useState(true);
@@ -44,6 +65,16 @@ export default function RunningCoach({ onSignOut }) {
   // Personal races layer (wishlist / completed + seen-badge set). seenBadges is
   // null until first-run seeding so we can tell "never computed" from "none".
   const [races,       setRaces]       = useState({ participations: [], seenBadges: null });
+  // Always-fresh mirror of `races` so async callbacks (the boot catalogue load)
+  // merge onto the latest state, not a stale snapshot captured before the user
+  // could touch their races mid-load. Synced in an effect (the catalogue resolves
+  // well after any concurrent change has committed).
+  const racesRef = useRef(races);
+  useEffect(() => { racesRef.current = races; }, [races]);
+  // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
+  // failed fetch — the app renders regardless.
+  const [catalogue,   setCatalogue]   = useState([]);
+  const [showRaceForm,setShowRaceForm]= useState(false);
   // Stash from a "Set as target" promote → consumed by PlanView's setup form.
   const [planPrefill, setPlanPrefill] = useState(null);
   // Which Progress sub-tab to open, and a nonce so navigating there again (even
@@ -73,6 +104,23 @@ export default function RunningCoach({ onSignOut }) {
       // name (but no onboarding marker) are treated as onboarded.
       if (!s || (!s.onboarded && (s.onboardStep != null || !s.name))) setOnboarding(true);
       setLoading(false);
+      // Load the shared catalogue WITHOUT blocking the splash: a slow/down
+      // Supabase must not delay the app. On resolve, publish it and thank the
+      // user for any of their contributions that a maintainer has since verified.
+      loadCatalogue().then(cat => {
+        setCatalogue(cat);
+        // Merge onto the freshest races (racesRef), NOT the boot snapshot: the
+        // user may have wishlisted/logged during the load, and that change must
+        // not be clobbered by re-persisting a stale object.
+        const cur = racesRef.current;
+        const { next, fresh } = computeVerifiedThanks(cat, cur, currentUserId());
+        if (next !== cur) { setRaces(next); db.set(STORAGE_KEYS.RACES, next); }
+        if (fresh.length) {
+          setToast({ type: "ok", msg: fresh.length === 1
+            ? "Your race contribution was verified — thanks! 🎉"
+            : fresh.length + " of your race contributions were verified — thanks! 🎉" });
+        }
+      });
       // Retry any GPS traces that couldn't be uploaded on a previous (offline)
       // save, and relink each to its run once it lands.
       flushPendingRoutes((tmpId, routeId) => {
@@ -150,6 +198,10 @@ export default function RunningCoach({ onSignOut }) {
       savePlan(carryProgress(plan, np));
     }
   };
+
+  // Re-fetch + re-hydrate the catalogue (after a user contributes), so the new
+  // entry shows immediately — contributions are instant + global.
+  const refreshCatalogue = async () => { setCatalogue(await loadCatalogue()); };
 
   // Promote a catalogue edition to the training target: stash the prefill and
   // send the user to PlanView's setup, which fills the date/distance/elevation
@@ -305,7 +357,7 @@ export default function RunningCoach({ onSignOut }) {
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
   const goProgress = sub => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
-  const shared = {runs, plan, settings, races, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true)};
+  const shared = {runs, plan, settings, races, catalogue, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   const TABS   = [
@@ -319,6 +371,8 @@ export default function RunningCoach({ onSignOut }) {
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
       {toast       && <Toast {...toast}/>}
       {onboarding  && <OnboardingWizard settings={settings}
+        catalogue={catalogue} addRace={addRace} addEdition={addEdition}
+        refreshCatalogue={refreshCatalogue} showToast={showToast}
         onSaveProgress={(partial, step) => saveSettings({...settings, ...partial, onboardStep: step})}
         onComplete={({name, plan, hr, healthAck}) => {
           // `plan` carries the race-shaped fields incl. targetEditionId (set when
@@ -360,6 +414,10 @@ export default function RunningCoach({ onSignOut }) {
       {showDeleteAccount && <DeleteAccountModal
         onSignOut={onSignOut}
         onClose={() => setShowDeleteAccount(false)}/>}
+      {showRaceForm && <RaceFormModal
+        catalogue={catalogue} addRace={addRace} addEdition={addEdition}
+        onContributed={refreshCatalogue} showToast={showToast}
+        onClose={() => setShowRaceForm(false)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
         <div className="flex items-center gap-1.5">

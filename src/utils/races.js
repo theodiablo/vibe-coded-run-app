@@ -1,24 +1,63 @@
 // Race helpers — catalogue lookups, race-day auto-detection, and personal-best
-// flagging. Pure functions over the curated catalogue + the user's per-edition
-// `participations` (see STORAGE_KEYS.RACES). No React, so they're unit-testable.
+// flagging. The catalogue itself is shared data fetched from Supabase (Phase 2,
+// src/races.js → listRaces); this module is the seam the rest of the app reads it through, so
+// callers stay unchanged. It holds the fetched catalogue in a module-level cache
+// (hydrated once at boot) and exposes the same synchronous lookups as Phase 1.
+// The detection/PB helpers are pure over `participations` and stay unit-testable.
 
-import { CURATED_RACES, CURATED_EDITIONS } from "../data/races";
+import { listRaces } from "../races";
 
-// Every catalogue edition joined to its race (Phase 1 = curated only; Phase 2
-// merges user-contributed rows here behind the same shape).
+// Module-level cache: the grouped races (each with an `editions` array) plus a
+// flat edition→race join derived from them. Empty until hydrateCatalogue runs;
+// a failed fetch simply leaves it empty and every lookup degrades gracefully
+// (findEdition → null → callers fall back to the participation snapshot).
+let _races = [];
+let _editions = [];
+
+// Flatten grouped races into the edition-joined shape lookups expect: each entry
+// carries the race fields plus `raceId` and the single `edition`.
+function flatten(races) {
+  return races.flatMap(r =>
+    (r.editions || []).map(e => ({ ...r, editions: undefined, raceId: r.id, edition: e }))
+  );
+}
+
+// Populate the cache from fetched data (src/races.js → listRaces). Called once at
+// boot and again after a user contributes, so new entries appear immediately.
+export function hydrateCatalogue(races) {
+  _races = races || [];
+  _editions = flatten(_races);
+}
+
+// Fetch the shared catalogue and hydrate the cache. Failure-tolerant: listRaces
+// already returns [] on error, so a down/slow Supabase just leaves an empty
+// catalogue and the app still renders. Returns the grouped races.
+export async function loadCatalogue() {
+  let races = [];
+  try { races = await listRaces(); } catch (err) { console.error("catalogue load failed", err); }
+  hydrateCatalogue(races);
+  return _races;
+}
+
+// Grouped races (each with `editions`) — for the Browse / Discover lists.
+export function allRaces() {
+  return _races;
+}
+
+// Every catalogue edition joined to its race.
 export function allEditions() {
-  return CURATED_EDITIONS;
+  return _editions;
 }
 
 // Resolve an editionId to its joined race+edition object, or null if it's no
 // longer in the catalogue (an orphaned participation handles its own snapshot).
 export function findEdition(editionId) {
   if (!editionId) return null;
-  return CURATED_EDITIONS.find(e => e.edition.id === editionId) || null;
+  return _editions.find(e => e.edition.id === editionId) || null;
 }
 
 export function findRace(raceId) {
-  return CURATED_RACES.find(r => r.id === raceId) || null;
+  return _races.find(r => r.id === raceId) || null;
 }
 
 // Free-text search over joined editions for the onboarding race picker. Matches
@@ -27,7 +66,7 @@ export function findRace(raceId) {
 // YYYY-MM-DD string; pass it from the caller so the function stays pure.
 export function searchEditions(query, today, { upcomingOnly = true } = {}) {
   const q = (query || "").trim().toLowerCase();
-  return CURATED_EDITIONS.filter(e => {
+  return _editions.filter(e => {
     if (upcomingOnly && today && e.edition.date < today) return false;
     if (!q) return true;
     return (e.name + " " + e.city + " " + e.country).toLowerCase().includes(q);
