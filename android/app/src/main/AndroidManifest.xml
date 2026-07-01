@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
-    <!-- Health Connect's client library requires minSdk 26, but the app ships
-         minSdk 24 (Android 7.x) for GPS/BLE. Health Connect only works on API 26+
-         anyway, so allow the higher-minSdk library rather than dropping 7.x users:
-         the plugin loads its client lazily and healthConnectSource.isAvailable()
-         returns false on older devices, so HR-from-Health-Connect simply no-ops
-         there while the rest of the app (incl. live BLE HR) works unchanged. -->
-    <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
         android:allowBackup="true"
@@ -80,8 +71,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- Legacy Bluetooth for API <= 30 (minSdk is 24); on those versions scanning
-         also uses the fine-location permission already declared above for GPS. -->
+    <!-- Legacy Bluetooth for API 26-30 (before BLUETOOTH_SCAN/CONNECT); on those
+         versions scanning also uses the fine-location permission already declared
+         above for GPS. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
