@@ -145,14 +145,17 @@ and delete anything that becomes stale.
     recovery buffer. Parsing of the `0x2A37` characteristic is the pure, unit-tested
     `parseHrMeasurement` in `src/utils/hr.js` (takes the plugin/Web-Bluetooth DataView).
   - **Post-run** (`src/hr/healthconnect.js`, `healthConnectSource`): reads HR from
-    Android Health Connect after the run. `useRunTracker` never streams it —
+    Android Health Connect after the run via **@flomentumsolutions/capacitor-health-extended**
+    (Capacitor-8 native; its `Health` export is bundled but only runs on native, so the
+    web build is unaffected). `useRunTracker` never streams it —
     `LiveRunTracker.handleSave` calls `fetchRange(start,end)`; if the watch hasn't
     synced yet it stamps `hrPending:{start,end}` and `flushPendingHr` relinks on next
-    load (the `flushPendingRoutes` deferred pattern). Registered **by name**
-    (`registerPlugin`, the BackgroundGeolocation precedent) so it's build/web-safe; a
-    compatible HC plugin must be added to the shell (community ones lag Capacitor 8's
-    peer — install with `--legacy-peer-deps`). Reading HR needs a Play health-data
-    declaration + privacy policy before release.
+    load (the `flushPendingRoutes` deferred pattern). HR is read from the watch's
+    **workout session** (`queryWorkouts({includeHeartRate})`), scoped to the run window
+    and reduced by `hrSummary` — NOT `queryAggregated`, whose Android buckets are
+    whole-day. So it needs the watch to have logged an exercise session over the run
+    (needs `READ_HEART_RATE` + `READ_EXERCISE`); continuous wear without a workout won't
+    surface. Reading HR needs a Play health-data declaration + privacy policy before release.
 - **Method preference syncs; the device does NOT.** `settings.hrMethod`
   (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
   `{id,name}` is **per-device localStorage** (`src/hr/device.js`, `HR_DEVICE_KEY`) —
