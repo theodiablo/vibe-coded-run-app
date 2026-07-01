@@ -68,6 +68,8 @@ export function useRunTracker({ hrMethod } = {}) {
   const pointsRef = useRef(points);
   const hrSamplesRef = useRef(hrSamples); // mirror so the async HR callback sees latest
   const hrWatchRef = useRef(null);  // live HR source watch handle (null when not streaming)
+  const runStartRef = useRef(null); // wall-clock run start (whole run, incl. pauses)
+  const runEndRef = useRef(null);   // wall-clock run stop — the Health Connect fetch window
   const accRef = useRef(0);        // completed moving seconds
   const startRef = useRef(null);   // epoch ms the current active segment began
   const watchRef = useRef(null);
@@ -85,7 +87,8 @@ export function useRunTracker({ hrMethod } = {}) {
     try {
       localStorage.setItem(LIVE_RUN_KEY, JSON.stringify({
         points: pointsRef.current, accSec: accRef.current, hrSamples: hrSamplesRef.current,
-        startAt: startRef.current, state: stateRef.current, savedAt: Date.now(),
+        startAt: startRef.current, startedAt: runStartRef.current, stoppedAt: runEndRef.current,
+        state: stateRef.current, savedAt: Date.now(),
       }));
     } catch { /* quota — non-fatal */ }
   }, []);
@@ -222,6 +225,8 @@ export function useRunTracker({ hrMethod } = {}) {
     setHrSamples([]);
     accRef.current = 0;
     startRef.current = Date.now();
+    runStartRef.current = Date.now();
+    runEndRef.current = null;
     lastFixRef.current = 0;
     if (!startWatch()) return;
     stateRef.current = "tracking";
@@ -258,6 +263,7 @@ export function useRunTracker({ hrMethod } = {}) {
     if (stateRef.current === "tracking" && startRef.current)
       accRef.current += (Date.now() - startRef.current) / 1000;
     startRef.current = null;
+    runEndRef.current = Date.now();
     stopWatch();
     stopHrWatch();
     releaseWake();
@@ -277,6 +283,8 @@ export function useRunTracker({ hrMethod } = {}) {
     setHrSamples([]);
     accRef.current = 0;
     startRef.current = null;
+    runStartRef.current = null;
+    runEndRef.current = null;
     lastFixRef.current = 0;
     setError(null);
     setMovingSec(0);
@@ -303,6 +311,8 @@ export function useRunTracker({ hrMethod } = {}) {
       hrSamplesRef.current = buf.hrSamples || [];
       setHrSamples(hrSamplesRef.current);
       accRef.current = buf.accSec || 0;
+      runStartRef.current = buf.startedAt || null; // preserve the run window across a crash
+      runEndRef.current = null;
       startRef.current = null;
       lastFixRef.current = 0;
       setError(null);
@@ -408,6 +418,9 @@ export function useRunTracker({ hrMethod } = {}) {
 
   return {
     state, points, stats, error, pending, location,
+    // Wall-clock run window, read on demand from an event handler (never during
+    // render) — used by handleSave to scope the Health Connect HR fetch.
+    runWindow: () => ({ startedAt: runStartRef.current, stoppedAt: runEndRef.current }),
     start, pause, resume, stop, reset, requestPermissions,
     resumePrevious, discardPrevious, finalize,
   };

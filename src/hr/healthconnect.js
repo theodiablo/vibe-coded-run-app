@@ -1,4 +1,4 @@
-import { Health } from "@flomentumsolutions/capacitor-health-extended";
+import { HealthConnect } from "@pianissimoproject/capacitor-health-connect";
 import { hrSummary } from "../utils/hr";
 
 // Post-run heart-rate source: read a tracked run's HR from Android Health Connect
@@ -8,21 +8,20 @@ import { hrSummary } from "../utils/hr";
 // LiveRunTracker calls fetchRange once on save, with a deferred retry (flushPendingHr)
 // because the watch may not have synced to Health Connect yet.
 //
-// Backed by @flomentumsolutions/capacitor-health-extended (Capacitor-8 native). Its
-// `Health` JS export is bundled but only runs on native — getHrSource returns null on
-// web (source.js) and every call here is wrapped, so the web build is unaffected.
+// Backed by @pianissimoproject/capacitor-health-connect. Chosen over the Cap-8-native
+// flomentum plugin because its readRecords reads **continuous** HeartRateSeries over an
+// arbitrary window — so the user does NOT have to also log a workout on the watch; the
+// watch's all-day HR sync is enough. Trade-off: its peer is @capacitor/core ^7, so it's
+// installed with --legacy-peer-deps; Cap-7 native code almost certainly builds against
+// Cap 8 (stable Android plugin API), but confirm with an on-device/CI Android build.
 //
-// We read HR from *workout* sessions rather than the aggregated API: Android's
-// queryAggregated only supports whole-day buckets (a day-average, not this run), while
-// queryWorkouts(includeHeartRate) returns raw {timestamp,bpm} samples we scope to the
-// run's window and reduce to avg+max. So Health-Connect HR requires the watch to have
-// logged an exercise session overlapping the run (the normal case when running with a
-// watch); continuous wear without a workout won't surface here.
+// The `HealthConnect` JS export is bundled but only runs on native — getHrSource returns
+// null on web (source.js) and every call here is wrapped, so the web build is unaffected.
 
 // True only when Health Connect is installed and responds. Defensive: any throw
 // (plugin absent, older device, web) → unavailable, never breaks the UI.
 async function isAvailable() {
-  try { return !!(await Health.isHealthAvailable())?.available; }
+  try { return (await HealthConnect.checkAvailability())?.availability === "Available"; }
   catch { return false; }
 }
 
@@ -31,31 +30,26 @@ export const healthConnectSource = {
   live: false,
   isAvailable,
 
-  // Request read access to heart rate and workouts (both are needed to read HR
-  // out of a workout session). Returns whether both were granted.
+  // Request read access to heart rate. Returns whether it was granted.
   async requestPermissions() {
     try {
-      const r = await Health.requestHealthPermissions({ permissions: ["READ_HEART_RATE", "READ_WORKOUTS"] });
-      const p = r?.permissions || {};
-      return !!(p.READ_HEART_RATE && p.READ_WORKOUTS);
+      const r = await HealthConnect.requestHealthPermissions({ read: ["HeartRateSeries"], write: [] });
+      return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
     } catch { return false; }
   },
 
-  // Read workout HR samples overlapping [startMs, endMs], keep those inside the
-  // window, and reduce to {hr,hrAvg,hrMax}. Returns null when nothing is available
-  // yet (watch not synced / no workout) so the caller can defer and retry.
+  // Read HeartRateSeries records in [startMs, endMs], flatten to samples inside the
+  // window, and reduce to {hr,hrAvg,hrMax}. Returns null when nothing is available yet
+  // (watch not synced) so the caller can defer and retry.
   async fetchRange(startMs, endMs) {
     try {
-      const res = await Health.queryWorkouts({
-        startDate: new Date(startMs).toISOString(),
-        endDate: new Date(endMs).toISOString(),
-        includeHeartRate: true,
-        includeRoute: false,
-        includeSteps: false,
+      const res = await HealthConnect.readRecords({
+        type: "HeartRateSeries",
+        timeRangeFilter: { type: "between", startTime: new Date(startMs), endTime: new Date(endMs) },
       });
-      const samples = (res?.workouts || [])
-        .flatMap(w => w.heartRate || [])
-        .map(s => ({ bpm: s.bpm, t: +new Date(s.timestamp) }))
+      const samples = (res?.records || [])
+        .flatMap(rec => rec.samples || [])
+        .map(s => ({ bpm: s.beatsPerMinute, t: +new Date(s.time) }))
         .filter(s => s.bpm && s.t >= startMs && s.t <= endMs);
       if (!samples.length) return null;
       return hrSummary(samples);
@@ -70,8 +64,15 @@ export const healthConnectSource = {
 export async function flushPendingHr(runs, patch) {
   const pending = (runs || []).filter(r => r.hrPending);
   if (!pending.length) return;
-  if (!(await isAvailable())) return;
-  for (const r of pending) {
+  // A run whose HR was filled some other way (manual edit) since it was stamped:
+  // never overwrite it — just clear the marker so it stops retrying. patch({}) with
+  // no HR fields lets the caller drop hrPending without touching hr/hrMax.
+  const resolved = pending.filter(r => r.hr != null);
+  for (const r of resolved) patch(r.id, {});
+  const stillPending = pending.filter(r => r.hr == null);
+  if (!stillPending.length) return;
+  if (!(await isAvailable())) return; // HC not installed/permitted — leave for next load
+  for (const r of stillPending) {
     const s = await healthConnectSource.fetchRange(r.hrPending.start, r.hrPending.end);
     if (s && s.hrAvg) patch(r.id, { hr: s.hrAvg, hrMax: s.hrMax });
   }

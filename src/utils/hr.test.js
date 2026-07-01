@@ -71,6 +71,12 @@ describe("parseHrMeasurement", () => {
     // flags 0x10 (RR only), bpm 150, RR 0x0300 (750ms) then 0x0200 (500ms)
     expect(parseHrMeasurement(dv([0x10, 0x96, 0x00, 0x03, 0x00, 0x02])).rr).toEqual([750, 500]);
   });
+  it("tolerates flags declaring fields that aren't present", () => {
+    // flags 0x10 (RR bit set) but no trailing RR bytes → bpm parsed, rr empty
+    expect(parseHrMeasurement(dv([0x10, 0x96]))).toEqual({ bpm: 150, rr: [] });
+    // sensor-contact bits (0x06) set alongside an 8-bit bpm — must not shift parsing
+    expect(parseHrMeasurement(dv([0x06, 0x91]))).toEqual({ bpm: 145, rr: [] });
+  });
   it("returns null for missing, empty, too-short, or zero-bpm data", () => {
     expect(parseHrMeasurement(null)).toBeNull();
     expect(parseHrMeasurement(dv([]))).toBeNull();

@@ -14,7 +14,7 @@ dependencies {
     implementation project(':capacitor-app')
     implementation project(':capacitor-browser')
     implementation project(':capacitor-geolocation')
-    implementation project(':flomentumsolutions-capacitor-health-extended')
+    implementation project(':pianissimoproject-capacitor-health-connect')
 
 }
 

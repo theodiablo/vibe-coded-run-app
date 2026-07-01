@@ -120,13 +120,16 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, onConfi
     let hr = null, hrMax = null, hrPending = null;
     if (stats.hrAvg != null) { hr = stats.hrAvg; hrMax = stats.hrMax; }
     else if (hrMethod === "healthconnect") {
-      const startMs = points.find(Boolean)?.[2] || Date.now();
-      let endMs = startMs;
-      for (let i = points.length - 1; i >= 0; i--) { if (points[i]) { endMs = points[i][2]; break; } }
+      // Explicit run window from the tracker (robust even with no GPS points),
+      // falling back to point timestamps for a recovered run missing startedAt.
+      const { startedAt, stoppedAt } = t.runWindow();
+      const startMs = startedAt || points.find(Boolean)?.[2] || Date.now();
+      let endMs = stoppedAt || Date.now();
+      if (!stoppedAt) for (let i = points.length - 1; i >= 0; i--) { if (points[i]) { endMs = points[i][2]; break; } }
       let res = null;
       try { res = await getHrSource("healthconnect")?.fetchRange(startMs, endMs); } catch { /* unsynced — leave null */ }
       if (res && res.hrAvg) { hr = res.hrAvg; hrMax = res.hrMax; }
-      else hrPending = { start: startMs, end: endMs };
+      else hrPending = { start: startMs, end: endMs, source: "healthconnect" };
     }
     t.finalize();
     setBusy(false);

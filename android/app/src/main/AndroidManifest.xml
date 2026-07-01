@@ -71,15 +71,18 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Legacy Bluetooth for API <= 30 (minSdk is 24); on those versions scanning
+         also uses the fine-location permission already declared above for GPS. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
-    <!-- Health Connect: read heart rate from the user's watch post-run. HR is read
-         out of the watch's exercise session, so both scopes are needed. Requires a
-         Google Play health-data declaration + privacy policy before release. The
-         @flomentumsolutions/capacitor-health-extended plugin supplies the native
-         permission-rationale activity; this declares the read scopes and lets the
-         app discover the Health Connect package. -->
+    <!-- Health Connect: read continuous heart rate from the user's watch post-run
+         (HeartRateSeries), so no on-watch workout is required. Requires a Google Play
+         health-data declaration + privacy policy before release. The
+         @pianissimoproject/capacitor-health-connect plugin supplies the native
+         permission-rationale activity; this declares the read scope and lets the app
+         discover the Health Connect package. -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
-    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />

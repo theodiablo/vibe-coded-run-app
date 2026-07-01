@@ -17,5 +17,5 @@ project(':capacitor-browser').projectDir = new File('../node_modules/@capacitor/
 include ':capacitor-geolocation'
 project(':capacitor-geolocation').projectDir = new File('../node_modules/@capacitor/geolocation/android')
 
-include ':flomentumsolutions-capacitor-health-extended'
-project(':flomentumsolutions-capacitor-health-extended').projectDir = new File('../node_modules/@flomentumsolutions/capacitor-health-extended/android')
+include ':pianissimoproject-capacitor-health-connect'
+project(':pianissimoproject-capacitor-health-connect').projectDir = new File('../node_modules/@pianissimoproject/capacitor-health-connect/android')
