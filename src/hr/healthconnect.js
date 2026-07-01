@@ -43,6 +43,15 @@ export const healthConnectSource = {
     } catch { return false; }
   },
 
+  // Non-prompting check of whether heart-rate read is already granted — used to
+  // show connection status in Settings without popping the OS dialog.
+  async checkPermissions() {
+    try {
+      const r = await HealthConnect.checkHealthPermissions({ read: ["HeartRateSeries"], write: [] });
+      return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
+    } catch { return false; }
+  },
+
   // Read HeartRateSeries records in [startMs, endMs], flatten to samples inside the
   // window, and reduce to {hr,hrAvg,hrMax}. Returns null when nothing is available yet
   // (watch not synced) so the caller can defer and retry.

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bluetooth, Loader, Check, Trash2 } from "lucide-react";
 import { HR_METHODS } from "../hr/source";
 import { bleSource } from "../hr/ble";
@@ -18,8 +18,18 @@ export function HrSensor({ settings, saveSettings, showToast }) {
   const [found, setFound] = useState([]);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [hcBusy, setHcBusy] = useState(false);
+  const [hcConnected, setHcConnected] = useState(null); // null = unknown/checking
 
   const setMethod = (m) => saveSettings({ ...settings, hrMethod: m });
+
+  // Reflect whether Health Connect read access is already granted (non-prompting),
+  // so Settings shows a persistent "connected" state. Only meaningful on native.
+  useEffect(() => {
+    if (method !== "healthconnect") return;
+    let cancelled = false;
+    healthConnectSource.checkPermissions().then((ok) => { if (!cancelled) setHcConnected(ok); });
+    return () => { cancelled = true; };
+  }, [method]);
 
   const disclosed = () => {
     try { return localStorage.getItem(HR_BLE_DISCLOSED_KEY) === "1"; } catch { return false; }
@@ -69,6 +79,7 @@ export function HrSensor({ settings, saveSettings, showToast }) {
       // "Available" → the OS shows the permission screen. "NotInstalled" → the plugin
       // opens Google Play so the user can install Health Connect first.
       const ok = await healthConnectSource.requestPermissions();
+      setHcConnected(ok);
       showToast?.(
         ok ? "Health Connect connected — heart rate will be read after your runs."
           : status === "NotInstalled"
@@ -139,9 +150,16 @@ export function HrSensor({ settings, saveSettings, showToast }) {
       {/* Health Connect */}
       {method === "healthconnect" && (
         <div className="space-y-2">
+          {hcConnected && (
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2 text-sm text-emerald-300">
+              <Check size={15} className="shrink-0" />
+              <span>Connected — heart rate is added to your runs automatically.</span>
+            </div>
+          )}
           <button type="button" onClick={connectHc} disabled={hcBusy}
             className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 disabled:opacity-50">
-            {hcBusy ? <Loader size={15} className="animate-spin" /> : null}Connect Health Connect
+            {hcBusy ? <Loader size={15} className="animate-spin" /> : null}
+            {hcConnected ? "Reconnect Health Connect" : "Connect Health Connect"}
           </button>
           <p className="text-xs text-slate-500">
             Reads your heart rate from Android Health Connect after a run — useful if

@@ -195,6 +195,13 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, onConfi
           </div>
         )}
 
+        {isNative && hrMethod === "healthconnect" && (
+          <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2 text-slate-300">
+            <HeartPulse size={16} className="text-red-400 shrink-0" />
+            <span className="text-xs">Heart rate is added from Health Connect after you finish.</span>
+          </div>
+        )}
+
         {state === "idle" && (
           <>
             {location?.acc != null && (
