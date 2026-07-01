@@ -1,6 +1,7 @@
 // Training-plan builder.
 import { VERT_COST } from "../constants";
 import { fmt, ymd } from "./format";
+import { validatePlan } from "./planValidate";
 
 // `opts` is additive so the positional call sites keep working:
 //   { recentRuns: Run[] }  — recent logged runs, used to seed a fitness-aware
@@ -183,6 +184,18 @@ export function buildPlan(raceDate, goalSec, planSessions, distanceKm, raceEleva
       editionId: opts.mainEditionId ?? null,
     }],
   });
-  return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt,
+  const plan = {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt,
     longRunPeakKm: Math.round(peakLong * 10) / 10, planSessions, weeks};
+
+  // One validator, two callers (see planValidate.js). The AI coach agent must
+  // never surface a plan that fails validatePlan; the deterministic generator is
+  // held to the same floor. This is a dev-only tripwire — it never throws (a
+  // failed check must not break plan generation for a user), it just surfaces a
+  // regression during development/tests. The reconciliation matrix in
+  // planValidate.test.js is the enforced guarantee.
+  if (import.meta.env?.DEV) {
+    const { valid, errors } = validatePlan(plan);
+    if (!valid) console.warn("buildPlan produced a plan that fails validatePlan", errors);
+  }
+  return plan;
 }
