@@ -1,0 +1,6 @@
+-- Local/preview seed data (applied by `supabase db reset` / `supabase start`).
+-- config.toml references this file; keep it valid even when empty.
+--
+-- Phase 6 of the coach-agent plan seeds 5–8 golden eval cases here (situation →
+-- expected adaptation property) once the eval harness lands. Until then this is
+-- intentionally empty.
