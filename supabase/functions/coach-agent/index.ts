@@ -21,13 +21,11 @@
 // Anthropic call is made and the loop is driven by deterministic fixtures.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { validatePlan } from "../../../src/utils/planValidate.js";
-import { applyToolCall } from "../../../src/utils/planTools.js";
+import { generateProposal } from "../../../src/utils/coachAgent.js";
 import { callModel, pickModel } from "./llm.ts";
 
 const RC_PLAN = "rc_plan";
 const RC_RUNS = "rc_runs";
-const MAX_VALIDATOR_RETRIES = 2;
 const RATE_LIMIT_PER_DAY = Number(Deno.env.get("RATE_LIMIT_PER_DAY") ?? "20");
 const RECENT_RUNS = 12;
 
@@ -46,79 +44,6 @@ const userClient = (authHeader: string) =>
   });
 
 const today = () => new Date().toISOString().slice(0, 10);
-
-// ── The internal validate-and-retry loop ─────────────────────────────────────
-// Apply the model's tool calls to a copy, validate, and on failure feed the
-// errors back — bounded by MAX_VALIDATOR_RETRIES. Never surfaces an invalid plan:
-// on exhaustion it returns a distinct `no_valid_adjustment` fate (not a 500).
-async function generateProposal(
-  plan: any,
-  contextText: string,
-  model: string,
-  scenario: string,
-) {
-  const messages: any[] = [{ role: "user", content: [{ type: "text", text: contextText }] }];
-  const usage = { input: 0, output: 0 };
-  let lastErrors: unknown = null;
-
-  for (let attempt = 0; attempt <= MAX_VALIDATOR_RETRIES; attempt++) {
-    const res = await callModel({ model, messages, scenario, plan });
-    usage.input += res.usage.input;
-    usage.output += res.usage.output;
-
-    if (!res.toolUses.length) {
-      return { status: "no_valid_adjustment" as const, usage, model, lastErrors: "no tool proposed" };
-    }
-
-    // Apply each tool to a running copy; a throw = an invalid tool result.
-    let candidate = plan;
-    let threw: string | null = null;
-    for (const tu of res.toolUses) {
-      try {
-        candidate = applyToolCall(candidate, tu.name, tu.input);
-      } catch (e) {
-        threw = (e as Error).message;
-        break;
-      }
-    }
-
-    let toolResults: any[];
-    if (!threw) {
-      const { valid, errors } = validatePlan(candidate);
-      if (valid) {
-        return {
-          status: "proposed" as const,
-          proposedPlan: candidate,
-          toolCalls: res.toolUses,
-          rationale: res.text,
-          usage,
-          model,
-        };
-      }
-      lastErrors = errors;
-      toolResults = res.toolUses.map((tu) => ({
-        type: "tool_result",
-        tool_use_id: tu.id,
-        is_error: true,
-        content: "The proposed plan failed validation: " + JSON.stringify(errors),
-      }));
-    } else {
-      lastErrors = threw;
-      toolResults = res.toolUses.map((tu) => ({
-        type: "tool_result",
-        tool_use_id: tu.id,
-        is_error: true,
-        content: "Tool error: " + threw,
-      }));
-    }
-
-    // Feed the failure back and let the model try again.
-    messages.push({ role: "assistant", content: res.rawContent });
-    messages.push({ role: "user", content: toolResults });
-  }
-
-  return { status: "no_valid_adjustment" as const, usage, model, lastErrors };
-}
 
 // Overlay the user's live progress (done/skipped/runId) onto a proposed plan by
 // session id, so a run logged between propose and confirm isn't lost. Mirrors
@@ -234,7 +159,9 @@ Deno.serve(async (req) => {
     }
 
     const contextText = buildContext(plan, runs, message, priorNote);
-    const result = await generateProposal(plan, contextText, model, scenario);
+    // Inject the real model call; the loop itself lives in the shared pure module.
+    const cm = (messages: unknown[], planArg: any) => callModel({ model, scenario, messages, plan: planArg });
+    const result = await generateProposal({ plan, contextText, callModel: cm, model });
 
     // Persist the round (service role — the user cannot write these tables).
     const inputContext = { plan, runs: (runs ?? []).slice(0, RECENT_RUNS), report: message };

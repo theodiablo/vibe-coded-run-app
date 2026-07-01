@@ -1,0 +1,64 @@
+name: coach-agent live smoke
+
+# On-demand only — never runs on push/PR, so it can't burn API budget. It spins
+# the local Supabase stack and serves the edge function. The core assertion is
+# that the function BUNDLES and SERVES (this is what verifies the cross-directory
+# imports of ../../../src/utils/*.js resolve) and that the handler runs — an
+# unauthenticated request must come back 401 from our own code.
+#
+# MOCK_LLM=1 keeps it free even if extended to an authenticated propose call.
+# ANTHROPIC_API_KEY is wired from secrets so the maintainer can flip MOCK_LLM off
+# for a true live check.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start Supabase (applies migrations + seed)
+        run: npx supabase start
+
+      - name: Serve coach-agent (MOCK_LLM, no JWT gateway check)
+        run: |
+          printf 'MOCK_LLM=1\nANTHROPIC_API_KEY=%s\n' "${ANTHROPIC_API_KEY:-}" > /tmp/coach.env
+          npx supabase functions serve coach-agent --no-verify-jwt --env-file /tmp/coach.env &
+          echo $! > /tmp/serve.pid
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Wait for the function to be reachable
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+              http://127.0.0.1:54321/functions/v1/coach-agent \
+              -H 'content-type: application/json' -d '{"action":"propose"}' || true)
+            echo "attempt $i → HTTP $code"
+            [ "$code" != "000" ] && break
+            sleep 2
+          done
+
+      - name: Assert the handler ran (unauthenticated → 401)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            http://127.0.0.1:54321/functions/v1/coach-agent \
+            -H 'content-type: application/json' -d '{"action":"propose"}')
+          echo "coach-agent unauthenticated status: $code"
+          test "$code" = "401"
+
+      - name: Stop Supabase
+        if: always()
+        run: npx supabase stop || true

@@ -49,3 +49,24 @@ supabase secrets set ANTHROPIC_API_KEY=...        # RATE_LIMIT_PER_DAY optional
 Deploy mirrors `notify-contribution`; the web S3/CloudFront deploy is untouched.
 CI runs with `MOCK_LLM=1` (no live Anthropic calls). Supabase Branching is
 deferred (it requires the Pro plan) — see the plan file.
+
+## Metrics (from the trajectory log)
+
+The offline golden eval reports a pass rate; the two headline product metrics come
+from the live `agent_rounds` / `agent_trajectories` log once there's traffic:
+
+```sql
+with accepted as (
+  select t.id,
+         (select min(r.round_index) from agent_rounds r
+            where r.trajectory_id = t.id and r.outcome = 'accepted') as accepted_round,
+         (select count(*) from agent_rounds r where r.trajectory_id = t.id) as rounds
+  from agent_trajectories t
+  where t.status = 'accepted'
+)
+select
+  count(*) filter (where accepted_round = 0)::float / nullif(count(*), 0)
+    as first_proposal_acceptance_rate,
+  avg(rounds) as avg_rounds_to_accept
+from accepted;
+```
