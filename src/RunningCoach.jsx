@@ -50,7 +50,7 @@ export default function RunningCoach({ onSignOut }) {
   const [settings,    setSettings]    = useState({
     raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
     age:0, maxHR:0, restHR:60, onboarded:false, onboardStep:0, intent:null,
-    healthAck:null, hrMethod:"off",
+    healthAck:null, hrMethod:"off", hrOptOut:false,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState(null);
@@ -433,8 +433,9 @@ export default function RunningCoach({ onSignOut }) {
           setOnboarding(false);
           track("onboarding_completed");
         }}/>}
-      {showTracker && <LiveRunTracker showToast={showToast} hrMethod={settings.hrMethod}
+      {showTracker && <LiveRunTracker showToast={showToast} hrMethod={settings.hrMethod} hrOptOut={settings.hrOptOut}
         onConfigureHr={() => { setShowTracker(false); setShowSettings(true); }}
+        onDeclineHr={() => saveSettings({ ...settings, hrOptOut: true })}
         onFinish={prefill => { setShowTracker(false); goLog(prefill); }}
         onClose={() => setShowTracker(false)}/>}
       {showBackup  && <BackupModal  data={{runs, plan, settings, races, ...(backupRoutes.length ? {routes: backupRoutes} : {})}} onClose={() => setShowBackup(false)}/>}

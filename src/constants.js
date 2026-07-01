@@ -29,7 +29,6 @@ export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
 // consent / bg-disclosure decision to keep device-specific state out of the blob.
 export const HR_DEVICE_KEY = "rc_hr_device";          // JSON {id,name} of the bonded BLE sensor
 export const HR_BLE_DISCLOSED_KEY = "rc_hr_ble_disclosed"; // BLE permission disclosure seen
-export const HR_SETUP_SEEN_KEY = "rc_hr_setup_seen";  // first-run "set up a sensor?" nudge shown
 
 // Public privacy policy (static page in public/privacy.html, served at the site
 // root). Linked from the disclosure + login screen and required by the app stores

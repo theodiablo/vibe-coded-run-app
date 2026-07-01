@@ -164,8 +164,10 @@ and delete anything that becomes stale.
   like the consent / bg-disclosure flags — because Bluetooth bonding is per-phone.
   Config UI is `HrSensor` (`src/views/HrSensor.jsx`), nested in Settings → Profile,
   native-only. BLE pairing reuses the disclosure→OS-prompt pattern
-  (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable one-time nudge
-  (`HR_SETUP_SEEN_KEY`) offers setup before the first live run; it never blocks Start.
+  (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable nudge (in
+  `LiveRunTracker`) offers setup on run start while HR is off; it reappears each run
+  until the user sets HR up or taps "Don't record heart rate", which sets the synced
+  `settings.hrOptOut`. It never blocks Start.
 - HR lands in the **existing** run `hr`/`hrMax` fields (no shape change) via the
   `LogView` prefill — still user-editable — so all HR display (`HRZonesCard`,
   `runZoneIndex`, Stats) works unchanged.

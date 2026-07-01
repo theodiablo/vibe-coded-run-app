@@ -8,7 +8,7 @@ import { getHrSource } from "../hr/source";
 import { RouteMap } from "../components/RouteMap";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
 import { isNative } from "../native";
-import { BG_LOC_DISCLOSED_KEY, HR_SETUP_SEEN_KEY } from "../constants";
+import { BG_LOC_DISCLOSED_KEY } from "../constants";
 
 function Stat({ label, value }) {
   return (
@@ -29,23 +29,19 @@ function Ctrl({ onClick, color, children, disabled }) {
   );
 }
 
-export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, onConfigureHr }) {
+export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOut, onConfigureHr, onDeclineHr }) {
   const t = useRunTracker({ hrMethod });
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
   // Live HR streams only from a Bluetooth (live) source; Health Connect is fetched
   // post-run in handleSave, so no live tile for it.
   const liveHr = isNative && hrMethod === "bluetooth";
-  // One-time, skippable nudge to set up a heart-rate source before the first live
-  // run (native, when nothing is configured). Per-device flag; never blocks Start.
-  const hrSetupSeen = () => {
-    try { return localStorage.getItem(HR_SETUP_SEEN_KEY) === "1"; } catch { return false; }
-  };
-  const markHrSetupSeen = () => {
-    try { localStorage.setItem(HR_SETUP_SEEN_KEY, "1"); } catch { /* quota — non-fatal */ }
-  };
+  // Nudge to set up a heart-rate source, shown on run start while HR is off and the
+  // user hasn't set it up or expressly declined (settings.hrOptOut). "Not now"
+  // dismisses just this run (it returns next run); "Don't record" sets the opt-out.
+  // Never blocks Start.
   const [showHrNudge, setShowHrNudge] = useState(
-    () => isNative && (hrMethod || "off") === "off" && !hrSetupSeen());
+    () => isNative && (hrMethod || "off") === "off" && !hrOptOut);
   const disclosed = () => {
     try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
   };
@@ -249,8 +245,9 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, onConfi
         <BgLocationDisclosure onAccept={acceptDisclosure} onCancel={cancelDisclosure} />
       )}
 
-      {/* Skippable one-time nudge to set up a heart-rate source (shown only when the
-          bg-location disclosure isn't up, to avoid stacked sheets). */}
+      {/* Nudge to set up a heart-rate source (shown only when the bg-location
+          disclosure isn't up, to avoid stacked sheets). Reappears each run until the
+          user sets HR up or taps "Don't record heart rate" (persistent opt-out). */}
       {showHrNudge && !showDisclosure && (
         <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4">
           <div className="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 p-4 space-y-3">
@@ -263,15 +260,19 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, onConfi
               automatically — no need to type it in. You can set this up later in Settings.
             </p>
             <div className="grid grid-cols-2 gap-2 pt-1">
-              <button onClick={() => { markHrSetupSeen(); setShowHrNudge(false); }}
+              <button onClick={() => setShowHrNudge(false)}
                 className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200">
                 Not now
               </button>
-              <button onClick={() => { markHrSetupSeen(); setShowHrNudge(false); onConfigureHr?.(); }}
+              <button onClick={() => { setShowHrNudge(false); onConfigureHr?.(); }}
                 className="py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white">
                 Set up
               </button>
             </div>
+            <button onClick={() => { setShowHrNudge(false); onDeclineHr?.(); }}
+              className="w-full text-center text-xs text-slate-500 hover:text-slate-300">
+              Don&apos;t record heart rate
+            </button>
           </div>
         </div>
       )}
