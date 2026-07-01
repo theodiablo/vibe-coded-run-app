@@ -164,7 +164,12 @@ export async function callModel(opts: {
   const resp = await fetch(ANTHROPIC_URL, {
     method: "POST",
     headers: {
-      "x-api-key": apiKey,
+      // Server-side only. This runs in a Deno edge function, not the browser: the
+      // key is read from Deno.env and never reaches the client. This IS the
+      // server-side proxy the no-client-side-api-key-header rule asks for, so the
+      // client-side-header check is a category error here — suppress it for this
+      // line (the rule stays active everywhere else, including other functions).
+      "x-api-key": apiKey, // nosemgrep: no-client-side-api-key-header
       "anthropic-version": "2023-06-01",
       "content-type": "application/json",
     },
