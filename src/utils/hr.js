@@ -56,7 +56,10 @@ export function parseHrMeasurement(view) {
   const flags = view.getUint8(0);
   let i = 1;
   let bpm;
-  if (flags & 0x01) { bpm = view.getUint16(i, true); i += 2; } // uint16, little-endian
+  if (flags & 0x01) {
+    if (i + 2 > view.byteLength) return null;
+    bpm = view.getUint16(i, true); i += 2; // uint16, little-endian
+  }
   else { bpm = view.getUint8(i); i += 1; }
   if (!bpm) return null; // 0 bpm = no skin contact / invalid reading
   if (flags & 0x08) i += 2; // skip energy expended

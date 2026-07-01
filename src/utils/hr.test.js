@@ -81,6 +81,7 @@ describe("parseHrMeasurement", () => {
     expect(parseHrMeasurement(null)).toBeNull();
     expect(parseHrMeasurement(dv([]))).toBeNull();
     expect(parseHrMeasurement(dv([0x00]))).toBeNull(); // flags but no value
+    expect(parseHrMeasurement(dv([0x01, 0x2c]))).toBeNull(); // 16-bit flag but truncated value
     expect(parseHrMeasurement(dv([0x00, 0x00]))).toBeNull(); // 0 bpm = no contact
   });
 });
