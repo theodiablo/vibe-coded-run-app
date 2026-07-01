@@ -18,17 +18,22 @@ import { hrSummary } from "../utils/hr";
 // The `HealthConnect` JS export is bundled but only runs on native — getHrSource returns
 // null on web (source.js) and every call here is wrapped, so the web build is unaffected.
 
-// True only when Health Connect is installed and responds. Defensive: any throw
-// (plugin absent, older device, web) → unavailable, never breaks the UI.
-async function isAvailable() {
-  try { return (await HealthConnect.checkAvailability())?.availability === "Available"; }
-  catch { return false; }
+// Raw Health Connect availability: "Available" | "NotInstalled" | "NotSupported".
+// Defensive: any throw (plugin absent, older device, web) → "NotSupported", so the
+// UI can give an accurate, actionable message instead of a dead end.
+async function availability() {
+  try { return (await HealthConnect.checkAvailability())?.availability || "NotSupported"; }
+  catch { return "NotSupported"; }
 }
+
+// True only when Health Connect is installed and responds.
+async function isAvailable() { return (await availability()) === "Available"; }
 
 export const healthConnectSource = {
   id: "healthconnect",
   live: false,
   isAvailable,
+  availability,
 
   // Request read access to heart rate. Returns whether it was granted.
   async requestPermissions() {

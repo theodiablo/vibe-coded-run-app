@@ -60,11 +60,26 @@ export function HrSensor({ settings, saveSettings, showToast }) {
 
   const connectHc = async () => {
     setHcBusy(true);
-    const avail = await healthConnectSource.isAvailable();
-    if (!avail) { setHcBusy(false); showToast?.("Health Connect isn't available on this device.", "err"); return; }
-    const ok = await healthConnectSource.requestPermissions();
-    setHcBusy(false);
-    showToast?.(ok ? "Health Connect connected." : "Health Connect permission was not granted.", ok ? "ok" : "err");
+    try {
+      const status = await healthConnectSource.availability();
+      if (status === "NotSupported") {
+        showToast?.("Health Connect isn't supported on this device (needs Android 8+).", "err");
+        return;
+      }
+      // "Available" → the OS shows the permission screen. "NotInstalled" → the plugin
+      // opens Google Play so the user can install Health Connect first.
+      const ok = await healthConnectSource.requestPermissions();
+      showToast?.(
+        ok ? "Health Connect connected — heart rate will be read after your runs."
+          : status === "NotInstalled"
+            ? "Install Health Connect from Google Play, then tap Connect again."
+            : "Access wasn't granted. In Health Connect, allow Running Coach to read Heart rate.",
+        ok ? "ok" : "err");
+    } catch {
+      showToast?.("Couldn't open Health Connect. Make sure it's installed and up to date.", "err");
+    } finally {
+      setHcBusy(false);
+    }
   };
 
   return (
