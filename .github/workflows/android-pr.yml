@@ -25,6 +25,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # On pull_request, github.sha is the synthetic merge ref. Build the
+          # same PR head commit that the APK comment reports.
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -88,7 +92,7 @@ jobs:
               `**[⬇️ Download the APK](${url})** (GitHub login required) — unzip and ` +
               'sideload `app-debug.apk` (see README → Android app → *Install a build on your phone*).',
               '',
-              `<sub>Built from <a href="${runUrl}">run #${context.runNumber}</a> · commit \`${sha}\`. ` +
+              `<sub>Built from <a href="${runUrl}">run #${context.runNumber}</a> · PR head commit \`${sha}\`. ` +
               'Refreshed automatically on every push.</sub>',
             ].join('\n');
             // Paginate ALL comments — on an active PR the bot's comment scrolls off

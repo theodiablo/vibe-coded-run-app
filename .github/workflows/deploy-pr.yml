@@ -61,9 +61,9 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           # For a manual run there's no PR event context, so check out the PR's
-          # head explicitly. Empty string => actions/checkout default (the ref
-          # that triggered the pull_request event).
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', inputs.pr_number) || '' }}
+          # head explicitly. On pull_request, github.sha is the synthetic merge
+          # ref, so use the PR head SHA to keep the build and comment aligned.
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', inputs.pr_number) || github.event.pull_request.head.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -120,7 +120,14 @@ jobs:
             // bare `/pr/<number>/` would 404.
             const url = `${PREVIEW_BASE_URL}/${PR_PREFIX}/${PR_NUMBER}/index.html`;
             const marker = '<!-- pr-preview-deploy -->';
-            const body = `${marker}\n🚀 **PR preview deployed**\n\n${url}\n\n_Updated for commit ${context.sha.slice(0, 7)}._`;
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: Number(PR_NUMBER),
+            });
+            const sha = pull.head.sha.slice(0, 7);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${marker}\n🚀 **PR preview deployed**\n\n${url}\n\n<sub>Built from <a href="${runUrl}">run #${context.runNumber}</a> · PR head commit \`${sha}\`. Refreshed automatically on every push.</sub>`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
