@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Health Connect's client library requires minSdk 26, but the app ships
+         minSdk 24 (Android 7.x) for GPS/BLE. Health Connect only works on API 26+
+         anyway, so allow the higher-minSdk library rather than dropping 7.x users:
+         the plugin loads its client lazily and healthConnectSource.isAvailable()
+         returns false on older devices, so HR-from-Health-Connect simply no-ops
+         there while the rest of the app (incl. live BLE HR) works unchanged. -->
+    <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />
 
     <application
         android:allowBackup="true"
