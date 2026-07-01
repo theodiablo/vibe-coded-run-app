@@ -41,7 +41,7 @@
       <h1>🏃 Running Coach — Privacy Policy</h1>
       <p class="lead">A free, open-source running-training app. No ads, no analytics,
         no upsells — and the same goes for your data.</p>
-      <p class="updated">Last updated: 28 June 2026</p>
+      <p class="updated">Last updated: 1 July 2026</p>
 
       <h2>Who we are</h2>
       <p>Running Coach is an independent, open-source project. The source code is
@@ -57,6 +57,9 @@
         <li><strong>Your name</strong>, if you choose to enter one during onboarding.</li>
         <li><strong>GPS location and route traces</strong>, when you use live run tracking
           (see below).</li>
+        <li><strong>Heart-rate data</strong> — measured by a paired Bluetooth heart-rate
+          sensor, or read from Android Health Connect, if you turn either on (Android
+          only; see below).</li>
       </ul>
 
       <h2 class="accent">Location data &amp; background tracking</h2>
@@ -74,6 +77,33 @@
             so it is always clear when location is being collected.</li>
           <li>Your route is saved to <strong>your own account</strong> and is shown
             only to you.</li>
+        </ul>
+      </div>
+
+      <h2 class="accent">Heart-rate sensors &amp; Health Connect (Android)</h2>
+      <div class="card">
+        <p>On the Android app you can optionally capture your heart rate during a run,
+          so you don't have to type it in. This is <strong>off by default</strong>; you
+          turn it on in <strong>Settings → Profile → Heart-rate sensor</strong>.</p>
+        <ul>
+          <li><strong>Bluetooth sensor.</strong> If you pair a Bluetooth heart-rate sensor
+            (a chest strap, an armband, or a watch that broadcasts heart rate), the app
+            reads your heart rate from it <strong>only while a run is recording</strong>.
+            Bluetooth is used solely to find and read your sensor — <strong>never</strong>
+            to determine your location.</li>
+          <li><strong>Health Connect.</strong> If you choose Health Connect, the app reads
+            your heart rate from Android's Health Connect <strong>only for the time period
+            of a run you recorded</strong>, after you finish it. It requests read access to
+            <strong>heart rate</strong> and your <strong>exercise sessions</strong> (used to
+            locate the run) — and nothing else.</li>
+          <li>Heart-rate readings are saved <strong>on your run, in your own account</strong>,
+            exactly like a value you type in. They are <strong>not</strong> shared with any
+            third party, <strong>not</strong> used for advertising, and <strong>not</strong>
+            sold. We do not transfer Health Connect data anywhere beyond storing it in your
+            account.</li>
+          <li>You can turn either source off at any time in Settings, and revoke access in
+            your Android <strong>Bluetooth</strong> or <strong>Health Connect</strong>
+            settings. Deleting a run — or your account — deletes its heart-rate data too.</li>
         </ul>
       </div>
 
@@ -109,6 +139,12 @@
           route, including with the screen off. Requested only when you start tracking.</li>
         <li><strong>Notifications</strong> — to show the persistent "recording run"
           notification.</li>
+        <li><strong>Nearby devices (Bluetooth)</strong> — to find and connect to a
+          heart-rate sensor. Used only while a run is recording, and never for location.
+          Requested only if you set up a Bluetooth sensor.</li>
+        <li><strong>Health Connect (read heart rate &amp; exercise)</strong> — to read your
+          heart rate for a recorded run. Requested only if you choose Health Connect as
+          your heart-rate source.</li>
       </ul>
 
       <h2>Children</h2>
