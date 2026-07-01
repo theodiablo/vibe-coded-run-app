@@ -54,13 +54,28 @@ export function adaptBgError(error) {
 // True if a Geolocation permission status grants fine or coarse location.
 const isGranted = (p) => !!p && (p.location === "granted" || p.coarseLocation === "granted");
 
-// Request foreground (fine) location, reliably showing the OS dialog. Returns
-// true if location is usable. Errors propagate to the caller, which surfaces them
-// — they are NOT swallowed (a swallowed throw here is exactly what hid the missing
-// prompt before).
-async function ensureForegroundPermission() {
-  if (isGranted(await Geolocation.checkPermissions())) return true;
-  return isGranted(await Geolocation.requestPermissions({ permissions: ["location"] }));
+// Request foreground (fine) location, reliably showing the OS dialog(s). Returns
+// true if location is usable; never throws (fast to check below).
+//
+// checkPermissions()/requestPermissions() are the plugin's OWN gate on Android:
+// they check whether the device's system Location Services are switched on FIRST,
+// and REJECT immediately if not — before ever showing the OS permission dialog.
+// That's exactly the "no prompt at all" bug users hit with location off: relying
+// on requestPermissions() alone as the ask means we dead-end with a rejected
+// promise and never show anything. getCurrentPosition() has no such gate — it
+// requests the runtime permission itself, then (via Google Play Services)
+// surfaces the system "turn on device location" dialog if needed. So use it as
+// the real ask whenever the fast-path check doesn't already confirm we're good.
+export async function ensureForegroundPermission() {
+  try {
+    if (isGranted(await Geolocation.checkPermissions())) return true;
+  } catch { /* location services likely off — fall through to the real ask below */ }
+  try {
+    await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const nativeSource = {

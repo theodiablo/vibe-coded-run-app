@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { adaptBgLocation, adaptBgError } from "./native";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Geolocation } from "@capacitor/geolocation";
+import { adaptBgLocation, adaptBgError, ensureForegroundPermission } from "./native";
+
+vi.mock("@capacitor/geolocation", () => ({
+  Geolocation: { checkPermissions: vi.fn(), getCurrentPosition: vi.fn() },
+}));
+vi.mock("@capacitor/core", () => ({ registerPlugin: () => ({}) }));
 
 // The native background-geolocation plugin hands us a flat `location` object; the
 // rest of the tracker (onPos, accuracyOK) reads the GeolocationPosition shape.
@@ -43,5 +49,43 @@ describe("adaptBgError", () => {
   it("maps other errors to POSITION_UNAVAILABLE", () => {
     const err = adaptBgError({ code: "SOMETHING_ELSE" });
     expect(err.code).toBe(err.POSITION_UNAVAILABLE);
+  });
+});
+
+// Regression coverage for the "no permission prompt at all" bug: on Android,
+// Geolocation.checkPermissions()/requestPermissions() reject immediately with
+// "location services disabled" BEFORE ever showing the OS dialog when the
+// device's system Location toggle is off. ensureForegroundPermission must fall
+// back to a real getCurrentPosition() probe in that case — that call has no such
+// gate, so it's the one that actually surfaces the permission + "turn on
+// location" dialogs.
+describe("ensureForegroundPermission", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns true on the fast path when already granted", async () => {
+    Geolocation.checkPermissions.mockResolvedValue({ location: "granted" });
+    await expect(ensureForegroundPermission()).resolves.toBe(true);
+    expect(Geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it("falls back to getCurrentPosition when checkPermissions rejects (location services off)", async () => {
+    Geolocation.checkPermissions.mockRejectedValue(
+      Object.assign(new Error("Location services are not enabled."), { code: "OS-PLUG-GLOC-0007" }),
+    );
+    Geolocation.getCurrentPosition.mockResolvedValue({ coords: { latitude: 1, longitude: 2 } });
+    await expect(ensureForegroundPermission()).resolves.toBe(true);
+    expect(Geolocation.getCurrentPosition).toHaveBeenCalled();
+  });
+
+  it("falls back to getCurrentPosition when checkPermissions resolves not-granted", async () => {
+    Geolocation.checkPermissions.mockResolvedValue({ location: "denied" });
+    Geolocation.getCurrentPosition.mockResolvedValue({ coords: { latitude: 1, longitude: 2 } });
+    await expect(ensureForegroundPermission()).resolves.toBe(true);
+  });
+
+  it("returns false (not a dead-end throw) when the fallback probe also fails", async () => {
+    Geolocation.checkPermissions.mockRejectedValue(new Error("Location services are not enabled."));
+    Geolocation.getCurrentPosition.mockRejectedValue(new Error("Request to enable location was denied."));
+    await expect(ensureForegroundPermission()).resolves.toBe(false);
   });
 });

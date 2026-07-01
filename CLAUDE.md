@@ -130,6 +130,19 @@ and delete anything that becomes stale.
   (see `adaptBgLocation`). Native auth uses a deep link (`AUTH_DEEP_LINK` in
   `src/supabase.js`, completed in `App.jsx`). Build: `npx cap sync android` then
   `.github/workflows/android.yml`; the web S3/CloudFront deploy stays untouched.
+- **Gotcha — Android permission prompt silently no-ops when Location Services
+  are off:** `@capacitor/geolocation`'s `checkPermissions()`/`requestPermissions()`
+  are gated *by the plugin itself* on the device's system Location toggle — they
+  **reject immediately if it's off, before ever showing the OS permission
+  dialog**. Relying on those alone (as `ensureForegroundPermission` in
+  `src/geo/native.js` used to) means a user with location off never sees any
+  prompt at all — not the permission dialog, not a "turn on location" one.
+  `getCurrentPosition()`/`watchPosition()` aren't gated that way: they request the
+  runtime permission themselves, then (via Google Play Services) surface the
+  system "turn on device location" dialog if needed. `ensureForegroundPermission`
+  uses `checkPermissions()` only as a fast-path "already granted" check and falls
+  back to a real `getCurrentPosition()` probe — the one call that can actually
+  show both dialogs — whenever that check doesn't succeed.
 
 ## Heart-rate sources (native HR capture)
 - **Same seam shape as GPS.** External HR capture mirrors `geoSource`: `getHrSource`
