@@ -72,6 +72,10 @@ export default function RunningCoach({ onSignOut }) {
   // well after any concurrent change has committed).
   const racesRef = useRef(races);
   useEffect(() => { racesRef.current = races; }, [races]);
+  // Freshest runs, for the foreground Health Connect HR retry below (an effect
+  // with [] deps must read current runs from a ref, not a stale closure).
+  const runsRef = useRef(runs);
+  useEffect(() => { runsRef.current = runs; }, [runs]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState([]);
@@ -140,6 +144,7 @@ export default function RunningCoach({ onSignOut }) {
           db.set(STORAGE_KEYS.RUNS, next);
           return next;
         });
+        if (patch.hr != null) setToast({ type: "ok", msg: "Heart rate added to a run from Health Connect ❤" });
       });
     })();
   }, []);
@@ -155,6 +160,25 @@ export default function RunningCoach({ onSignOut }) {
     const t = setTimeout(() => setToast(null), toast.action ? 6000 : 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Health Connect HR often lands minutes after a run finishes (once the watch
+  // syncs), so retry the deferred relink whenever the app returns to the
+  // foreground — not only on cold start — and toast when a run actually gets filled.
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      flushPendingHr(runsRef.current, (runId, patch) => {
+        setRuns(prev => {
+          const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+          db.set(STORAGE_KEYS.RUNS, next);
+          return next;
+        });
+        if (patch.hr != null) setToast({ type: "ok", msg: "Heart rate added to a run from Health Connect ❤" });
+      });
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   const savePlan     = p => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated"); };
   const saveSettings = s => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };
