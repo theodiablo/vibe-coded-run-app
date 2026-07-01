@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { MapPin, Check, Plus, AlertTriangle, Loader } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
-import { geoSource } from "../geo/source";
+import { LocationPicker } from "../components/LocationPicker";
 import { notifyContribution, deleteRace } from "../races";
 
 // "Add a race" — contributes to the SHARED catalogue (instant + global). New
@@ -20,8 +20,8 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
   const [selected, setSelected] = useState(null); // an existing race to add a date to
   const [f, setF] = useState({ name: "", city: "", country: "", url: "",
     date: prefill?.date || "", distanceKm: prefill?.distanceKm ?? "", elevation: prefill?.elevation ?? "" });
-  const [loc, setLoc] = useState(null);   // { lat, lng } from "use my location"
-  const [locating, setLocating] = useState(false);
+  const [loc, setLoc] = useState(null);   // { lat, lng } picked on the map
+  const [showPicker, setShowPicker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
@@ -34,18 +34,6 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
       .filter(r => (r.name + " " + (r.city || "") + " " + (r.country || "")).toLowerCase().includes(q))
       .slice(0, 5);
   }, [catalogue, f.name, selected]);
-
-  const useMyLocation = async () => {
-    setErr(""); setLocating(true);
-    try {
-      const p = await geoSource.getCurrentPosition();
-      setLoc(p);
-    } catch {
-      setErr("Couldn't get your location — you can still add the race without it.");
-    } finally {
-      setLocating(false);
-    }
-  };
 
   const submit = async () => {
     setErr("");
@@ -93,6 +81,7 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
   };
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700 shrink-0">
@@ -137,11 +126,17 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
                 <input value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://…" className={INPUT_CLS}/></div>
               <div>
                 <label className={LABEL_CLS}>Location (for “races near me”)</label>
-                <button onClick={useMyLocation} disabled={locating}
-                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60">
-                  {locating ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>}
-                  {loc ? "Location set ✓" : "Use my current location"}
-                </button>
+                {loc ? (
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5 text-sm text-emerald-400"><MapPin size={14}/>Location set ✓</span>
+                    <button onClick={() => setShowPicker(true)} className="text-xs text-orange-400 hover:text-orange-300 font-semibold">Change</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowPicker(true)}
+                    className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold transition-colors">
+                    <MapPin size={14}/>Set location on map
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -172,5 +167,15 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
         </div>
       </div>
     </div>
+
+    {showPicker && (
+      <LocationPicker
+        initial={loc}
+        geocodeQuery={[f.city.trim(), f.country.trim()].filter(Boolean).join(", ")}
+        onConfirm={(p) => { setLoc(p); setShowPicker(false); }}
+        onCancel={() => setShowPicker(false)}
+      />
+    )}
+    </>
   );
 }

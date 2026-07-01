@@ -209,6 +209,14 @@ and delete anything that becomes stale.
   re-fetches so it shows immediately. **Discover** is a RacesView segment: one-off
   `geoSource.getCurrentPosition()` (web/native), sort by `haversineM`, distance-band
   + radius chips. **km-only**; coordinates are never persisted or sent to telemetry.
+  A race's own `lat`/`lng` (so *other* users' Discover can find it) is set via
+  `LocationPicker` (`src/components/LocationPicker.jsx`) — a tap/drag Leaflet pin,
+  **not** the contributor's live GPS, since they're rarely standing where the race
+  actually happens. It opens centered on a one-off forward geocode
+  (`src/utils/geocode.js`, MapTiler's geocoding endpoint — same `VITE_MAPTILER_KEY`
+  as the tiles, already covered by the CSP's `connect-src`) of the city/country
+  already typed in the form; "jump to my current location" is offered too, but only
+  as one more way to seed the pin, never the only option.
 - **Moderation:** `reportRace` writes a `race_reports` row (insert-only RLS, no
   client SELECT — so insert WITHOUT `.select()`) and best-effort invokes the
   `notify-contribution` edge function (`supabase/functions/`), which emails the
