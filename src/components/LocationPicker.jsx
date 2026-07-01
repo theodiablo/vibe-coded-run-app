@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Loader, MapPin, X } from "lucide-react";
-import { MAP_ATTRIBUTION, MAP_KEY, MAP_TILE_URL } from "../constants";
+import { Loader, MapPin, Search, X } from "lucide-react";
+import { INPUT_CLS, MAP_ATTRIBUTION, MAP_KEY, MAP_TILE_URL } from "../constants";
 import { geoSource } from "../geo/source";
 import { geocodePlace } from "../utils/geocode";
 
 const WORLD_CENTER = [20, 0];
 const WORLD_ZOOM = 2;
 const PICKED_ZOOM = 13;
+const SEARCH_DEBOUNCE_MS = 500;
 
 // Inline SVG teardrop pin (divIcon) instead of Leaflet's default L.Icon — the
 // default references marker-icon-2x.png/marker-icon.png/marker-shadow.png by
@@ -38,6 +39,10 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
   const markerRef = useRef(null);
   const [picked, setPicked] = useState(initial || null);
   const [locating, setLocating] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchMiss, setSearchMiss] = useState(false);
+  const searchSeqRef = useRef(0);
 
   const placeMarker = (lat, lng) => {
     const map = mapRef.current;
@@ -86,6 +91,39 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Address/city search box — debounced forward geocode via the same MapTiler
+  // endpoint, so a contributor can type an exact address instead of only
+  // tapping/dragging on a (possibly far-zoomed-out) map. A hit both recenters
+  // AND places the pin (like "jump to my current location"); the user can
+  // still drag to fine-tune. `searchSeqRef` drops a stale response that
+  // resolves after a newer keystroke has already fired its own search.
+  // searching/searchMiss are cleared synchronously in onQueryChange (not here)
+  // so this effect never calls setState outside its async timeout callback.
+  useEffect(() => {
+    if (!query.trim()) return;
+    const seq = ++searchSeqRef.current;
+    const t = setTimeout(() => {
+      setSearching(true);
+      geocodePlace(query).then((center) => {
+        if (searchSeqRef.current !== seq) return; // superseded by a newer search
+        setSearching(false);
+        if (center) {
+          mapRef.current?.setView([center.lat, center.lng], PICKED_ZOOM);
+          placeMarker(center.lat, center.lng);
+        } else {
+          setSearchMiss(true);
+        }
+      });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const onQueryChange = (v) => {
+    setQuery(v);
+    setSearching(false);
+    setSearchMiss(false);
+  };
+
   const useMyLocation = async () => {
     setLocating(true);
     try {
@@ -102,6 +140,15 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
         <p className="text-sm font-semibold">Set race location</p>
         <button onClick={onCancel} aria-label="Close" className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>
       </header>
+      <div className="px-4 pt-2 shrink-0 relative">
+        <Search size={16} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+        <input value={query} onChange={e => onQueryChange(e.target.value)} placeholder="Search a city or address…"
+          className={INPUT_CLS + " pl-9 pr-9"} />
+        {searching && <Loader size={14} className="animate-spin absolute right-7 top-1/2 -translate-y-1/2 text-slate-400" />}
+      </div>
+      {searchMiss && !searching && (
+        <p className="text-[12px] text-red-400 px-4 pt-1 shrink-0">No match found — you can still tap the map directly.</p>
+      )}
       <p className="text-[12px] text-slate-400 px-4 py-2 shrink-0">
         Tap or drag the pin onto where the race actually starts — not necessarily where you are right now.
       </p>
