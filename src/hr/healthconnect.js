@@ -1,4 +1,3 @@
-import { HealthConnect } from "@pianissimoproject/capacitor-health-connect";
 import { hrSummary } from "../utils/hr";
 
 // Post-run heart-rate source: read a tracked run's HR from Android Health Connect
@@ -15,14 +14,18 @@ import { hrSummary } from "../utils/hr";
 // installed with --legacy-peer-deps; Cap-7 native code almost certainly builds against
 // Cap 8 (stable Android plugin API), but confirm with an on-device/CI Android build.
 //
-// The `HealthConnect` JS export is bundled but only runs on native — getHrSource returns
-// null on web (source.js) and every call here is wrapped, so the web build is unaffected.
+// Load the plugin lazily so merely rendering the app after sign-in cannot touch
+// the native Health Connect bridge. Some devices/versions are sensitive to the
+// Cap-7 plugin under Cap-8; failures are treated as unavailable.
+async function getHealthConnect() {
+  return (await import("@pianissimoproject/capacitor-health-connect")).HealthConnect;
+}
 
 // Raw Health Connect availability: "Available" | "NotInstalled" | "NotSupported".
 // Defensive: any throw (plugin absent, older device, web) → "NotSupported", so the
 // UI can give an accurate, actionable message instead of a dead end.
 async function availability() {
-  try { return (await HealthConnect.checkAvailability())?.availability || "NotSupported"; }
+  try { return (await (await getHealthConnect()).checkAvailability())?.availability || "NotSupported"; }
   catch { return "NotSupported"; }
 }
 
@@ -38,7 +41,7 @@ export const healthConnectSource = {
   // Request read access to heart rate. Returns whether it was granted.
   async requestPermissions() {
     try {
-      const r = await HealthConnect.requestHealthPermissions({ read: ["HeartRateSeries"], write: [] });
+      const r = await (await getHealthConnect()).requestHealthPermissions({ read: ["HeartRateSeries"], write: [] });
       return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
     } catch { return false; }
   },
@@ -47,7 +50,7 @@ export const healthConnectSource = {
   // show connection status in Settings without popping the OS dialog.
   async checkPermissions() {
     try {
-      const r = await HealthConnect.checkHealthPermissions({ read: ["HeartRateSeries"], write: [] });
+      const r = await (await getHealthConnect()).checkHealthPermissions({ read: ["HeartRateSeries"], write: [] });
       return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
     } catch { return false; }
   },
@@ -57,7 +60,7 @@ export const healthConnectSource = {
   // (watch not synced) so the caller can defer and retry.
   async fetchRange(startMs, endMs) {
     try {
-      const res = await HealthConnect.readRecords({
+      const res = await (await getHealthConnect()).readRecords({
         type: "HeartRateSeries",
         timeRangeFilter: { type: "between", startTime: new Date(startMs), endTime: new Date(endMs) },
       });

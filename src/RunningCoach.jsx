@@ -145,7 +145,7 @@ export default function RunningCoach({ onSignOut }) {
           return next;
         });
         if (patch.hr != null) setToast({ type: "ok", msg: "Heart rate added to a run from Health Connect ❤" });
-      });
+      }).catch(() => {});
     })();
   }, []);
 
@@ -174,7 +174,7 @@ export default function RunningCoach({ onSignOut }) {
           return next;
         });
         if (patch.hr != null) setToast({ type: "ok", msg: "Heart rate added to a run from Health Connect ❤" });
-      });
+      }).catch(() => {});
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
