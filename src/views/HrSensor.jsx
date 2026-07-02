@@ -12,7 +12,9 @@ import { HR_BLE_DISCLOSED_KEY } from "../constants";
 // settings.hrMethod; the chosen Bluetooth device is stored per-device (device.js).
 // Pairing follows the disclosure-then-OS-prompt pattern of background location.
 export function HrSensor({ settings, saveSettings, showToast }) {
-  const method = settings.hrMethod || "off";
+  const persistedMethod = settings.hrMethod || "off";
+  const [setupMethod, setSetupMethod] = useState(null);
+  const method = setupMethod || persistedMethod;
   const [paired, setPaired] = useState(getPairedDevice());
   const [scanning, setScanning] = useState(false);
   const [found, setFound] = useState([]);
@@ -21,6 +23,17 @@ export function HrSensor({ settings, saveSettings, showToast }) {
   const [hcConnected, setHcConnected] = useState(null); // null = unknown/checking
 
   const setMethod = (m) => saveSettings({ ...settings, hrMethod: m });
+  const chooseMethod = (m) => {
+    if (m === "off") {
+      setSetupMethod(null);
+      setMethod("off");
+    }
+    else if (m === "bluetooth" && paired) {
+      setSetupMethod(null);
+      setMethod("bluetooth");
+    }
+    else setSetupMethod(m);
+  };
 
   // Reflect whether Health Connect read access is already granted (non-prompting),
   // so Settings shows a persistent "connected" state. Only meaningful on native.
@@ -63,10 +76,16 @@ export function HrSensor({ settings, saveSettings, showToast }) {
     setPairedDevice(d);
     setPaired(d);
     setFound([]);
+    setSetupMethod(null);
     if (method !== "bluetooth") setMethod("bluetooth");
     showToast?.("Paired " + d.name + ".");
   };
-  const forget = () => { forgetPairedDevice(); setPaired(null); };
+  const forget = () => {
+    forgetPairedDevice();
+    setPaired(null);
+    setSetupMethod("bluetooth");
+    if (persistedMethod === "bluetooth") setMethod("off");
+  };
 
   const connectHc = async () => {
     setHcBusy(true);
@@ -80,6 +99,8 @@ export function HrSensor({ settings, saveSettings, showToast }) {
       // opens Google Play so the user can install Health Connect first.
       const ok = await healthConnectSource.requestPermissions();
       setHcConnected(ok);
+      if (ok) { setSetupMethod(null); setMethod("healthconnect"); }
+      else if (persistedMethod === "healthconnect") setMethod("off");
       showToast?.(
         ok ? "Health Connect connected — heart rate will be read after your runs."
           : status === "NotInstalled"
@@ -103,7 +124,7 @@ export function HrSensor({ settings, saveSettings, showToast }) {
       {/* Method selector */}
       <div className="grid grid-cols-3 gap-2">
         {HR_METHODS.map((m) => (
-          <button key={m.id} type="button" onClick={() => setMethod(m.id)}
+          <button key={m.id} type="button" onClick={() => chooseMethod(m.id)}
             className={"py-2 rounded-xl text-xs font-semibold border transition-colors " +
               (method === m.id
                 ? "bg-orange-500 border-orange-500 text-white"
