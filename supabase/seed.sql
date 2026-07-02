@@ -1,0 +1,2 @@
+-- Local/preview seed data (applied by `supabase db reset` / `supabase start`).
+-- config.toml references this file; keep it valid even when empty.
