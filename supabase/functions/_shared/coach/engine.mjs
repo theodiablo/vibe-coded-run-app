@@ -148,7 +148,14 @@ export async function generateProposal({ baseline, context, history = [], messag
   // working plan was already valid — e.g. the model kept making further
   // (valid) tool calls instead of ever stopping to summarize. Surface it
   // rather than discarding legitimate work under the "no adjustment" fate.
-  if (lastValidation && lastValidation.ok) {
+  //
+  // Gate on toolCalls.length: a plan trivially "validates against itself" even
+  // when every attempt failed with a CoachToolError and `working` never moved
+  // off `baseline` (e.g. the model repeats the same out-of-range input on
+  // every turn). Without this gate that dead-end would be misreported as
+  // "proposed, nothing needs to change" instead of the honest
+  // `no_valid_adjustment` — the model never found a working edit.
+  if (toolCalls.length > 0 && lastValidation && lastValidation.ok) {
     return {
       status: "proposed", plan: working,
       changed: JSON.stringify(working) !== JSON.stringify(baseline),

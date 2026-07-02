@@ -29,6 +29,11 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
    (`_shared/coach/engine.mjs`) runs an internal validate-and-retry loop
    (bounded by `MAX_VALIDATOR_RETRIES`); on exhaustion the round ends in the
    distinct `no_valid_adjustment` fate, not a 500 and not a broken plan.
+   Exhausting `MAX_MODEL_CALLS` instead (the model kept issuing further tool
+   calls without ever stopping) surfaces the plan ONLY if at least one tool
+   call actually succeeded — a model stuck failing the same invalid input
+   every turn never moves the plan off baseline, and that must not be
+   reported as "proposed, nothing needs to change."
 5. **Tamper-proof audit log** — `agent_trajectories` / `agent_rounds` /
    `agent_usage` are written by the **service role only**; users can read
    their own rows, never write. Every round is logged, including failures.
@@ -103,11 +108,18 @@ through `src/coach.js`.
 
 ## Eval & metrics
 
-- **Golden cases** run in CI with zero API calls: `src/utils/coachGolden.test.js`
-  replays situations through the real `generateProposal` loop with the
-  `MOCK_LLM` scripts and asserts adaptation *properties* (knee pain never adds
+- **Golden cases** run in CI with zero API calls, via two complementary
+  harnesses over the same `generateProposal` loop:
+  - `src/utils/coachGolden.test.js` — free-text situations through the
+    keyword-based `MOCK_LLM` scripts (`_shared/coach/mock.mjs`), exercising
+    realistic conversational flow.
+  - `src/utils/coachAgent.eval.test.js` — exact scripted tool-call sequences
+    per situation (`npm run eval` runs just this file), including the two
+    tool-execution-error paths (a bad `factor` thrown by `applyToolCall`
+    itself, and recovery from one) that the keyword mock doesn't reach.
+  Both assert adaptation *properties*, not exact output (knee pain never adds
   intensity; a missed week never "makes up" volume; the validator-failure path
-  ends in `no_valid_adjustment`). `npm test` runs them.
+  ends in `no_valid_adjustment`). `npm test` runs both.
 - **The propose/confirm log is the eval dataset**: `agent_rounds.input_context`
   labels what the model saw; `proposed_plan`, `tool_calls`, `outcome` label
   what it did and how it fared.
