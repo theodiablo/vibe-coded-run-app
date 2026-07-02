@@ -6,7 +6,7 @@
 // propose/confirm audit log (agent_rounds) grows this dataset in production.
 
 import { describe, it, expect } from "vitest";
-import { generateProposal, MAX_VALIDATOR_RETRIES } from "../../supabase/functions/_shared/coach/engine.mjs";
+import { generateProposal, MAX_VALIDATOR_RETRIES, MAX_MODEL_CALLS } from "../../supabase/functions/_shared/coach/engine.mjs";
 import { createMockModel } from "../../supabase/functions/_shared/coach/mock.mjs";
 import { validatePlan } from "./coachValidation";
 import { buildPlan } from "./plan";
@@ -74,6 +74,29 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(result.status).toBe("no_valid_adjustment");
     expect(result.plan).toBeUndefined(); // an invalid plan is never surfaced
     expect(MAX_VALIDATOR_RETRIES).toBeGreaterThan(0);
+  });
+
+  it("MAX_MODEL_CALLS exhaustion with an already-valid plan is proposed, not discarded", async () => {
+    // A model that keeps issuing further (individually valid, effectively
+    // idempotent) tool calls instead of ever stopping to summarize must not
+    // have its legitimate work thrown away under the "no adjustment" fate —
+    // only a genuinely invalid working plan should end up there.
+    const context = makeContext("please double-check this for me");
+    const target = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type !== "RACE" && !s.done);
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      return {
+        content: [{ type: "tool_use", id: "t" + calls, name: "convert_to_cross_training", input: { session_id: target.id } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(calls).toBe(MAX_MODEL_CALLS);
+    expect(result.status).toBe("proposed");
+    expect(result.plan.weeks.flatMap(w => w.sessions).find(s => s.id === target.id).type).toBe("WALK");
+    expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
   });
 
   it("critique round: history + feedback reach the model in order", async () => {

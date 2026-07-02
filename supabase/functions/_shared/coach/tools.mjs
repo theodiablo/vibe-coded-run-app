@@ -104,6 +104,12 @@ function findSession(plan, id) {
   throw new CoachToolError("NOT_FOUND", `No session with id "${id}" in the plan.`);
 }
 
+// Single source of truth for "this session cannot be touched" — completed
+// sessions and RACE sessions (fixed real-world events). Used both by the
+// single-session guard below and by the bulk (whole-week) tools so the rule
+// can't drift between the two call shapes.
+const isFixed = (session) => session.type === "RACE" || session.done;
+
 function guardEditable(session, verb) {
   if (session.done)
     throw new CoachToolError("DONE", `Session ${session.id} is already completed — refusing to ${verb} it.`);
@@ -178,7 +184,7 @@ export function applyToolCall(plan, name, input = {}) {
       const week = p.weeks.find(w => w.weekNumber === week_number);
       if (!week) throw new CoachToolError("NOT_FOUND", `No week ${week_number} in the plan.`);
       for (const s of week.sessions) {
-        if (s.type === "RACE" || s.done) continue;
+        if (isFixed(s)) continue;
         s.km = Math.max(1.5, Math.round(s.km * factor * 10) / 10);
       }
       return p;
@@ -188,7 +194,7 @@ export function applyToolCall(plan, name, input = {}) {
       const week = p.weeks.find(w => w.weekNumber === week_number);
       if (!week) throw new CoachToolError("NOT_FOUND", `No week ${week_number} in the plan.`);
       for (const s of week.sessions) {
-        if (s.type === "RACE" || s.done) continue;
+        if (isFixed(s)) continue;
         s.type = "EASY";
         s.km = Math.max(1.5, Math.min(6, Math.round(s.km * 0.6 * 10) / 10));
         s.pace = paceFor(p, "EASY");
@@ -214,7 +220,8 @@ export function applyToolCall(plan, name, input = {}) {
 // the request context (goal fields + recent-run window), returned to the model
 // as the tool result. Pure and unit-testable; no plan mutation.
 export function assessGoalFeasibility(ctx) {
-  const { goalSec, distanceKm, raceDate, targetPace, recentRuns = [] } = ctx;
+  const { goal, targetPace, recentRuns = [] } = ctx;
+  const { goalSec, distanceKm, raceDate } = goal || {};
   if (!goalSec || !distanceKm) return "No race goal is configured — nothing to assess.";
   const runs = recentRuns.filter(r => r && r.km > 0 && r.durationSec > 0 && r.type !== "WALK");
   if (!runs.length)
@@ -222,12 +229,18 @@ export function assessGoalFeasibility(ctx) {
   const weeks = 4;
   const cutoff = new Date(Date.now() - weeks * 7 * dayMs).toISOString().slice(0, 10);
   const recent = runs.filter(r => r.date >= cutoff);
+  // Prefer the actual last-N-weeks window for the headline stats; only fall
+  // back to the wider (already ≤30-run) history when nothing recent exists,
+  // and say so explicitly rather than silently mislabeling old data as recent.
+  const sample = recent.length ? recent : runs;
   const weeklyKm = recent.reduce((t, r) => t + r.km, 0) / weeks;
-  const longest = Math.max(...runs.map(r => r.km));
-  const bestPace = Math.min(...runs.map(r => Math.round(r.durationSec / r.km)));
+  const longest = Math.max(...sample.map(r => r.km));
+  const bestPace = Math.min(...sample.map(r => Math.round(r.durationSec / r.km)));
   const lines = [
     `Goal: ${distanceKm} km on ${raceDate} at ~${fmtPace(targetPace)}/km target pace.`,
-    `Last ${weeks} weeks: ~${weeklyKm.toFixed(1)} km/week; longest recent run ${longest.toFixed(1)} km; best recent pace ${fmtPace(bestPace)}/km.`,
+    `Last ${weeks} weeks: ~${weeklyKm.toFixed(1)} km/week` + (recent.length
+      ? `; longest recent run ${longest.toFixed(1)} km; best recent pace ${fmtPace(bestPace)}/km.`
+      : ` (no runs logged in that window); longest run on record ${longest.toFixed(1)} km; best pace on record ${fmtPace(bestPace)}/km.`),
   ];
   if (bestPace > targetPace * 1.15)
     lines.push("Assessment: goal pace is far below anything shown recently — the goal looks UNREALISTIC right now; recommend discussing a slower goal or a later race.");

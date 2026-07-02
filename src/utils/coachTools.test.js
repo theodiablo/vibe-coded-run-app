@@ -104,19 +104,33 @@ describe("applyToolCall", () => {
 });
 
 describe("assessGoalFeasibility", () => {
-  const goal = { goalSec: 6600, distanceKm: 21.1, raceDate: "2026-05-01", targetPace: 313 };
+  const goal = { goal: { goalSec: 6600, distanceKm: 21.1, raceDate: "2026-05-01" }, targetPace: 313 };
+  const today = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+
   it("asks for data when there are no runs", () => {
     expect(assessGoalFeasibility({ ...goal, recentRuns: [] })).toMatch(/log a few runs/i);
   });
   it("calls out an unrealistic goal", () => {
-    const runs = [{ date: "2026-01-01", type: "EASY", km: 5, durationSec: 5 * 450 }]; // 7:30/km best
+    const runs = [{ date: today(3), type: "EASY", km: 5, durationSec: 5 * 450 }]; // 7:30/km best
     expect(assessGoalFeasibility({ ...goal, recentRuns: runs })).toMatch(/UNREALISTIC/);
   });
   it("accepts a plausible goal", () => {
     const runs = [
-      { date: "2026-01-01", type: "TEMPO", km: 8, durationSec: 8 * 310 },
-      { date: "2026-01-05", type: "LONG", km: 15, durationSec: 15 * 380 },
+      { date: today(10), type: "TEMPO", km: 8, durationSec: 8 * 310 },
+      { date: today(5), type: "LONG", km: 15, durationSec: 15 * 380 },
     ];
     expect(assessGoalFeasibility({ ...goal, recentRuns: runs })).toMatch(/plausible/);
+  });
+  it("bases longest/pace stats on the last 4 weeks, not stale older history", () => {
+    // A big long run and fast pace from 3 months ago must not make a currently
+    // inactive runner's goal look supported by "recent" fitness.
+    const runs = [
+      { date: today(90), type: "LONG", km: 30, durationSec: 30 * 270 },
+      { date: today(85), type: "TEMPO", km: 10, durationSec: 10 * 280 },
+    ];
+    const out = assessGoalFeasibility({ ...goal, recentRuns: runs });
+    expect(out).not.toMatch(/longest recent run 30\.0 km/);
+    expect(out).toMatch(/no runs logged in that window/);
+    expect(out).toMatch(/longest run on record 30\.0 km/);
   });
 });

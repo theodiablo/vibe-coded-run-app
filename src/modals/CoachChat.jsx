@@ -12,7 +12,7 @@ import { track } from "../telemetry";
 // accepted plan is re-validated client-side (belt and braces) before
 // applyPlan persists it through the normal savePlan path.
 export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
-  // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, actionable? }
+  // msg: { role: "user"|"coach", text, proposal?: {plan, diff} }
   const [msgs, setMsgs] = useState([{
     role: "coach",
     text: "Hi! Tell me what's going on — a niggle, a missed week, a schedule clash — and I'll suggest how to adapt your plan. You'll always see the change before anything is applied.",
@@ -23,6 +23,13 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
 
+  // Only the most recent proposal is ever confirmable, and only while its
+  // trajectory is still open — derived at render (not a per-message flag
+  // mutated at every append site), so a stale "Apply" button can't survive an
+  // append path that forgets to reset it.
+  let lastProposalIndex = -1;
+  for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].proposal) { lastProposalIndex = i; break; }
+
   const send = async () => {
     const text = input.trim();
     if (!text || busy) return;
@@ -32,17 +39,21 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
     try {
       const res = trajectoryId ? await coachCritique(trajectoryId, text) : await coachPropose(text);
       track("coach_proposal", { status: res.status, round: res.roundIndex });
-      setTrajectoryId(res.trajectoryId);
       if (res.status === "no_valid_adjustment") {
+        // A failed round 0 closes the trajectory server-side (nothing to fall
+        // back on); a failed critique leaves it open, so an earlier valid
+        // proposal on this trajectory stays confirmable — trust the server's
+        // trajectoryClosed flag rather than re-deriving it from roundIndex.
+        setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId);
         setMsgs(m => [...m, { role: "coach", text: res.rationale }]);
-      } else if (!res.changed) {
-        setMsgs(m => [...m, { role: "coach", text: res.rationale || "Nothing in the plan needs to change for that." }]);
       } else {
-        const diff = diffPlans(plan, res.proposedPlan);
-        setMsgs(m => [
-          ...m.map(x => ({ ...x, actionable: false })), // only the latest proposal is acceptable
-          { role: "coach", text: res.rationale, proposal: { plan: res.proposedPlan, diff }, actionable: true },
-        ]);
+        setTrajectoryId(res.trajectoryId);
+        if (!res.changed) {
+          setMsgs(m => [...m, { role: "coach", text: res.rationale || "Nothing in the plan needs to change for that." }]);
+        } else {
+          const diff = diffPlans(plan, res.proposedPlan);
+          setMsgs(m => [...m, { role: "coach", text: res.rationale, proposal: { plan: res.proposedPlan, diff } }]);
+        }
       }
     } catch (err) {
       setMsgs(m => [...m, { role: "coach", text: err.message }]);
@@ -63,8 +74,7 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
       onApplyPlan(accepted);
       track("coach_plan_applied");
       setTrajectoryId(null);
-      setMsgs(m => [...m.map(x => ({ ...x, actionable: false })),
-        { role: "coach", text: "Done — your plan is updated. Anything else?" }]);
+      setMsgs(m => [...m, { role: "coach", text: "Done — your plan is updated. Anything else?" }]);
       showToast("Plan adjusted by your coach ✓");
     } catch (err) {
       setMsgs(m => [...m, { role: "coach", text: err.message }]);
@@ -97,7 +107,7 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
                       {w.changes.map((c, j) => <p key={j} className="text-xs text-slate-400">· {c}</p>)}
                     </div>
                   ))}
-                  {m.actionable && (
+                  {i === lastProposalIndex && trajectoryId && (
                     <button onClick={accept} disabled={busy}
                       className="w-full mt-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
                       Apply this adjustment

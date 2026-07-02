@@ -169,18 +169,21 @@ Deno.serve(async (req) => {
         .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
       if (!traj) return json({ error: "trajectory not found" }, 404);
       if (traj.status !== "open") return json({ error: `trajectory is ${traj.status}` }, 409);
+      // input_context is only needed for round 0 (it anchors the report), but
+      // selecting it once here avoids a second round-trip just to re-fetch it.
       const { data: rounds, error } = await admin.from("agent_rounds")
-        .select("round_index, user_feedback, rationale, tool_calls")
+        .select("round_index, user_feedback, rationale, tool_calls, input_context")
         .eq("trajectory_id", trajectoryId).order("round_index", { ascending: true });
       if (error) throw error;
       history = rounds ?? [];
       roundIndex = history.length;
       // Round 0's report anchors the conversation for the rebuilt messages.
-      const { data: r0 } = await admin.from("agent_rounds")
-        .select("input_context").eq("trajectory_id", trajectoryId).eq("round_index", 0).maybeSingle();
-      report = r0?.input_context?.report ?? message;
+      report = history.find(r => r.round_index === 0)?.input_context?.report ?? message;
     }
 
+    // Single goal shape for every consumer (buildMessages' prompt text AND
+    // assessGoalFeasibility's tool result) — was previously duplicated at a
+    // nested `goal.*` and a flat top level, which could silently drift apart.
     const context = {
       plan,
       recentRuns,
@@ -191,9 +194,6 @@ Deno.serve(async (req) => {
         distanceKm: Number(settings.distanceKm || plan.distanceKm),
         goalSec: Number(settings.goalSec || plan.goalSec) || null,
       },
-      goalSec: Number(settings.goalSec || plan.goalSec) || null,
-      distanceKm: Number(settings.distanceKm || plan.distanceKm),
-      raceDate: settings.raceDate || plan.raceDate,
       targetPace: plan.targetPace,
     };
 
@@ -207,6 +207,13 @@ Deno.serve(async (req) => {
     });
 
     const failed = result.status === "no_valid_adjustment";
+    // A failed round only closes the WHOLE trajectory when there's no earlier
+    // valid proposal to fall back on (round 0 failing means nothing was ever
+    // proposed). A failed CRITIQUE (roundIndex > 0) leaves the trajectory
+    // open — the prior "proposed" round is untouched below (only a
+    // successful round supersedes it) — so the user can still confirm the
+    // last adjustment that did validate instead of being dead-ended.
+    const trajectoryClosed = failed && roundIndex === 0;
     // Log EVERY round, including failures — the audit log is the eval dataset.
     if (!failed && roundIndex > 0) {
       await admin.from("agent_rounds").update({ outcome: "superseded" })
@@ -228,14 +235,14 @@ Deno.serve(async (req) => {
     if (roundErr) throw roundErr;
     await admin.from("agent_trajectories")
       .update({
-        status: failed ? "no_valid_adjustment" : "open",
+        status: trajectoryClosed ? "no_valid_adjustment" : "open",
         updated_at: new Date().toISOString(),
       })
       .eq("id", trajectoryId);
 
     if (failed) {
       return json({
-        trajectoryId, roundIndex, status: "no_valid_adjustment",
+        trajectoryId, roundIndex, status: "no_valid_adjustment", trajectoryClosed,
         rationale: result.rationale ||
           "I couldn't find an adjustment that keeps your plan safe — nothing was changed.",
       });

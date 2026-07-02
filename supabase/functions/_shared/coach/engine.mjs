@@ -8,8 +8,11 @@
 //    with the user's current plan as waiver baseline — the agent can never
 //    make a plan worse, and an invalid working plan is never returned.
 //  * Validation failures are fed back to the model as tool feedback, bounded
-//    by MAX_VALIDATOR_RETRIES; on exhaustion the round ends in the distinct
-//    `no_valid_adjustment` fate (not a 500).
+//    by MAX_VALIDATOR_RETRIES; on exhaustion of that retry budget the round
+//    ends in the distinct `no_valid_adjustment` fate (not a 500). Exhausting
+//    MAX_MODEL_CALLS instead (the model kept issuing further valid tool
+//    calls without ever stopping to summarize) still surfaces the plan if it
+//    was already valid — only a genuinely invalid working plan is discarded.
 
 import { validatePlan, formatValidation } from "./validation.mjs";
 import { TOOL_DEFS, applyToolCall, assessGoalFeasibility, CoachToolError } from "./tools.mjs";
@@ -72,6 +75,11 @@ export async function generateProposal({ baseline, context, history = [], messag
   const toolCalls = [];
   let retries = 0;
   let lastText = "";
+  // Tracks the most recent validation of `working`, so that if the loop ends
+  // by exhausting MAX_MODEL_CALLS (not a validator failure — e.g. the model
+  // kept issuing valid tool calls instead of ever stopping to summarize) we
+  // can still surface an already-valid plan instead of discarding it.
+  let lastValidation = null;
 
   for (let call = 0; call < MAX_MODEL_CALLS; call++) {
     const resp = await callModel(messages, TOOL_DEFS);
@@ -84,6 +92,7 @@ export async function generateProposal({ baseline, context, history = [], messag
     if (!uses.length) {
       // Model is done (or answered without edits) — final gate before surfacing.
       const validation = validatePlan(working, { baseline });
+      lastValidation = validation;
       if (validation.ok) {
         return {
           status: "proposed", plan: working,
@@ -121,6 +130,7 @@ export async function generateProposal({ baseline, context, history = [], messag
     }
 
     const validation = validatePlan(working, { baseline });
+    lastValidation = validation;
     messages.push({ role: "assistant", content: resp.content });
     const feedback = [...results];
     if (!validation.ok) {
@@ -134,5 +144,16 @@ export async function generateProposal({ baseline, context, history = [], messag
     messages.push({ role: "user", content: feedback });
   }
 
+  // MAX_MODEL_CALLS was exhausted (not a validator-retry break) while the
+  // working plan was already valid — e.g. the model kept making further
+  // (valid) tool calls instead of ever stopping to summarize. Surface it
+  // rather than discarding legitimate work under the "no adjustment" fate.
+  if (lastValidation && lastValidation.ok) {
+    return {
+      status: "proposed", plan: working,
+      changed: JSON.stringify(working) !== JSON.stringify(baseline),
+      rationale: lastText, toolCalls, usage, validation: lastValidation,
+    };
+  }
   return { status: "no_valid_adjustment", rationale: lastText, toolCalls, usage };
 }

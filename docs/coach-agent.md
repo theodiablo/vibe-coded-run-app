@@ -52,6 +52,13 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
   still help — it just can't make the plan worse.
 - The server reads the plan/runs from `app_state` (source of truth), not from
   the request body; the client calls `flushNow()` first (`src/coach.js`).
+- **A trajectory only closes (`no_valid_adjustment`) when there's nothing to
+  fall back on** — round 0 failing (nothing was ever proposed). A failed
+  *critique* on an otherwise-open trajectory leaves it `open`: the prior round
+  that DID validate is still the one `confirm` would apply, so the user can
+  still accept it instead of being dead-ended by one bad follow-up message.
+  The response carries an explicit `trajectoryClosed` boolean so the client
+  never has to re-derive this rule from `roundIndex`.
 
 ## Validator rules (safety > consistency > peak performance)
 
