@@ -131,6 +131,47 @@ and delete anything that becomes stale.
   `src/supabase.js`, completed in `App.jsx`). Build: `npx cap sync android` then
   `.github/workflows/android.yml`; the web S3/CloudFront deploy stays untouched.
 
+## Heart-rate sources (native HR capture)
+- **Same seam shape as GPS.** External HR capture mirrors `geoSource`: `getHrSource`
+  (`src/hr/source.js`) returns a source or **null** (off / web / unknown), gated by
+  `isNative`, so the web build is unaffected (HR capture is native-only). Two **narrow
+  capability contracts**, not one fat interface — a source carries a `live` flag:
+  - **Live** (`src/hr/ble.js`, `bleSource`): a standard BLE Heart Rate Profile sensor
+    (chest strap / armband / watch broadcasting, e.g. Amazfit "Heart Rate Push").
+    `isAvailable / scan / requestPermissions / watch(onSample,onErr,{deviceId}) /
+    clearWatch`. `useRunTracker` streams it **alongside GPS**; samples are `{bpm,t}`,
+    appended only while `state==="tracking"` (mirrors `onPos`), summarised by
+    `hrSummary` into `stats.{hr,hrAvg,hrMax}`, and persisted in the `LIVE_RUN_KEY`
+    recovery buffer. Parsing of the `0x2A37` characteristic is the pure, unit-tested
+    `parseHrMeasurement` in `src/utils/hr.js` (takes the plugin/Web-Bluetooth DataView).
+  - **Post-run** (`src/hr/healthconnect.js`, `healthConnectSource`): reads HR from
+    Android Health Connect after the run via **@pianissimoproject/capacitor-health-connect**
+    (its `HealthConnect` export is bundled but only runs on native, so the web build is
+    unaffected). Chosen over the Cap-8-native flomentum plugin because its
+    `readRecords({type:'HeartRateSeries'})` reads **continuous** HR over an arbitrary
+    window — so the user does NOT also have to log a workout on the watch. Trade-off: its
+    peer is `@capacitor/core ^7`, installed with `--legacy-peer-deps`; Cap-7 native almost
+    certainly builds against Cap 8 (stable Android plugin API) but **must be confirmed by
+    an on-device / CI Android build**. `useRunTracker` never streams it —
+    `LiveRunTracker.handleSave` calls `fetchRange(start,end)` over the tracker's
+    `startedAt`/`stoppedAt` window; on an empty result it stamps
+    `hrPending:{start,end,source}` and `flushPendingHr` relinks on next load (the
+    `flushPendingRoutes` deferred pattern), **never overwriting** an HR the user has since
+    entered by hand. Needs `READ_HEART_RATE` + a Play health-data declaration/privacy policy.
+- **Method preference syncs; the device does NOT.** `settings.hrMethod`
+  (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
+  `{id,name}` is **per-device localStorage** (`src/hr/device.js`, `HR_DEVICE_KEY`) —
+  like the consent / bg-disclosure flags — because Bluetooth bonding is per-phone.
+  Config UI is `HrSensor` (`src/views/HrSensor.jsx`), nested in Settings → Profile,
+  native-only. BLE pairing reuses the disclosure→OS-prompt pattern
+  (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable nudge (in
+  `LiveRunTracker`) offers setup on run start while HR is off; it reappears each run
+  until the user sets HR up or taps "Don't record heart rate", which sets the synced
+  `settings.hrOptOut`. It never blocks Start.
+- HR lands in the **existing** run `hr`/`hrMax` fields (no shape change) via the
+  `LogView` prefill — still user-editable — so all HR display (`HRZonesCard`,
+  `runZoneIndex`, Stats) works unchanged.
+
 ## Races & badges (gamification)
 - **Catalogue (Race → Edition):** a "race" is the recurring event, an "edition" a
   dated running of it (the thing you wishlist / target / complete). Edition id =
@@ -193,6 +234,11 @@ and delete anything that becomes stale.
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
   plus, for GPS-tracked runs, `{source:"gps", routeId}` (the `run_routes` ref).
   `id` is generated in `addRuns` if absent; runs are kept sorted newest-first.
+  A run awaiting post-run HR also carries a transient `hrPending:{start,end,source}`
+  (in the synced blob + backups); `flushPendingHr` clears it once resolved. It's
+  device-local in effect — a relink only works on the device whose Health Connect has
+  the data, so a synced-but-unresolvable marker is tolerated (dropped, never overwrites
+  manual HR).
 - **Route:** `run_routes` row `{id, user_id, points, stats, created_at}` where
   `points` is the simplified `[lat,lng,t,alt]` array (null = gap) and `stats` is
   `{km, durationSec, elevation, avgPace}`.

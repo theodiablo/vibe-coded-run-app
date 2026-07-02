@@ -13,10 +13,12 @@
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor-community/bluetooth-le": "^8.2.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.3",
     "@capacitor/core": "^8.4.1",
     "@capacitor/geolocation": "^8.2.0",
+    "@pianissimoproject/capacitor-health-connect": "^0.7.1",
     "@supabase/supabase-js": "^2.107.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.17.0",
@@ -24,6 +26,14 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1"
+  },
+  "comments": {
+    "overrides": "@pianissimoproject/capacitor-health-connect declares a @capacitor/core ^7 peer, but this app is on Capacitor 8 (whose Android plugin API is compatible). Override the peer so a NORMAL npm install resolves — avoiding --legacy-peer-deps, which skips ALL peer auto-installs and silently drops recharts' react-is peer, breaking the build."
+  },
+  "overrides": {
+    "@pianissimoproject/capacitor-health-connect": {
+      "@capacitor/core": "$@capacitor/core"
+    }
   },
   "devDependencies": {
     "@capacitor/android": "^8.4.1",

@@ -25,17 +25,17 @@ jobs:
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           # Capacitor 8 CLI requires Node >= 22.
           node-version: 22
           cache: npm
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: 21
@@ -50,6 +50,8 @@ jobs:
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
           # Same PostHog project key as the web deploy (see docs/telemetry.md).
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Public support address for crash trace mailto links. Set as a repo variable.
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           # Released Android app — production telemetry (PR APKs tag "preview").
           VITE_APP_ENV: production
 
@@ -84,7 +86,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: running-coach-release-aab
           path: android/app/build/outputs/bundle/release/*.aab
@@ -97,7 +99,7 @@ jobs:
       # GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret (the service-account JSON key).
       - name: Deploy to Google Play
         if: startsWith(github.ref, 'refs/tags/android-v')
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: solutions.camboulive.run

@@ -3,7 +3,7 @@
 // inline button (e.g. Undo).
 export function Toast({msg, type, action}) {
   return (
-    <div className="fixed left-4 right-4 max-w-md mx-auto z-50" style={{top:52}}>
+    <div className="fixed left-4 right-4 max-w-md mx-auto z-[2100]" style={{top:52}}>
       <div className={"py-2.5 px-4 rounded-xl text-sm font-medium shadow-lg text-white flex items-center justify-center gap-3 " + (type === "err" ? "bg-red-500" : "bg-emerald-500")}>
         <span>{msg}</span>
         {action && (

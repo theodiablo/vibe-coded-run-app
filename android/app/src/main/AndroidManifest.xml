@@ -32,7 +32,29 @@
                 <data android:scheme="solutions.camboulive.run" android:host="auth-callback" />
             </intent-filter>
 
+            <!-- Health Connect client declaration (Android 14+, where Health Connect is
+                 in the platform). Without this, Health Connect doesn't recognise the app
+                 and permission requests return ungranted with no dialog. The target
+                 (MainActivity) shows the app, from which the privacy policy is reachable. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+
         </activity>
+
+        <!-- Same Health Connect client declaration for Android 13 and lower, where
+             Health Connect is a separate app and expects an exported activity-alias. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -62,4 +84,33 @@
 
     <!-- Persistent "recording run" notification (runtime-requested on Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Live heart-rate sensor over Bluetooth LE (chest strap / armband / watch
+         broadcasting HR). Scanning is flagged neverForLocation so it never implies
+         location access; connect is needed to read the sensor. Used only while a
+         run is recording — the GPS foreground service already holds the app then,
+         so no extra HR foreground service is declared. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Legacy Bluetooth for API 26-30 (before BLUETOOTH_SCAN/CONNECT); on those
+         versions scanning also uses the fine-location permission already declared
+         above for GPS. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+
+    <!-- Health Connect: read continuous heart rate from the user's watch post-run
+         (HeartRateSeries), so no on-watch workout is required. Requires a Google Play
+         health-data declaration + privacy policy before release. The read scope below,
+         the <queries> block, and the VIEW_PERMISSION_USAGE activity declarations above
+         (the plugin ships an empty manifest, so the app must declare them) together let
+         Health Connect recognise the app and grant permission. -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <intent>
+            <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+    </queries>
 </manifest>

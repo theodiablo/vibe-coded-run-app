@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Loader, Plus, Upload, MapPin } from "lucide-react";
+import { Loader, Plus, Upload, MapPin, HeartPulse } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
 import { parseRunsCsv, MAX_CSV_BYTES } from "../utils/csv";
@@ -17,7 +17,9 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
     dH:     estSec >= 3600 ? String(Math.floor(estSec / 3600)) : "",
     dM:     estSec >= 60   ? String(Math.floor((estSec % 3600) / 60)) : "",
     dS:     Math.round(estSec % 60) ? String(Math.round(estSec % 60)) : "",
-    hr:"",hrMax:"",elev: prefill?.elevation != null ? String(prefill.elevation) : "",effort:5,notes:"",
+    hr:    prefill?.hr    != null ? String(prefill.hr)    : "",
+    hrMax: prefill?.hrMax != null ? String(prefill.hrMax) : "",
+    elev: prefill?.elevation != null ? String(prefill.elevation) : "",effort:5,notes:"",
   };
   const [f,      setF]    = useState(INIT);
   const [busy,   setBusy] = useState(false);
@@ -42,6 +44,8 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
       ...(prefill?.source   ? { source: prefill.source } : {}),
       ...(prefill?.routeId  ? { routeId: prefill.routeId } : {}),
       ...(prefill?.routeTmp ? { routeTmp: prefill.routeTmp, routePending: true } : {}),
+      // Health Connect HR wasn't ready at save — relink on next load (RunningCoach).
+      ...(prefill?.hrPending ? { hrPending: prefill.hrPending } : {}),
     }]);
     setBusy(false); onSaved?.(); onDone();
   };
@@ -140,6 +144,13 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
           <div><label className={LABEL_CLS}>Elev (m)</label>
             <input type="number" placeholder="80" value={f.elev} onChange={e => set("elev", e.target.value)} className={INPUT_CLS}/></div>
         </div>
+        {prefill?.hrPending && !f.hr && (
+          <p className="text-xs text-slate-400 flex items-start gap-1.5">
+            <HeartPulse size={14} className="text-red-400 mt-0.5 shrink-0" />
+            <span>Heart rate will be added automatically from Health Connect once your
+              watch syncs (usually a few minutes) — leave these blank, or enter them yourself.</span>
+          </p>
+        )}
         <div>
           <label className={LABEL_CLS}>{"Perceived effort: "}<span className="text-white font-semibold">{f.effort + "/10"}</span></label>
           <input type="range" min="1" max="10" value={f.effort} onChange={e => set("effort", e.target.value)} className="w-full accent-orange-500"/>

@@ -58,15 +58,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           # For a manual run there's no PR event context, so check out the PR's
-          # head explicitly. Empty string => actions/checkout default (the ref
-          # that triggered the pull_request event).
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', inputs.pr_number) || '' }}
+          # head explicitly. On pull_request, github.sha is the synthetic merge
+          # ref, so use the PR head SHA to keep the build and comment aligned.
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', inputs.pr_number) || github.event.pull_request.head.sha }}
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           cache: npm
@@ -83,10 +83,12 @@ jobs:
           # Same PostHog project as production, but tagged "preview" so this
           # traffic is filterable out of production insights — see docs/telemetry.md.
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Public support address for crash trace mailto links. Set as a repo variable.
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           VITE_APP_ENV: preview
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
@@ -109,7 +111,7 @@ jobs:
             --paths "/${PR_PREFIX}/${PR_NUMBER}/*"
 
       - name: Comment preview URL on the PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         with:
@@ -120,7 +122,14 @@ jobs:
             // bare `/pr/<number>/` would 404.
             const url = `${PREVIEW_BASE_URL}/${PR_PREFIX}/${PR_NUMBER}/index.html`;
             const marker = '<!-- pr-preview-deploy -->';
-            const body = `${marker}\n🚀 **PR preview deployed**\n\n${url}\n\n_Updated for commit ${context.sha.slice(0, 7)}._`;
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: Number(PR_NUMBER),
+            });
+            const sha = pull.head.sha.slice(0, 7);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${marker}\n🚀 **PR preview deployed**\n\n${url}\n\n<sub>Built from <a href="${runUrl}">run #${context.runNumber}</a> · PR head commit \`${sha}\`. Refreshed automatically on every push.</sub>`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -155,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
@@ -175,7 +184,7 @@ jobs:
             --paths "/${PR_PREFIX}/${PR_NUMBER}/*"
 
       - name: Comment teardown on the PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         with:
