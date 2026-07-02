@@ -83,6 +83,8 @@ jobs:
           # Same PostHog project as production, but tagged "preview" so this
           # traffic is filterable out of production insights — see docs/telemetry.md.
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Public support address for crash trace mailto links. Set as a repo variable.
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           VITE_APP_ENV: preview
 
       - name: Configure AWS credentials

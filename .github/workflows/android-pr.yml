@@ -53,6 +53,8 @@ jobs:
           # Tagged "preview" so PR-APK traffic is filterable out of production.
           # Empty (no-op) on fork PRs, which don't get secrets — that's fine.
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Public support address for crash trace mailto links. Set as a repo variable.
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           VITE_APP_ENV: preview
 
       - name: Sync Capacitor

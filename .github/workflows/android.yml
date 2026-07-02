@@ -50,6 +50,8 @@ jobs:
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
           # Same PostHog project key as the web deploy (see docs/telemetry.md).
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Public support address for crash trace mailto links. Set as a repo variable.
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           # Released Android app — production telemetry (PR APKs tag "preview").
           VITE_APP_ENV: production
 

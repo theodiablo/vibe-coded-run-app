@@ -3,7 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { isNative } from "../native";
 import { getConsent, captureError } from "../telemetry";
 
-const SUPPORT_EMAIL = "theo.camboulive.dev@gmail.com";
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || "";
 
 // App-wide crash guard. A render-time exception anywhere below this boundary
 // would otherwise white-screen the user; instead we show a friendly fallback
@@ -107,6 +107,7 @@ export class ErrorBoundary extends Component {
   };
 
   emailTrace = () => {
+    if (!SUPPORT_EMAIL) return;
     const subject = encodeURIComponent("Running Coach crash trace");
     const body = encodeURIComponent(this.traceText());
     window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
@@ -145,15 +146,17 @@ export class ErrorBoundary extends Component {
                 {this.traceText()}
               </pre>
             )}
-            <div className="grid grid-cols-2 gap-2">
+            <div className={"grid gap-2 " + (SUPPORT_EMAIL ? "grid-cols-2" : "grid-cols-1")}>
               <button onClick={this.copyTrace}
                 className="py-2 rounded-xl text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
                 {this.state.copied ? "Copied" : "Copy trace"}
               </button>
-              <button onClick={this.emailTrace}
-                className="py-2 rounded-xl text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
-                Email trace
-              </button>
+              {SUPPORT_EMAIL ? (
+                <button onClick={this.emailTrace}
+                  className="py-2 rounded-xl text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
+                  Email trace
+                </button>
+              ) : null}
             </div>
           </div>
 

@@ -41,6 +41,8 @@ jobs:
           # PostHog project API key (telemetry). Public/publishable, also inlined
           # at build time. Telemetry is a no-op if unset — see docs/telemetry.md.
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Public support address for crash trace mailto links. Set as a repo variable.
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           # Tags telemetry so production is filterable from PR previews / local.
           VITE_APP_ENV: production
 
