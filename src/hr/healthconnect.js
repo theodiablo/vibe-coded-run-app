@@ -18,14 +18,15 @@ import { hrSummary } from "../utils/hr";
 // the native Health Connect bridge. Some devices/versions are sensitive to the
 // Cap-7 plugin under Cap-8; failures are treated as unavailable.
 async function getHealthConnect() {
-  return (await import("@pianissimoproject/capacitor-health-connect")).HealthConnect;
+  const mod = await import("@pianissimoproject/capacitor-health-connect");
+  return { plugin: mod.HealthConnect };
 }
 
 // Raw Health Connect availability: "Available" | "NotInstalled" | "NotSupported".
 // Defensive: any throw (plugin absent, older device, web) → "NotSupported", so the
 // UI can give an accurate, actionable message instead of a dead end.
 async function availability() {
-  try { return (await (await getHealthConnect()).checkAvailability())?.availability || "NotSupported"; }
+  try { return (await (await getHealthConnect()).plugin.checkAvailability())?.availability || "NotSupported"; }
   catch { return "NotSupported"; }
 }
 
@@ -41,7 +42,7 @@ export const healthConnectSource = {
   // Request read access to heart rate. Returns whether it was granted.
   async requestPermissions() {
     try {
-      const r = await (await getHealthConnect()).requestHealthPermissions({ read: ["HeartRateSeries"], write: [] });
+      const r = await (await getHealthConnect()).plugin.requestHealthPermissions({ read: ["HeartRateSeries"], write: [] });
       return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
     } catch { return false; }
   },
@@ -50,7 +51,7 @@ export const healthConnectSource = {
   // show connection status in Settings without popping the OS dialog.
   async checkPermissions() {
     try {
-      const r = await (await getHealthConnect()).checkHealthPermissions({ read: ["HeartRateSeries"], write: [] });
+      const r = await (await getHealthConnect()).plugin.checkHealthPermissions({ read: ["HeartRateSeries"], write: [] });
       return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
     } catch { return false; }
   },
@@ -60,7 +61,7 @@ export const healthConnectSource = {
   // (watch not synced) so the caller can defer and retry.
   async fetchRange(startMs, endMs) {
     try {
-      const res = await (await getHealthConnect()).readRecords({
+      const res = await (await getHealthConnect()).plugin.readRecords({
         type: "HeartRateSeries",
         timeRangeFilter: { type: "between", startTime: new Date(startMs), endTime: new Date(endMs) },
       });
