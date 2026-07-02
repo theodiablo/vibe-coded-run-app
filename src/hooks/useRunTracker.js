@@ -30,8 +30,11 @@ const RESUME_MAX_AGE_MS = 6 * 3600 * 1000; // offer to resume a buffer this fres
 
 // Permission-denied copy, shared by onErr and requestPermissions so the native
 // and web wording can't drift between the two. isNative is fixed at module load.
+// Covers both causes ensureForegroundPermission can now fail for — the OS
+// permission was declined, OR the device's Location Services are switched off —
+// since from here we can't always tell which one it was.
 const PERMISSION_DENIED_MSG = isNative
-  ? "Location permission is needed to record your run. Enable it (“Allow all the time”) in this app's settings, then try again."
+  ? "Location is needed to record your run. Make sure Location is turned on for this device and allow access (“Allow all the time”) for this app, then try again."
   : "Location permission denied. Enable it for this site in your browser settings, then try again.";
 
 const readBuffer = () => {
