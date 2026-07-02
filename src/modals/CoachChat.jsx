@@ -1,0 +1,129 @@
+import { useState, useRef, useEffect } from "react";
+import { Loader, MessageCircle, Send, X } from "lucide-react";
+import { coachPropose, coachCritique, coachConfirm } from "../coach";
+import { diffPlans } from "../utils/coachDiff";
+import { validatePlan } from "../utils/coachValidation";
+import { track } from "../telemetry";
+
+// Full-screen coach chat (propose-and-confirm). The user describes what
+// happened ("my knee hurts", "I missed the whole week"); the agent proposes a
+// validated adjustment to the plan; the user Accepts it or steers with a
+// follow-up message. Nothing touches the plan until Accept — and even then the
+// accepted plan is re-validated client-side (belt and braces) before
+// applyPlan persists it through the normal savePlan path.
+export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
+  // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, actionable? }
+  const [msgs, setMsgs] = useState([{
+    role: "coach",
+    text: "Hi! Tell me what's going on — a niggle, a missed week, a schedule clash — and I'll suggest how to adapt your plan. You'll always see the change before anything is applied.",
+  }]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [trajectoryId, setTrajectoryId] = useState(null);
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || busy) return;
+    setInput("");
+    setMsgs(m => [...m, { role: "user", text }]);
+    setBusy(true);
+    try {
+      const res = trajectoryId ? await coachCritique(trajectoryId, text) : await coachPropose(text);
+      track("coach_proposal", { status: res.status, round: res.roundIndex });
+      setTrajectoryId(res.trajectoryId);
+      if (res.status === "no_valid_adjustment") {
+        setMsgs(m => [...m, { role: "coach", text: res.rationale }]);
+      } else if (!res.changed) {
+        setMsgs(m => [...m, { role: "coach", text: res.rationale || "Nothing in the plan needs to change for that." }]);
+      } else {
+        const diff = diffPlans(plan, res.proposedPlan);
+        setMsgs(m => [
+          ...m.map(x => ({ ...x, actionable: false })), // only the latest proposal is acceptable
+          { role: "coach", text: res.rationale, proposal: { plan: res.proposedPlan, diff }, actionable: true },
+        ]);
+      }
+    } catch (err) {
+      setMsgs(m => [...m, { role: "coach", text: err.message }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // The server's confirm re-validates and returns the authoritative plan — the
+  // proposal card is display-only.
+  const accept = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { plan: accepted } = await coachConfirm(trajectoryId);
+      const check = validatePlan(accepted, { baseline: plan });
+      if (!check.ok) throw new Error("The proposal no longer validates — nothing was applied.");
+      onApplyPlan(accepted);
+      track("coach_plan_applied");
+      setTrajectoryId(null);
+      setMsgs(m => [...m.map(x => ({ ...x, actionable: false })),
+        { role: "coach", text: "Done — your plan is updated. Anything else?" }]);
+      showToast("Plan adjusted by your coach ✓");
+    } catch (err) {
+      setMsgs(m => [...m, { role: "coach", text: err.message }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
+      <div className="flex justify-between items-center px-4 border-b border-slate-800 flex-shrink-0" style={{height:44}}>
+        <div className="flex items-center gap-1.5">
+          <MessageCircle size={15} className="text-orange-400"/>
+          <span className="text-sm font-semibold">Coach</span>
+        </div>
+        <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white p-1.5"><X size={18}/></button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 max-w-lg w-full mx-auto">
+        {msgs.map((m, i) => (
+          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+            <div className={"rounded-2xl px-3.5 py-2.5 text-sm max-w-[85%] whitespace-pre-wrap " +
+              (m.role === "user" ? "bg-orange-500/20 border border-orange-500/30" : "bg-slate-800 border border-slate-700")}>
+              {m.text}
+              {m.proposal && (
+                <div className="mt-3 pt-3 border-t border-slate-700 space-y-2">
+                  {m.proposal.diff.map(w => (
+                    <div key={w.weekNumber}>
+                      <p className="text-xs font-semibold text-slate-300">Week {w.weekNumber}</p>
+                      {w.changes.map((c, j) => <p key={j} className="text-xs text-slate-400">· {c}</p>)}
+                    </div>
+                  ))}
+                  {m.actionable && (
+                    <button onClick={accept} disabled={busy}
+                      className="w-full mt-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
+                      Apply this adjustment
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {busy && <div className="flex items-center gap-2 text-slate-400 text-xs"><Loader size={14} className="animate-spin"/>Coach is thinking…</div>}
+        <div ref={endRef}/>
+      </div>
+
+      <div className="border-t border-slate-800 p-3 flex-shrink-0">
+        <div className="max-w-lg mx-auto flex gap-2">
+          <input value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") send(); }}
+            placeholder={trajectoryId ? "Suggest an edit…" : "e.g. my knee hurts after yesterday's run"}
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
+          <button onClick={send} disabled={busy || !input.trim()} aria-label="Send"
+            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 rounded-xl transition-colors">
+            <Send size={16}/>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

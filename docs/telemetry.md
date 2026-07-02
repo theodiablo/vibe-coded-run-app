@@ -80,6 +80,10 @@ an explicit var.
   `src/RunningCoach.jsx`. All anonymous: counts/enums only, never race
   names/notes/times. `plan_race_added` carries no properties (there is no race
   priority/tier).
+- Coach agent events: `coach_proposal` `{status:"proposed"|"no_valid_adjustment",
+  round}` when a proposal round returns, `coach_plan_applied` when the user
+  accepts one — `src/modals/CoachChat.jsx`. Anonymous: never the message text,
+  the plan, or the tool calls (those live server-side in `agent_rounds`).
 - Catalogue events (Phase 2): `race_contributed` `{kind:"race"|"edition"}` when a
   user adds to the shared catalogue (`src/modals/RaceFormModal.jsx`); `discover_opened`
   `{}` the first time the Races → Discover segment is opened (`src/views/RacesView.jsx`).

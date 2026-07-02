@@ -230,6 +230,30 @@ and delete anything that becomes stale.
   row tabs are Home · Plan · Races · Progress. **Progress** (`ProgressView.jsx`)
   merges the old History + Stats under a toggle and adds Badges.
 
+## AI coach agent (plan adjustments)
+- **Propose-and-confirm, editor-not-author:** `supabase/functions/coach-agent`
+  adapts the existing plan ("my knee hurts", "I missed a week") through six
+  typed tools only — it never authors plans; `buildPlan` stays the author. UI is
+  `src/modals/CoachChat.jsx` (opened via `shared.openCoach`, PlanView's Coach
+  button); access module `src/coach.js` (calls `flushNow()` first — the server
+  reads the plan/runs from `app_state`, not the request body).
+- **Shared logic lives in `supabase/functions/_shared/coach/*.mjs`** (plain ESM
+  so Deno AND Vitest import it): `validation.mjs` (the ONE validator — also
+  guards `buildPlan` output via tests; baseline waiver: pre-existing violations
+  become warnings so the agent can help but never worsen a plan), `tools.mjs`
+  (pure transforms; refuse done/RACE sessions), `engine.mjs` (validate-and-retry
+  loop; exhaustion → distinct `no_valid_adjustment`, never a surfaced invalid
+  plan), `mock.mjs` (`MOCK_LLM=1` canned responses for CI/golden tests).
+  App-side re-export: `src/utils/coachValidation.js`.
+- **Trust boundary:** the Anthropic key, validator, tools, rate limit
+  (`agent_usage` + atomic `increment_agent_usage`) and audit log
+  (`agent_trajectories`/`agent_rounds`, service-role-write-only, user read-own)
+  live server-side. `confirm` makes NO model call and does NOT write the plan
+  server-side — a server write to `app_state` would be clobbered by the client's
+  debounced whole-blob upsert; it returns the re-validated plan and the client
+  applies it via `applyCoachPlan` (`carryProgress` + `db.set`, RLS-guarded).
+  Read `docs/coach-agent.md` before touching prompts, tools, or validator rules.
+
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
   plus, for GPS-tracked runs, `{source:"gps", routeId}` (the `run_routes` ref).
