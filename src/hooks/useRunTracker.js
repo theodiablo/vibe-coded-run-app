@@ -19,6 +19,11 @@ const ACC_MAX_M = 25;        // drop fixes worse than this (tighter = cleaner tr
 const ACC_WARMUP_M = 20;     // require a fix at least this good before the FIRST point —
                              // the GNSS chip emits coarse network fixes until satellites lock
 const MIN_INTERVAL_MS = 2000; // thin the stream to ~1 point / 2s (battery/storage)
+const MIN_HR_PERSIST_MS = 5000; // HR samples land far more often than GPS fixes (~1/s vs
+                                 // ~1/2s); persisting the whole recovery buffer on every one
+                                 // would make a multi-hour run rewrite it constantly, so a
+                                 // sample only triggers a fresh persist at most this often —
+                                 // losing a few seconds of HR to a crash is fine.
 const MIN_MOVE_M = 5;         // base jitter gate (scaled up for less-accurate fixes below)
 const GAP_MS = 60000;         // silence longer than this starts a new segment (gap).
                              // Sized for native background location, which batches
@@ -70,6 +75,7 @@ export function useRunTracker({ hrMethod } = {}) {
   const stateRef = useRef(state);
   const pointsRef = useRef(points);
   const hrSamplesRef = useRef(hrSamples); // mirror so the async HR callback sees latest
+  const lastHrPersistRef = useRef(0); // epoch ms of the last HR-triggered persist (throttle)
   const hrWatchRef = useRef(null);  // live HR source watch handle (null when not streaming)
   const runStartRef = useRef(null); // wall-clock run start (whole run, incl. pauses)
   const runEndRef = useRef(null);   // wall-clock run stop — the Health Connect fetch window
@@ -151,12 +157,20 @@ export function useRunTracker({ hrMethod } = {}) {
 
   // ── live heart-rate callback ─────────────────────────────────────────────
   // Append a sample only while actively tracking (mirrors onPos ignoring fixes
-  // when paused) so a paused breather doesn't drag the average down.
+  // when paused) so a paused breather doesn't drag the average down. The state
+  // update always happens (so the live BPM tile is current), but persisting the
+  // whole recovery buffer is throttled to MIN_HR_PERSIST_MS — a strap notifies
+  // at sensor rate (~1/s), and GPS fixes already keep the buffer fresh every
+  // ~2s via onPos's own persist() while a run is actually moving.
   const onHrSample = useCallback((sample) => {
     if (stateRef.current !== "tracking") return;
     hrSamplesRef.current = [...hrSamplesRef.current, sample];
     setHrSamples(hrSamplesRef.current);
-    persist();
+    const now = Date.now();
+    if (now - lastHrPersistRef.current >= MIN_HR_PERSIST_MS) {
+      lastHrPersistRef.current = now;
+      persist();
+    }
   }, [persist]);
 
   const startHrWatch = useCallback(() => {
@@ -226,6 +240,7 @@ export function useRunTracker({ hrMethod } = {}) {
     setPoints([]);
     hrSamplesRef.current = [];
     setHrSamples([]);
+    lastHrPersistRef.current = 0;
     accRef.current = 0;
     startRef.current = Date.now();
     runStartRef.current = Date.now();
@@ -284,6 +299,7 @@ export function useRunTracker({ hrMethod } = {}) {
     setPoints([]);
     hrSamplesRef.current = [];
     setHrSamples([]);
+    lastHrPersistRef.current = 0;
     accRef.current = 0;
     startRef.current = null;
     runStartRef.current = null;
@@ -398,7 +414,11 @@ export function useRunTracker({ hrMethod } = {}) {
   }, [state, permGranted]);
 
   // ── derived stats ──────────────────────────────────────────────────────────
-  const stats = useMemo(() => {
+  // Split from the HR summary on purpose: a live HR sensor notifies at ~1 Hz,
+  // far more often than GPS fixes land, so keying one memo on both `points` and
+  // `hrSamples` would re-run the O(points) distance/elevation/pace scan below on
+  // every heart-rate sample instead of only when the track actually changes.
+  const gpsStats = useMemo(() => {
     const km = distanceKm(points);
     const elevation = Math.round(elevGainM(points));
     const avgPace = km > 0 ? movingSec / km : 0;
@@ -415,9 +435,10 @@ export function useRunTracker({ hrMethod } = {}) {
         }
       }
     }
-    return { km, elevation, movingSec, avgPace, curPace, n: points.filter(Boolean).length,
-      ...hrSummary(hrSamples) };
-  }, [points, movingSec, hrSamples]);
+    return { km, elevation, movingSec, avgPace, curPace, n: points.filter(Boolean).length };
+  }, [points, movingSec]);
+
+  const stats = useMemo(() => ({ ...gpsStats, ...hrSummary(hrSamples) }), [gpsStats, hrSamples]);
 
   return {
     state, points, stats, error, pending, location,

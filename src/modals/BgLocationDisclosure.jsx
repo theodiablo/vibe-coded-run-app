@@ -1,5 +1,6 @@
 import { MapPin } from "lucide-react";
 import { PRIVACY_URL } from "../constants";
+import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
 
 // Prominent disclosure for background location, shown in the native shell BEFORE
 // the OS permission prompt (a Google Play requirement for ACCESS_BACKGROUND_LOCATION).
@@ -7,7 +8,7 @@ import { PRIVACY_URL } from "../constants";
 // the actual grant. See LiveRunTracker for the once-per-install gating.
 export function BgLocationDisclosure({ onAccept, onCancel }) {
   return (
-    <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4">
+    <ModalOverlay>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700">
         <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
           <MapPin size={16} className="text-orange-400" />
@@ -31,18 +32,10 @@ export function BgLocationDisclosure({ onAccept, onCancel }) {
             Allow, Android will ask to use your location — choose <strong>“Allow all
             the time”</strong> for screen-off tracking.
           </p>
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <button onClick={onCancel}
-              className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200">
-              Not now
-            </button>
-            <button onClick={onAccept}
-              className="py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white">
-              Allow &amp; continue
-            </button>
-          </div>
+          <ConfirmButtons cancelLabel="Not now" acceptLabel="Allow & continue"
+            onCancel={onCancel} onAccept={onAccept} />
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

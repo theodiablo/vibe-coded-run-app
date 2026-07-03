@@ -195,12 +195,15 @@ and delete anything that becomes stale.
     recovery buffer. Parsing of the `0x2A37` characteristic is the pure, unit-tested
     `parseHrMeasurement` in `src/utils/hr.js` (takes the plugin/Web-Bluetooth DataView).
   - **Post-run** (`src/hr/healthconnect.js`, `healthConnectSource`): reads HR from
-    Android Health Connect after the run via **@pianissimoproject/capacitor-health-connect**
-    (its `HealthConnect` export is bundled but only runs on native, so the web build is
-    unaffected). Chosen over the Cap-8-native flomentum plugin because its
+    Android Health Connect after the run via **@pianissimoproject/capacitor-health-connect**,
+    dynamic-`import()`ed lazily (not a static top-level import) so merely rendering the app
+    can't touch the native Health Connect bridge — only actually using the source does.
+    Chosen over the Cap-8-native flomentum plugin because its
     `readRecords({type:'HeartRateSeries'})` reads **continuous** HR over an arbitrary
     window — so the user does NOT also have to log a workout on the watch. Trade-off: its
-    peer is `@capacitor/core ^7`, installed with `--legacy-peer-deps`; Cap-7 native almost
+    peer is `@capacitor/core ^7`, resolved via the package.json `overrides` entry so a
+    normal `npm install` picks up Cap 8 (`--legacy-peer-deps` is deliberately avoided — it
+    silently drops recharts' `react-is` peer); Cap-7 native almost
     certainly builds against Cap 8 (stable Android plugin API) but **must be confirmed by
     an on-device / CI Android build**. `useRunTracker` never streams it —
     `LiveRunTracker.handleSave` calls `fetchRange(start,end)` over the tracker's

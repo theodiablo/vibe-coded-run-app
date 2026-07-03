@@ -6,6 +6,7 @@ import { saveRoute, queuePendingRoute } from "../routes";
 import { useRunTracker } from "../hooks/useRunTracker";
 import { getHrSource } from "../hr/source";
 import { RouteMap } from "../components/RouteMap";
+import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
 import { isNative } from "../native";
 import { BG_LOC_DISCLOSED_KEY } from "../constants";
@@ -33,15 +34,18 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   const t = useRunTracker({ hrMethod });
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
-  // Live HR streams only from a Bluetooth (live) source; Health Connect is fetched
-  // post-run in handleSave, so no live tile for it.
-  const liveHr = isNative && hrMethod === "bluetooth";
-  // Nudge to set up a heart-rate source, shown on run start while HR is off and the
-  // user hasn't set it up or expressly declined (settings.hrOptOut). "Not now"
-  // dismisses just this run (it returns next run); "Don't record" sets the opt-out.
-  // Never blocks Start.
-  const [showHrNudge, setShowHrNudge] = useState(
-    () => isNative && (hrMethod || "off") === "off" && !hrOptOut);
+  // Resolve the HR source once per render from the seam (source.js), instead of
+  // matching method-id strings all over this file — null off web/"off"/unknown,
+  // otherwise carries the `live` flag every branch below dispatches on.
+  const hrSrc = getHrSource(hrMethod);
+  // Live HR streams only from a `live` (Bluetooth) source; a post-run source
+  // (Health Connect) is fetched in handleSave instead, so no live tile for it.
+  const liveHr = !!hrSrc?.live;
+  // Nudge to set up a heart-rate source, offered when the user taps Start while
+  // HR is off and they haven't expressly declined (settings.hrOptOut). "Not now"
+  // dismisses just this run (it reappears next run); "Don't record" sets the
+  // opt-out. Never blocks Start — see guardedStart/maybeShowHrNudge below.
+  const [showHrNudge, setShowHrNudge] = useState(false);
   const disclosed = () => {
     try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
   };
@@ -53,25 +57,47 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   // grant succeeds (acceptDisclosure), so a denial naturally re-shows the disclosure
   // next time — no need to watch the error text. guardedStart gates Start/Resume too.
   const [showDisclosure, setShowDisclosure] = useState(() => isNative && !disclosed());
-  const pendingStartRef = useRef(null); // deferred Start/Resume action, run once consented
+  const pendingStartRef = useRef(null); // deferred Start/Resume action, run once consented/nudged
+  const pendingHrCheckRef = useRef(false); // whether that deferred action should also offer the HR nudge
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
   const hasTrack = stats.n > 0;
   const live = state === "tracking" || state === "paused";
+  // Offer the HR nudge in place of `fn`, deferring it the same way the
+  // disclosure does. Returns whether the nudge took over (caller must not also
+  // call fn in that case).
+  const maybeShowHrNudge = (fn) => {
+    if (isNative && (hrMethod || "off") === "off" && !hrOptOut) {
+      pendingStartRef.current = fn;
+      setShowHrNudge(true);
+      return true;
+    }
+    return false;
+  };
   // Run `fn` — which starts a background watch on native — but gate the FIRST one
-  // behind the prominent-disclosure (Play requirement). Covers BOTH the idle
-  // "Start run" and the paused "Resume" (incl. the crash-recovery resume, which
-  // starts a fresh watch), so a background-location request never fires without a
-  // prior disclosure. No-op gate on the web / once already disclosed.
-  const guardedStart = (fn) => {
-    if (isNative && !disclosed()) { pendingStartRef.current = fn; setShowDisclosure(true); }
-    else fn();
+  // behind the prominent-disclosure (Play requirement) and, only for a genuine
+  // run start (checkHr), the HR setup nudge — never on Resume, so pausing for a
+  // traffic light doesn't re-nag. Covers BOTH the idle "Start run" and the paused
+  // "Resume" (incl. the crash-recovery resume, which starts a fresh watch), so a
+  // background-location request never fires without a prior disclosure. No-op
+  // gate on the web / once already disclosed.
+  const guardedStart = (fn, checkHr = false) => {
+    if (isNative && !disclosed()) {
+      pendingStartRef.current = fn;
+      pendingHrCheckRef.current = checkHr;
+      setShowDisclosure(true);
+      return;
+    }
+    if (checkHr && maybeShowHrNudge(fn)) return;
+    fn();
   };
   const acceptDisclosure = async () => {
     setShowDisclosure(false);
     const run = pendingStartRef.current;
+    const checkHr = pendingHrCheckRef.current;
     pendingStartRef.current = null;
+    pendingHrCheckRef.current = false;
     // Ask the OS for location right after consent (native) so the prompt is part of
     // the disclosure flow, not deferred to Start. Mark disclosed only on success, so
     // a denial leaves it unset and the disclosure re-explains next time; the upfront
@@ -79,9 +105,22 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     const granted = isNative ? await t.requestPermissions() : true;
     if (!granted || !mountedRef.current) return;
     markDisclosed();
+    if (checkHr && maybeShowHrNudge(run)) return;
     run?.();
   };
-  const cancelDisclosure = () => { setShowDisclosure(false); pendingStartRef.current = null; };
+  const cancelDisclosure = () => {
+    setShowDisclosure(false);
+    pendingStartRef.current = null;
+    pendingHrCheckRef.current = false;
+  };
+  // "Not now"/"Don't record" both let the deferred Start/Resume proceed (the
+  // nudge never blocks Start); "Set up" hands off to Settings instead.
+  const dismissHrNudge = (run) => {
+    setShowHrNudge(false);
+    const fn = pendingStartRef.current;
+    pendingStartRef.current = null;
+    if (run) fn?.();
+  };
 
   const handleClose = () => {
     if ((live || state === "stopped") && hasTrack &&
@@ -110,12 +149,15 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       queuePendingRoute({ tmpId: routeTmp, points: simplified, stats: statObj });
       showToast?.("Couldn't upload the route — saved on this device, will retry syncing.", "err");
     }
-    // Heart rate: a live (Bluetooth) source has already filled stats.hrAvg/hrMax.
-    // A post-run source (Health Connect) is queried now over the run's time window;
-    // if it isn't synced yet, stamp hrPending so RunningCoach relinks on next load.
+    // Heart rate: a live source (hrSrc.live, e.g. Bluetooth) has already filled
+    // stats.hrAvg/hrMax. A post-run source (hrSrc set, not live, e.g. Health
+    // Connect) is queried now over the run's time window; if it isn't synced yet,
+    // stamp hrPending so RunningCoach relinks on next load. Branching on hrSrc
+    // (not a hard-coded method id) means a future post-run source needs no edits
+    // here — and hrSrc is already null on web, so this can't fire there.
     let hr = null, hrMax = null, hrPending = null;
     if (stats.hrAvg != null) { hr = stats.hrAvg; hrMax = stats.hrMax; }
-    else if (hrMethod === "healthconnect") {
+    else if (hrSrc && !hrSrc.live) {
       // Explicit run window from the tracker (robust even with no GPS points),
       // falling back to point timestamps for a recovered run missing startedAt.
       const { startedAt, stoppedAt } = t.runWindow();
@@ -123,9 +165,9 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       let endMs = stoppedAt || Date.now();
       if (!stoppedAt) for (let i = points.length - 1; i >= 0; i--) { if (points[i]) { endMs = points[i][2]; break; } }
       let res = null;
-      try { res = await getHrSource("healthconnect")?.fetchRange(startMs, endMs); } catch { /* unsynced — leave null */ }
+      try { res = await hrSrc.fetchRange(startMs, endMs); } catch { /* unsynced — leave null */ }
       if (res && res.hrAvg) { hr = res.hrAvg; hrMax = res.hrMax; }
-      else hrPending = { start: startMs, end: endMs, source: "healthconnect" };
+      else hrPending = { start: startMs, end: endMs, source: hrSrc.id };
     }
     t.finalize();
     setBusy(false);
@@ -191,7 +233,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           </div>
         )}
 
-        {isNative && hrMethod === "healthconnect" && (
+        {hrSrc && !hrSrc.live && (
           <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2 text-slate-300">
             <HeartPulse size={16} className="text-red-400 shrink-0" />
             <span className="text-xs">Heart rate is added from Health Connect after you finish.</span>
@@ -207,7 +249,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
                 {location.acc <= 15 ? " — good to go" : " — wait for it to settle for a cleaner start"}
               </p>
             )}
-            <Ctrl onClick={() => guardedStart(t.start)} color="bg-orange-500 hover:bg-orange-600 text-white">
+            <Ctrl onClick={() => guardedStart(t.start, true)} color="bg-orange-500 hover:bg-orange-600 text-white">
               <Play size={20} />Start run
             </Ctrl>
           </>
@@ -245,11 +287,12 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
         <BgLocationDisclosure onAccept={acceptDisclosure} onCancel={cancelDisclosure} />
       )}
 
-      {/* Nudge to set up a heart-rate source (shown only when the bg-location
-          disclosure isn't up, to avoid stacked sheets). Reappears each run until the
-          user sets HR up or taps "Don't record heart rate" (persistent opt-out). */}
-      {showHrNudge && !showDisclosure && (
-        <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4">
+      {/* Nudge to set up a heart-rate source, offered once per Start tap (never on
+          Resume/pause cycles) while the location disclosure isn't up — see
+          guardedStart/maybeShowHrNudge. Reappears each run until the user sets HR
+          up or taps "Don't record heart rate" (persistent opt-out). */}
+      {showHrNudge && (
+        <ModalOverlay>
           <div className="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 p-4 space-y-3">
             <div className="flex items-center gap-2">
               <HeartPulse size={16} className="text-orange-400" />
@@ -259,22 +302,15 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
               Connect a Bluetooth sensor or Health Connect to capture heart rate
               automatically — no need to type it in. You can set this up later in Settings.
             </p>
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button onClick={() => setShowHrNudge(false)}
-                className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200">
-                Not now
-              </button>
-              <button onClick={() => { setShowHrNudge(false); onConfigureHr?.(); }}
-                className="py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white">
-                Set up
-              </button>
-            </div>
-            <button onClick={() => { setShowHrNudge(false); onDeclineHr?.(); }}
+            <ConfirmButtons cancelLabel="Not now" acceptLabel="Set up"
+              onCancel={() => dismissHrNudge(true)}
+              onAccept={() => { dismissHrNudge(false); onConfigureHr?.(); }} />
+            <button onClick={() => { dismissHrNudge(true); onDeclineHr?.(); }}
               className="w-full text-center text-xs text-slate-500 hover:text-slate-300">
               Don&apos;t record heart rate
             </button>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

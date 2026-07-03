@@ -10,9 +10,11 @@ import { hrSummary } from "../utils/hr";
 // Backed by @pianissimoproject/capacitor-health-connect. Chosen over the Cap-8-native
 // flomentum plugin because its readRecords reads **continuous** HeartRateSeries over an
 // arbitrary window — so the user does NOT have to also log a workout on the watch; the
-// watch's all-day HR sync is enough. Trade-off: its peer is @capacitor/core ^7, so it's
-// installed with --legacy-peer-deps; Cap-7 native code almost certainly builds against
-// Cap 8 (stable Android plugin API), but confirm with an on-device/CI Android build.
+// watch's all-day HR sync is enough. Trade-off: its peer is @capacitor/core ^7, resolved
+// via the package.json `overrides` entry so a normal `npm install` picks up Cap 8
+// (--legacy-peer-deps is deliberately avoided — it silently drops recharts' react-is
+// peer). Cap-7 native code almost certainly builds against Cap 8 (stable Android plugin
+// API), but confirm with an on-device/CI Android build.
 //
 // Load the plugin lazily so merely rendering the app after sign-in cannot touch
 // the native Health Connect bridge. Some devices/versions are sensitive to the
