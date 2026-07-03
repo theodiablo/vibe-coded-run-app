@@ -66,9 +66,12 @@ export const healthConnectSource = {
   // (watch not synced) so the caller can defer and retry.
   async fetchRange(startMs, endMs) {
     try {
+      if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return null;
       const res = await (await getHealthConnect()).plugin.readRecords({
         type: "HeartRateSeries",
-        timeRangeFilter: { type: "between", startTime: new Date(startMs), endTime: new Date(endMs) },
+        // The plugin's Android serializer calls JSONObject.getString(...) then
+        // Instant.parse(...), so pass explicit ISO strings instead of Date objects.
+        timeRangeFilter: { type: "between", startTime: new Date(startMs).toISOString(), endTime: new Date(endMs).toISOString() },
       });
       const samples = (res?.records || [])
         .flatMap(rec => rec.samples || [])
@@ -92,7 +95,7 @@ function pendingWindow(hrPending) {
 // retry Health Connect for fresh runs stamped with `hrPending:{start,end}`. Invalid,
 // manually-filled, or stale markers are cleared first without touching the native
 // bridge, so a bad synced blob cannot crash the app forever after sign-in.
-export async function flushPendingHr(runs, patch, { enabled = true, now = Date.now() } = {}) {
+export async function flushPendingHr(runs, patch, { enabled = true, allowNativeRead = true, now = Date.now() } = {}) {
   const pending = (runs || []).filter(r => r.hrPending);
   if (!pending.length) return;
   // A run whose HR was filled some other way (manual edit) since it was stamped:
@@ -105,8 +108,8 @@ export async function flushPendingHr(runs, patch, { enabled = true, now = Date.n
     else stillPending.push({ run: r, win });
   }
   if (!stillPending.length) return;
-  if (!enabled || !isNative) return;
-  if (!(await isAvailable())) return; // HC not installed/permitted — leave for next load
+  if (!enabled || !allowNativeRead || !isNative) return;
+  if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return; // HC unavailable/unpermitted — leave for next load
   for (const { run, win } of stillPending) {
     const s = await healthConnectSource.fetchRange(win.start, win.end);
     if (s && s.hrAvg) patch(run.id, { hr: s.hrAvg, hrMax: s.hrMax });

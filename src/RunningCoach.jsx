@@ -170,16 +170,22 @@ export default function RunningCoach({ onSignOut }) {
           return next;
         });
       });
-      // Same deferred-relink for Health Connect HR: a run saved before the watch
-      // had synced its HR is stamped hrPending — retry now and patch it in.
-      // Wrapped defensively: this touches the native Health Connect bridge (now
-      // lazily imported, see hr/healthconnect.js), and a boot-time relink must
-      // never be able to take the whole app down with it.
-      flushPendingHr(r || [], patchRunHr, { enabled: s?.hrMethod === "healthconnect" }).catch(() => {});
+      // Same deferred cleanup for Health Connect HR: a run saved before the watch
+      // had synced its HR is stamped hrPending.
+      // On boot, only sanitize bad/stale markers. Opening Health Connect here can
+      // happen immediately after sign-in before any UI is visible; if the native
+      // provider/plugin process-crashes, the ErrorBoundary cannot show a trace.
+      // Patch the loaded array directly instead of going through patchRunHr's
+      // setRuns(prev => ...): React may not have committed setRuns(r) yet.
+      // Actual relinks still run on foreground and when a run is saved.
+      let bootRuns = r || [];
+      const patchBootRunHr = (runId, patch) => {
+        bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+        setRuns(bootRuns);
+        db.set(STORAGE_KEYS.RUNS, bootRuns);
+      };
+      flushPendingHr(bootRuns, patchBootRunHr, { enabled: s?.hrMethod === "healthconnect", allowNativeRead: false }).catch(() => {});
     })();
-    // patchRunHr only closes over stable setters (setRuns, showToast → setToast),
-    // so the version captured here stays safe to call for the component's life.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-dismiss the toast. setState here runs from a timer callback (not

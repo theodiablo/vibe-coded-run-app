@@ -28,4 +28,15 @@ describe("flushPendingHr", () => {
 
     expect(patch).not.toHaveBeenCalled();
   });
+
+  it("leaves fresh pending markers untouched when native reads are deferred", async () => {
+    const now = Date.now();
+    const patch = vi.fn();
+
+    await flushPendingHr([
+      { id: "fresh", hrPending: { start: now - 2000, end: now - 1000, source: "healthconnect" } },
+    ], patch, { enabled: true, allowNativeRead: false, now });
+
+    expect(patch).not.toHaveBeenCalled();
+  });
 });
