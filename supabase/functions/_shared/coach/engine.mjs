@@ -1,0 +1,166 @@
+// generateProposal — the agent's internal validate-and-retry loop, extracted
+// from the edge function so it is unit-testable (Vitest drives it with the
+// MOCK_LLM scripts; the edge function injects the real Anthropic SDK call).
+//
+// Invariants enforced here:
+//  * The model only acts through the typed tool vocabulary (tools.mjs).
+//  * Every plan surfaced to the user has passed validatePlan (validation.mjs),
+//    with the user's current plan as waiver baseline — the agent can never
+//    make a plan worse, and an invalid working plan is never returned.
+//  * Validation failures are fed back to the model as tool feedback, bounded
+//    by MAX_VALIDATOR_RETRIES; on exhaustion of that retry budget the round
+//    ends in the distinct `no_valid_adjustment` fate (not a 500). Exhausting
+//    MAX_MODEL_CALLS instead (the model kept issuing further valid tool
+//    calls without ever stopping to summarize) still surfaces the plan if it
+//    was already valid — only a genuinely invalid working plan is discarded.
+
+import { validatePlan, formatValidation } from "./validation.mjs";
+import { TOOL_DEFS, applyToolCall, assessGoalFeasibility, CoachToolError } from "./tools.mjs";
+
+export const MAX_VALIDATOR_RETRIES = 3;
+// Hard ceiling on model calls per round, so a pathological tool-call loop
+// can't burn budget even without validator failures.
+export const MAX_MODEL_CALLS = 8;
+
+export const SYSTEM_PROMPT = `You are the adjustment coach inside a running-training app. The runner already has a structured training plan built by a deterministic generator; your job is to ADAPT it to what just happened (pain, illness, missed sessions, schedule conflicts, doubts) — never to author a plan from scratch.
+
+Rules:
+- You can only change the plan through the provided tools. Prefer the smallest change that solves the problem.
+- Policy order: safety > consistency > peak performance. When in doubt, reduce.
+- Pain or injury signals: never add or keep intensity — convert to cross-training, reduce volume, and say when to see a professional (persistent or sharp pain).
+- A missed week is gone: resume gently (recovery week), never compress missed volume into the following weeks.
+- Completed sessions and RACE sessions are immutable.
+- If no change is warranted, or the request needs information you don't have, say so in plain text and make no tool calls.
+- You are not a doctor; keep medical caveats brief but present.
+
+After your tool calls are applied and validated you'll get the results; then summarize for the runner in 2-4 warm, plain sentences: what you changed and why. Do not repeat the plan JSON back.`;
+
+// Build the initial message list for a round.
+// history: prior rounds [{ user_feedback, rationale, tool_calls }] (round 0's
+// report lives in context.report). Rebuilt as plain-text turns — good enough
+// for steering, and avoids persisting raw content blocks.
+export function buildMessages(context, history, message) {
+  const ctxBlock =
+    `CURRENT PLAN (JSON):\n${JSON.stringify(context.plan)}\n\n` +
+    `GOAL: ${context.goal.distanceKm} km on ${context.goal.raceDate}` +
+    (context.goal.goalSec ? `, goal ${Math.round(context.goal.goalSec / 60)} min` : "") + `\n` +
+    `TODAY: ${context.today}\n` +
+    `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}`;
+  const messages = [{ role: "user", content: `${ctxBlock}\n\nRUNNER SAYS: ${context.report}` }];
+  for (const r of history) {
+    // A round's critique (user_feedback) precedes the assistant reply it
+    // produced; round 0's report is already in the first message (feedback null).
+    if (r.user_feedback != null) messages.push({ role: "user", content: r.user_feedback });
+    messages.push({
+      role: "assistant",
+      content: (r.rationale || "(proposed an adjustment)") +
+        (r.tool_calls?.length ? `\n[adjustments applied: ${JSON.stringify(r.tool_calls)}]` : ""),
+    });
+  }
+  if (message != null && history.length) messages.push({ role: "user", content: message });
+  return messages;
+}
+
+const textOf = (content) =>
+  content.filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+
+// Run one round. Returns:
+//   { status: "proposed", plan, changed, rationale, toolCalls, usage, validation }
+// or { status: "no_valid_adjustment", rationale, toolCalls, usage }
+// callModel(messages, tools) → an Anthropic Message ({ content, stop_reason, usage }).
+export async function generateProposal({ baseline, context, history = [], message = null, callModel }) {
+  let working = structuredClone(baseline);
+  const messages = buildMessages(context, history, message);
+  const usage = { input_tokens: 0, output_tokens: 0 };
+  const toolCalls = [];
+  let retries = 0;
+  let lastText = "";
+  // Tracks the most recent validation of `working`, so that if the loop ends
+  // by exhausting MAX_MODEL_CALLS (not a validator failure — e.g. the model
+  // kept issuing valid tool calls instead of ever stopping to summarize) we
+  // can still surface an already-valid plan instead of discarding it.
+  let lastValidation = null;
+
+  for (let call = 0; call < MAX_MODEL_CALLS; call++) {
+    const resp = await callModel(messages, TOOL_DEFS);
+    usage.input_tokens += resp.usage?.input_tokens || 0;
+    usage.output_tokens += resp.usage?.output_tokens || 0;
+    const text = textOf(resp.content);
+    if (text) lastText = text;
+    const uses = resp.content.filter(b => b.type === "tool_use");
+
+    if (!uses.length) {
+      // Model is done (or answered without edits) — final gate before surfacing.
+      const validation = validatePlan(working, { baseline });
+      lastValidation = validation;
+      if (validation.ok) {
+        return {
+          status: "proposed", plan: working,
+          changed: JSON.stringify(working) !== JSON.stringify(baseline),
+          rationale: lastText, toolCalls, usage, validation,
+        };
+      }
+      if (++retries > MAX_VALIDATOR_RETRIES) break;
+      messages.push({ role: "assistant", content: resp.content });
+      messages.push({
+        role: "user",
+        content: `The adjusted plan does not pass validation — fix it with further tool calls (or undo by reversing your edits):\n${formatValidation(validation)}`,
+      });
+      continue;
+    }
+
+    // Execute the batch of tool calls against the working plan.
+    const results = [];
+    for (const tu of uses) {
+      try {
+        let resultText;
+        if (tu.name === "reassess_goal_feasibility") {
+          resultText = assessGoalFeasibility(context);
+        } else {
+          working = applyToolCall(working, tu.name, tu.input);
+          resultText = "Applied.";
+          toolCalls.push({ name: tu.name, input: tu.input });
+        }
+        results.push({ type: "tool_result", tool_use_id: tu.id, content: resultText });
+      } catch (err) {
+        if (!(err instanceof CoachToolError)) throw err;
+        results.push({ type: "tool_result", tool_use_id: tu.id, is_error: true,
+          content: `${err.code}: ${err.message}` });
+      }
+    }
+
+    const validation = validatePlan(working, { baseline });
+    lastValidation = validation;
+    messages.push({ role: "assistant", content: resp.content });
+    const feedback = [...results];
+    if (!validation.ok) {
+      if (++retries > MAX_VALIDATOR_RETRIES) break;
+      feedback.push({ type: "text",
+        text: `Validator FAILED — the plan cannot be shown to the runner like this. Fix with further tool calls:\n${formatValidation(validation)}` });
+    } else {
+      feedback.push({ type: "text",
+        text: `All adjustments applied; the plan validates.${validation.warnings.length ? "\n" + formatValidation(validation) : ""}\nIf you're finished, reply with your summary for the runner (no more tool calls).` });
+    }
+    messages.push({ role: "user", content: feedback });
+  }
+
+  // MAX_MODEL_CALLS was exhausted (not a validator-retry break) while the
+  // working plan was already valid — e.g. the model kept making further
+  // (valid) tool calls instead of ever stopping to summarize. Surface it
+  // rather than discarding legitimate work under the "no adjustment" fate.
+  //
+  // Gate on toolCalls.length: a plan trivially "validates against itself" even
+  // when every attempt failed with a CoachToolError and `working` never moved
+  // off `baseline` (e.g. the model repeats the same out-of-range input on
+  // every turn). Without this gate that dead-end would be misreported as
+  // "proposed, nothing needs to change" instead of the honest
+  // `no_valid_adjustment` — the model never found a working edit.
+  if (toolCalls.length > 0 && lastValidation && lastValidation.ok) {
+    return {
+      status: "proposed", plan: working,
+      changed: JSON.stringify(working) !== JSON.stringify(baseline),
+      rationale: lastText, toolCalls, usage, validation: lastValidation,
+    };
+  }
+  return { status: "no_valid_adjustment", rationale: lastText, toolCalls, usage };
+}

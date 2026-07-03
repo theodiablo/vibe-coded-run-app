@@ -16,6 +16,7 @@ import { SettingsModal } from "./modals/SettingsModal";
 import { DeleteAccountModal } from "./modals/DeleteAccountModal";
 import { RaceFormModal } from "./modals/RaceFormModal";
 import { LiveRunTracker } from "./modals/LiveRunTracker";
+import { CoachChat } from "./modals/CoachChat";
 import { Dashboard } from "./views/Dashboard";
 import { PlanView } from "./views/PlanView";
 import { LogView } from "./views/LogView";
@@ -75,6 +76,7 @@ export default function RunningCoach({ onSignOut }) {
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState([]);
   const [showRaceForm,setShowRaceForm]= useState(false);
+  const [showCoach,   setShowCoach]   = useState(false);
   // Stash from a "Set as target" promote → consumed by PlanView's setup form.
   const [planPrefill, setPlanPrefill] = useState(null);
   // Which Progress sub-tab to open, and a nonce so navigating there again (even
@@ -178,6 +180,16 @@ export default function RunningCoach({ onSignOut }) {
     }));
     return { ...np, weeks: np.weeks.map(w => ({ ...w,
       sessions: w.sessions.map(s => flags[s.id] ? { ...s, ...flags[s.id] } : s) })) };
+  };
+
+  // Apply a coach-accepted plan. carryProgress re-stamps done/skipped/runId by
+  // session id, so a session ticked while the chat was open isn't lost (the
+  // coach tools never edit done sessions, so this can't undo an adjustment).
+  // Deliberately NOT savePlan: that tracks "plan_generated" — this is an edit.
+  const applyCoachPlan = p => {
+    const merged = carryProgress(plan, p);
+    setPlan(merged);
+    db.set(STORAGE_KEYS.PLAN, merged);
   };
 
   // Toggle whether a wishlisted race is folded into the current plan. Persists the
@@ -357,7 +369,7 @@ export default function RunningCoach({ onSignOut }) {
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
   const goProgress = sub => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
-  const shared = {runs, plan, settings, races, catalogue, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true)};
+  const shared = {runs, plan, settings, races, catalogue, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   const TABS   = [
@@ -416,6 +428,8 @@ export default function RunningCoach({ onSignOut }) {
       {showDeleteAccount && <DeleteAccountModal
         onSignOut={onSignOut}
         onClose={() => setShowDeleteAccount(false)}/>}
+      {showCoach && plan && <CoachChat plan={plan} onApplyPlan={applyCoachPlan}
+        showToast={showToast} onClose={() => setShowCoach(false)}/>}
       {showRaceForm && <RaceFormModal
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
         onContributed={refreshCatalogue} showToast={showToast}
