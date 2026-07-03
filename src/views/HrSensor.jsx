@@ -6,6 +6,7 @@ import { healthConnectSource } from "../hr/healthconnect";
 import { getPairedDevice, setPairedDevice, forgetPairedDevice } from "../hr/device";
 import { HrSensorDisclosure } from "../modals/HrSensorDisclosure";
 import { HR_BLE_DISCLOSED_KEY } from "../constants";
+import { BetaBadge } from "../components/BetaBadge";
 
 // Heart-rate sensor configuration, nested in the Settings → Profile card (native
 // only — HR capture doesn't exist on web). The *method* preference syncs in
@@ -116,20 +117,29 @@ export function HrSensor({ settings, saveSettings, showToast }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide pt-1">Heart-rate sensor</p>
+      <div className="flex items-center gap-2 pt-1">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Heart-rate sensor</p>
+        <BetaBadge label="New beta" />
+      </div>
       <p className="text-xs text-slate-500 -mt-1">
         Capture heart rate automatically during a run instead of typing it in.
       </p>
+      <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-100">
+        This is a new, lightly tested feature. Sensor pairing, live readings, or
+        Health Connect imports may fail or arrive late, so check the saved heart
+        rate before relying on it.
+      </div>
 
       {/* Method selector */}
       <div className="grid grid-cols-3 gap-2">
         {HR_METHODS.map((m) => (
           <button key={m.id} type="button" onClick={() => chooseMethod(m.id)}
-            className={"py-2 rounded-xl text-xs font-semibold border transition-colors " +
+            className={"py-2 rounded-xl text-xs font-semibold border transition-colors flex items-center justify-center gap-1.5 " +
               (method === m.id
                 ? "bg-orange-500 border-orange-500 text-white"
                 : "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600")}>
-            {m.label}
+            <span>{m.label}</span>
+            {m.id !== "off" && <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wide">new</span>}
           </button>
         ))}
       </div>

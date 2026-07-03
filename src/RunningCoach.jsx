@@ -91,6 +91,8 @@ export default function RunningCoach({ onSignOut }) {
   // with [] deps must read current runs from a ref, not a stale closure).
   const runsRef = useRef(runs);
   useEffect(() => { runsRef.current = runs; }, [runs]);
+  const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState([]);
@@ -173,7 +175,7 @@ export default function RunningCoach({ onSignOut }) {
       // Wrapped defensively: this touches the native Health Connect bridge (now
       // lazily imported, see hr/healthconnect.js), and a boot-time relink must
       // never be able to take the whole app down with it.
-      flushPendingHr(r || [], patchRunHr).catch(() => {});
+      flushPendingHr(r || [], patchRunHr, { enabled: s?.hrMethod === "healthconnect" }).catch(() => {});
     })();
     // patchRunHr only closes over stable setters (setRuns, showToast → setToast),
     // so the version captured here stays safe to call for the component's life.
@@ -195,7 +197,7 @@ export default function RunningCoach({ onSignOut }) {
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState !== "visible") return;
-      flushPendingHr(runsRef.current, patchRunHr).catch(() => {});
+      flushPendingHr(runsRef.current, patchRunHr, { enabled: settingsRef.current.hrMethod === "healthconnect" }).catch(() => {});
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);

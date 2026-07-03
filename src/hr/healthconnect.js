@@ -1,4 +1,7 @@
 import { hrSummary } from "../utils/hr";
+import { isNative } from "../native";
+
+export const HR_PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
 // Post-run heart-rate source: read a tracked run's HR from Android Health Connect
 // (the system aggregator most watches — incl. Amazfit/Zepp — sync into), for users
@@ -77,23 +80,35 @@ export const healthConnectSource = {
   },
 };
 
-// Deferred relink, mirroring routes.js/flushPendingRoutes: on app load, retry the
-// Health Connect fetch for any run stamped with `hrPending:{start,end}` (saved before
-// the watch had synced). `patch(runId, {hr,hrMax})` applies the result and clears the
-// pending marker; runs that still have no data are left for the next load.
-export async function flushPendingHr(runs, patch) {
+function pendingWindow(hrPending) {
+  const source = hrPending?.source || "healthconnect";
+  const start = Number(hrPending?.start);
+  const end = Number(hrPending?.end);
+  if (source !== "healthconnect" || !Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  return { start, end };
+}
+
+// Deferred relink, mirroring routes.js/flushPendingRoutes: on app load / foreground,
+// retry Health Connect for fresh runs stamped with `hrPending:{start,end}`. Invalid,
+// manually-filled, or stale markers are cleared first without touching the native
+// bridge, so a bad synced blob cannot crash the app forever after sign-in.
+export async function flushPendingHr(runs, patch, { enabled = true, now = Date.now() } = {}) {
   const pending = (runs || []).filter(r => r.hrPending);
   if (!pending.length) return;
   // A run whose HR was filled some other way (manual edit) since it was stamped:
   // never overwrite it — just clear the marker so it stops retrying. patch({}) with
   // no HR fields lets the caller drop hrPending without touching hr/hrMax.
-  const resolved = pending.filter(r => r.hr != null);
-  for (const r of resolved) patch(r.id, {});
-  const stillPending = pending.filter(r => r.hr == null);
+  const stillPending = [];
+  for (const r of pending) {
+    const win = pendingWindow(r.hrPending);
+    if (r.hr != null || !win || now - win.end > HR_PENDING_MAX_AGE_MS) patch(r.id, {});
+    else stillPending.push({ run: r, win });
+  }
   if (!stillPending.length) return;
+  if (!enabled || !isNative) return;
   if (!(await isAvailable())) return; // HC not installed/permitted — leave for next load
-  for (const r of stillPending) {
-    const s = await healthConnectSource.fetchRange(r.hrPending.start, r.hrPending.end);
-    if (s && s.hrAvg) patch(r.id, { hr: s.hrAvg, hrMax: s.hrMax });
+  for (const { run, win } of stillPending) {
+    const s = await healthConnectSource.fetchRange(win.start, win.end);
+    if (s && s.hrAvg) patch(run.id, { hr: s.hrAvg, hrMax: s.hrMax });
   }
 }

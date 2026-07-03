@@ -7,6 +7,7 @@ import { useRunTracker } from "../hooks/useRunTracker";
 import { getHrSource } from "../hr/source";
 import { RouteMap } from "../components/RouteMap";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
+import { BetaBadge } from "../components/BetaBadge";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
 import { isNative } from "../native";
 import { BG_LOC_DISCLOSED_KEY } from "../constants";
@@ -227,6 +228,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
             <HeartPulse size={18} className={stats.hr != null ? "text-red-400" : "text-slate-500"} />
             <span className="text-2xl font-bold text-white tabular-nums leading-none">{stats.hr ?? "--"}</span>
             <span className="text-[11px] text-slate-400 uppercase tracking-wide">bpm</span>
+            <BetaBadge />
             {stats.hrAvg != null
               ? <span className="text-[11px] text-slate-500 ml-2">avg {stats.hrAvg} · max {stats.hrMax}</span>
               : <span className="text-[11px] text-slate-500 ml-2">connecting…</span>}
@@ -236,6 +238,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
         {hrSrc && !hrSrc.live && (
           <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2 text-slate-300">
             <HeartPulse size={16} className="text-red-400 shrink-0" />
+            <BetaBadge />
             <span className="text-xs">Heart rate is added from Health Connect after you finish.</span>
           </div>
         )}
@@ -297,10 +300,15 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
             <div className="flex items-center gap-2">
               <HeartPulse size={16} className="text-orange-400" />
               <p className="font-semibold text-sm">Track your heart rate?</p>
+              <BetaBadge label="New beta" />
             </div>
             <p className="text-sm text-slate-300">
               Connect a Bluetooth sensor or Health Connect to capture heart rate
               automatically — no need to type it in. You can set this up later in Settings.
+            </p>
+            <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-100">
+              This capture feature is new and can break. Please check saved readings
+              before using them for training decisions.
             </p>
             <ConfirmButtons cancelLabel="Not now" acceptLabel="Set up"
               onCancel={() => dismissHrNudge(true)}

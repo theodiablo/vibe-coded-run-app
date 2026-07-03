@@ -1,6 +1,7 @@
 import { HeartPulse } from "lucide-react";
 import { PRIVACY_URL } from "../constants";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
+import { BetaBadge } from "../components/BetaBadge";
 
 // Prominent disclosure shown before the first Bluetooth permission prompt when
 // pairing a heart-rate sensor (native shell). Mirrors BgLocationDisclosure: the
@@ -13,8 +14,13 @@ export function HrSensorDisclosure({ onAccept, onCancel }) {
         <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
           <HeartPulse size={16} className="text-orange-400" />
           <p className="font-semibold text-sm">Connect a heart-rate sensor</p>
+          <BetaBadge label="New beta" />
         </div>
         <div className="p-4 space-y-3 text-sm text-slate-300">
+          <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-100">
+            Heart-rate capture is new and not yet battle-tested. Readings can be
+            delayed, missing, or wrong if your sensor/watch drops out.
+          </div>
           <p>
             To read your heart rate during a run, Running Coach connects to a nearby
             <strong> Bluetooth heart-rate sensor</strong> — a chest strap, an armband,
