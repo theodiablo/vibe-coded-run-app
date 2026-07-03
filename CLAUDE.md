@@ -212,10 +212,12 @@ and delete anything that becomes stale.
     `flushPendingRoutes` deferred pattern), **never overwriting** an HR the user has since
     entered by hand. Pending HR markers are validated and expire after ~3 days;
     invalid/stale/manual-filled markers are cleared before touching the native Health
-    Connect bridge, and boot-time retries only sanitize markers — they do **not**
-    open Health Connect during the post-login splash. Actual retries query Health
-    Connect only while `settings.hrMethod === "healthconnect"` and permission is
-    still granted. Needs `READ_HEART_RATE` + a Play health-data declaration/privacy policy.
+    Connect bridge. Boot-time retries may query Health Connect only when both the
+    synced method is `settings.hrMethod === "healthconnect"` **and** this device has
+    the local authorization marker (`HR_HEALTH_CONNECT_AUTH_KEY`) from a prior grant;
+    a synced method alone is not enough because Android permissions are per-install.
+    Actual reads re-check permission and clear the marker if revoked. Needs
+    `READ_HEART_RATE` + a Play health-data declaration/privacy policy.
 - **Method preference syncs; the device does NOT.** `settings.hrMethod`
   (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
   `{id,name}` is **per-device localStorage** (`src/hr/device.js`, `HR_DEVICE_KEY`) —

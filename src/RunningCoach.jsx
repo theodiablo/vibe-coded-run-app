@@ -9,7 +9,7 @@ import { computeBadges, unlockedIds } from "./utils/badges";
 import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils/races";
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
-import { flushPendingHr } from "./hr/healthconnect";
+import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -172,9 +172,9 @@ export default function RunningCoach({ onSignOut }) {
       });
       // Same deferred cleanup for Health Connect HR: a run saved before the watch
       // had synced its HR is stamped hrPending.
-      // On boot, only sanitize bad/stale markers. Opening Health Connect here can
-      // happen immediately after sign-in before any UI is visible; if the native
-      // provider/plugin process-crashes, the ErrorBoundary cannot show a trace.
+      // On boot, only open Health Connect if this *device* has previously granted
+      // access. `settings.hrMethod` syncs across phones, so it is not enough to
+      // prove the native bridge can be safely touched on this install.
       // Patch the loaded array directly instead of going through patchRunHr's
       // setRuns(prev => ...): React may not have committed setRuns(r) yet.
       // Actual relinks still run on foreground and when a run is saved.
@@ -184,7 +184,10 @@ export default function RunningCoach({ onSignOut }) {
         setRuns(bootRuns);
         db.set(STORAGE_KEYS.RUNS, bootRuns);
       };
-      flushPendingHr(bootRuns, patchBootRunHr, { enabled: s?.hrMethod === "healthconnect", allowNativeRead: false }).catch(() => {});
+      flushPendingHr(bootRuns, patchBootRunHr, {
+        enabled: s?.hrMethod === "healthconnect",
+        allowNativeRead: hasHealthConnectAuthorization(),
+      }).catch(() => {});
     })();
   }, []);
 

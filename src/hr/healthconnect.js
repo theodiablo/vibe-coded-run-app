@@ -1,7 +1,20 @@
 import { hrSummary } from "../utils/hr";
 import { isNative } from "../native";
+import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
 
 export const HR_PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+export function hasHealthConnectAuthorization() {
+  try { return localStorage.getItem(HR_HEALTH_CONNECT_AUTH_KEY) === "1"; }
+  catch { return false; }
+}
+
+function setHealthConnectAuthorization(ok) {
+  try {
+    if (ok) localStorage.setItem(HR_HEALTH_CONNECT_AUTH_KEY, "1");
+    else localStorage.removeItem(HR_HEALTH_CONNECT_AUTH_KEY);
+  } catch { /* storage unavailable — non-fatal */ }
+}
 
 // Post-run heart-rate source: read a tracked run's HR from Android Health Connect
 // (the system aggregator most watches — incl. Amazfit/Zepp — sync into), for users
@@ -48,8 +61,10 @@ export const healthConnectSource = {
   async requestPermissions() {
     try {
       const r = await (await getHealthConnect()).plugin.requestHealthPermissions({ read: ["HeartRateSeries"], write: [] });
-      return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
-    } catch { return false; }
+      const ok = !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
+      setHealthConnectAuthorization(ok);
+      return ok;
+    } catch { setHealthConnectAuthorization(false); return false; }
   },
 
   // Non-prompting check of whether heart-rate read is already granted — used to
@@ -57,8 +72,10 @@ export const healthConnectSource = {
   async checkPermissions() {
     try {
       const r = await (await getHealthConnect()).plugin.checkHealthPermissions({ read: ["HeartRateSeries"], write: [] });
-      return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
-    } catch { return false; }
+      const ok = !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
+      setHealthConnectAuthorization(ok);
+      return ok;
+    } catch { setHealthConnectAuthorization(false); return false; }
   },
 
   // Read HeartRateSeries records in [startMs, endMs], flatten to samples inside the
@@ -108,7 +125,7 @@ export async function flushPendingHr(runs, patch, { enabled = true, allowNativeR
     else stillPending.push({ run: r, win });
   }
   if (!stillPending.length) return;
-  if (!enabled || !allowNativeRead || !isNative) return;
+  if (!enabled || !allowNativeRead || !isNative || !hasHealthConnectAuthorization()) return;
   if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return; // HC unavailable/unpermitted — leave for next load
   for (const { run, win } of stillPending) {
     const s = await healthConnectSource.fetchRange(win.start, win.end);

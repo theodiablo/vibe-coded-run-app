@@ -1,5 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
-import { flushPendingHr, HR_PENDING_MAX_AGE_MS } from "./healthconnect";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
+import { flushPendingHr, hasHealthConnectAuthorization, HR_PENDING_MAX_AGE_MS } from "./healthconnect";
+
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe("flushPendingHr", () => {
   it("clears manual, invalid, and stale pending markers without querying Health Connect", async () => {
@@ -38,5 +43,23 @@ describe("flushPendingHr", () => {
     ], patch, { enabled: true, allowNativeRead: false, now });
 
     expect(patch).not.toHaveBeenCalled();
+  });
+
+  it("does not touch fresh pending markers without local Health Connect authorization", async () => {
+    const now = Date.now();
+    const patch = vi.fn();
+
+    await flushPendingHr([
+      { id: "fresh", hrPending: { start: now - 2000, end: now - 1000, source: "healthconnect" } },
+    ], patch, { enabled: true, allowNativeRead: true, now });
+
+    expect(hasHealthConnectAuthorization()).toBe(false);
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it("recognizes the local Health Connect authorization marker", () => {
+    localStorage.setItem(HR_HEALTH_CONNECT_AUTH_KEY, "1");
+
+    expect(hasHealthConnectAuthorization()).toBe(true);
   });
 });
