@@ -116,4 +116,28 @@ describe("golden cases (MOCK_LLM)", () => {
     // report → assistant round 0 → new critique
     expect(seen[0]).toBe("user,assistant,user");
   });
+
+  it("critique round starts from the latest proposal, not the saved baseline", async () => {
+    const context = makeContext("my knee hurts");
+    const target = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type !== "RACE" && !s.done);
+    const proposed = structuredClone(context.plan);
+    proposed.weeks.flatMap(w => w.sessions).find(s => s.id === target.id).type = "WALK";
+    const callModel = async () => ({
+      content: [{ type: "text", text: "Keeping the earlier change." }],
+      stop_reason: "end_turn",
+      usage: { input_tokens: 10, output_tokens: 10 },
+    });
+
+    const result = await generateProposal({
+      baseline: context.plan,
+      context: { ...context, plan: proposed },
+      history: [{ user_feedback: null, rationale: "Converted one session to WALK.", tool_calls: [{ name: "convert_to_cross_training", input: { session_id: target.id } }] }],
+      message: "also shorten Sunday",
+      callModel,
+    });
+
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(true);
+    expect(result.plan.weeks.flatMap(w => w.sessions).find(s => s.id === target.id).type).toBe("WALK");
+  });
 });

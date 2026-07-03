@@ -5,7 +5,7 @@
 // Invariants enforced here:
 //  * The model only acts through the typed tool vocabulary (tools.mjs).
 //  * Every plan surfaced to the user has passed validatePlan (validation.mjs),
-//    with the user's current plan as waiver baseline — the agent can never
+//    with the supplied original plan as waiver baseline — the agent can never
 //    make a plan worse, and an invalid working plan is never returned.
 //  * Validation failures are fed back to the model as tool feedback, bounded
 //    by MAX_VALIDATOR_RETRIES; on exhaustion of that retry budget the round
@@ -69,7 +69,7 @@ const textOf = (content) =>
 // or { status: "no_valid_adjustment", rationale, toolCalls, usage }
 // callModel(messages, tools) → an Anthropic Message ({ content, stop_reason, usage }).
 export async function generateProposal({ baseline, context, history = [], message = null, callModel }) {
-  let working = structuredClone(baseline);
+  let working = structuredClone(context.plan ?? baseline);
   const messages = buildMessages(context, history, message);
   const usage = { input_tokens: 0, output_tokens: 0 };
   const toolCalls = [];

@@ -85,6 +85,19 @@ describe("validatePlan rules", () => {
     expect(validatePlan(proposal, { baseline }).ok).toBe(false);
   });
 
+  it("does not waive a changed hard back-to-back pairing for the same later session", () => {
+    const baseline = cleanPlan();
+    baseline.weeks[2].sessions[0].date = "2026-01-24"; // TEMPO before Sunday's LONG
+    const proposal = structuredClone(baseline);
+    proposal.weeks[2].sessions[0].date = "2026-01-21";
+    proposal.weeks[2].sessions.unshift(sess("new-hard", "2026-01-24", "INTERVALS", 4));
+
+    const r = validatePlan(proposal, { baseline });
+
+    expect(r.ok).toBe(false);
+    expect(r.errors.some(e => e.code === "HARD_BACK_TO_BACK" && e.sessionId === "w3d6")).toBe(true);
+  });
+
   it("formatValidation renders codes and messages", () => {
     const p = cleanPlan();
     p.weeks[2].sessions[1].km = 25;

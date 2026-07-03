@@ -122,6 +122,8 @@ function collectIssues(plan) {
         { weekNumber: b.weekNumber, sessionId: b.id });
     } else {
       issues.push({ code: "HARD_BACK_TO_BACK", severity: "error", weekNumber: b.weekNumber, sessionId: b.id,
+        previousSessionId: a.id, previousSessionType: a.type, previousSessionDate: a.date,
+        sessionType: b.type, sessionDate: b.date,
         message: `Hard sessions ${a.id} (${a.type}) and ${b.id} (${b.type}) are on consecutive days — at least one easy/rest day is required between hard efforts.` });
     }
   }
@@ -157,7 +159,13 @@ function collectIssues(plan) {
   return issues;
 }
 
-const issueKey = (i) => `${i.code}|${i.weekNumber ?? ""}|${i.sessionId ?? ""}`;
+const issueKey = (i) => {
+  const base = `${i.code}|${i.weekNumber ?? ""}|${i.sessionId ?? ""}`;
+  if (i.code === "HARD_BACK_TO_BACK") {
+    return `${base}|${i.previousSessionId ?? ""}|${i.previousSessionType ?? ""}|${i.previousSessionDate ?? ""}|${i.sessionType ?? ""}|${i.sessionDate ?? ""}`;
+  }
+  return base;
+};
 
 // Validate a plan. Returns { ok, errors, warnings } where each entry is
 // { code, message, severity, weekNumber?, sessionId? }.

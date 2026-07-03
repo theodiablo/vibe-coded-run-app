@@ -152,6 +152,8 @@ Deno.serve(async (req) => {
     let history: unknown[] = [];
     let roundIndex = 0;
     let report = message;
+    let baselinePlan = plan;
+    let workingPlan = plan;
 
     if (action === "propose") {
       // One live conversation at a time: anything still open is now abandoned
@@ -176,30 +178,39 @@ Deno.serve(async (req) => {
       history = rounds ?? [];
       roundIndex = history.length;
       // Round 0's report anchors the conversation; fetch only that row's input_context.
-      const { data: r0 } = await admin.from("agent_rounds")
+      const { data: r0, error: r0Err } = await admin.from("agent_rounds")
         .select("input_context").eq("trajectory_id", trajectoryId).eq("round_index", 0).maybeSingle();
+      if (r0Err) throw r0Err;
       report = r0?.input_context?.report ?? message;
+      baselinePlan = r0?.input_context?.plan ?? plan;
+      // Critiques edit the latest open proposal, not the persisted app_state
+      // plan, so steering an open adjustment does not drop earlier edits.
+      const { data: latestProposal, error: latestErr } = await admin.from("agent_rounds")
+        .select("proposed_plan").eq("trajectory_id", trajectoryId).eq("outcome", "proposed")
+        .order("round_index", { ascending: false }).limit(1).maybeSingle();
+      if (latestErr) throw latestErr;
+      workingPlan = latestProposal?.proposed_plan ?? baselinePlan;
     }
 
     // Single goal shape for every consumer (buildMessages' prompt text AND
     // assessGoalFeasibility's tool result) — was previously duplicated at a
     // nested `goal.*` and a flat top level, which could silently drift apart.
     const context = {
-      plan,
+      plan: workingPlan,
       recentRuns,
       today,
       report,
       goal: {
-        raceDate: settings.raceDate || plan.raceDate,
-        distanceKm: Number(settings.distanceKm || plan.distanceKm),
-        goalSec: Number(settings.goalSec || plan.goalSec) || null,
+        raceDate: settings.raceDate || workingPlan.raceDate,
+        distanceKm: Number(settings.distanceKm || workingPlan.distanceKm),
+        goalSec: Number(settings.goalSec || workingPlan.goalSec) || null,
       },
-      targetPace: plan.targetPace,
+      targetPace: workingPlan.targetPace,
     };
 
     const { model, callModel } = makeCallModel(context, message);
     const result = await generateProposal({
-      baseline: plan,
+      baseline: baselinePlan,
       context,
       history,
       message: action === "critique" ? message : null,
@@ -225,8 +236,8 @@ Deno.serve(async (req) => {
       user_feedback: action === "critique" ? message : null,
       tool_calls: result.toolCalls,
       rationale: result.rationale || null,
-      proposed_plan: failed ? plan : result.plan,
-      input_context: { report, goal: context.goal, today, recentRuns, plan },
+      proposed_plan: failed ? context.plan : result.plan,
+      input_context: { report, goal: context.goal, today, recentRuns, plan: baselinePlan },
       model,
       input_tokens: result.usage.input_tokens,
       output_tokens: result.usage.output_tokens,

@@ -3,7 +3,7 @@
 // keyword-driven off the runner's message:
 //   "knee|pain|hurt|injur"  → convert next hard session to WALK + reduce that week
 //   "missed|skipped"        → recovery week on the next upcoming week
-//   "force-invalid"         → repeatedly proposes a back-to-back hard shift,
+//   "force-invalid"         → repeatedly proposes intervals inside the taper,
 //                             exercising the validator-retry → no_valid_adjustment path
 //   anything else           → text-only answer, no tool calls
 //
@@ -30,11 +30,7 @@ const upcomingSessions = (plan, today) =>
 // the turn with a summary — except force-invalid, which never converges.
 export function createMockModel(context) {
   let calls = 0;
-  const addDays = (ymd, n) => {
-    const d = new Date(ymd + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-  };
+  const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
 
   return async (messages) => {
     calls++;
@@ -49,12 +45,12 @@ export function createMockModel(context) {
     });
 
     if (/force-invalid/.test(text) || (calls > 1 && /force-invalid/.test(lastUserText(messages.slice(0, 2)).toLowerCase()))) {
-      // Deliberately invalid every time: stack a hard session the day after
-      // another hard one. The engine's retry budget must run out.
-      const hard = up.filter(s => ["TEMPO", "INTERVALS", "LONG"].includes(s.type));
-      if (hard.length >= 2) {
-        return useTools([tu("shift_workout", { session_id: hard[1].id, new_date: addDays(hard[0].date, 1) })],
-          "Let me squeeze those together.");
+      // Deliberately invalid every time: add intervals inside the final taper.
+      // The engine's retry budget must run out without surfacing the plan.
+      const taper = up.find(s => s.type !== "INTERVALS" && s.date < context.plan.raceDate && daysBetween(s.date, context.plan.raceDate) <= 14);
+      if (taper) {
+        return useTools([tu("swap_session", { session_id: taper.id, new_type: "INTERVALS" })],
+          "Let me add sharp work right before the race.");
       }
       return done("Not enough sessions to adjust.");
     }
