@@ -39,13 +39,20 @@ const MOCK = Boolean(Deno.env.get("MOCK_LLM"));
 const DEFAULT_MODEL = Deno.env.get("COACH_MODEL") ?? "claude-sonnet-4-6";
 const LIGHT_MODEL = Deno.env.get("COACH_MODEL_LIGHT") ?? "claude-haiku-4-5";
 const RATE_LIMIT_PER_DAY = Number(Deno.env.get("RATE_LIMIT_PER_DAY") ?? 20);
+// A propose/critique round spends most of its time awaiting Anthropic with
+// zero bytes flowing to the client — long enough (empirically ~12-15s+) for
+// some intermediary (mobile network, proxy) to treat the connection as dead
+// and drop it well before either side's own timeout fires, even though the
+// round completes successfully server-side. Deno.serve below pads the
+// response with a whitespace byte on this interval while a round is in
+// flight so the connection never looks idle; JSON.parse ignores leading
+// whitespace, so the eventual real body still parses cleanly.
+const KEEPALIVE_INTERVAL_MS = 5000;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
 // Routing seam (Phase 5): everything is judgment-heavy coaching for v1, so
 // always the default model. To route trivial edits to LIGHT_MODEL later, add a
@@ -75,198 +82,233 @@ function makeCallModel(context: any, message: string) {
   return { model, callModel };
 }
 
+// Runs the whole action and resolves to the JSON body that should be sent to
+// the client. HTTP status is intentionally NOT decided here — Deno.serve
+// below streams keep-alive padding before the outcome is known, so headers
+// (always 200) go out long before this resolves. Success/failure is carried
+// entirely in the body's shape (an `.error` field on failure); `src/coach.js`
+// already treats `data.error` and a non-2xx response identically, so this is
+// not a client-visible behaviour change.
+// deno-lint-ignore no-explicit-any
+async function handle(req: Request): Promise<any> {
+  const body = await req.json().catch(() => ({}));
+  const action = String(body.action ?? "");
+  if (!["propose", "critique", "confirm"].includes(action)) {
+    return { error: "action must be propose | critique | confirm" };
+  }
+
+  // ── auth: a valid JWT is required for everything ─────────────────────────
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return { error: "unauthorized" };
+  const userClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const { data: auth } = await userClient.auth.getUser();
+  const user = auth?.user;
+  if (!user) return { error: "unauthorized" };
+
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // ── confirm: no model call, no rate-limit charge ─────────────────────────
+  if (action === "confirm") {
+    const trajectoryId = String(body.trajectoryId ?? "");
+    const { data: traj } = await admin.from("agent_trajectories")
+      .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
+    if (!traj) return { error: "trajectory not found" };
+    if (traj.status !== "open") return { error: `trajectory is ${traj.status}` };
+    const { data: round } = await admin.from("agent_rounds")
+      .select("id, proposed_plan, input_context").eq("trajectory_id", trajectoryId)
+      .eq("outcome", "proposed").order("round_index", { ascending: false })
+      .limit(1).maybeSingle();
+    if (!round) return { error: "no open proposal to confirm" };
+    // Belt and braces: never commit a plan that no longer validates.
+    const check = validatePlan(round.proposed_plan, { baseline: round.input_context?.plan });
+    if (!check.ok) return { error: "proposal failed validation", detail: formatValidation(check) };
+    await admin.from("agent_rounds").update({ outcome: "accepted" }).eq("id", round.id);
+    await admin.from("agent_trajectories")
+      .update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", trajectoryId);
+    return { plan: round.proposed_plan, baseline: round.input_context?.plan };
+  }
+
+  // ── propose / critique: model-calling rounds ─────────────────────────────
+  const message = String(body.message ?? "").trim();
+  if (!message) return { error: "message is required" };
+
+  // Per-user daily budget; the increment is atomic (SQL function) so
+  // concurrent requests can't slip past the limit.
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: count, error: usageErr } = await admin.rpc("increment_agent_usage", {
+    p_user_id: user.id, p_day: today,
+  });
+  if (usageErr) throw usageErr;
+  if (count > RATE_LIMIT_PER_DAY) return { error: "daily coach limit reached — try again tomorrow" };
+
+  // The plan + run history come from the user's own app_state blob (RLS via
+  // the caller's JWT) — the server-side source of truth, not the request body.
+  const { data: stateRow, error: stateErr } = await userClient
+    .from("app_state").select("data").eq("user_id", user.id).maybeSingle();
+  if (stateErr) throw stateErr;
+  const blob = stateRow?.data ?? {};
+  const plan = blob.rc_plan;
+  const settings = blob.rc_settings ?? {};
+  if (!plan?.weeks?.length) return { error: "no training plan to adjust — build one first" };
+  const recentRuns = (blob.rc_runs ?? []).slice(0, 30).map((r: Record<string, unknown>) => ({
+    date: r.date, type: r.type, km: r.km, durationSec: r.durationSec, hr: r.hr, effort: r.effort,
+  }));
+
+  let trajectoryId: string;
+  let history: unknown[] = [];
+  let roundIndex = 0;
+  let report = message;
+  let baselinePlan = plan;
+  let workingPlan = plan;
+
+  if (action === "propose") {
+    // One live conversation at a time: anything still open is now abandoned
+    // (feedback given but never accepted — a distinct fate in the metrics).
+    await admin.from("agent_trajectories")
+      .update({ status: "abandoned", updated_at: new Date().toISOString() })
+      .eq("user_id", user.id).eq("status", "open");
+    const { data: traj, error } = await admin.from("agent_trajectories")
+      .insert({ user_id: user.id }).select("id").single();
+    if (error) throw error;
+    trajectoryId = traj.id;
+  } else {
+    trajectoryId = String(body.trajectoryId ?? "");
+    const { data: traj } = await admin.from("agent_trajectories")
+      .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
+    if (!traj) return { error: "trajectory not found" };
+    if (traj.status !== "open") return { error: `trajectory is ${traj.status}` };
+    const { data: rounds, error } = await admin.from("agent_rounds")
+      .select("round_index, user_feedback, rationale, tool_calls")
+      .eq("trajectory_id", trajectoryId).order("round_index", { ascending: true });
+    if (error) throw error;
+    history = rounds ?? [];
+    roundIndex = history.length;
+    // Round 0's report anchors the conversation; fetch only that row's input_context.
+    const { data: r0, error: r0Err } = await admin.from("agent_rounds")
+      .select("input_context").eq("trajectory_id", trajectoryId).eq("round_index", 0).maybeSingle();
+    if (r0Err) throw r0Err;
+    report = r0?.input_context?.report ?? message;
+    baselinePlan = r0?.input_context?.plan ?? plan;
+    // Critiques edit the latest open proposal, not the persisted app_state
+    // plan, so steering an open adjustment does not drop earlier edits.
+    const { data: latestProposal, error: latestErr } = await admin.from("agent_rounds")
+      .select("proposed_plan").eq("trajectory_id", trajectoryId).eq("outcome", "proposed")
+      .order("round_index", { ascending: false }).limit(1).maybeSingle();
+    if (latestErr) throw latestErr;
+    workingPlan = latestProposal?.proposed_plan ?? baselinePlan;
+  }
+
+  // Single goal shape for every consumer (buildMessages' prompt text AND
+  // assessGoalFeasibility's tool result) — was previously duplicated at a
+  // nested `goal.*` and a flat top level, which could silently drift apart.
+  const context = {
+    plan: workingPlan,
+    recentRuns,
+    today,
+    report,
+    goal: {
+      raceDate: settings.raceDate || workingPlan.raceDate,
+      distanceKm: Number(settings.distanceKm || workingPlan.distanceKm),
+      goalSec: Number(settings.goalSec || workingPlan.goalSec) || null,
+    },
+    targetPace: workingPlan.targetPace,
+  };
+
+  const { model, callModel } = makeCallModel(context, message);
+  const result = await generateProposal({
+    baseline: baselinePlan,
+    context,
+    history,
+    message: action === "critique" ? message : null,
+    callModel,
+  });
+
+  const failed = result.status === "no_valid_adjustment";
+  // A failed round only closes the WHOLE trajectory when there's no earlier
+  // valid proposal to fall back on (round 0 failing means nothing was ever
+  // proposed). A failed CRITIQUE (roundIndex > 0) leaves the trajectory
+  // open — the prior "proposed" round is untouched below (only a
+  // successful round supersedes it) — so the user can still confirm the
+  // last adjustment that did validate instead of being dead-ended.
+  const trajectoryClosed = failed && roundIndex === 0;
+  // Log EVERY round, including failures — the audit log is the eval dataset.
+  if (!failed && roundIndex > 0) {
+    await admin.from("agent_rounds").update({ outcome: "superseded" })
+      .eq("trajectory_id", trajectoryId).eq("outcome", "proposed");
+  }
+  const { error: roundErr } = await admin.from("agent_rounds").insert({
+    trajectory_id: trajectoryId,
+    round_index: roundIndex,
+    user_feedback: action === "critique" ? message : null,
+    tool_calls: result.toolCalls,
+    rationale: result.rationale || null,
+    proposed_plan: failed ? context.plan : result.plan,
+    input_context: { report, goal: context.goal, today, recentRuns, plan: baselinePlan },
+    model,
+    input_tokens: result.usage.input_tokens,
+    output_tokens: result.usage.output_tokens,
+    outcome: failed ? "invalid" : "proposed",
+  });
+  if (roundErr) throw roundErr;
+  await admin.from("agent_trajectories")
+    .update({
+      status: trajectoryClosed ? "no_valid_adjustment" : "open",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", trajectoryId);
+
+  if (failed) {
+    return {
+      trajectoryId, roundIndex, status: "no_valid_adjustment", trajectoryClosed,
+      rationale: result.rationale ||
+        "I couldn't find an adjustment that keeps your plan safe — nothing was changed.",
+    };
+  }
+  return {
+    trajectoryId, roundIndex, status: "proposed",
+    changed: result.changed,
+    rationale: result.rationale,
+    proposedPlan: result.plan,
+    warnings: result.validation.warnings,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  try {
-    const body = await req.json().catch(() => ({}));
-    const action = String(body.action ?? "");
-    if (!["propose", "critique", "confirm"].includes(action)) {
-      return json({ error: "action must be propose | critique | confirm" }, 400);
-    }
 
-    // ── auth: a valid JWT is required for everything ─────────────────────────
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "unauthorized" }, 401);
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: auth } = await userClient.auth.getUser();
-    const user = auth?.user;
-    if (!user) return json({ error: "unauthorized" }, 401);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const keepAlive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(" "));
+        } catch {
+          // Stream already closed (response finished); nothing to pad.
+        }
+      }, KEEPALIVE_INTERVAL_MS);
 
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+      handle(req)
+        .catch((err) => {
+          console.error("coach-agent error", err);
+          return { error: "coach unavailable — try again in a moment" };
+        })
+        .then((responseBody) => {
+          clearInterval(keepAlive);
+          controller.enqueue(encoder.encode(JSON.stringify(responseBody)));
+          controller.close();
+        });
+    },
+  });
 
-    // ── confirm: no model call, no rate-limit charge ─────────────────────────
-    if (action === "confirm") {
-      const trajectoryId = String(body.trajectoryId ?? "");
-      const { data: traj } = await admin.from("agent_trajectories")
-        .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
-      if (!traj) return json({ error: "trajectory not found" }, 404);
-      if (traj.status !== "open") return json({ error: `trajectory is ${traj.status}` }, 409);
-      const { data: round } = await admin.from("agent_rounds")
-        .select("id, proposed_plan, input_context").eq("trajectory_id", trajectoryId)
-        .eq("outcome", "proposed").order("round_index", { ascending: false })
-        .limit(1).maybeSingle();
-      if (!round) return json({ error: "no open proposal to confirm" }, 409);
-      // Belt and braces: never commit a plan that no longer validates.
-      const check = validatePlan(round.proposed_plan, { baseline: round.input_context?.plan });
-      if (!check.ok) return json({ error: "proposal failed validation", detail: formatValidation(check) }, 409);
-      await admin.from("agent_rounds").update({ outcome: "accepted" }).eq("id", round.id);
-      await admin.from("agent_trajectories")
-        .update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", trajectoryId);
-      return json({ plan: round.proposed_plan, baseline: round.input_context?.plan });
-    }
-
-    // ── propose / critique: model-calling rounds ─────────────────────────────
-    const message = String(body.message ?? "").trim();
-    if (!message) return json({ error: "message is required" }, 400);
-
-    // Per-user daily budget; the increment is atomic (SQL function) so
-    // concurrent requests can't slip past the limit.
-    const today = new Date().toISOString().slice(0, 10);
-    const { data: count, error: usageErr } = await admin.rpc("increment_agent_usage", {
-      p_user_id: user.id, p_day: today,
-    });
-    if (usageErr) throw usageErr;
-    if (count > RATE_LIMIT_PER_DAY) return json({ error: "daily coach limit reached — try again tomorrow" }, 429);
-
-    // The plan + run history come from the user's own app_state blob (RLS via
-    // the caller's JWT) — the server-side source of truth, not the request body.
-    const { data: stateRow, error: stateErr } = await userClient
-      .from("app_state").select("data").eq("user_id", user.id).maybeSingle();
-    if (stateErr) throw stateErr;
-    const blob = stateRow?.data ?? {};
-    const plan = blob.rc_plan;
-    const settings = blob.rc_settings ?? {};
-    if (!plan?.weeks?.length) return json({ error: "no training plan to adjust — build one first" }, 400);
-    const recentRuns = (blob.rc_runs ?? []).slice(0, 30).map((r: Record<string, unknown>) => ({
-      date: r.date, type: r.type, km: r.km, durationSec: r.durationSec, hr: r.hr, effort: r.effort,
-    }));
-
-    let trajectoryId: string;
-    let history: unknown[] = [];
-    let roundIndex = 0;
-    let report = message;
-    let baselinePlan = plan;
-    let workingPlan = plan;
-
-    if (action === "propose") {
-      // One live conversation at a time: anything still open is now abandoned
-      // (feedback given but never accepted — a distinct fate in the metrics).
-      await admin.from("agent_trajectories")
-        .update({ status: "abandoned", updated_at: new Date().toISOString() })
-        .eq("user_id", user.id).eq("status", "open");
-      const { data: traj, error } = await admin.from("agent_trajectories")
-        .insert({ user_id: user.id }).select("id").single();
-      if (error) throw error;
-      trajectoryId = traj.id;
-    } else {
-      trajectoryId = String(body.trajectoryId ?? "");
-      const { data: traj } = await admin.from("agent_trajectories")
-        .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
-      if (!traj) return json({ error: "trajectory not found" }, 404);
-      if (traj.status !== "open") return json({ error: `trajectory is ${traj.status}` }, 409);
-      const { data: rounds, error } = await admin.from("agent_rounds")
-        .select("round_index, user_feedback, rationale, tool_calls")
-        .eq("trajectory_id", trajectoryId).order("round_index", { ascending: true });
-      if (error) throw error;
-      history = rounds ?? [];
-      roundIndex = history.length;
-      // Round 0's report anchors the conversation; fetch only that row's input_context.
-      const { data: r0, error: r0Err } = await admin.from("agent_rounds")
-        .select("input_context").eq("trajectory_id", trajectoryId).eq("round_index", 0).maybeSingle();
-      if (r0Err) throw r0Err;
-      report = r0?.input_context?.report ?? message;
-      baselinePlan = r0?.input_context?.plan ?? plan;
-      // Critiques edit the latest open proposal, not the persisted app_state
-      // plan, so steering an open adjustment does not drop earlier edits.
-      const { data: latestProposal, error: latestErr } = await admin.from("agent_rounds")
-        .select("proposed_plan").eq("trajectory_id", trajectoryId).eq("outcome", "proposed")
-        .order("round_index", { ascending: false }).limit(1).maybeSingle();
-      if (latestErr) throw latestErr;
-      workingPlan = latestProposal?.proposed_plan ?? baselinePlan;
-    }
-
-    // Single goal shape for every consumer (buildMessages' prompt text AND
-    // assessGoalFeasibility's tool result) — was previously duplicated at a
-    // nested `goal.*` and a flat top level, which could silently drift apart.
-    const context = {
-      plan: workingPlan,
-      recentRuns,
-      today,
-      report,
-      goal: {
-        raceDate: settings.raceDate || workingPlan.raceDate,
-        distanceKm: Number(settings.distanceKm || workingPlan.distanceKm),
-        goalSec: Number(settings.goalSec || workingPlan.goalSec) || null,
-      },
-      targetPace: workingPlan.targetPace,
-    };
-
-    const { model, callModel } = makeCallModel(context, message);
-    const result = await generateProposal({
-      baseline: baselinePlan,
-      context,
-      history,
-      message: action === "critique" ? message : null,
-      callModel,
-    });
-
-    const failed = result.status === "no_valid_adjustment";
-    // A failed round only closes the WHOLE trajectory when there's no earlier
-    // valid proposal to fall back on (round 0 failing means nothing was ever
-    // proposed). A failed CRITIQUE (roundIndex > 0) leaves the trajectory
-    // open — the prior "proposed" round is untouched below (only a
-    // successful round supersedes it) — so the user can still confirm the
-    // last adjustment that did validate instead of being dead-ended.
-    const trajectoryClosed = failed && roundIndex === 0;
-    // Log EVERY round, including failures — the audit log is the eval dataset.
-    if (!failed && roundIndex > 0) {
-      await admin.from("agent_rounds").update({ outcome: "superseded" })
-        .eq("trajectory_id", trajectoryId).eq("outcome", "proposed");
-    }
-    const { error: roundErr } = await admin.from("agent_rounds").insert({
-      trajectory_id: trajectoryId,
-      round_index: roundIndex,
-      user_feedback: action === "critique" ? message : null,
-      tool_calls: result.toolCalls,
-      rationale: result.rationale || null,
-      proposed_plan: failed ? context.plan : result.plan,
-      input_context: { report, goal: context.goal, today, recentRuns, plan: baselinePlan },
-      model,
-      input_tokens: result.usage.input_tokens,
-      output_tokens: result.usage.output_tokens,
-      outcome: failed ? "invalid" : "proposed",
-    });
-    if (roundErr) throw roundErr;
-    await admin.from("agent_trajectories")
-      .update({
-        status: trajectoryClosed ? "no_valid_adjustment" : "open",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", trajectoryId);
-
-    if (failed) {
-      return json({
-        trajectoryId, roundIndex, status: "no_valid_adjustment", trajectoryClosed,
-        rationale: result.rationale ||
-          "I couldn't find an adjustment that keeps your plan safe — nothing was changed.",
-      });
-    }
-    return json({
-      trajectoryId, roundIndex, status: "proposed",
-      changed: result.changed,
-      rationale: result.rationale,
-      proposedPlan: result.plan,
-      warnings: result.validation.warnings,
-    });
-  } catch (err) {
-    console.error("coach-agent error", err);
-    return json({ error: "coach unavailable — try again in a moment" }, 500);
-  }
+  // Status is always 200: the body carries the real outcome (see `handle`'s
+  // doc comment above) because streaming means headers must go out before
+  // that outcome is known.
+  return new Response(stream, { headers: { ...CORS, "Content-Type": "application/json" } });
 });

@@ -6,20 +6,23 @@
 import { supabase } from "./supabase";
 import { flushNow } from "./db";
 
+// A round can genuinely take 15-25s+ (a real, non-streaming Anthropic call) —
+// generous but bounded, so a request that's truly stuck fails deterministically
+// instead of leaving the user staring at "Coach is thinking…" forever.
+const TIMEOUT_MS = 60000;
+
 async function invoke(body) {
   // confirm reads from agent_rounds (not app_state), so no flush needed —
   // and a flush failure must not block confirming an already-proposed plan.
   if (body.action !== "confirm") await flushNow();
-  const { data, error } = await supabase.functions.invoke("coach-agent", { body });
+  const { data, error } = await supabase.functions.invoke("coach-agent", { body, timeout: TIMEOUT_MS });
   if (error) {
-    // FunctionsHttpError carries the response; surface the server's message
-    // (e.g. the 429 daily-limit text) instead of a generic failure.
-    let msg = "The coach is unavailable right now — try again in a moment.";
-    try {
-      const detail = await error.context?.json();
-      if (detail?.error) msg = detail.error;
-    } catch { /* keep the generic message */ }
-    throw new Error(msg);
+    // The edge function always responds 200 (it streams keep-alive padding
+    // before the outcome is known — see coach-agent/index.ts) and puts the
+    // real outcome in the body, so this branch is now only a genuine
+    // network-level failure or our own timeout above, never a server error
+    // message — those arrive via data.error below.
+    throw new Error("The coach is unavailable right now — try again in a moment.");
   }
   if (data?.error) throw new Error(data.error);
   return data;
