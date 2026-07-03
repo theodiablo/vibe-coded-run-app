@@ -7,7 +7,9 @@ import { supabase } from "./supabase";
 import { flushNow } from "./db";
 
 async function invoke(body) {
-  await flushNow();
+  // confirm reads from agent_rounds (not app_state), so no flush needed —
+  // and a flush failure must not block confirming an already-proposed plan.
+  if (body.action !== "confirm") await flushNow();
   const { data, error } = await supabase.functions.invoke("coach-agent", { body });
   if (error) {
     // FunctionsHttpError carries the response; surface the server's message

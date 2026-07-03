@@ -3,8 +3,8 @@
 // change ids). Returns [{ weekNumber, changes: [string] }] in week order.
 
 const short = (ymd) => {
-  const d = new Date(ymd + "T00:00:00");
-  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  const d = new Date(ymd + "T12:00:00");
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 };
 
 export function diffPlans(oldPlan, newPlan) {

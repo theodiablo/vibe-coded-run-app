@@ -47,12 +47,15 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
         setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId);
         setMsgs(m => [...m, { role: "coach", text: res.rationale }]);
       } else {
-        setTrajectoryId(res.trajectoryId);
         if (!res.changed) {
+          // Server supersedes the previous proposal even on changed:false — there
+          // is nothing valid to confirm, so clear trajectoryId to hide Apply.
+          setTrajectoryId(null);
           setMsgs(m => [...m, { role: "coach", text: res.rationale || "Nothing in the plan needs to change for that." }]);
         } else {
+          setTrajectoryId(res.trajectoryId);
           const diff = diffPlans(plan, res.proposedPlan);
-          setMsgs(m => [...m, { role: "coach", text: res.rationale, proposal: { plan: res.proposedPlan, diff } }]);
+          setMsgs(m => [...m, { role: "coach", text: res.rationale, proposal: { diff } }]);
         }
       }
     } catch (err) {
@@ -68,12 +71,16 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
     if (busy) return;
     setBusy(true);
     try {
-      const { plan: accepted } = await coachConfirm(trajectoryId);
-      const check = validatePlan(accepted, { baseline: plan });
+      const { plan: accepted, baseline: serverBaseline } = await coachConfirm(trajectoryId);
+      // Clear before the client check: the server already accepted the trajectory,
+      // so the Apply button must not survive a client-side validation failure
+      // (which would let a retry call coachConfirm on an already-accepted trajectory).
+      // Use the server's stored baseline so the waiver set matches what the server used.
+      setTrajectoryId(null);
+      const check = validatePlan(accepted, { baseline: serverBaseline ?? plan });
       if (!check.ok) throw new Error("The proposal no longer validates — nothing was applied.");
       onApplyPlan(accepted);
       track("coach_plan_applied");
-      setTrajectoryId(null);
       setMsgs(m => [...m, { role: "coach", text: "Done — your plan is updated. Anything else?" }]);
       showToast("Plan adjusted by your coach ✓");
     } catch (err) {
