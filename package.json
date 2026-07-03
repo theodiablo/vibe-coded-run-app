@@ -26,7 +26,9 @@
     "posthog-js": "^1.393.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "recharts": "^3.8.1"
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.8.1",
+    "remark-gfm": "^4.0.1"
   },
   "comments": {
     "overrides": "@pianissimoproject/capacitor-health-connect declares a @capacitor/core ^7 peer, but this app is on Capacitor 8 (whose Android plugin API is compatible). Override the peer so a NORMAL npm install resolves — avoiding --legacy-peer-deps, which skips ALL peer auto-installs and silently drops recharts' react-is peer, breaking the build."

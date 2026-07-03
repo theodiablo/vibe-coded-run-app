@@ -1,9 +1,40 @@
 import { useState, useRef, useEffect } from "react";
 import { Loader, MessageCircle, Send, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { coachPropose, coachCritique, coachConfirm } from "../coach";
 import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
 import { track } from "../telemetry";
+
+// The model replies in markdown (headers, bold, tables); rendered via
+// react-markdown rather than a dangerouslySetInnerHTML + sanitizer pair —
+// it emits real React elements, so there's no HTML string to sanitize.
+// Component overrides keep every element inside the narrow chat bubble's
+// dark slate / orange-500 palette instead of react-markdown's default
+// (unstyled, full-size) tags.
+const MD_COMPONENTS = {
+  h1: (p) => <p className="text-sm font-bold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
+  h2: (p) => <p className="text-sm font-bold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
+  h3: (p) => <p className="text-sm font-semibold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
+  p: (p) => <p className="mb-2 last:mb-0 leading-relaxed" {...p}/>,
+  strong: (p) => <strong className="font-semibold text-slate-100" {...p}/>,
+  ul: (p) => <ul className="list-disc pl-4 mb-2 space-y-0.5 last:mb-0" {...p}/>,
+  ol: (p) => <ol className="list-decimal pl-4 mb-2 space-y-0.5 last:mb-0" {...p}/>,
+  li: (p) => <li className="leading-relaxed" {...p}/>,
+  a: (p) => <a className="text-orange-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer" {...p}/>,
+  code: (p) => <code className="bg-slate-900/60 px-1 py-0.5 rounded text-orange-300 text-xs font-mono" {...p}/>,
+  pre: (p) => <pre className="bg-slate-900/60 rounded-lg p-2 overflow-x-auto text-xs font-mono mb-2 last:mb-0" {...p}/>,
+  blockquote: (p) => <blockquote className="border-l-2 border-slate-600 pl-2 italic text-slate-400 mb-2 last:mb-0" {...p}/>,
+  hr: () => <hr className="border-slate-700 my-2"/>,
+  table: (p) => <div className="overflow-x-auto mb-2 last:mb-0"><table className="w-full text-xs border-collapse" {...p}/></div>,
+  th: (p) => <th className="border border-slate-700 px-2 py-1 text-left font-semibold bg-slate-800/60" {...p}/>,
+  td: (p) => <td className="border border-slate-700 px-2 py-1 align-top" {...p}/>,
+};
+
+const CoachText = ({ text }) => (
+  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{text}</ReactMarkdown>
+);
 
 // Full-screen coach chat (propose-and-confirm). The user describes what
 // happened ("my knee hurts", "I missed the whole week"); the agent proposes a
@@ -103,9 +134,11 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
       <div className="flex-1 overflow-y-auto p-4 space-y-3 max-w-lg w-full mx-auto">
         {msgs.map((m, i) => (
           <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-            <div className={"rounded-2xl px-3.5 py-2.5 text-sm max-w-[85%] whitespace-pre-wrap " +
-              (m.role === "user" ? "bg-orange-500/20 border border-orange-500/30" : "bg-slate-800 border border-slate-700")}>
-              {m.text}
+            <div className={"rounded-2xl px-3.5 py-2.5 text-sm max-w-[85%] " +
+              (m.role === "user"
+                ? "whitespace-pre-wrap bg-orange-500/20 border border-orange-500/30"
+                : "bg-slate-800 border border-slate-700")}>
+              {m.role === "user" ? m.text : <CoachText text={m.text}/>}
               {m.proposal && (
                 <div className="mt-3 pt-3 border-t border-slate-700 space-y-2">
                   {m.proposal.diff.map(w => (
