@@ -206,7 +206,10 @@ export default function RunningCoach({ onSignOut }) {
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState !== "visible") return;
-      flushPendingHr(runsRef.current, patchRunHr, { enabled: settingsRef.current.hrMethod === "healthconnect" }).catch(() => {});
+      flushPendingHr(runsRef.current, patchRunHr, {
+        enabled: settingsRef.current.hrMethod === "healthconnect",
+        allowNativeRead: hasHealthConnectAuthorization(),
+      }).catch(() => {});
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);

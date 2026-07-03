@@ -178,6 +178,7 @@ export function useRunTracker({ hrMethod } = {}) {
     const src = getHrSource(hrMethod);
     if (!src || !src.live) return;  // off / web / post-run source → nothing to stream
     const device = getPairedDevice();
+    if (!device?.id) return;
     hrWatchRef.current = src.watch(onHrSample, () => { /* non-fatal; run continues */ },
       { deviceId: device?.id });
   }, [hrMethod, onHrSample]);

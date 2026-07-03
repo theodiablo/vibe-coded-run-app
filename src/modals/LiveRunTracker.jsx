@@ -5,6 +5,8 @@ import { simplify } from "../utils/geo";
 import { saveRoute, queuePendingRoute } from "../routes";
 import { useRunTracker } from "../hooks/useRunTracker";
 import { getHrSource } from "../hr/source";
+import { getPairedDevice } from "../hr/device";
+import { hasHealthConnectAuthorization } from "../hr/healthconnect";
 import { RouteMap } from "../components/RouteMap";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
 import { BetaBadge } from "../components/BetaBadge";
@@ -32,21 +34,50 @@ function Ctrl({ onClick, color, children, disabled }) {
 }
 
 export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOut, onConfigureHr, onDeclineHr }) {
-  const t = useRunTracker({ hrMethod });
+  const pairedHrDevice = getPairedDevice();
+  const healthConnectAuthorized = hasHealthConnectAuthorization();
+  const hrReady = !isNative
+    || (hrMethod || "off") === "off"
+    || (hrMethod === "bluetooth" && !!pairedHrDevice)
+    || (hrMethod === "healthconnect" && healthConnectAuthorized);
+  const effectiveHrMethod = hrReady ? hrMethod : "off";
+  const t = useRunTracker({ hrMethod: effectiveHrMethod });
   const { state, points, stats, error, pending, location } = t;
   const [busy, setBusy] = useState(false);
   // Resolve the HR source once per render from the seam (source.js), instead of
   // matching method-id strings all over this file — null off web/"off"/unknown,
   // otherwise carries the `live` flag every branch below dispatches on.
-  const hrSrc = getHrSource(hrMethod);
+  const hrSrc = getHrSource(effectiveHrMethod);
   // Live HR streams only from a `live` (Bluetooth) source; a post-run source
   // (Health Connect) is fetched in handleSave instead, so no live tile for it.
   const liveHr = !!hrSrc?.live;
-  // Nudge to set up a heart-rate source, offered when the user taps Start while
-  // HR is off and they haven't expressly declined (settings.hrOptOut). "Not now"
-  // dismisses just this run (it reappears next run); "Don't record" sets the
-  // opt-out. Never blocks Start — see guardedStart/maybeShowHrNudge below.
+  // Nudge to set up / re-authorize a heart-rate source, offered when the user taps
+  // Start while HR is off or the synced method is not ready on this device. "Not
+  // now" dismisses just this run; "Don't record" sets the opt-out only for the
+  // generic off-state prompt. Never blocks Start — see guardedStart/maybeShowHrNudge.
   const [showHrNudge, setShowHrNudge] = useState(false);
+  const hrNudge = (() => {
+    if (!isNative) return null;
+    if (hrMethod === "healthconnect" && !healthConnectAuthorized) return {
+      title: "Authorize Health Connect?",
+      body: "Health Connect is selected, but this phone has not granted access yet. Authorize it in Settings to add heart rate after runs.",
+      acceptLabel: "Open Settings",
+      allowOptOut: false,
+    };
+    if (hrMethod === "bluetooth" && !pairedHrDevice) return {
+      title: "Pair your heart-rate sensor?",
+      body: "Bluetooth heart-rate capture is selected, but no sensor is paired on this phone. Pair one in Settings to record live BPM.",
+      acceptLabel: "Pair sensor",
+      allowOptOut: false,
+    };
+    if ((hrMethod || "off") === "off" && !hrOptOut) return {
+      title: "Track your heart rate?",
+      body: "Connect a Bluetooth sensor or Health Connect to capture heart rate automatically — no need to type it in. You can set this up later in Settings.",
+      acceptLabel: "Set up",
+      allowOptOut: true,
+    };
+    return null;
+  })();
   const disclosed = () => {
     try { return localStorage.getItem(BG_LOC_DISCLOSED_KEY) === "1"; } catch { return false; }
   };
@@ -69,7 +100,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   // disclosure does. Returns whether the nudge took over (caller must not also
   // call fn in that case).
   const maybeShowHrNudge = (fn) => {
-    if (isNative && (hrMethod || "off") === "off" && !hrOptOut) {
+    if (hrNudge) {
       pendingStartRef.current = fn;
       setShowHrNudge(true);
       return true;
@@ -155,7 +186,8 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     // Connect) is queried now over the run's time window; if it isn't synced yet,
     // stamp hrPending so RunningCoach relinks on next load. Branching on hrSrc
     // (not a hard-coded method id) means a future post-run source needs no edits
-    // here — and hrSrc is already null on web, so this can't fire there.
+    // here — and hrSrc is already null on web or when the synced method is not
+    // ready on this device, so this can't fire without local authorization/pairing.
     let hr = null, hrMax = null, hrPending = null;
     if (stats.hrAvg != null) { hr = stats.hrAvg; hrMax = stats.hrMax; }
     else if (hrSrc && !hrSrc.live) {
@@ -299,24 +331,25 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           <div className="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 p-4 space-y-3">
             <div className="flex items-center gap-2">
               <HeartPulse size={16} className="text-orange-400" />
-              <p className="font-semibold text-sm">Track your heart rate?</p>
+              <p className="font-semibold text-sm">{hrNudge?.title || "Track your heart rate?"}</p>
               <BetaBadge label="New beta" />
             </div>
             <p className="text-sm text-slate-300">
-              Connect a Bluetooth sensor or Health Connect to capture heart rate
-              automatically — no need to type it in. You can set this up later in Settings.
+              {hrNudge?.body || "Connect a Bluetooth sensor or Health Connect to capture heart rate automatically — no need to type it in. You can set this up later in Settings."}
             </p>
             <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-100">
               This capture feature is new and can break. Please check saved readings
               before using them for training decisions.
             </p>
-            <ConfirmButtons cancelLabel="Not now" acceptLabel="Set up"
+            <ConfirmButtons cancelLabel="Not now" acceptLabel={hrNudge?.acceptLabel || "Set up"}
               onCancel={() => dismissHrNudge(true)}
               onAccept={() => { dismissHrNudge(false); onConfigureHr?.(); }} />
-            <button onClick={() => { dismissHrNudge(true); onDeclineHr?.(); }}
-              className="w-full text-center text-xs text-slate-500 hover:text-slate-300">
-              Don&apos;t record heart rate
-            </button>
+            {hrNudge?.allowOptOut && (
+              <button onClick={() => { dismissHrNudge(true); onDeclineHr?.(); }}
+                className="w-full text-center text-xs text-slate-500 hover:text-slate-300">
+                Don&apos;t record heart rate
+              </button>
+            )}
           </div>
         </ModalOverlay>
       )}

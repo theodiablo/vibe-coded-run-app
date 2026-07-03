@@ -222,6 +222,11 @@ and delete anything that becomes stale.
   (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
   `{id,name}` is **per-device localStorage** (`src/hr/device.js`, `HR_DEVICE_KEY`) —
   like the consent / bg-disclosure flags — because Bluetooth bonding is per-phone.
+  Treat the synced method as a preference only: before using it, derive local
+  readiness from the per-device state (`getPairedDevice()` for Bluetooth,
+  `hasHealthConnectAuthorization()` for Health Connect). `LiveRunTracker` uses an
+  effective method (`"off"` when the selected source is not ready here) and prompts
+  the user to pair/authorize in Settings before Start, without blocking the run.
   Config UI is `HrSensor` (`src/views/HrSensor.jsx`), nested in Settings → Profile,
   native-only. BLE pairing reuses the disclosure→OS-prompt pattern
   (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable nudge (in
