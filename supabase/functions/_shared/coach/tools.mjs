@@ -127,7 +127,7 @@ const paceFor = (plan, type) => {
   return null;
 };
 const fmtPace = (sec) => {
-  if (!sec) return "";
+  if (!sec) return "--:--";
   const m = Math.floor(sec / 60), s = sec % 60;
   return m + ":" + String(s).padStart(2, "0");
 };

@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       await admin.from("agent_rounds").update({ outcome: "accepted" }).eq("id", round.id);
       await admin.from("agent_trajectories")
         .update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", trajectoryId);
-      return json({ plan: round.proposed_plan });
+      return json({ plan: round.proposed_plan, baseline: round.input_context?.plan });
     }
 
     // ── propose / critique: model-calling rounds ─────────────────────────────
@@ -169,16 +169,16 @@ Deno.serve(async (req) => {
         .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
       if (!traj) return json({ error: "trajectory not found" }, 404);
       if (traj.status !== "open") return json({ error: `trajectory is ${traj.status}` }, 409);
-      // input_context is only needed for round 0 (it anchors the report), but
-      // selecting it once here avoids a second round-trip just to re-fetch it.
       const { data: rounds, error } = await admin.from("agent_rounds")
-        .select("round_index, user_feedback, rationale, tool_calls, input_context")
+        .select("round_index, user_feedback, rationale, tool_calls")
         .eq("trajectory_id", trajectoryId).order("round_index", { ascending: true });
       if (error) throw error;
       history = rounds ?? [];
       roundIndex = history.length;
-      // Round 0's report anchors the conversation for the rebuilt messages.
-      report = history.find(r => r.round_index === 0)?.input_context?.report ?? message;
+      // Round 0's report anchors the conversation; fetch only that row's input_context.
+      const { data: r0 } = await admin.from("agent_rounds")
+        .select("input_context").eq("trajectory_id", trajectoryId).eq("round_index", 0).maybeSingle();
+      report = r0?.input_context?.report ?? message;
     }
 
     // Single goal shape for every consumer (buildMessages' prompt text AND
