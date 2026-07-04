@@ -36,6 +36,15 @@ const CoachText = ({ text }) => (
   <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{text}</ReactMarkdown>
 );
 
+// Tappable starter prompts for the empty chat — teach what the coach can do and
+// lower the blank-page barrier. Each just seeds `send` with the phrase.
+const COACH_EXAMPLES = [
+  "My knee hurts after yesterday's run",
+  "I missed last week",
+  "Move my long run to Sunday",
+  "This week feels too hard",
+];
+
 // Full-screen coach chat (propose-and-confirm). The user describes what
 // happened ("my knee hurts", "I missed the whole week"); the agent proposes a
 // validated adjustment to the plan; the user Accepts it or steers with a
@@ -61,8 +70,10 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
   let lastProposalIndex = -1;
   for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].proposal) { lastProposalIndex = i; break; }
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (preset) => {
+    // `preset` comes from an example chip; a bare click/keydown passes an event,
+    // so only treat a real string as an override and otherwise read the input.
+    const text = (typeof preset === "string" ? preset : input).trim();
     if (!text || busy) return;
     setInput("");
     setMsgs(m => [...m, { role: "user", text }]);
@@ -158,6 +169,16 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
             </div>
           </div>
         ))}
+        {msgs.length === 1 && !busy && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {COACH_EXAMPLES.map(ex => (
+              <button key={ex} onClick={() => send(ex)}
+                className="text-xs text-slate-300 bg-slate-800 border border-slate-700 hover:border-orange-400/60 hover:text-white rounded-full px-3 py-1.5 transition-colors">
+                {ex}
+              </button>
+            ))}
+          </div>
+        )}
         {busy && <div className="flex items-center gap-2 text-slate-400 text-xs"><Loader size={14} className="animate-spin"/>Coach is thinking…</div>}
         <div ref={endRef}/>
       </div>

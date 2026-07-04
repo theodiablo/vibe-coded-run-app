@@ -1,11 +1,11 @@
-import { Activity, Award, Check, ChevronRight, Plus, X, Zap } from "lucide-react";
+import { Activity, Award, Check, ChevronRight, MessageCircle, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
 import { computeBadges, nextBadge } from "../utils/badges";
 import { HRTarget } from "../components/HRTarget";
 import { RunRow } from "../components/RunRow";
 
-export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings}) {
+export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach}) {
   const nb = nextBadge(computeBadges(runs, races?.participations || []));
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
@@ -31,7 +31,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
   const statCards = [
     {l:"This week",  v:wkKm.toFixed(1)+" km",  c:"text-orange-400",  I:Zap},
     {l:"Runs recorded", v:String(runs.length),    c:"text-sky-400",     I:Activity},
-    {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Award},
+    {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Route},
   ];
 
   return (
@@ -115,13 +115,18 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
             {nextIsToday ? "Today's session" : "Up next"}
           </p>
           <div className={"border-2 rounded-2xl p-4 " + (TBG[nextSess.type] || TBG.OTHER)}>
-            <span className={"text-xs font-bold uppercase tracking-wide " + (TCLR[nextSess.type] || TCLR.OTHER)}>
-              {nextSess.type}
-            </span>
-            <p className="text-white text-base font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
-            <p className="text-slate-400 text-xs mt-2">
-              {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
-            </p>
+            <button onClick={() => goTab("plan")} className="w-full text-left group" title="View in your plan">
+              <div className="flex items-start justify-between gap-2">
+                <span className={"text-xs font-bold uppercase tracking-wide " + (TCLR[nextSess.type] || TCLR.OTHER)}>
+                  {nextSess.type}
+                </span>
+                <ChevronRight size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0 mt-0.5"/>
+              </div>
+              <p className="text-white text-base font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
+              <p className="text-slate-400 text-xs mt-2">
+                {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
+              </p>
+            </button>
             <HRTarget type={nextSess.type} settings={settings} openSettings={openSettings}/>
             <div className="flex gap-2 mt-3">
               <button
@@ -154,6 +159,20 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
         </div>
       ) : (
         <div className="bg-slate-800 rounded-xl p-4 text-center text-slate-400 text-sm">All upcoming sessions done!</div>
+      )}
+
+      {plan && (
+        <button onClick={openCoach}
+          className="w-full bg-slate-800 rounded-xl p-3.5 flex items-center gap-3 text-left hover:bg-slate-700/70 transition-colors">
+          <div className="w-9 h-9 rounded-full bg-orange-500/15 flex items-center justify-center flex-shrink-0">
+            <MessageCircle size={18} className="text-orange-400"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">Adjust your plan with your coach</p>
+            <p className="text-xs text-slate-400">Niggle, missed week, or a schedule clash? Ask for a tweak.</p>
+          </div>
+          <ChevronRight size={16} className="text-slate-600 flex-shrink-0"/>
+        </button>
       )}
 
       {runs.length > 0 && (

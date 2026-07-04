@@ -8,15 +8,6 @@ import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
 
-// Plain-language meaning of each training phase, shown in the legend.
-const PHASE_DESC = {
-  BASE:  "Build aerobic base",
-  BUILD: "Add intensity",
-  PEAK:  "Sharpen & peak",
-  TAPER: "Rest & freshen up",
-  RACE:  "Race week",
-};
-
 export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, openCoach, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
@@ -164,8 +155,6 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     const e = new Date(s); e.setDate(s.getDate() + 7);
     return today >= s && today < e;
   });
-  // Distinct phases in schedule order, for the legend.
-  const phases = [...new Set(plan.weeks.map(w => w.phase))];
   const ps   = plan.planSessions || settings.planSessions || [];
   const sessInfo = ps.slice()
     .sort((a, b) => a.dayOffset - b.dayOffset)
@@ -189,10 +178,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mt-4 mb-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold">Training Plan</h2>
-          <PlanInfo/>
-        </div>
+        <h2 className="text-xl font-bold">Training Plan</h2>
         {!promoting && (
           <div className="flex gap-1 items-center">
             {confirmRegen ? (
@@ -239,17 +225,9 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <span>{(plan.distanceKm || 20) + "km" + (plan.raceElevation > 0 ? " · +" + Math.round(plan.raceElevation) + "m" : "") + " · sub " + fmt.dur(plan.goalSec)}</span>
           <span>{"Race: " + fmt.sht(plan.raceDate)}</span>
         </div>
-        {phases.length > 1 && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-slate-700/50">
-            {phases.map(ph => (
-              <span key={ph} className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span className={"w-2 h-2 rounded-full " + phaseClass(ph).split(" ")[0].replace("/15", "")}/>
-                <span className="font-semibold">{ph}</span>
-                <span className="text-slate-500">{PHASE_DESC[ph] || ""}</span>
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-end">
+          <PlanInfo/>
+        </div>
       </div>
 
       {nowIdx >= 0 && (

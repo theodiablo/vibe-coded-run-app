@@ -89,10 +89,15 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
       {csvMsg && <div className={msgCls}>{csvMsg}</div>}
 
       {openTracker && !prefill?.source && (
-        <button onClick={openTracker}
-          className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors mb-5">
-          <MapPin size={16}/>Track a run live (GPS)
-        </button>
+        <>
+          <button onClick={openTracker}
+            className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors mb-4">
+            <MapPin size={16}/>Track a run live (GPS)
+          </button>
+          <div className="flex items-center gap-3 mb-5 text-xs uppercase tracking-widest text-slate-500">
+            <div className="h-px flex-1 bg-slate-700"/>or enter manually<div className="h-px flex-1 bg-slate-700"/>
+          </div>
+        </>
       )}
 
       {prefill?.source === "gps" && (
@@ -127,7 +132,7 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
           </div>
         </div>
         <div><label className={LABEL_CLS}>Distance (km)</label>
-          <input type="number" step="0.01" min="0" placeholder="8.5" value={f.km}
+          <input type="number" step="0.01" min="0" placeholder="e.g. 8.5" value={f.km}
             onChange={e => set("km", e.target.value)} className={INPUT_CLS}/></div>
         <div><label className={LABEL_CLS}>Duration</label>
           <div className="grid grid-cols-3 gap-2">
@@ -138,11 +143,11 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
         </div>
         <div className="grid grid-cols-3 gap-2">
           <div><label className={LABEL_CLS}>Avg HR</label>
-            <input type="number" placeholder="145" value={f.hr} onChange={e => set("hr", e.target.value)} className={INPUT_CLS}/></div>
+            <input type="number" placeholder="e.g. 145" value={f.hr} onChange={e => set("hr", e.target.value)} className={INPUT_CLS}/></div>
           <div><label className={LABEL_CLS}>Max HR</label>
-            <input type="number" placeholder="170" value={f.hrMax} onChange={e => set("hrMax", e.target.value)} className={INPUT_CLS}/></div>
+            <input type="number" placeholder="e.g. 170" value={f.hrMax} onChange={e => set("hrMax", e.target.value)} className={INPUT_CLS}/></div>
           <div><label className={LABEL_CLS}>Elev (m)</label>
-            <input type="number" placeholder="80" value={f.elev} onChange={e => set("elev", e.target.value)} className={INPUT_CLS}/></div>
+            <input type="number" placeholder="e.g. 80" value={f.elev} onChange={e => set("elev", e.target.value)} className={INPUT_CLS}/></div>
         </div>
         {prefill?.hrPending && !f.hr && (
           <p className="text-xs text-slate-400 flex items-start gap-1.5">

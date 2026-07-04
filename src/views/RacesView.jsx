@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo } from "react";
-import { Search, Star, Flag, Target, ExternalLink, X, Check, Plus, Trophy, ChevronRight, MapPin, Navigation, AlertTriangle, Loader } from "lucide-react";
+import { useState } from "react";
+import { Search, Star, Flag, Target, ExternalLink, X, Check, Plus, Trophy, ChevronRight, Navigation, AlertTriangle, Loader } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
 import { fmt, ymd } from "../utils/format";
@@ -9,8 +9,8 @@ import { haversineM } from "../utils/geo";
 import { geoSource } from "../geo/source";
 import { reportRace } from "../races";
 
-const SEGMENTS = [["mine", "My Races"], ["discover", "Discover"], ["browse", "Browse"]];
-// Discover filter chips: distance bands (km) and search radius (km).
+const SEGMENTS = [["mine", "My Races"], ["find", "Find a race"]];
+// Find-a-race filter chips: event distance bands (km) and "near me" radius (km).
 const BANDS = [5, 10, 21.1, 42.2];
 const RADII = [25, 50, 100, 500];
 
@@ -36,22 +36,13 @@ function UnverifiedTag() {
 
 export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceInPlan, addRuns, showToast, catalogue, openRaceForm }) {
   const [seg, setSeg] = useState("mine");
-  const [query, setQuery] = useState("");
   const [logFor, setLogFor] = useState(null); // editionId being logged
-  const [expanded, setExpanded] = useState(null); // raceId expanded in Browse
-  const [reportFor, setReportFor] = useState(null); // raceId being reported
-  const discoverTracked = useRef(false);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = ymd(today);
   const parts = races?.participations || [];
   const byId = Object.fromEntries(parts.map(p => [p.editionId, p]));
   const cat = catalogue || [];
-
-  const goSeg = id => {
-    setSeg(id);
-    if (id === "discover" && !discoverTracked.current) { discoverTracked.current = true; track("discover_opened"); }
-  };
 
   // ── persistence ───────────────────────────────────────────────────────────
   const writeParts = next => saveRaces({ ...(races || {}), participations: next });
@@ -107,7 +98,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
 
       <div className="flex bg-slate-800 rounded-xl p-1 gap-1 mb-5">
         {SEGMENTS.map(([id, label]) => (
-          <button key={id} onClick={() => goSeg(id)}
+          <button key={id} onClick={() => setSeg(id)}
             className={"flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors " +
               (seg === id ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200")}>
             {label}
@@ -121,7 +112,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
             <div className="bg-slate-800 rounded-2xl p-6 text-center space-y-3">
               <Trophy size={32} className="mx-auto text-slate-700"/>
               <p className="text-sm text-slate-400">No races yet — pick a goal to chase.</p>
-              <button onClick={() => goSeg("browse")}
+              <button onClick={() => setSeg("find")}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 Add your first goal race
               </button>
@@ -145,7 +136,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                     style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
                     <div className="flex justify-between items-start gap-3">
                       <div className="min-w-0">
-                        <p className="font-semibold truncate">{p.label}</p>
+                        <p className="font-semibold line-clamp-2 leading-snug">{p.label}</p>
                         <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
                         {isTarget && <span className="inline-flex items-center gap-1 text-xs text-orange-300 mt-1.5 font-semibold"><Target size={12}/>Training target</span>}
                         {inPlannable && p.inPlan && <span className="inline-flex items-center gap-1 text-xs text-orange-300/80 mt-1.5 font-semibold"><Check size={12}/>In your plan</span>}
@@ -217,7 +208,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                 <div key={p.editionId} className="bg-slate-800 rounded-xl p-4">
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{p.label}</p>
+                      <p className="font-semibold line-clamp-2 leading-snug">{p.label}</p>
                       <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
                       {p.notes && <p className="text-slate-400 text-xs mt-1 truncate">{p.notes}</p>}
                     </div>
@@ -235,216 +226,219 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
         </div>
       )}
 
-      {seg === "discover" && (
-        <DiscoverPanel catalogue={cat} byId={byId} addWishlist={addWishlist}
-          logFor={logFor} setLogFor={setLogFor} saveResult={saveResult}/>
-      )}
-
-      {seg === "browse" && (
-        <div>
-          <div className="relative mb-4">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
-              className={INPUT_CLS + " pl-9"}/>
-          </div>
-          {!cat.length && (
-            <div className="bg-slate-800 rounded-2xl p-6 text-center text-sm text-slate-400">
-              The race catalogue couldn't be loaded right now. Your own races are still listed under My Races.
-            </div>
-          )}
-          <div className="space-y-2">
-            {filterRaces(cat, query).map(race => {
-              const open = expanded === race.id;
-              return (
-                <div key={race.id} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                  <button onClick={() => setExpanded(open ? null : race.id)} className="w-full px-4 py-3 flex items-center gap-2 text-left">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{race.name}</p>
-                      <p className="text-slate-400 text-xs">{[race.city, race.country].filter(Boolean).join(", ") + " · " + (race.distances || []).join("/") + " km"}</p>
-                    </div>
-                    {!race.verified && <AlertTriangle size={13} className="text-amber-400 flex-shrink-0"/>}
-                    <ChevronRight size={16} className={"text-slate-600 transition-transform flex-shrink-0 " + (open ? "rotate-90" : "")}/>
-                  </button>
-                  {open && (
-                    <div className="border-t border-slate-700/50 px-4 py-3 space-y-3">
-                      {!race.verified && <UnverifiedTag/>}
-                      {race.url && (
-                        <a href={race.url} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300">
-                          Official site<ExternalLink size={11}/>
-                        </a>
-                      )}
-                      <p className="text-[11px] text-slate-500">Dates are user-submitted — always verify on the official site before planning.</p>
-                      {race.editions.map(e => {
-                        const joined = { ...race, editions: undefined, raceId: race.id, edition: e };
-                        const part = byId[e.id];
-                        return (
-                          <div key={e.id} className="flex items-center gap-2 border-t border-slate-700/30 pt-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm">{fmt.date(e.date)}</p>
-                              <p className="text-xs text-slate-500">{e.distanceKm + " km" + (e.elevation ? " · +" + e.elevation + "m" : "")}</p>
-                            </div>
-                            {part ? (
-                              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1 px-2">
-                                <Check size={13}/>{part.status === "done" ? "Done" : "On your list"}
-                              </span>
-                            ) : (
-                              <>
-                                <button onClick={() => addWishlist(joined)}
-                                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors">
-                                  <Star size={12}/>Wishlist
-                                </button>
-                                <button onClick={() => setLogFor(e.id)}
-                                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600 transition-colors">
-                                  <Flag size={12}/>Done
-                                </button>
-                              </>
-                            )}
-                            {logFor === e.id && <div className="w-full"><ResultForm joined={joined} onSave={saveResult} onCancel={() => setLogFor(null)}/></div>}
-                          </div>
-                        );
-                      })}
-                      <div className="border-t border-slate-700/30 pt-3">
-                        {reportFor === race.id ? (
-                          <ReportForm onSubmit={(reason, note) => {
-                            reportRace({ raceSlug: race.slug || race.id, reason, note }).catch(() => {});
-                            setReportFor(null);
-                            showToast("Thanks — reported for review.");
-                          }} onCancel={() => setReportFor(null)}/>
-                        ) : (
-                          <button onClick={() => setReportFor(race.id)}
-                            className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-red-400 transition-colors">
-                            <AlertTriangle size={11}/>Report this race
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-6">
-            <AddRaceCard onClick={openRaceForm} subtitle="Add it — instantly visible to everyone.">
-              <p className="text-slate-500 text-[11px] px-1">
-                Races are user-submitted and tagged unverified until a maintainer reviews them.
-              </p>
-            </AddRaceCard>
-          </div>
-        </div>
+      {seg === "find" && (
+        <FindPanel catalogue={cat} byId={byId} addWishlist={addWishlist}
+          logFor={logFor} setLogFor={setLogFor} saveResult={saveResult}
+          showToast={showToast} openRaceForm={openRaceForm}/>
       )}
     </div>
   );
 }
 
-// ── Discover (races near me) ─────────────────────────────────────────────────
-function DiscoverPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult }) {
+// ── Find a race (text search + optional "near me" sort) ──────────────────────
+// One catalogue list, grouped by race. Text search + event-distance bands
+// always apply; the "Near me" toggle layers on a one-off geolocation sort
+// (distance shown as "X km away"). Races without coordinates fall into a
+// "Location unknown" bucket while Near me is on rather than disappearing.
+function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult, showToast, openRaceForm }) {
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState(null); // raceId expanded
+  const [reportFor, setReportFor] = useState(null); // raceId being reported
+  const [band, setBand] = useState(null);          // event distance band (km) or null
+  const [nearMe, setNearMe] = useState(false);
+  const [radius, setRadius] = useState(100);        // km
   const [loc, setLoc] = useState(null);
-  const [status, setStatus] = useState("idle"); // idle | locating | denied | ok
-  const [band, setBand] = useState(null);       // selected distance band (km) or null
-  const [radius, setRadius] = useState(100);     // km
+  const [status, setStatus] = useState("idle");     // idle | locating | denied
 
-  const findNearby = async () => {
+  const toggleNearMe = async () => {
+    if (nearMe) { setNearMe(false); return; }
+    if (loc) { setNearMe(true); return; }           // reuse an earlier fix
     setStatus("locating");
     try {
       const p = await geoSource.getCurrentPosition();
-      setLoc(p); setStatus("ok");
+      setLoc(p); setNearMe(true); setStatus("idle");
+      track("find_near_me");
     } catch {
       setStatus("denied");
     }
   };
 
-  // Flatten the catalogue to (race, edition) entries that carry coordinates,
-  // tag each with its distance from the user, then filter + sort.
-  const nearby = useMemo(() => {
-    if (!loc) return [];
-    const out = [];
-    for (const race of catalogue) {
-      if (race.lat == null || race.lng == null) continue;
+  // Text + band narrow the catalogue; a race passes the band if any of its
+  // editions falls in it.
+  const matchesBand = race => band == null || (race.editions || []).some(e => Math.abs(e.distanceKm - band) <= band * 0.12);
+  const base = filterRaces(catalogue, query).filter(matchesBand);
+
+  // With Near me on, split into distance-sorted (within radius) + a
+  // location-unknown bucket; races with coordinates beyond the radius drop out.
+  let located, unlocated = [];
+  if (nearMe && loc) {
+    const withCoord = [];
+    for (const race of base) {
+      if (race.lat == null || race.lng == null) { unlocated.push(race); continue; }
       const distM = haversineM(loc, { lat: race.lat, lng: race.lng });
       if (distM > radius * 1000) continue;
-      for (const e of race.editions || []) {
-        if (band != null && Math.abs(e.distanceKm - band) > band * 0.12) continue;
-        out.push({ race, edition: e, distM });
-      }
+      withCoord.push({ race, distM });
     }
-    return out.sort((a, b) => a.distM - b.distM);
-  }, [catalogue, loc, band, radius]);
-
-  if (status !== "ok") {
-    return (
-      <div className="bg-slate-800 rounded-2xl p-6 text-center space-y-3">
-        <MapPin size={32} className="mx-auto text-slate-700"/>
-        <p className="text-sm text-slate-400">Find races near you. We'll use your location once to sort the catalogue by distance — it's never stored or shared.</p>
-        {status === "denied" && <p className="text-xs text-red-400">Location unavailable or denied. You can still Browse the full catalogue.</p>}
-        <button onClick={findNearby} disabled={status === "locating"}
-          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60">
-          {status === "locating" ? <Loader size={15} className="animate-spin"/> : <Navigation size={15}/>}
-          Find races near me
-        </button>
-      </div>
-    );
+    withCoord.sort((a, b) => a.distM - b.distM);
+    located = withCoord;
+  } else {
+    located = base.map(race => ({ race, distM: null }));
   }
+
+  const cardProps = { byId, addWishlist, logFor, setLogFor, saveResult, reportFor, setReportFor, showToast };
+  const nothing = located.length === 0 && unlocated.length === 0;
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
+            className={INPUT_CLS + " pl-9"}/>
+        </div>
+        <div className="flex gap-1.5 flex-wrap items-center">
+          <span className="text-[11px] text-slate-500 mr-1">Distance</span>
           <Chip active={band == null} onClick={() => setBand(null)}>All</Chip>
           {BANDS.map(b => <Chip key={b} active={band === b} onClick={() => setBand(band === b ? null : b)}>{b} km</Chip>)}
         </div>
         <div className="flex gap-1.5 flex-wrap items-center">
-          <span className="text-[11px] text-slate-500 mr-1">Within</span>
-          {RADII.map(r => <Chip key={r} active={radius === r} onClick={() => setRadius(r)}>{r} km</Chip>)}
+          <button onClick={toggleNearMe} disabled={status === "locating"}
+            className={"inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors border disabled:opacity-60 " +
+              (nearMe ? "bg-orange-500 text-white border-orange-500" : "bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500")}>
+            {status === "locating" ? <Loader size={13} className="animate-spin"/> : <Navigation size={13}/>}
+            Near me
+          </button>
+          {nearMe && <span className="text-[11px] text-slate-500 mx-1">within</span>}
+          {nearMe && RADII.map(r => <Chip key={r} active={radius === r} onClick={() => setRadius(r)}>{r} km</Chip>)}
         </div>
+        {status === "denied" && (
+          <p className="text-xs text-red-400">Location unavailable or denied — showing all races by name.</p>
+        )}
       </div>
 
-      {!nearby.length ? (
+      {!catalogue.length ? (
         <div className="bg-slate-800 rounded-2xl p-6 text-center text-sm text-slate-400">
-          No races within {radius} km{band != null ? " at " + band + " km" : ""}. Try a wider radius.
+          The race catalogue couldn't be loaded right now. Your own races are still listed under My Races.
+        </div>
+      ) : nothing ? (
+        <div className="bg-slate-800 rounded-2xl p-6 text-center text-sm text-slate-400">
+          {nearMe ? "No races within " + radius + " km. Try a wider radius or turn off Near me." : "No races match — try a different search."}
         </div>
       ) : (
-        <div className="space-y-2">
-          {nearby.map(({ race, edition: e, distM }) => {
+        <>
+          {nearMe && located.length === 0 && unlocated.length > 0 && (
+            <p className="text-xs text-slate-500">No races within {radius} km. Races without a set location are listed below.</p>
+          )}
+          <div className="space-y-2">
+            {located.map(({ race, distM }) => (
+              <RaceCard key={race.id} race={race} distM={distM}
+                open={expanded === race.id} onToggle={() => setExpanded(expanded === race.id ? null : race.id)}
+                {...cardProps}/>
+            ))}
+          </div>
+          {unlocated.length > 0 && (
+            <div>
+              <p className="text-[11px] text-slate-500 uppercase tracking-widest mt-4 mb-2">Location unknown</p>
+              <div className="space-y-2">
+                {unlocated.map(race => (
+                  <RaceCard key={race.id} race={race} distM={null}
+                    open={expanded === race.id} onToggle={() => setExpanded(expanded === race.id ? null : race.id)}
+                    {...cardProps}/>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="mt-6">
+        <AddRaceCard onClick={openRaceForm} subtitle="Add it — instantly visible to everyone.">
+          <p className="text-slate-500 text-[11px] px-1">
+            Races are user-submitted and tagged unverified until a maintainer reviews them.
+          </p>
+        </AddRaceCard>
+      </div>
+    </div>
+  );
+}
+
+// A single catalogue race, grouped: collapsed header (name, place, distances,
+// optional "X km away", unverified flag) expanding to its editions, official
+// site link, and a report affordance.
+function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setLogFor, saveResult, reportFor, setReportFor, showToast }) {
+  return (
+    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <button onClick={onToggle} className="w-full px-4 py-3 flex items-center gap-2 text-left">
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold leading-snug line-clamp-2">{race.name}</p>
+          <p className="text-slate-400 text-xs">{[race.city, race.country].filter(Boolean).join(", ") + " · " + (race.distances || []).join(" km & ") + " km"}</p>
+        </div>
+        {distM != null && (
+          <div className="text-right flex-shrink-0">
+            <p className="text-sm font-bold text-orange-400 leading-none">{fmtKm(distM)}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">away</p>
+          </div>
+        )}
+        {!race.verified && (
+          <span title="Unverified — details are user-submitted, check the official site" className="flex-shrink-0">
+            <AlertTriangle size={13} className="text-amber-400"/>
+          </span>
+        )}
+        <ChevronRight size={16} className={"text-slate-600 transition-transform flex-shrink-0 " + (open ? "rotate-90" : "")}/>
+      </button>
+      {open && (
+        <div className="border-t border-slate-700/50 px-4 py-3 space-y-3">
+          {!race.verified && <UnverifiedTag/>}
+          {race.url && (
+            <a href={race.url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300">
+              Official site<ExternalLink size={11}/>
+            </a>
+          )}
+          <p className="text-[11px] text-slate-500">Dates are user-submitted — always verify on the official site before planning.</p>
+          {race.editions.map(e => {
             const joined = { ...race, editions: undefined, raceId: race.id, edition: e };
             const part = byId[e.id];
             return (
-              <div key={e.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{race.name}</p>
-                    <p className="text-slate-400 text-xs mt-0.5">{[race.city, race.country].filter(Boolean).join(", ")}</p>
-                    <p className="text-slate-400 text-xs mt-1">{fmt.date(e.date) + " · " + e.distanceKm + " km" + (e.elevation ? " · +" + e.elevation + "m" : "")}</p>
-                    {!race.verified && <div className="mt-1.5"><UnverifiedTag/></div>}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-orange-400 leading-none">{fmtKm(distM)}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">away</p>
-                  </div>
+              <div key={e.id} className="flex items-center gap-2 border-t border-slate-700/30 pt-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm">{fmt.date(e.date)}</p>
+                  <p className="text-xs text-slate-500">{e.distanceKm + " km" + (e.elevation ? " · +" + e.elevation + "m" : "")}</p>
                 </div>
-                <div className="flex gap-2 mt-3">
-                  {part ? (
-                    <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1 py-1.5">
-                      <Check size={13}/>{part.status === "done" ? "Done" : "On your list"}
-                    </span>
-                  ) : (
-                    <>
-                      <button onClick={() => addWishlist(joined)}
-                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors">
-                        <Star size={12}/>Wishlist
-                      </button>
-                      <button onClick={() => setLogFor(e.id)}
-                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600 transition-colors">
-                        <Flag size={12}/>Done
-                      </button>
-                    </>
-                  )}
-                </div>
-                {logFor === e.id && <ResultForm joined={joined} onSave={saveResult} onCancel={() => setLogFor(null)}/>}
+                {part ? (
+                  <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1 px-2">
+                    <Check size={13}/>{part.status === "done" ? "Done" : "On your list"}
+                  </span>
+                ) : (
+                  <>
+                    <button onClick={() => addWishlist(joined)}
+                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors">
+                      <Star size={12}/>Wishlist
+                    </button>
+                    <button onClick={() => setLogFor(e.id)}
+                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600 transition-colors">
+                      <Flag size={12}/>Done
+                    </button>
+                  </>
+                )}
+                {logFor === e.id && <div className="w-full"><ResultForm joined={joined} onSave={saveResult} onCancel={() => setLogFor(null)}/></div>}
               </div>
             );
           })}
+          <div className="border-t border-slate-700/30 pt-3">
+            {reportFor === race.id ? (
+              <ReportForm onSubmit={(reason, note) => {
+                reportRace({ raceSlug: race.slug || race.id, reason, note }).catch(() => {});
+                setReportFor(null);
+                showToast("Thanks — reported for review.");
+              }} onCancel={() => setReportFor(null)}/>
+            ) : (
+              <button onClick={() => setReportFor(race.id)}
+                className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-red-400 transition-colors">
+                <AlertTriangle size={11}/>Report this race
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -545,5 +539,7 @@ function filterRaces(list, query) {
 }
 function fmtKm(distM) {
   const km = distM / 1000;
+  // Right on top of it (e.g. same city centroid) reads as a broken "0.0 km".
+  if (km < 0.1) return "< 100 m";
   return km < 10 ? km.toFixed(1) + " km" : Math.round(km) + " km";
 }

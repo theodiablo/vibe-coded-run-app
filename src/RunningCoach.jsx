@@ -547,16 +547,19 @@ export default function RunningCoach({ onSignOut }) {
             <Plus size={26}/>
           </button>
         </div>
-        {TABS.slice(2).map(item => <NavBtn key={item.id} item={item} tab={tab} setTab={setTab}/>)}
+        {TABS.slice(2).map(item => (
+          <NavBtn key={item.id} item={item} tab={tab} setTab={setTab}
+            onSelect={item.id === "progress" ? () => goProgress("stats") : undefined}/>
+        ))}
       </nav>
     </div>
   );
 }
 
 // One bottom-nav destination button (the center Record action is a separate FAB).
-function NavBtn({ item, tab, setTab }) {
+function NavBtn({ item, tab, setTab, onSelect }) {
   return (
-    <button onClick={() => setTab(item.id)}
+    <button onClick={() => onSelect ? onSelect() : setTab(item.id)}
       className={"flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors " + (tab === item.id ? "text-orange-400" : "text-slate-400 hover:text-slate-200")}>
       <item.Icon size={20}/>{item.label}
     </button>

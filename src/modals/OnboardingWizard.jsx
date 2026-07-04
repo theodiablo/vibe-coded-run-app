@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, Trophy } from "lucide-react";
+import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, MessageCircle, Trophy } from "lucide-react";
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
@@ -551,6 +551,10 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                       <p className="text-xs text-slate-400">sessions / week</p>
                     </div>
                   </div>
+                </div>
+                <div className="flex items-start gap-2.5 text-left bg-slate-800/60 rounded-xl p-3">
+                  <MessageCircle size={16} className="text-orange-400 shrink-0 mt-0.5"/>
+                  <p className="text-xs text-slate-400">Life happens — a niggle, a missed week, a schedule clash. Your <span className="text-slate-200 font-medium">coach</span> can adapt this plan anytime, from Plan or Home.</p>
                 </div>
                 <button onClick={complete}
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
