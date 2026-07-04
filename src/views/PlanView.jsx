@@ -17,6 +17,18 @@ const PHASE_DESC = {
   RACE:  "Race week",
 };
 
+// Legend dot colours as full literal class names. These MUST be spelled out
+// (not derived from phaseClass at runtime) — Tailwind only emits classes it can
+// see verbatim in source, so a runtime-built `bg-sky-500` gets purged and the
+// dot vanishes. Kept in step with phaseClass / the week phase pills by hand.
+const PHASE_DOT = {
+  BASE:  "bg-sky-500",
+  BUILD: "bg-yellow-500",
+  PEAK:  "bg-red-500",
+  TAPER: "bg-emerald-500",
+  RACE:  "bg-red-500",
+};
+
 export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, openCoach, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
@@ -240,7 +252,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-slate-700/50">
             {phases.map(ph => (
               <span key={ph} className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span className={"w-2 h-2 rounded-full " + phaseClass(ph).split(" ")[0].replace("/15", "")}/>
+                <span className={"w-2 h-2 rounded-full " + (PHASE_DOT[ph] || "bg-slate-500")}/>
                 <span className="font-semibold">{ph}</span>
                 <span className="text-slate-500">{PHASE_DESC[ph] || ""}</span>
               </span>
