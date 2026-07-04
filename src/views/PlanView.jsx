@@ -8,27 +8,6 @@ import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
 
-// Plain-language meaning of each training phase, shown in the legend.
-const PHASE_DESC = {
-  BASE:  "Build aerobic base",
-  BUILD: "Add intensity",
-  PEAK:  "Sharpen & peak",
-  TAPER: "Rest & freshen up",
-  RACE:  "Race week",
-};
-
-// Legend dot colours as full literal class names. These MUST be spelled out
-// (not derived from phaseClass at runtime) — Tailwind only emits classes it can
-// see verbatim in source, so a runtime-built `bg-sky-500` gets purged and the
-// dot vanishes. Kept in step with phaseClass / the week phase pills by hand.
-const PHASE_DOT = {
-  BASE:  "bg-sky-500",
-  BUILD: "bg-yellow-500",
-  PEAK:  "bg-red-500",
-  TAPER: "bg-emerald-500",
-  RACE:  "bg-red-500",
-};
-
 export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, openCoach, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
@@ -176,8 +155,6 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     const e = new Date(s); e.setDate(s.getDate() + 7);
     return today >= s && today < e;
   });
-  // Distinct phases in schedule order, for the legend.
-  const phases = [...new Set(plan.weeks.map(w => w.phase))];
   const ps   = plan.planSessions || settings.planSessions || [];
   const sessInfo = ps.slice()
     .sort((a, b) => a.dayOffset - b.dayOffset)
@@ -248,17 +225,6 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <span>{(plan.distanceKm || 20) + "km" + (plan.raceElevation > 0 ? " · +" + Math.round(plan.raceElevation) + "m" : "") + " · sub " + fmt.dur(plan.goalSec)}</span>
           <span>{"Race: " + fmt.sht(plan.raceDate)}</span>
         </div>
-        {phases.length > 1 && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-slate-700/50">
-            {phases.map(ph => (
-              <span key={ph} className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span className={"w-2 h-2 rounded-full " + (PHASE_DOT[ph] || "bg-slate-500")}/>
-                <span className="font-semibold">{ph}</span>
-                <span className="text-slate-500">{PHASE_DESC[ph] || ""}</span>
-              </span>
-            ))}
-          </div>
-        )}
         <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-end">
           <PlanInfo/>
         </div>
