@@ -260,7 +260,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                   <button onClick={() => setExpanded(open ? null : race.id)} className="w-full px-4 py-3 flex items-center gap-2 text-left">
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold leading-snug line-clamp-2">{race.name}</p>
-                      <p className="text-slate-400 text-xs">{[race.city, race.country].filter(Boolean).join(", ") + " · " + (race.distances || []).join("/") + " km"}</p>
+                      <p className="text-slate-400 text-xs">{[race.city, race.country].filter(Boolean).join(", ") + " · " + (race.distances || []).join(" km & ") + " km"}</p>
                     </div>
                     {!race.verified && (
                       <span title="Unverified — details are user-submitted, check the official site" className="flex-shrink-0">
