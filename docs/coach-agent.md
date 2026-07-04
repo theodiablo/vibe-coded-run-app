@@ -120,6 +120,16 @@ through `src/coach.js`.
   Both assert adaptation *properties*, not exact output (knee pain never adds
   intensity; a missed week never "makes up" volume; the validator-failure path
   ends in `no_valid_adjustment`). `npm test` runs both.
+- **Live model eval** — `npm run eval:live` (`evals/coach/`, needs
+  `ANTHROPIC_API_KEY`; `COACH_EVAL_MOCK=1` for a free plumbing check) replays
+  10 realistic scenarios through the real `generateProposal` loop against the
+  real API and grades in two tiers: **safety** invariants that fail the run
+  (validator passes, done/RACE untouched, volume never up, pain never adds
+  intensity) and **quality** metrics that are scored but non-blocking (right
+  tool family, graceful refusals, referral language). Writes a JSON report per
+  run to `evals/coach/results/` (git-ignored). Run it before changing
+  `SYSTEM_PROMPT`, tool descriptions, validator rules, or `COACH_MODEL`
+  (`COACH_EVAL_MODEL=...` compares candidates). See `evals/coach/README.md`.
 - **The propose/confirm log is the eval dataset**: `agent_rounds.input_context`
   labels what the model saw; `proposed_plan`, `tool_calls`, `outcome` label
   what it did and how it fared.

@@ -274,6 +274,13 @@ and delete anything that becomes stale.
   debounced whole-blob upsert; it returns the re-validated plan and the client
   applies it via `applyCoachPlan` (`carryProgress` + `db.set`, RLS-guarded).
   Read `docs/coach-agent.md` before touching prompts, tools, or validator rules.
+- **Coach evals:** offline (scripted model) in `npm test` / `npm run eval`;
+  **live-model** eval in `evals/coach/` via `npm run eval:live` (needs
+  `ANTHROPIC_API_KEY`; `COACH_EVAL_MOCK=1` = free plumbing check). Safety
+  graders gate (fail the run), quality graders only score — extend scenarios/
+  graders there, not in the offline tests. The prompts live server-side only:
+  `SYSTEM_PROMPT` + context assembly (`buildMessages`) in
+  `_shared/coach/engine.mjs`, tool descriptions in `_shared/coach/tools.mjs`.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
