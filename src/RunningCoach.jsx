@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { isNative } from "./native";
 import { Activity, Calendar, TrendingUp, Plus, Loader, Trophy, Settings } from "lucide-react";
 import { db, currentUserId } from "./db";
 import { STORAGE_KEYS } from "./constants";
@@ -21,6 +22,14 @@ import { PlanView } from "./views/PlanView";
 import { LogView } from "./views/LogView";
 import { RacesView } from "./views/RacesView";
 import { ProgressView } from "./views/ProgressView";
+
+// Lazy: pulls in react-markdown + remark-gfm (~47 KB gzipped) for rendering
+// the coach's markdown replies. On the web that weight only belongs on the
+// wire once someone actually opens the chat; on native the bundle already
+// ships inside the app package, so the boot-time prefetch below (isNative
+// branch) warms it immediately instead — a nearly-instant open with no
+// web-only cost.
+const CoachChat = lazy(() => import("./modals/CoachChat").then(m => ({ default: m.CoachChat })));
 
 // In-app "review notification" helper (pure, module-level so it isn't a hook
 // dependency): when a maintainer verifies one of the user's OWN catalogue
@@ -71,10 +80,17 @@ export default function RunningCoach({ onSignOut }) {
   // well after any concurrent change has committed).
   const racesRef = useRef(races);
   useEffect(() => { racesRef.current = races; }, [races]);
+  // Native only: warm the lazy CoachChat chunk right after boot so opening the
+  // coach feels instant — the JS is already local to the app package, so
+  // fetching it early costs nothing. The web build deliberately skips this and
+  // only fetches on first open, keeping the ~47 KB react-markdown dependency
+  // off the initial page load.
+  useEffect(() => { if (isNative) import("./modals/CoachChat"); }, []);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState([]);
   const [showRaceForm,setShowRaceForm]= useState(false);
+  const [showCoach,   setShowCoach]   = useState(false);
   // Stash from a "Set as target" promote → consumed by PlanView's setup form.
   const [planPrefill, setPlanPrefill] = useState(null);
   // Which Progress sub-tab to open, and a nonce so navigating there again (even
@@ -178,6 +194,16 @@ export default function RunningCoach({ onSignOut }) {
     }));
     return { ...np, weeks: np.weeks.map(w => ({ ...w,
       sessions: w.sessions.map(s => flags[s.id] ? { ...s, ...flags[s.id] } : s) })) };
+  };
+
+  // Apply a coach-accepted plan. carryProgress re-stamps done/skipped/runId by
+  // session id, so a session ticked while the chat was open isn't lost (the
+  // coach tools never edit done sessions, so this can't undo an adjustment).
+  // Deliberately NOT savePlan: that tracks "plan_generated" — this is an edit.
+  const applyCoachPlan = p => {
+    const merged = carryProgress(plan, p);
+    setPlan(merged);
+    db.set(STORAGE_KEYS.PLAN, merged);
   };
 
   // Toggle whether a wishlisted race is folded into the current plan. Persists the
@@ -357,7 +383,7 @@ export default function RunningCoach({ onSignOut }) {
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
   const goProgress = sub => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
-  const shared = {runs, plan, settings, races, catalogue, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true)};
+  const shared = {runs, plan, settings, races, catalogue, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   const TABS   = [
@@ -416,6 +442,12 @@ export default function RunningCoach({ onSignOut }) {
       {showDeleteAccount && <DeleteAccountModal
         onSignOut={onSignOut}
         onClose={() => setShowDeleteAccount(false)}/>}
+      {showCoach && plan && (
+        <Suspense fallback={<div className="fixed inset-0 bg-slate-900 z-50"/>}>
+          <CoachChat plan={plan} onApplyPlan={applyCoachPlan}
+            showToast={showToast} onClose={() => setShowCoach(false)}/>
+        </Suspense>
+      )}
       {showRaceForm && <RaceFormModal
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
         onContributed={refreshCatalogue} showToast={showToast}

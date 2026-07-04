@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowDown, Check, ChevronRight, Plus, RotateCcw, X } from "lucide-react";
+import { ArrowDown, Check, ChevronRight, MessageCircle, Plus, RotateCcw, X } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { findEdition } from "../utils/races";
@@ -17,7 +17,7 @@ const PHASE_DESC = {
   RACE:  "Race week",
 };
 
-export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, goLog, planPrefill, clearPlanPrefill}) {
+export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, openCoach, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -207,11 +207,18 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                 </button>
               </div>
             ) : (
-              <button onClick={() => setConfirmRegen(true)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-                title="Regenerate plan">
-                <RotateCcw size={16}/>
-              </button>
+              <>
+                <button onClick={openCoach}
+                  className="px-2.5 py-1.5 flex items-center gap-1.5 text-xs font-semibold text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg transition-colors"
+                  title="Adjust the plan with your coach">
+                  <MessageCircle size={13}/>Coach
+                </button>
+                <button onClick={() => setConfirmRegen(true)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                  title="Regenerate plan">
+                  <RotateCcw size={16}/>
+                </button>
+              </>
             )}
           </div>
         )}

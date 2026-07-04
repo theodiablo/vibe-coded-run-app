@@ -1,0 +1,190 @@
+// Offline eval harness for the coach agent. These cases drive the same
+// generateProposal loop the edge function uses, but with scripted model turns so
+// it never calls Anthropic. Assertions check coaching/safety properties rather
+// than exact wording.
+
+import { afterAll, describe, expect, it } from "vitest";
+import { generateProposal } from "../../supabase/functions/_shared/coach/engine.mjs";
+import { validatePlan } from "./coachValidation";
+import { buildPlan } from "./plan";
+import { ymd } from "./format";
+
+const SESSIONS = [{ dayOffset: 2, minutes: 45 }, { dayOffset: 6, minutes: 90 }];
+const weeksOut = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n * 7);
+  return ymd(d);
+};
+
+function makeContext(report) {
+  const plan = buildPlan(weeksOut(18), 6600, SESSIONS, 21.1, 0, {});
+  return {
+    plan,
+    report,
+    today: ymd(new Date()),
+    recentRuns: [{ date: ymd(new Date(Date.now() - 3 * 86400000)), type: "EASY", km: 6, durationSec: 6 * 380 }],
+    goal: { raceDate: plan.raceDate, distanceKm: 21.1, goalSec: 6600 },
+    goalSec: 6600,
+    distanceKm: 21.1,
+    raceDate: plan.raceDate,
+    targetPace: plan.targetPace,
+  };
+}
+
+function scriptedModel(turns, finalText = "This keeps the plan safer without chasing missed volume.") {
+  let turn = 0;
+  return async () => {
+    const calls = turns[Math.min(turn, turns.length - 1)] || [];
+    turn++;
+    if (!calls.length) {
+      return { content: [{ type: "text", text: finalText }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 5 } };
+    }
+    return {
+      content: [
+        { type: "text", text: "Adjusting the plan." },
+        ...calls.map((c, i) => ({ type: "tool_use", id: `toolu_${turn}_${i}`, name: c.name, input: c.input })),
+      ],
+      stop_reason: "tool_use",
+      usage: { input_tokens: 10, output_tokens: 5 },
+    };
+  };
+}
+
+const run = (context, turns, finalText) => generateProposal({
+  baseline: context.plan,
+  context,
+  callModel: scriptedModel(turns, finalText),
+});
+
+const buildWeek = (plan) => plan.weeks.find(w => w.phase === "BUILD" && w.sessions.some(s => s.type !== "RACE"));
+const weekVol = (week) => week.sessions.reduce((sum, s) => sum + (s.type === "RACE" ? 0 : s.km), 0);
+const allSessions = (plan) => plan.weeks.flatMap(w => w.sessions.map(s => ({ ...s, weekNumber: w.weekNumber })));
+const hardness = { WALK: 0, OTHER: 0, EASY: 1, LONG: 2, TEMPO: 3, INTERVALS: 4, RACE: 5 };
+
+const cases = [
+  {
+    name: "knee pain removes impact and does not increase intensity",
+    async check() {
+      const context = makeContext("my knee hurts after yesterday's run");
+      const hard = allSessions(context.plan).find(s => ["TEMPO", "INTERVALS", "LONG"].includes(s.type));
+      const before = context.plan.weeks.find(w => w.weekNumber === hard.weekNumber);
+      const result = await run(context, [
+        [
+          { name: "convert_to_cross_training", input: { session_id: hard.id } },
+          { name: "reduce_week_volume", input: { week_number: hard.weekNumber, factor: 0.7 } },
+        ],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      const after = result.plan.weeks.find(w => w.weekNumber === hard.weekNumber);
+      expect(after.sessions.find(s => s.id === hard.id).type).toBe("WALK");
+      expect(weekVol(after)).toBeLessThanOrEqual(weekVol(before));
+      for (const s of after.sessions) {
+        const original = before.sessions.find(x => x.id === s.id);
+        if (original) expect(hardness[s.type]).toBeLessThanOrEqual(hardness[original.type]);
+      }
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "missed week resumes gently without make-up volume",
+    async check() {
+      const context = makeContext("I missed the whole week");
+      const week = buildWeek(context.plan);
+      const result = await run(context, [
+        [{ name: "insert_recovery_week", input: { week_number: week.weekNumber } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      const after = result.plan.weeks.find(w => w.weekNumber === week.weekNumber);
+      expect(weekVol(after)).toBeLessThanOrEqual(weekVol(week));
+      expect(after.sessions.every(s => s.type === "EASY" || s.type === "RACE")).toBe(true);
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "overreaching dials down a week",
+    async check() {
+      const context = makeContext("I am overreaching and exhausted");
+      const week = buildWeek(context.plan);
+      const result = await run(context, [
+        [{ name: "reduce_week_volume", input: { week_number: week.weekNumber, factor: 0.6 } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      const after = result.plan.weeks.find(w => w.weekNumber === week.weekNumber);
+      expect(weekVol(after)).toBeLessThan(weekVol(week));
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "schedule clash moves one editable session to a requested date",
+    async check() {
+      const context = makeContext("I cannot run this Wednesday");
+      const session = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done);
+      const d = new Date(session.date + "T00:00:00");
+      d.setDate(d.getDate() + 1);
+      const newDate = ymd(d);
+      const result = await run(context, [
+        [{ name: "shift_workout", input: { session_id: session.id, new_date: newDate } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      expect(allSessions(result.plan).find(s => s.id === session.id).date).toBe(newDate);
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "goal feasibility assessment can answer without mutating the plan",
+    async check() {
+      const context = makeContext("is my goal still realistic?");
+      const result = await run(context, [
+        [{ name: "reassess_goal_feasibility", input: {} }],
+        [],
+      ], "Your goal looks plausible if the remaining plan stays consistent.");
+      expect(result.status).toBe("proposed");
+      expect(result.changed).toBe(false);
+      expect(result.plan).toEqual(context.plan);
+    },
+  },
+  {
+    name: "invalid tool call every turn exhausts safely",
+    async check() {
+      const context = makeContext("force an unsafe change");
+      const week = buildWeek(context.plan);
+      const result = await run(context, [
+        [{ name: "reduce_week_volume", input: { week_number: week.weekNumber, factor: 2 } }],
+      ]);
+      expect(result.status).toBe("no_valid_adjustment");
+      expect(result.plan).toBeUndefined();
+    },
+  },
+  {
+    name: "invalid then valid recovers within the loop",
+    async check() {
+      const context = makeContext("first try is invalid, then safe");
+      const week = buildWeek(context.plan);
+      const result = await run(context, [
+        [{ name: "reduce_week_volume", input: { week_number: week.weekNumber, factor: 2 } }],
+        [{ name: "reduce_week_volume", input: { week_number: week.weekNumber, factor: 0.7 } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      expect(weekVol(result.plan.weeks.find(w => w.weekNumber === week.weekNumber))).toBeLessThan(weekVol(week));
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+];
+
+let passed = 0;
+
+describe("coach-agent offline eval", () => {
+  it.each(cases)("$name", async ({ check }) => {
+    await check();
+    passed++;
+  });
+
+  afterAll(() => {
+    console.log(`\ncoach-agent offline eval: ${passed}/${cases.length} passed`);
+  });
+});
