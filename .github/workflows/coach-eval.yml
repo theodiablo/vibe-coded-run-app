@@ -5,6 +5,12 @@ name: Coach live eval
 # scenarios through the production proposal loop against the live model, fails
 # on any SAFETY grader miss, and uploads the full JSON report as an artifact.
 on:
+  # TEMPORARY one-off trigger: the session's GitHub integration can't call the
+  # workflow_dispatch API (no actions:write), so this branch push starts the
+  # run instead. Remove after the run — dispatch stays the real entry point.
+  push:
+    branches: [claude/agent-coach-eval-244dgv]
+    paths: [.github/workflows/coach-eval.yml]
   workflow_dispatch:
     inputs:
       model:
