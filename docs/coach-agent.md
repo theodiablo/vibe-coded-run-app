@@ -86,7 +86,7 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 | Env (function secret) | Default | Notes |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | — | required unless `MOCK_LLM=1` |
-| `COACH_MODEL` | `claude-sonnet-4-6` | coaching judgment. Upgrading (e.g. `claude-sonnet-5`) is one secret change. |
+| `COACH_MODEL` | `claude-sonnet-5` | coaching judgment. Upgrading is one secret change. |
 | `COACH_MODEL_LIGHT` | `claude-haiku-4-5` | reserved for the `pickModel` routing seam (Phase 5) — unused until a classifier routes trivial edits |
 | `RATE_LIMIT_PER_DAY` | `20` | model-calling rounds per user per day (confirm is free); enforced via the atomic `increment_agent_usage` SQL function |
 | `MOCK_LLM` | unset | `1` → canned responses from `_shared/coach/mock.mjs`, zero Anthropic calls (CI, local dev) |

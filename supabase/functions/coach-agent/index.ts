@@ -25,7 +25,7 @@
 //
 // Deploy:  supabase functions deploy coach-agent
 // Secrets: supabase secrets set ANTHROPIC_API_KEY=...
-//   Optional: COACH_MODEL (default claude-sonnet-4-6), COACH_MODEL_LIGHT
+//   Optional: COACH_MODEL (default claude-sonnet-5), COACH_MODEL_LIGHT
 //   (routing seam, default claude-haiku-4-5), RATE_LIMIT_PER_DAY (default 20),
 //   MOCK_LLM=1 (canned responses, zero Anthropic calls — CI / local dev).
 
@@ -36,7 +36,7 @@ import { validatePlan, formatValidation } from "../_shared/coach/validation.mjs"
 import { createMockModel } from "../_shared/coach/mock.mjs";
 
 const MOCK = Boolean(Deno.env.get("MOCK_LLM"));
-const DEFAULT_MODEL = Deno.env.get("COACH_MODEL") ?? "claude-sonnet-4-6";
+const DEFAULT_MODEL = Deno.env.get("COACH_MODEL") ?? "claude-sonnet-5";
 const LIGHT_MODEL = Deno.env.get("COACH_MODEL_LIGHT") ?? "claude-haiku-4-5";
 const RATE_LIMIT_PER_DAY = Number(Deno.env.get("RATE_LIMIT_PER_DAY") ?? 20);
 // A propose/critique round spends most of its time awaiting Anthropic with
