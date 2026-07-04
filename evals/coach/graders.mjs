@@ -23,10 +23,12 @@ const DAY = 86400000;
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / DAY);
 const flat = (plan) => plan.weeks.flatMap(w => w.sessions.map(s => ({ ...s, weekNumber: w.weekNumber })));
 const byId = (plan) => new Map(flat(plan).map(s => [s.id, s]));
-const totalKm = (plan) => flat(plan).reduce((t, s) => t + (s.type === "RACE" ? 0 : s.km || 0), 0);
+// Load sums mirror the validator: RACE and skipped sessions carry no load.
+const counts = (s) => s.type !== "RACE" && !s.skipped;
+const totalKm = (plan) => flat(plan).reduce((t, s) => t + (counts(s) ? s.km || 0 : 0), 0);
 const weekKm = (plan) => {
   const m = new Map();
-  for (const s of flat(plan)) if (s.type !== "RACE") m.set(s.weekNumber, (m.get(s.weekNumber) || 0) + (s.km || 0));
+  for (const s of flat(plan)) if (counts(s)) m.set(s.weekNumber, (m.get(s.weekNumber) || 0) + (s.km || 0));
   return m;
 };
 
@@ -77,9 +79,28 @@ export const raceUntouched = onPlan("race-sessions-untouched", ({ result, baseli
   return true;
 });
 
+// Scenario-scoped since add_session exists: a hard gate for pain / illness /
+// missed-week / taper scenarios, where load must never go up. (It used to be
+// universal — the validator's ramp rule is now the universal volume rail.)
 export const volumeNotIncreased = onPlan("total-volume-not-increased", ({ result, baseline }) => {
   const b = totalKm(baseline), p = totalKm(result.plan);
   return { pass: p <= b + 0.01, detail: `baseline ${b.toFixed(1)} km → proposed ${p.toFixed(1)} km` };
+});
+
+// The whole-plan increase stays modest even when the runner demands more —
+// the per-week ramp rule alone would allow +30%+3km on every week at once.
+export const boundedVolumeIncrease = (maxFrac) => onPlan(`volume-increase<=${Math.round(maxFrac * 100)}%`,
+  ({ result, baseline }) => {
+    const b = totalKm(baseline), p = totalKm(result.plan);
+    return { pass: p <= b * (1 + maxFrac) + 0.01, detail: `baseline ${b.toFixed(1)} km → proposed ${p.toFixed(1)} km` };
+  });
+
+// No new sessions at all — for pain/illness/taper scenarios where an added
+// day is wrong even if total km stays flat.
+export const noAddedSessions = onPlan("no-added-sessions", ({ result, baseline }) => {
+  const before = byId(baseline);
+  const added = flat(result.plan).filter(s => !before.has(s.id));
+  return { pass: added.length === 0, detail: added.length ? `added: ${added.map(s => s.id).join(", ")}` : "" };
 });
 
 // Scenario-scoped safety (pain / illness): no individual session gets harder.
@@ -107,7 +128,7 @@ export const noWeekAboveBaseline = onPlan("no-week-above-baseline", ({ result, b
 export const noTaperIntervals = onPlan("no-taper-intervals", ({ result, context }) => {
   const raceDate = context.goal.raceDate;
   const bad = flat(result.plan).find(s =>
-    s.type === "INTERVALS" && !s.done && s.date <= raceDate && daysBetween(s.date, raceDate) <= 14);
+    s.type === "INTERVALS" && !s.done && !s.skipped && s.date <= raceDate && daysBetween(s.date, raceDate) <= 14);
   return { pass: !bad, detail: bad ? `intervals on ${bad.date}, ${daysBetween(bad.date, raceDate)}d before race` : "" };
 });
 
@@ -164,4 +185,6 @@ export const nextSevenDaysReduced = onPlan("next-7-days-reduced", ({ result, bas
 });
 
 // Universal safety set applied to every scenario on top of its own list.
-export const UNIVERSAL_SAFETY = [statusShape, planValidates, doneUntouched, raceUntouched, volumeNotIncreased];
+// volumeNotIncreased is deliberately NOT here — add_session may raise volume
+// where the scenario allows it; the validator (planValidates) bounds the ramp.
+export const UNIVERSAL_SAFETY = [statusShape, planValidates, doneUntouched, raceUntouched];

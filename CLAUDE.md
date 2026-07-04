@@ -253,8 +253,14 @@ and delete anything that becomes stale.
 
 ## AI coach agent (plan adjustments)
 - **Propose-and-confirm, editor-not-author:** `supabase/functions/coach-agent`
-  adapts the existing plan ("my knee hurts", "I missed a week") through six
-  typed tools only — it never authors plans; `buildPlan` stays the author. UI is
+  adapts the existing plan ("my knee hurts", "I missed a week") through nine
+  typed tools only — it never authors plans; `buildPlan` stays the author.
+  Only `add_session` can increase load, bounded by the tool's own guards
+  (no taper dates, km capped at the plan's longest session) + the validator's
+  ramp rule; `cancel_session` marks `skipped` (skipped sessions carry no load
+  in the validator). A systematically-too-easy plan is a *goal* problem:
+  `reassess_goal_feasibility` flags a CONSERVATIVE goal and the coach directs
+  the user to plan settings rather than hand-editing sessions. UI is
   `src/modals/CoachChat.jsx` (opened via `shared.openCoach`, PlanView's Coach
   button); access module `src/coach.js` (calls `flushNow()` first — the server
   reads the plan/runs from `app_state`, not the request body).

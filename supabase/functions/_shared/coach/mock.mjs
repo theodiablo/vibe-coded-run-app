@@ -3,6 +3,8 @@
 // keyword-driven off the runner's message:
 //   "knee|pain|hurt|injur"  → convert next hard session to WALK + reduce that week
 //   "missed|skipped"        → recovery week on the next upcoming week
+//   "add|extra + run|session|day" → add_session: a modest EASY run on the day
+//                             after the next upcoming session (outside taper)
 //   "force-invalid"         → repeatedly proposes intervals inside the taper,
 //                             exercising the validator-retry → no_valid_adjustment path
 //   anything else           → text-only answer, no tool calls
@@ -31,6 +33,11 @@ const upcomingSessions = (plan, today) =>
 export function createMockModel(context) {
   let calls = 0;
   const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+  const addDays = (s, n) => {
+    const d = new Date(s + "T00:00:00");
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
 
   return async (messages) => {
     calls++;
@@ -64,6 +71,15 @@ export function createMockModel(context) {
         [tu("convert_to_cross_training", { session_id: hard.id }, 0),
          tu("reduce_week_volume", { week_number: hard.weekNumber, factor: 0.7 }, 1)],
         "Sorry about the knee — let's take the impact out and unload this week.");
+    }
+
+    if (/\b(add|extra)\b/.test(text) && /\b(run|session|day)\b/.test(text)) {
+      const anchor = up[0];
+      const date = anchor && addDays(anchor.date, 1);
+      if (!date || daysBetween(date, context.plan.raceDate) <= 14)
+        return done("There's no safe room left to add anything — the taper is about shedding load.");
+      return useTools([tu("add_session", { date, type: "EASY", km: 5 })],
+        "Nice — let's use that free day for a relaxed easy run.");
     }
 
     if (/missed|skipped/.test(text)) {

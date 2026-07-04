@@ -45,6 +45,25 @@ describe("validatePlan rules", () => {
     expect(r.errors.some(e => e.code === "HARD_BACK_TO_BACK")).toBe(true);
   });
 
+  it("skipped sessions contribute no load: spacing, taper and ramp ignore them", () => {
+    // A skipped TEMPO the day before the LONG is not a hard back-to-back —
+    // it will not be run.
+    const p = cleanPlan();
+    p.weeks[2].sessions[0].date = "2026-01-24";
+    p.weeks[2].sessions[0].skipped = true;
+    expect(validatePlan(p).errors.some(e => e.code === "HARD_BACK_TO_BACK")).toBe(false);
+    // Skipped intervals inside the final 14 days don't trip the taper rule.
+    const q = cleanPlan();
+    q.weeks[4].sessions[0].type = "INTERVALS";
+    q.weeks[4].sessions[0].skipped = true;
+    expect(validatePlan(q).errors.some(e => e.code === "TAPER_INTERVALS")).toBe(false);
+    // A big session that is skipped doesn't count toward the weekly ramp.
+    const r = cleanPlan();
+    r.weeks[2].sessions[1].km = 25;
+    r.weeks[2].sessions[1].skipped = true;
+    expect(validatePlan(r).errors.some(e => e.code === "RAMP_EXCEEDED")).toBe(false);
+  });
+
   it("flags a week-over-week volume jump", () => {
     const p = cleanPlan();
     p.weeks[2].sessions[1].km = 25; // week 3: 30 km after 13 km

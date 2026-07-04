@@ -193,7 +193,15 @@ export default function RunningCoach({ onSignOut }) {
       flags[s.id] = { done: s.done, skipped: s.skipped, runId: s.runId };
     }));
     return { ...np, weeks: np.weeks.map(w => ({ ...w,
-      sessions: w.sessions.map(s => flags[s.id] ? { ...s, ...flags[s.id] } : s) })) };
+      sessions: w.sessions.map(s => {
+        const f = flags[s.id];
+        if (!f) return s;
+        // skipped is a union, not an overwrite: the coach's cancel_session
+        // marks skipped on the PROPOSAL, which must survive this re-stamp
+        // (and a session the user skipped while the chat was open survives
+        // the coach plan). done/runId stay client-owned overwrites.
+        return { ...s, ...f, skipped: f.skipped || s.skipped };
+      }) })) };
   };
 
   // Apply a coach-accepted plan. carryProgress re-stamps done/skipped/runId by

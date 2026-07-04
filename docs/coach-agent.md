@@ -18,8 +18,16 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
 1. **Trust boundary** — the API key, the validator, the tool implementations,
    the rate limit, and the audit log live in the edge function. The client
    sends a message and renders the proposal.
-2. **Editor, never author** — the model acts only through the six tools in
+2. **Editor, never author** — the model acts only through the nine tools in
    `supabase/functions/_shared/coach/tools.mjs`. No free-text plan generation.
+   The one load-increasing tool, `add_session`, is bounded three ways: the
+   tool itself refuses dates inside the final 14 days and caps distance at
+   the plan's longest existing training session; the validator's ramp rule
+   gates the resulting week; and the system prompt licenses it only for
+   explicit extra availability — never to make up missed volume, never
+   during pain/illness. `cancel_session` marks a session `skipped` (the
+   app's existing flag) rather than deleting it; skipped sessions carry no
+   training load in the validator (volume/spacing/taper rules ignore them).
 3. **One validator, two callers** — `validatePlan`
    (`supabase/functions/_shared/coach/validation.mjs`) is shared by the agent
    path and confirmed against `buildPlan` output by

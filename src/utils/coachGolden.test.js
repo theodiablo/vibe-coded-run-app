@@ -61,6 +61,16 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
   });
 
+  it("free day → adds one modest EASY session; ramp rule still holds", async () => {
+    const { context, result } = await run("I have a free day Thursday — could you add an extra easy run?");
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(true);
+    const added = result.plan.weeks.flatMap(w => w.sessions).filter(s => s.id.startsWith("coach-add-"));
+    expect(added).toHaveLength(1);
+    expect(added[0].type).toBe("EASY");
+    expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+  });
+
   it("advice question → answer without touching the plan", async () => {
     const { context, result } = await run("what should I eat before the race?");
     expect(result.status).toBe("proposed");

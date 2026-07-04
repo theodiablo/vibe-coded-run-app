@@ -148,6 +148,76 @@ const cases = [
     },
   },
   {
+    name: "single long run shortened without touching the rest of the week",
+    async check() {
+      const context = makeContext("this Sunday's long run is too much, just shorten it");
+      const long = allSessions(context.plan).find(s => s.type === "LONG" && !s.done);
+      const week = context.plan.weeks.find(w => w.weekNumber === long.weekNumber);
+      const result = await run(context, [
+        [{ name: "reduce_session_distance", input: { session_id: long.id, factor: 0.7 } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      const after = result.plan.weeks.find(w => w.weekNumber === long.weekNumber);
+      expect(after.sessions.find(s => s.id === long.id).km).toBeLessThan(long.km);
+      for (const s of after.sessions) {
+        if (s.id === long.id) continue;
+        expect(s.km).toBe(week.sessions.find(x => x.id === s.id).km);
+      }
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "cancelled session is marked skipped, everything else untouched",
+    async check() {
+      const context = makeContext("drop Wednesday's run this week, I need the rest");
+      const target = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done);
+      const result = await run(context, [
+        [{ name: "cancel_session", input: { session_id: target.id } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      const after = allSessions(result.plan);
+      expect(after.find(s => s.id === target.id).skipped).toBe(true);
+      expect(after.filter(s => s.id !== target.id && s.skipped)).toHaveLength(0);
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "added session lands on the requested free day and validates",
+    async check() {
+      const context = makeContext("I can train an extra day this week");
+      const anchor = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done);
+      const d = new Date(anchor.date + "T00:00:00");
+      d.setDate(d.getDate() + 1);
+      const date = ymd(d);
+      const result = await run(context, [
+        [{ name: "add_session", input: { date, type: "EASY", km: 5 } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      const added = allSessions(result.plan).filter(s => s.id.startsWith("coach-add-"));
+      expect(added).toHaveLength(1);
+      expect(added[0]).toMatchObject({ date, type: "EASY", km: 5 });
+      expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "add_session inside the taper is refused by the tool, plan unchanged",
+    async check() {
+      const context = makeContext("add one more hard session before the race");
+      const d = new Date(context.plan.raceDate + "T00:00:00");
+      d.setDate(d.getDate() - 7);
+      const result = await run(context, [
+        [{ name: "add_session", input: { date: ymd(d), type: "EASY", km: 5 } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      expect(result.changed).toBe(false);
+      expect(result.plan).toEqual(context.plan);
+    },
+  },
+  {
     name: "invalid tool call every turn exhausts safely",
     async check() {
       const context = makeContext("force an unsafe change");
