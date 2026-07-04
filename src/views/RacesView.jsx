@@ -257,7 +257,7 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
     try {
       const p = await geoSource.getCurrentPosition();
       setLoc(p); setNearMe(true); setStatus("idle");
-      track("discover_opened");
+      track("find_near_me");
     } catch {
       setStatus("denied");
     }

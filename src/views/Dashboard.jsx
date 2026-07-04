@@ -1,11 +1,11 @@
-import { Activity, Award, Check, ChevronRight, Plus, Route, X, Zap } from "lucide-react";
+import { Activity, Award, Check, ChevronRight, MessageCircle, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
 import { computeBadges, nextBadge } from "../utils/badges";
 import { HRTarget } from "../components/HRTarget";
 import { RunRow } from "../components/RunRow";
 
-export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings}) {
+export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach}) {
   const nb = nextBadge(computeBadges(runs, races?.participations || []));
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
@@ -159,6 +159,20 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
         </div>
       ) : (
         <div className="bg-slate-800 rounded-xl p-4 text-center text-slate-400 text-sm">All upcoming sessions done!</div>
+      )}
+
+      {plan && (
+        <button onClick={openCoach}
+          className="w-full bg-slate-800 rounded-xl p-3.5 flex items-center gap-3 text-left hover:bg-slate-700/70 transition-colors">
+          <div className="w-9 h-9 rounded-full bg-orange-500/15 flex items-center justify-center flex-shrink-0">
+            <MessageCircle size={18} className="text-orange-400"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">Adjust your plan with your coach</p>
+            <p className="text-xs text-slate-400">Niggle, missed week, or a schedule clash? Ask for a tweak.</p>
+          </div>
+          <ChevronRight size={16} className="text-slate-600 flex-shrink-0"/>
+        </button>
       )}
 
       {runs.length > 0 && (

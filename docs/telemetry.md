@@ -85,10 +85,10 @@ an explicit var.
   accepts one — `src/modals/CoachChat.jsx`. Anonymous: never the message text,
   the plan, or the tool calls (those live server-side in `agent_rounds`).
 - Catalogue events (Phase 2): `race_contributed` `{kind:"race"|"edition"}` when a
-  user adds to the shared catalogue (`src/modals/RaceFormModal.jsx`); `discover_opened`
-  `{}` the first time the Races → Discover segment is opened (`src/views/RacesView.jsx`).
-  Both anonymous — enum/no-args only, **never** race names, free text, or the user's
-  location/coordinates.
+  user adds to the shared catalogue (`src/modals/RaceFormModal.jsx`); `find_near_me`
+  `{}` the first time the "Near me" toggle is enabled in Races → Find a race
+  (`src/views/RacesView.jsx`). Both anonymous — enum/no-args only, **never** race
+  names, free text, or the user's location/coordinates.
 - Settings → Privacy toggle (reads/writes consent directly) —
   `src/modals/SettingsModal.jsx`.
 
