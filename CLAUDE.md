@@ -195,23 +195,38 @@ and delete anything that becomes stale.
     recovery buffer. Parsing of the `0x2A37` characteristic is the pure, unit-tested
     `parseHrMeasurement` in `src/utils/hr.js` (takes the plugin/Web-Bluetooth DataView).
   - **Post-run** (`src/hr/healthconnect.js`, `healthConnectSource`): reads HR from
-    Android Health Connect after the run via **@pianissimoproject/capacitor-health-connect**
-    (its `HealthConnect` export is bundled but only runs on native, so the web build is
-    unaffected). Chosen over the Cap-8-native flomentum plugin because its
+    Android Health Connect after the run via **@pianissimoproject/capacitor-health-connect**,
+    dynamic-`import()`ed lazily (not a static top-level import) so merely rendering the app
+    can't touch the native Health Connect bridge — only actually using the source does.
+    Chosen over the Cap-8-native flomentum plugin because its
     `readRecords({type:'HeartRateSeries'})` reads **continuous** HR over an arbitrary
     window — so the user does NOT also have to log a workout on the watch. Trade-off: its
-    peer is `@capacitor/core ^7`, installed with `--legacy-peer-deps`; Cap-7 native almost
+    peer is `@capacitor/core ^7`, resolved via the package.json `overrides` entry so a
+    normal `npm install` picks up Cap 8 (`--legacy-peer-deps` is deliberately avoided — it
+    silently drops recharts' `react-is` peer); Cap-7 native almost
     certainly builds against Cap 8 (stable Android plugin API) but **must be confirmed by
     an on-device / CI Android build**. `useRunTracker` never streams it —
     `LiveRunTracker.handleSave` calls `fetchRange(start,end)` over the tracker's
     `startedAt`/`stoppedAt` window; on an empty result it stamps
     `hrPending:{start,end,source}` and `flushPendingHr` relinks on next load (the
     `flushPendingRoutes` deferred pattern), **never overwriting** an HR the user has since
-    entered by hand. Needs `READ_HEART_RATE` + a Play health-data declaration/privacy policy.
+    entered by hand. Pending HR markers are validated and expire after ~3 days;
+    invalid/stale/manual-filled markers are cleared before touching the native Health
+    Connect bridge. Boot-time retries may query Health Connect only when both the
+    synced method is `settings.hrMethod === "healthconnect"` **and** this device has
+    the local authorization marker (`HR_HEALTH_CONNECT_AUTH_KEY`) from a prior grant;
+    a synced method alone is not enough because Android permissions are per-install.
+    Actual reads re-check permission and clear the marker if revoked. Needs
+    `READ_HEART_RATE` + a Play health-data declaration/privacy policy.
 - **Method preference syncs; the device does NOT.** `settings.hrMethod`
   (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
   `{id,name}` is **per-device localStorage** (`src/hr/device.js`, `HR_DEVICE_KEY`) —
   like the consent / bg-disclosure flags — because Bluetooth bonding is per-phone.
+  Treat the synced method as a preference only: before using it, derive local
+  readiness from the per-device state (`getPairedDevice()` for Bluetooth,
+  `hasHealthConnectAuthorization()` for Health Connect). `LiveRunTracker` uses an
+  effective method (`"off"` when the selected source is not ready here) and prompts
+  the user to pair/authorize in Settings before Start, without blocking the run.
   Config UI is `HrSensor` (`src/views/HrSensor.jsx`), nested in Settings → Profile,
   native-only. BLE pairing reuses the disclosure→OS-prompt pattern
   (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable nudge (in

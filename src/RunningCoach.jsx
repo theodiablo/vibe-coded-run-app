@@ -9,6 +9,7 @@ import { computeBadges, unlockedIds } from "./utils/badges";
 import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils/races";
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
+import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -86,6 +87,12 @@ export default function RunningCoach({ onSignOut }) {
   // only fetches on first open, keeping the ~47 KB react-markdown dependency
   // off the initial page load.
   useEffect(() => { if (isNative) import("./modals/CoachChat"); }, []);
+  // Freshest runs, for the foreground Health Connect HR retry below (an effect
+  // with [] deps must read current runs from a ref, not a stale closure).
+  const runsRef = useRef(runs);
+  useEffect(() => { runsRef.current = runs; }, [runs]);
+  const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState([]);
@@ -97,6 +104,22 @@ export default function RunningCoach({ onSignOut }) {
   // to the same sub-tab) re-applies it.
   const [progressSub,  setProgressSub]  = useState("log");
   const [progressNonce,setProgressNonce]= useState(0);
+
+  // An optional `action` ({label, onClick}) turns the toast into an undoable one.
+  const showToast = (msg, type, action) => setToast({msg, type: type || "ok", action});
+
+  // Shared by both Health Connect HR retry points (boot + foreground) below, so
+  // the relink logic can't drift between the two call sites. Applies the fetched
+  // HR (or, for a run resolved some other way, just clears the marker) and
+  // toasts only when a run actually gets filled in.
+  const patchRunHr = (runId, patch) => {
+    setRuns(prev => {
+      const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+      db.set(STORAGE_KEYS.RUNS, next);
+      return next;
+    });
+    if (patch.hr != null) showToast("Heart rate added to a run from Health Connect ❤");
+  };
 
   useEffect(() => {
     (async () => {
@@ -147,11 +170,26 @@ export default function RunningCoach({ onSignOut }) {
           return next;
         });
       });
+      // Same deferred cleanup for Health Connect HR: a run saved before the watch
+      // had synced its HR is stamped hrPending.
+      // On boot, only open Health Connect if this *device* has previously granted
+      // access. `settings.hrMethod` syncs across phones, so it is not enough to
+      // prove the native bridge can be safely touched on this install.
+      // Patch the loaded array directly instead of going through patchRunHr's
+      // setRuns(prev => ...): React may not have committed setRuns(r) yet.
+      // Actual relinks still run on foreground and when a run is saved.
+      let bootRuns = r || [];
+      const patchBootRunHr = (runId, patch) => {
+        bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+        setRuns(bootRuns);
+        db.set(STORAGE_KEYS.RUNS, bootRuns);
+      };
+      flushPendingHr(bootRuns, patchBootRunHr, {
+        enabled: s?.hrMethod === "healthconnect",
+        allowNativeRead: hasHealthConnectAuthorization(),
+      }).catch(() => {});
     })();
   }, []);
-
-  // An optional `action` ({label, onClick}) turns the toast into an undoable one.
-  const showToast = (msg, type, action) => setToast({msg, type: type || "ok", action});
 
   // Auto-dismiss the toast. setState here runs from a timer callback (not
   // synchronously in the effect body), and clears on unmount / re-show. An
@@ -161,6 +199,23 @@ export default function RunningCoach({ onSignOut }) {
     const t = setTimeout(() => setToast(null), toast.action ? 6000 : 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Health Connect HR often lands minutes after a run finishes (once the watch
+  // syncs), so retry the deferred relink whenever the app returns to the
+  // foreground — not only on cold start.
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      flushPendingHr(runsRef.current, patchRunHr, {
+        enabled: settingsRef.current.hrMethod === "healthconnect",
+        allowNativeRead: hasHealthConnectAuthorization(),
+      }).catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+    // patchRunHr only closes over stable setters — see the boot effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const savePlan     = p => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated"); };
   const saveSettings = s => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };

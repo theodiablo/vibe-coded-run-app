@@ -1,4 +1,20 @@
 import { hrSummary } from "../utils/hr";
+import { isNative } from "../native";
+import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
+
+export const HR_PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+export function hasHealthConnectAuthorization() {
+  try { return localStorage.getItem(HR_HEALTH_CONNECT_AUTH_KEY) === "1"; }
+  catch { return false; }
+}
+
+function setHealthConnectAuthorization(ok) {
+  try {
+    if (ok) localStorage.setItem(HR_HEALTH_CONNECT_AUTH_KEY, "1");
+    else localStorage.removeItem(HR_HEALTH_CONNECT_AUTH_KEY);
+  } catch { /* storage unavailable — non-fatal */ }
+}
 
 // Post-run heart-rate source: read a tracked run's HR from Android Health Connect
 // (the system aggregator most watches — incl. Amazfit/Zepp — sync into), for users
@@ -10,9 +26,11 @@ import { hrSummary } from "../utils/hr";
 // Backed by @pianissimoproject/capacitor-health-connect. Chosen over the Cap-8-native
 // flomentum plugin because its readRecords reads **continuous** HeartRateSeries over an
 // arbitrary window — so the user does NOT have to also log a workout on the watch; the
-// watch's all-day HR sync is enough. Trade-off: its peer is @capacitor/core ^7, so it's
-// installed with --legacy-peer-deps; Cap-7 native code almost certainly builds against
-// Cap 8 (stable Android plugin API), but confirm with an on-device/CI Android build.
+// watch's all-day HR sync is enough. Trade-off: its peer is @capacitor/core ^7, resolved
+// via the package.json `overrides` entry so a normal `npm install` picks up Cap 8
+// (--legacy-peer-deps is deliberately avoided — it silently drops recharts' react-is
+// peer). Cap-7 native code almost certainly builds against Cap 8 (stable Android plugin
+// API), but confirm with an on-device/CI Android build.
 //
 // Load the plugin lazily so merely rendering the app after sign-in cannot touch
 // the native Health Connect bridge. Some devices/versions are sensitive to the
@@ -43,8 +61,10 @@ export const healthConnectSource = {
   async requestPermissions() {
     try {
       const r = await (await getHealthConnect()).plugin.requestHealthPermissions({ read: ["HeartRateSeries"], write: [] });
-      return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
-    } catch { return false; }
+      const ok = !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
+      setHealthConnectAuthorization(ok);
+      return ok;
+    } catch { setHealthConnectAuthorization(false); return false; }
   },
 
   // Non-prompting check of whether heart-rate read is already granted — used to
@@ -52,8 +72,10 @@ export const healthConnectSource = {
   async checkPermissions() {
     try {
       const r = await (await getHealthConnect()).plugin.checkHealthPermissions({ read: ["HeartRateSeries"], write: [] });
-      return !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
-    } catch { return false; }
+      const ok = !!(r?.hasAllPermissions || r?.grantedPermissions?.length);
+      setHealthConnectAuthorization(ok);
+      return ok;
+    } catch { setHealthConnectAuthorization(false); return false; }
   },
 
   // Read HeartRateSeries records in [startMs, endMs], flatten to samples inside the
@@ -61,9 +83,12 @@ export const healthConnectSource = {
   // (watch not synced) so the caller can defer and retry.
   async fetchRange(startMs, endMs) {
     try {
+      if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return null;
       const res = await (await getHealthConnect()).plugin.readRecords({
         type: "HeartRateSeries",
-        timeRangeFilter: { type: "between", startTime: new Date(startMs), endTime: new Date(endMs) },
+        // The plugin's Android serializer calls JSONObject.getString(...) then
+        // Instant.parse(...), so pass explicit ISO strings instead of Date objects.
+        timeRangeFilter: { type: "between", startTime: new Date(startMs).toISOString(), endTime: new Date(endMs).toISOString() },
       });
       const samples = (res?.records || [])
         .flatMap(rec => rec.samples || [])
@@ -75,23 +100,35 @@ export const healthConnectSource = {
   },
 };
 
-// Deferred relink, mirroring routes.js/flushPendingRoutes: on app load, retry the
-// Health Connect fetch for any run stamped with `hrPending:{start,end}` (saved before
-// the watch had synced). `patch(runId, {hr,hrMax})` applies the result and clears the
-// pending marker; runs that still have no data are left for the next load.
-export async function flushPendingHr(runs, patch) {
+function pendingWindow(hrPending) {
+  const source = hrPending?.source || "healthconnect";
+  const start = Number(hrPending?.start);
+  const end = Number(hrPending?.end);
+  if (source !== "healthconnect" || !Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  return { start, end };
+}
+
+// Deferred relink, mirroring routes.js/flushPendingRoutes: on app load / foreground,
+// retry Health Connect for fresh runs stamped with `hrPending:{start,end}`. Invalid,
+// manually-filled, or stale markers are cleared first without touching the native
+// bridge, so a bad synced blob cannot crash the app forever after sign-in.
+export async function flushPendingHr(runs, patch, { enabled = true, allowNativeRead = true, now = Date.now() } = {}) {
   const pending = (runs || []).filter(r => r.hrPending);
   if (!pending.length) return;
   // A run whose HR was filled some other way (manual edit) since it was stamped:
   // never overwrite it — just clear the marker so it stops retrying. patch({}) with
   // no HR fields lets the caller drop hrPending without touching hr/hrMax.
-  const resolved = pending.filter(r => r.hr != null);
-  for (const r of resolved) patch(r.id, {});
-  const stillPending = pending.filter(r => r.hr == null);
+  const stillPending = [];
+  for (const r of pending) {
+    const win = pendingWindow(r.hrPending);
+    if (r.hr != null || !win || now - win.end > HR_PENDING_MAX_AGE_MS) patch(r.id, {});
+    else stillPending.push({ run: r, win });
+  }
   if (!stillPending.length) return;
-  if (!(await isAvailable())) return; // HC not installed/permitted — leave for next load
-  for (const r of stillPending) {
-    const s = await healthConnectSource.fetchRange(r.hrPending.start, r.hrPending.end);
-    if (s && s.hrAvg) patch(r.id, { hr: s.hrAvg, hrMax: s.hrMax });
+  if (!enabled || !allowNativeRead || !isNative || !hasHealthConnectAuthorization()) return;
+  if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return; // HC unavailable/unpermitted — leave for next load
+  for (const { run, win } of stillPending) {
+    const s = await healthConnectSource.fetchRange(win.start, win.end);
+    if (s && s.hrAvg) patch(run.id, { hr: s.hrAvg, hrMax: s.hrMax });
   }
 }

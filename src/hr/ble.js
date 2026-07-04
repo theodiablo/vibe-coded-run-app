@@ -63,6 +63,12 @@ export const bleSource = {
     let backoff = 1000;
     const start = async () => {
       await BleClient.connect(deviceId, () => { if (!handle.stopped) retry(); });
+      // clearWatch may have run while connect() was in flight (e.g. the run was
+      // discarded/finished before a slow/out-of-range sensor finished connecting).
+      // Don't subscribe to a device we were told to stop watching — disconnect
+      // immediately instead, so a stopped watch can never leave a live BLE
+      // connection (and its notification stream) running in the background.
+      if (handle.stopped) { try { await BleClient.disconnect(deviceId); } catch { /* ignore */ } return; }
       await BleClient.startNotifications(deviceId, HR_SERVICE, HR_MEASUREMENT, (value) => {
         const parsed = parseHrMeasurement(value);
         if (parsed) onSample({ bpm: parsed.bpm, t: Date.now() });
