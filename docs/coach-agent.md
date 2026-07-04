@@ -18,8 +18,16 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
 1. **Trust boundary** — the API key, the validator, the tool implementations,
    the rate limit, and the audit log live in the edge function. The client
    sends a message and renders the proposal.
-2. **Editor, never author** — the model acts only through the six tools in
+2. **Editor, never author** — the model acts only through the nine tools in
    `supabase/functions/_shared/coach/tools.mjs`. No free-text plan generation.
+   The one load-increasing tool, `add_session`, is bounded three ways: the
+   tool itself refuses dates inside the final 14 days and caps distance at
+   the plan's longest existing training session; the validator's ramp rule
+   gates the resulting week; and the system prompt licenses it only for
+   explicit extra availability — never to make up missed volume, never
+   during pain/illness. `cancel_session` marks a session `skipped` (the
+   app's existing flag) rather than deleting it; skipped sessions carry no
+   training load in the validator (volume/spacing/taper rules ignore them).
 3. **One validator, two callers** — `validatePlan`
    (`supabase/functions/_shared/coach/validation.mjs`) is shared by the agent
    path and confirmed against `buildPlan` output by
@@ -120,6 +128,16 @@ through `src/coach.js`.
   Both assert adaptation *properties*, not exact output (knee pain never adds
   intensity; a missed week never "makes up" volume; the validator-failure path
   ends in `no_valid_adjustment`). `npm test` runs both.
+- **Live model eval** — `npm run eval:live` (`evals/coach/`, needs
+  `ANTHROPIC_API_KEY`; `COACH_EVAL_MOCK=1` for a free plumbing check) replays
+  10 realistic scenarios through the real `generateProposal` loop against the
+  real API and grades in two tiers: **safety** invariants that fail the run
+  (validator passes, done/RACE untouched, volume never up, pain never adds
+  intensity) and **quality** metrics that are scored but non-blocking (right
+  tool family, graceful refusals, referral language). Writes a JSON report per
+  run to `evals/coach/results/` (git-ignored). Run it before changing
+  `SYSTEM_PROMPT`, tool descriptions, validator rules, or `COACH_MODEL`
+  (`COACH_EVAL_MODEL=...` compares candidates). See `evals/coach/README.md`.
 - **The propose/confirm log is the eval dataset**: `agent_rounds.input_context`
   labels what the model saw; `proposed_plan`, `tool_calls`, `outcome` label
   what it did and how it fared.

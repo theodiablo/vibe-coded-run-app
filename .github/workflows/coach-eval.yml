@@ -1,0 +1,67 @@
+name: Coach live eval
+
+# On-demand only — every run makes real Anthropic API calls (roughly $0.10-0.30
+# on Sonnet per trial set; see evals/coach/README.md). Replays the eval
+# scenarios through the production proposal loop against the live model, fails
+# on any SAFETY grader miss, and uploads the full JSON report as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model to evaluate (COACH_EVAL_MODEL)
+        required: false
+        default: claude-sonnet-4-6
+        type: string
+      trials:
+        description: Trials per scenario (COACH_EVAL_TRIALS)
+        required: false
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fail fast with a clear message instead of silently skipping the suite
+      # (the harness skips itself when the key is absent, which would read as
+      # a green no-op run here).
+      - name: Check ANTHROPIC_API_KEY is configured
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY repo secret is not set — add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Live eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COACH_EVAL_MODEL: ${{ inputs.model }}
+          COACH_EVAL_TRIALS: ${{ inputs.trials }}
+        run: npm run eval:live
+
+      # Keep the report even when a safety gate fails — that's exactly the run
+      # you want to inspect.
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coach-eval-report
+          path: evals/coach/results/
+          if-no-files-found: warn

@@ -45,6 +45,40 @@ describe("validatePlan rules", () => {
     expect(r.errors.some(e => e.code === "HARD_BACK_TO_BACK")).toBe(true);
   });
 
+  it("skipped sessions contribute no load: spacing, taper and ramp ignore them", () => {
+    // A skipped TEMPO the day before the LONG is not a hard back-to-back —
+    // it will not be run.
+    const p = cleanPlan();
+    p.weeks[2].sessions[0].date = "2026-01-24";
+    p.weeks[2].sessions[0].skipped = true;
+    expect(validatePlan(p).errors.some(e => e.code === "HARD_BACK_TO_BACK")).toBe(false);
+    // Skipped intervals inside the final 14 days don't trip the taper rule.
+    const q = cleanPlan();
+    q.weeks[4].sessions[0].type = "INTERVALS";
+    q.weeks[4].sessions[0].skipped = true;
+    expect(validatePlan(q).errors.some(e => e.code === "TAPER_INTERVALS")).toBe(false);
+    // A big session that is skipped doesn't count toward the weekly ramp.
+    const r = cleanPlan();
+    r.weeks[2].sessions[1].km = 25;
+    r.weeks[2].sessions[1].skipped = true;
+    expect(validatePlan(r).errors.some(e => e.code === "RAMP_EXCEEDED")).toBe(false);
+  });
+
+  it("ramp still gates a jump above pre-layoff volume when the two prior weeks are fully skipped", () => {
+    // Weeks 2 and 3 fully skipped (a two-week layoff). Skipped km reads as 0,
+    // so a naive two-week reference would collapse to 0 and un-gate the ramp.
+    // Resuming week 4 near the pre-layoff level is fine, but jumping well above
+    // it is still "making up volume" — the reference walks back to week 1.
+    const base = cleanPlan();
+    for (const s of base.weeks[1].sessions) s.skipped = true; // week 2 → 0 km
+    for (const s of base.weeks[2].sessions) s.skipped = true; // week 3 → 0 km
+    expect(validatePlan(base).errors.some(e => e.code === "RAMP_EXCEEDED")).toBe(false);
+
+    const jump = structuredClone(base);
+    jump.weeks[3].sessions[1].km = 20; // week 4 → 25 km vs week 1's 12 km
+    expect(validatePlan(jump).errors.some(e => e.code === "RAMP_EXCEEDED" && e.weekNumber === 4)).toBe(true);
+  });
+
   it("flags a week-over-week volume jump", () => {
     const p = cleanPlan();
     p.weeks[2].sessions[1].km = 25; // week 3: 30 km after 13 km

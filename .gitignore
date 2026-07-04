@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Coach live-eval reports (local artifacts)
+evals/coach/results/

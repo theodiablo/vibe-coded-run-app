@@ -8,8 +8,8 @@ import { validatePlan } from "../utils/coachValidation";
 import { track } from "../telemetry";
 
 // The model replies in markdown (headers, bold, tables); rendered via
-// react-markdown rather than a dangerouslySetInnerHTML + sanitizer pair —
-// it emits real React elements, so there's no HTML string to sanitize.
+// react-markdown rather than manually injecting raw HTML through a sanitizer
+// pair — it emits real React elements, so there's no HTML string to sanitize.
 // Component overrides keep every element inside the narrow chat bubble's
 // dark slate / orange-500 palette instead of react-markdown's default
 // (unstyled, full-size) tags.

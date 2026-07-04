@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "vitest run src/utils/coachAgent.eval.test.js"
+    "eval": "vitest run src/utils/coachAgent.eval.test.js",
+    "eval:live": "vitest run --config evals/coach/vitest.config.mjs"
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",

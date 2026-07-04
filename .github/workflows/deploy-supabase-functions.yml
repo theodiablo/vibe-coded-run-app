@@ -1,0 +1,131 @@
+name: Deploy Supabase functions
+
+# Deploys only the Edge Functions that actually changed in a push to main —
+# diffed against the previous commit, not "deploy everything every time".
+# _shared/** is a real dependency (coach-agent imports supabase/functions/
+# _shared/coach/*.mjs), so a _shared change redeploys every function whose
+# source actually imports from _shared, not just coach-agent by name.
+#
+# Uses the Supabase CLI (a devDependency, so `npx supabase` needs no extra
+# install) against the linked project via SUPABASE_ACCESS_TOKEN — CLI deploy
+# reads files straight off disk, unlike the interactive-session path (see
+# CLAUDE.md) which goes through the Supabase MCP tools instead.
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/functions/**"]
+  # Manual re-deploy: force one function regardless of what changed, or
+  # leave `function` empty to redo the same changed-since-last-commit detection.
+  workflow_dispatch:
+    inputs:
+      function:
+        description: Function to force-deploy (leave empty to auto-detect changed functions)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-supabase-functions
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_REF: jpnxghiyjpuqnznxyfaf
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # Full history: we diff against an arbitrary previous commit below.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine changed functions
+        id: changed
+        env:
+          FORCE_FUNCTION: ${{ inputs.function }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$FORCE_FUNCTION" ]; then
+            echo "functions=$FORCE_FUNCTION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # On push, diff the exact range GitHub reports; on a manual dispatch
+          # with no forced function, fall back to the last commit. A missing
+          # or all-zero "before" (first push of the branch, force-push) means
+          # there's no diffable base — redeploy every function to be safe.
+          BASE="$PUSH_BEFORE"
+          if [ -z "$BASE" ]; then
+            BASE=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
+            echo "No usable base commit — treating every function as changed."
+            CHANGED=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -printf 'supabase/functions/%f/\n')
+          else
+            CHANGED=$(git diff --name-only "$BASE" "${{ github.sha }}" -- supabase/functions || true)
+          fi
+          echo "Changed paths:"
+          echo "$CHANGED"
+
+          SHARED_CHANGED=false
+          if echo "$CHANGED" | grep -q '^supabase/functions/_shared/'; then
+            SHARED_CHANGED=true
+          fi
+
+          FUNCS=""
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            [ "$name" = "_shared" ] && continue
+            if echo "$CHANGED" | grep -q "^supabase/functions/$name/"; then
+              FUNCS="$FUNCS $name"
+              continue
+            fi
+            # A _shared change only redeploys functions that actually import
+            # from it (grep the function's own source), not every function.
+            if [ "$SHARED_CHANGED" = true ] && grep -rq '\.\./_shared/' "$dir" 2>/dev/null; then
+              FUNCS="$FUNCS $name"
+            fi
+          done
+          FUNCS=$(echo "$FUNCS" | xargs -n1 | sort -u | xargs || true)
+          echo "functions=$FUNCS" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy changed functions
+        if: steps.changed.outputs.functions != ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN repo secret is not set — add it under Settings → Secrets and variables → Actions (a Supabase personal/service access token with deploy rights on run-app)."
+            exit 1
+          fi
+          for name in ${{ steps.changed.outputs.functions }}; do
+            echo "::group::Deploying $name"
+            npx supabase functions deploy "$name" --project-ref "$SUPABASE_PROJECT_REF"
+            echo "::endgroup::"
+          done
+          echo "### Deployed functions" >> "$GITHUB_STEP_SUMMARY"
+          for name in ${{ steps.changed.outputs.functions }}; do
+            echo "- \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: No changes
+        if: steps.changed.outputs.functions == ''
+        run: |
+          echo "No edge function changes detected — nothing to deploy." | tee "$GITHUB_STEP_SUMMARY"

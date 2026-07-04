@@ -92,18 +92,32 @@ function collectIssues(plan) {
   // Structure must be sound before load rules make sense.
   if (issues.some(i => i.severity === "error")) return issues;
 
+  // A skipped session (user-skipped, or cancelled by the coach's
+  // cancel_session) will not be run: it contributes no training load, so the
+  // volume/spacing/taper rules ignore it. Structural checks above still apply.
   const weeks = plan.weeks;
   const isRaceWeek = (w) => w.sessions.some(s => s.type === "RACE");
-  const total = (w) => w.sessions.reduce((t, s) => t + (s.type === "RACE" ? 0 : s.km), 0);
+  const total = (w) => w.sessions.reduce((t, s) => t + (s.type === "RACE" || s.skipped ? 0 : s.km), 0);
   const totals = weeks.map(total);
 
   // ── safety: weekly volume ramp ─────────────────────────────────────────────
   // The reference looks back two full weeks so a recovery week doesn't lower
   // the ceiling — resuming the planned volume after an easy week is fine.
+  // Skipped sessions carry no load, so a fully-skipped week reads as 0; if we
+  // stopped at the two-week window the ceiling could collapse to 0 (both prior
+  // weeks skipped) and silently un-gate the ramp — exactly the aggressive
+  // resume-after-a-layoff case this rule exists to catch. So when the window is
+  // empty, walk further back to the most recent week with real load and use
+  // that as the ceiling instead of disabling the check.
+  const refKm = (i) => {
+    let ref = Math.max(totals[i - 1], i >= 2 ? totals[i - 2] : 0);
+    for (let k = i - 3; ref === 0 && k >= 0; k--) ref = totals[k];
+    return ref;
+  };
   for (let i = 1; i < weeks.length; i++) {
     const w = weeks[i];
     if (w.phase === "TAPER" || w.phase === "RACE" || isRaceWeek(weeks[i - 1])) continue;
-    const ref = Math.max(totals[i - 1], i >= 2 ? totals[i - 2] : 0);
+    const ref = refKm(i);
     if (ref > 0 && totals[i] > ref * RAMP_FACTOR + RAMP_SLACK_KM) {
       issues.push({ code: "RAMP_EXCEEDED", severity: "error", weekNumber: w.weekNumber,
         message: `Week ${w.weekNumber} volume (${totals[i].toFixed(1)} km) jumps too far above the previous weeks (~${ref.toFixed(1)} km). Never "make up" missed volume.` });
@@ -112,6 +126,7 @@ function collectIssues(plan) {
 
   // ── safety: hard sessions on consecutive days ──────────────────────────────
   const all = weeks.flatMap(w => w.sessions.map(s => ({ ...s, weekNumber: w.weekNumber })))
+    .filter(s => !s.skipped)
     .sort((a, b) => a.date.localeCompare(b.date));
   for (let i = 1; i < all.length; i++) {
     const a = all[i - 1], b = all[i];
@@ -180,7 +195,7 @@ export function validatePlan(plan, opts = {}) {
     const baselineKeys = new Set(collectIssues(opts.baseline).map(issueKey));
     // Weekly totals per weekNumber, for the RAMP not-worse waiver below.
     const weekTotal = (p, n) => p.weeks?.find(w => w.weekNumber === n)
-      ?.sessions.reduce((t, s) => t + (s.type === "RACE" ? 0 : s.km), 0);
+      ?.sessions.reduce((t, s) => t + (s.type === "RACE" || s.skipped ? 0 : s.km), 0);
     issues = issues.map(i => {
       if (i.severity !== "error") return i;
       if (baselineKeys.has(issueKey(i))) return { ...i, severity: "warn", preexisting: true };

@@ -36,6 +36,43 @@ and delete anything that becomes stale.
 - **Supabase config:** URL and anon key live in `src/config.js` (imported by
   `src/supabase.js`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
   override them at build time. Don't hardcode credentials elsewhere.
+- **Deploying edge functions (via the Supabase MCP tools, not the CLI):** the
+  project is **`run-app`, id `jpnxghiyjpuqnznxyfaf`** — don't call
+  `mcp__Supabase__list_projects` to rediscover it. To redeploy `coach-agent`
+  after editing `supabase/functions/coach-agent/index.ts` or any
+  `supabase/functions/_shared/coach/*.mjs`, go straight to
+  `mcp__Supabase__deploy_edge_function` with `project_id: jpnxghiyjpuqnznxyfaf`,
+  `name: "coach-agent"`, `entrypoint_path: "source/index.ts"`, `verify_jwt:
+  true`, and a `files` array of **exactly these five**, read fresh off disk
+  (content must match current `git` state, not a stale copy from earlier in
+  the conversation):
+  `source/index.ts` ← `supabase/functions/coach-agent/index.ts`,
+  `_shared/coach/engine.mjs`, `_shared/coach/validation.mjs`,
+  `_shared/coach/tools.mjs`, `_shared/coach/mock.mjs` (same relative names,
+  read from `supabase/functions/_shared/coach/`). This naming is load-bearing:
+  the entrypoint's `../_shared/coach/*.mjs` imports only resolve because
+  `_shared` sits as a sibling of `source/` in the upload, mirroring the real
+  `supabase/functions/` layout. No `list_edge_functions` / `get_edge_function`
+  round-trip needed first — this recipe is already confirmed working (deployed
+  successfully as version 5). `notify-contribution` is the only other function;
+  redeploy it the same way with its own single `source/index.ts` (no
+  `_shared` dependency) if it's ever changed.
+  Large payloads occasionally drop the MCP connection mid-call (seen twice
+  deploying `coach-agent`, ~60KB of files) — just retry `deploy_edge_function`
+  verbatim; it's a transient reconnect, not a real failure. This sandbox's
+  outbound proxy blocks arbitrary domains (`supabase.co` included), so a
+  post-deploy `curl` smoke test isn't possible here — confirm via the deploy
+  call's returned `status: "ACTIVE"` and, if you want request-level
+  confirmation, `mcp__Supabase__get_logs` with `service: "edge-function"`
+  instead.
+  **On merge to `main`, this happens automatically instead** —
+  `.github/workflows/deploy-supabase-functions.yml` diffs the push against
+  the previous commit and runs `supabase functions deploy <name>` (the CLI,
+  reading straight off disk — no inline-content payload) for whichever
+  function directories changed, redeploying `coach-agent` if `_shared/**`
+  changed too. Needs a `SUPABASE_ACCESS_TOKEN` repo secret (Supabase
+  personal/service access token with deploy rights on `run-app`) — the MCP
+  recipe above is only for redeploying mid-session, before a merge.
 - **Multi-user:** The app is open to public signups — don't make single-user
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.
@@ -253,8 +290,14 @@ and delete anything that becomes stale.
 
 ## AI coach agent (plan adjustments)
 - **Propose-and-confirm, editor-not-author:** `supabase/functions/coach-agent`
-  adapts the existing plan ("my knee hurts", "I missed a week") through six
-  typed tools only — it never authors plans; `buildPlan` stays the author. UI is
+  adapts the existing plan ("my knee hurts", "I missed a week") through nine
+  typed tools only — it never authors plans; `buildPlan` stays the author.
+  Only `add_session` can increase load, bounded by the tool's own guards
+  (no taper dates, km capped at the plan's longest session) + the validator's
+  ramp rule; `cancel_session` marks `skipped` (skipped sessions carry no load
+  in the validator). A systematically-too-easy plan is a *goal* problem:
+  `reassess_goal_feasibility` flags a CONSERVATIVE goal and the coach directs
+  the user to plan settings rather than hand-editing sessions. UI is
   `src/modals/CoachChat.jsx` (opened via `shared.openCoach`, PlanView's Coach
   button); access module `src/coach.js` (calls `flushNow()` first — the server
   reads the plan/runs from `app_state`, not the request body).
@@ -274,6 +317,13 @@ and delete anything that becomes stale.
   debounced whole-blob upsert; it returns the re-validated plan and the client
   applies it via `applyCoachPlan` (`carryProgress` + `db.set`, RLS-guarded).
   Read `docs/coach-agent.md` before touching prompts, tools, or validator rules.
+- **Coach evals:** offline (scripted model) in `npm test` / `npm run eval`;
+  **live-model** eval in `evals/coach/` via `npm run eval:live` (needs
+  `ANTHROPIC_API_KEY`; `COACH_EVAL_MOCK=1` = free plumbing check). Safety
+  graders gate (fail the run), quality graders only score — extend scenarios/
+  graders there, not in the offline tests. The prompts live server-side only:
+  `SYSTEM_PROMPT` + context assembly (`buildMessages`) in
+  `_shared/coach/engine.mjs`, tool descriptions in `_shared/coach/tools.mjs`.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`

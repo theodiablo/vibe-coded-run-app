@@ -78,6 +78,46 @@ describe("applyToolCall", () => {
     expect(s.pace).toBeNull();
   });
 
+  it("reduce_session_distance shortens only the target session, with a floor", () => {
+    const out = applyToolCall(plan(), "reduce_session_distance", { session_id: "w1d6", factor: 0.5 });
+    expect(out.weeks[0].sessions.find(s => s.id === "w1d6").km).toBe(5);
+    expect(out.weeks[0].sessions.find(s => s.id === "w1d2").km).toBe(5); // untouched
+    const floored = applyToolCall(plan(), "reduce_session_distance", { session_id: "w1d2", factor: 0.3 });
+    expect(floored.weeks[0].sessions.find(s => s.id === "w1d2").km).toBe(1.5);
+    expect(() => applyToolCall(plan(), "reduce_session_distance", { session_id: "w1d2", factor: 1.2 })).toThrow(/factor/);
+    expect(() => applyToolCall(plan(), "reduce_session_distance", { session_id: "w2d2", factor: 0.5 })).toThrow(/completed/);
+    expect(() => applyToolCall(plan(), "reduce_session_distance", { session_id: "race", factor: 0.5 })).toThrow(/race/);
+  });
+
+  it("cancel_session marks skipped and refuses done/RACE sessions", () => {
+    const out = applyToolCall(plan(), "cancel_session", { session_id: "w1d2" });
+    expect(out.weeks[0].sessions.find(s => s.id === "w1d2").skipped).toBe(true);
+    expect(() => applyToolCall(plan(), "cancel_session", { session_id: "w2d2" })).toThrow(/completed/);
+    expect(() => applyToolCall(plan(), "cancel_session", { session_id: "race" })).toThrow(/race/);
+  });
+
+  it("add_session inserts a capped, sorted session with a fresh id", () => {
+    const out = applyToolCall(plan(), "add_session", { date: "2026-01-08", type: "EASY", km: 5 });
+    const added = out.weeks[0].sessions.find(s => s.id === "coach-add-2026-01-08");
+    expect(added).toMatchObject({ type: "EASY", km: 5, done: false });
+    expect(added.pace).toBe(Math.round(330 * 1.25));
+    expect(out.weeks[0].sessions.map(s => s.date)).toEqual([...out.weeks[0].sessions.map(s => s.date)].sort());
+    // Same-date collision gets a suffixed id, not a duplicate.
+    const twice = applyToolCall(out, "add_session", { date: "2026-01-08", type: "WALK", km: 3 });
+    expect(twice.weeks[0].sessions.filter(s => s.date === "2026-01-08").map(s => s.id))
+      .toEqual(["coach-add-2026-01-08", "coach-add-2026-01-08-2"]);
+  });
+
+  it("add_session refuses taper dates, oversized runs and out-of-plan dates", () => {
+    // Race day is 2026-02-14: 2026-02-05 is inside the final 14 days.
+    expect(() => applyToolCall(plan(), "add_session", { date: "2026-02-05", type: "EASY", km: 5 })).toThrow(/final 14 days/);
+    // Longest training session in the fixture is 11 km.
+    expect(() => applyToolCall(plan(), "add_session", { date: "2026-01-08", type: "LONG", km: 15 })).toThrow(/longest/);
+    expect(() => applyToolCall(plan(), "add_session", { date: "2025-12-01", type: "EASY", km: 5 })).toThrow(/outside/);
+    expect(() => applyToolCall(plan(), "add_session", { date: "2026-01-08", type: "RACE", km: 5 })).toThrow(/type/);
+    expect(() => applyToolCall(plan(), "add_session", { date: "2026-01-08", type: "EASY", km: 0 })).toThrow(/km/);
+  });
+
   it("rejects unknown tools", () => {
     expect(() => applyToolCall(plan(), "delete_everything", {})).toThrow(/Unknown tool/);
   });
@@ -91,6 +131,9 @@ describe("applyToolCall", () => {
       reduce_week_volume: { week_number: 1, factor: 0.6 },
       insert_recovery_week: { week_number: 1 },
       convert_to_cross_training: { session_id: "w1d6" },
+      reduce_session_distance: { session_id: "w1d6", factor: 0.7 },
+      cancel_session: { session_id: "w1d2" },
+      add_session: { date: "2026-01-08", type: "EASY", km: 5 },
     };
     for (const def of TOOL_DEFS) {
       if (def.name === "reassess_goal_feasibility") continue;
@@ -121,6 +164,16 @@ describe("assessGoalFeasibility", () => {
     ];
     expect(assessGoalFeasibility({ ...goal, recentRuns: runs })).toMatch(/plausible/);
   });
+  it("flags a conservative goal when recent paces are comfortably faster", () => {
+    // Target 313 s/km; best recent pace 280 (≤ 0.93×) with real endurance —
+    // the "plan feels too easy" case should point at the goal, not the plan.
+    const runs = [
+      { date: today(4), type: "TEMPO", km: 8, durationSec: 8 * 280 },
+      { date: today(9), type: "LONG", km: 15, durationSec: 15 * 340 },
+    ];
+    expect(assessGoalFeasibility({ ...goal, recentRuns: runs })).toMatch(/CONSERVATIVE/);
+  });
+
   it("bases longest/pace stats on the last 4 weeks, not stale older history", () => {
     // A big long run and fast pace from 3 months ago must not make a currently
     // inactive runner's goal look supported by "recent" fitness.

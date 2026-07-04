@@ -1,9 +1,12 @@
-// The coach agent's bounded tool vocabulary: six typed, pure transforms over
+// The coach agent's bounded tool vocabulary: nine typed, pure transforms over
 // the buildPlan() JSON. The model is an EDITOR, never an author — it can only
-// act through these; there is deliberately no "increase volume" or free-form
-// edit tool. Every transform returns a NEW plan (structuredClone; the input is
-// never mutated) and refuses to touch completed (done) sessions or move RACE
-// sessions (races are fixed real-world events).
+// act through these; there is deliberately no free-form edit tool. The one
+// load-increasing tool (add_session) is tightly bounded: distance capped at
+// the plan's current longest training session, never inside the final 14
+// days, and the weekly-ramp validator still gates the result. Every transform
+// returns a NEW plan (structuredClone; the input is never mutated) and
+// refuses to touch completed (done) sessions or move RACE sessions (races are
+// fixed real-world events).
 //
 // Session/phase vocabulary matches the app (src/utils/plan.js), NOT generic
 // lowercase names: EASY | TEMPO | INTERVALS | LONG | RACE | WALK | OTHER.
@@ -17,6 +20,7 @@ const SWAP_TYPES = ["EASY", "TEMPO", "INTERVALS", "LONG", "WALK"];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const dayMs = 86400000;
 const toDate = (s) => new Date(s + "T00:00:00");
+const daysBetween = (a, b) => Math.round((toDate(b) - toDate(a)) / dayMs);
 
 export class CoachToolError extends Error {
   constructor(code, message) {
@@ -86,6 +90,43 @@ export const TOOL_DEFS = [
       type: "object",
       properties: { session_id: { type: "string" } },
       required: ["session_id"],
+    },
+  },
+  {
+    name: "reduce_session_distance",
+    description:
+      "Shorten ONE session's distance by a factor between 0.3 and 0.95, keeping its date and type. Use when a single session needs unloading (e.g. shorten just the long run after a heavy week) — prefer this over reduce_week_volume when the problem is one session, not the whole week.",
+    input_schema: {
+      type: "object",
+      properties: {
+        session_id: { type: "string" },
+        factor: { type: "number", description: "Multiplier in [0.3, 0.95]." },
+      },
+      required: ["session_id", "factor"],
+    },
+  },
+  {
+    name: "cancel_session",
+    description:
+      "Cancel one upcoming session — it is marked skipped and will not be run. LAST RESORT: prefer shortening (reduce_session_distance), shifting, swapping easier, or converting to cross-training; cancel only when full rest is the right call. Cannot cancel RACE or completed sessions, and you have no tool to un-cancel.",
+    input_schema: {
+      type: "object",
+      properties: { session_id: { type: "string" } },
+      required: ["session_id"],
+    },
+  },
+  {
+    name: "add_session",
+    description:
+      "Add ONE extra training session on a free day. ONLY when the runner explicitly has extra availability or asks to train more AND recent training supports it — never to make up missed volume, never during pain or illness, never inside the final 14 days before the race. Distance is capped at the plan's current longest training session, and the weekly volume ramp rule still applies to the result.",
+    input_schema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "YYYY-MM-DD, inside the plan and before race day." },
+        type: { type: "string", enum: SWAP_TYPES },
+        km: { type: "number", description: "Distance in km; keep it modest." },
+      },
+      required: ["date", "type", "km"],
     },
   },
   {
@@ -202,6 +243,54 @@ export function applyToolCall(plan, name, input = {}) {
       }
       return p;
     }
+    case "reduce_session_distance": {
+      const { session_id, factor } = input;
+      if (typeof factor !== "number" || factor < 0.3 || factor > 0.95)
+        throw new CoachToolError("BAD_INPUT", "factor must be a number in [0.3, 0.95].");
+      const { session } = findSession(p, session_id);
+      guardEditable(session, "shorten");
+      session.km = Math.max(1.5, Math.round(session.km * factor * 10) / 10);
+      return p;
+    }
+    case "cancel_session": {
+      const { session_id } = input;
+      const { session } = findSession(p, session_id);
+      guardEditable(session, "cancel");
+      session.skipped = true;
+      return p;
+    }
+    case "add_session": {
+      const { date, type, km } = input;
+      if (!YMD.test(date || ""))
+        throw new CoachToolError("BAD_INPUT", "date must be YYYY-MM-DD.");
+      if (!SWAP_TYPES.includes(type))
+        throw new CoachToolError("BAD_INPUT", `type must be one of ${SWAP_TYPES.join(", ")}.`);
+      if (typeof km !== "number" || !(km > 0))
+        throw new CoachToolError("BAD_INPUT", "km must be a positive number.");
+      if (date >= p.raceDate)
+        throw new CoachToolError("AFTER_RACE", "Cannot add a training session on/after race day.");
+      if (daysBetween(date, p.raceDate) <= 14)
+        throw new CoachToolError("TAPER", "No added sessions inside the final 14 days — the taper sheds load, it never gains sessions.");
+      const target = p.weeks.find(w => {
+        const off = daysBetween(w.startDate, date);
+        return off >= 0 && off < 7;
+      });
+      if (!target)
+        throw new CoachToolError("OUT_OF_PLAN", `${date} is outside the plan window.`);
+      // Cap at the plan's established range: an "extra run" can never smuggle
+      // in a new peak session.
+      const cap = Math.max(0, ...p.weeks.flatMap(w => w.sessions)
+        .filter(s => s.type !== "RACE" && !s.skipped).map(s => s.km));
+      if (cap > 0 && km > cap)
+        throw new CoachToolError("TOO_LONG", `km must not exceed the plan's current longest training session (${cap} km).`);
+      const ids = new Set(p.weeks.flatMap(w => w.sessions.map(s => s.id)));
+      let id = `coach-add-${date}`;
+      for (let n = 2; ids.has(id); n++) id = `coach-add-${date}-${n}`;
+      const pace = paceFor(p, type);
+      target.sessions.push({ id, date, type, km: Math.round(km * 10) / 10, pace, desc: descFor(type, pace), done: false });
+      target.sessions.sort((a, b) => a.date.localeCompare(b.date));
+      return p;
+    }
     case "convert_to_cross_training": {
       const { session_id } = input;
       const { session } = findSession(p, session_id);
@@ -246,6 +335,8 @@ export function assessGoalFeasibility(ctx) {
     lines.push("Assessment: goal pace is far below anything shown recently — the goal looks UNREALISTIC right now; recommend discussing a slower goal or a later race.");
   else if (longest < distanceKm * 0.5 && distanceKm > 15)
     lines.push("Assessment: endurance is the gap (longest run under half the race distance) — the goal is AT RISK; protect the long-run progression above all.");
+  else if (bestPace <= targetPace * 0.93)
+    lines.push("Assessment: recent paces are comfortably faster than goal pace — the goal looks CONSERVATIVE. If the plan feels too easy, suggest a more ambitious goal in the plan settings (the whole plan is rebuilt from the goal) rather than hand-editing sessions.");
   else
     lines.push("Assessment: the goal looks broadly plausible if the remaining plan is executed consistently.");
   return lines.join("\n");
