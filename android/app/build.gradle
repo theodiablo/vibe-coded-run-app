@@ -7,8 +7,9 @@ android {
         applicationId "solutions.camboulive.run"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // Injected by CI (.github/workflows/android.yml): versionCode = the run
-        // number (monotonic, never collides), versionName = the android-v* tag.
+        // Injected by CI (.github/workflows/android.yml): versionCode =
+        // run_number*1000 + run_attempt (monotonic, and unique even across a
+        // re-run of the same workflow run), versionName = the android-v* tag.
         // Local/debug builds fall back to 1 / "1.0".
         versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
         versionName = (System.getenv("ANDROID_VERSION_NAME") ?: "1.0")

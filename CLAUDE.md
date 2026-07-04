@@ -77,8 +77,13 @@ and delete anything that becomes stale.
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.
 - **App versioning / update gate (native only):** build version is NOT in the DB
-  — `versionCode` is the CI run number, `versionName` is the `android-v*` tag
-  (`android/app/build.gradle` reads them from env). The world-readable `app_config`
+  — `versionCode` is `run_number*1000 + run_attempt` (`android.yml`'s `ver` step),
+  `versionName` is the `android-v*` tag (`android/app/build.gradle` reads them from
+  env). The `run_attempt` term matters: Google Play permanently rejects a re-used
+  versionCode, and a bare `run_number` repeats on "re-run failed jobs" — which is
+  exactly what happens after a partial release (AAB uploaded to Play, a later step
+  like the Supabase version bump fails) prompts a retry. Seen in practice: run 45's
+  retry re-sent versionCode 45 and Play rejected it outright. The world-readable `app_config`
   row owns *policy*: `latest_version` (soft "update available" banner, written by
   the release workflow) and `min_supported_version` (hard gate, bumped by hand on a
   breaking change). `App.jsx` compares the installed version (`App.getInfo()`) via
