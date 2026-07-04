@@ -145,7 +145,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                     style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
                     <div className="flex justify-between items-start gap-3">
                       <div className="min-w-0">
-                        <p className="font-semibold truncate">{p.label}</p>
+                        <p className="font-semibold line-clamp-2 leading-snug">{p.label}</p>
                         <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
                         {isTarget && <span className="inline-flex items-center gap-1 text-xs text-orange-300 mt-1.5 font-semibold"><Target size={12}/>Training target</span>}
                         {inPlannable && p.inPlan && <span className="inline-flex items-center gap-1 text-xs text-orange-300/80 mt-1.5 font-semibold"><Check size={12}/>In your plan</span>}
@@ -217,7 +217,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                 <div key={p.editionId} className="bg-slate-800 rounded-xl p-4">
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{p.label}</p>
+                      <p className="font-semibold line-clamp-2 leading-snug">{p.label}</p>
                       <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
                       {p.notes && <p className="text-slate-400 text-xs mt-1 truncate">{p.notes}</p>}
                     </div>
@@ -259,10 +259,14 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                 <div key={race.id} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
                   <button onClick={() => setExpanded(open ? null : race.id)} className="w-full px-4 py-3 flex items-center gap-2 text-left">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{race.name}</p>
+                      <p className="font-semibold leading-snug line-clamp-2">{race.name}</p>
                       <p className="text-slate-400 text-xs">{[race.city, race.country].filter(Boolean).join(", ") + " · " + (race.distances || []).join("/") + " km"}</p>
                     </div>
-                    {!race.verified && <AlertTriangle size={13} className="text-amber-400 flex-shrink-0"/>}
+                    {!race.verified && (
+                      <span title="Unverified — details are user-submitted, check the official site" className="flex-shrink-0">
+                        <AlertTriangle size={13} className="text-amber-400"/>
+                      </span>
+                    )}
                     <ChevronRight size={16} className={"text-slate-600 transition-transform flex-shrink-0 " + (open ? "rotate-90" : "")}/>
                   </button>
                   {open && (
@@ -390,7 +394,8 @@ function DiscoverPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveRe
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap items-center">
+          <span className="text-[11px] text-slate-500 mr-1">Distance</span>
           <Chip active={band == null} onClick={() => setBand(null)}>All</Chip>
           {BANDS.map(b => <Chip key={b} active={band === b} onClick={() => setBand(band === b ? null : b)}>{b} km</Chip>)}
         </div>
@@ -413,7 +418,7 @@ function DiscoverPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveRe
               <div key={e.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4">
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{race.name}</p>
+                    <p className="font-semibold line-clamp-2 leading-snug">{race.name}</p>
                     <p className="text-slate-400 text-xs mt-0.5">{[race.city, race.country].filter(Boolean).join(", ")}</p>
                     <p className="text-slate-400 text-xs mt-1">{fmt.date(e.date) + " · " + e.distanceKm + " km" + (e.elevation ? " · +" + e.elevation + "m" : "")}</p>
                     {!race.verified && <div className="mt-1.5"><UnverifiedTag/></div>}
@@ -545,5 +550,7 @@ function filterRaces(list, query) {
 }
 function fmtKm(distM) {
   const km = distM / 1000;
+  // Right on top of it (e.g. same city centroid) reads as a broken "0.0 km".
+  if (km < 0.1) return "< 100 m";
   return km < 10 ? km.toFixed(1) + " km" : Math.round(km) + " km";
 }

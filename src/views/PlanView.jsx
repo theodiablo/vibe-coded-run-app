@@ -189,10 +189,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mt-4 mb-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold">Training Plan</h2>
-          <PlanInfo/>
-        </div>
+        <h2 className="text-xl font-bold">Training Plan</h2>
         {!promoting && (
           <div className="flex gap-1 items-center">
             {confirmRegen ? (
@@ -250,6 +247,9 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
             ))}
           </div>
         )}
+        <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-end">
+          <PlanInfo/>
+        </div>
       </div>
 
       {nowIdx >= 0 && (

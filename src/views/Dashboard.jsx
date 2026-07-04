@@ -1,4 +1,4 @@
-import { Activity, Award, Check, ChevronRight, Plus, X, Zap } from "lucide-react";
+import { Activity, Award, Check, ChevronRight, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
 import { computeBadges, nextBadge } from "../utils/badges";
@@ -31,7 +31,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
   const statCards = [
     {l:"This week",  v:wkKm.toFixed(1)+" km",  c:"text-orange-400",  I:Zap},
     {l:"Runs recorded", v:String(runs.length),    c:"text-sky-400",     I:Activity},
-    {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Award},
+    {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Route},
   ];
 
   return (
@@ -115,13 +115,18 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
             {nextIsToday ? "Today's session" : "Up next"}
           </p>
           <div className={"border-2 rounded-2xl p-4 " + (TBG[nextSess.type] || TBG.OTHER)}>
-            <span className={"text-xs font-bold uppercase tracking-wide " + (TCLR[nextSess.type] || TCLR.OTHER)}>
-              {nextSess.type}
-            </span>
-            <p className="text-white text-base font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
-            <p className="text-slate-400 text-xs mt-2">
-              {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
-            </p>
+            <button onClick={() => goTab("plan")} className="w-full text-left group" title="View in your plan">
+              <div className="flex items-start justify-between gap-2">
+                <span className={"text-xs font-bold uppercase tracking-wide " + (TCLR[nextSess.type] || TCLR.OTHER)}>
+                  {nextSess.type}
+                </span>
+                <ChevronRight size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0 mt-0.5"/>
+              </div>
+              <p className="text-white text-base font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
+              <p className="text-slate-400 text-xs mt-2">
+                {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
+              </p>
+            </button>
             <HRTarget type={nextSess.type} settings={settings} openSettings={openSettings}/>
             <div className="flex gap-2 mt-3">
               <button
