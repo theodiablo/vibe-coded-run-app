@@ -64,6 +64,21 @@ describe("validatePlan rules", () => {
     expect(validatePlan(r).errors.some(e => e.code === "RAMP_EXCEEDED")).toBe(false);
   });
 
+  it("ramp still gates a jump above pre-layoff volume when the two prior weeks are fully skipped", () => {
+    // Weeks 2 and 3 fully skipped (a two-week layoff). Skipped km reads as 0,
+    // so a naive two-week reference would collapse to 0 and un-gate the ramp.
+    // Resuming week 4 near the pre-layoff level is fine, but jumping well above
+    // it is still "making up volume" — the reference walks back to week 1.
+    const base = cleanPlan();
+    for (const s of base.weeks[1].sessions) s.skipped = true; // week 2 → 0 km
+    for (const s of base.weeks[2].sessions) s.skipped = true; // week 3 → 0 km
+    expect(validatePlan(base).errors.some(e => e.code === "RAMP_EXCEEDED")).toBe(false);
+
+    const jump = structuredClone(base);
+    jump.weeks[3].sessions[1].km = 20; // week 4 → 25 km vs week 1's 12 km
+    expect(validatePlan(jump).errors.some(e => e.code === "RAMP_EXCEEDED" && e.weekNumber === 4)).toBe(true);
+  });
+
   it("flags a week-over-week volume jump", () => {
     const p = cleanPlan();
     p.weeks[2].sessions[1].km = 25; // week 3: 30 km after 13 km

@@ -103,10 +103,21 @@ function collectIssues(plan) {
   // ── safety: weekly volume ramp ─────────────────────────────────────────────
   // The reference looks back two full weeks so a recovery week doesn't lower
   // the ceiling — resuming the planned volume after an easy week is fine.
+  // Skipped sessions carry no load, so a fully-skipped week reads as 0; if we
+  // stopped at the two-week window the ceiling could collapse to 0 (both prior
+  // weeks skipped) and silently un-gate the ramp — exactly the aggressive
+  // resume-after-a-layoff case this rule exists to catch. So when the window is
+  // empty, walk further back to the most recent week with real load and use
+  // that as the ceiling instead of disabling the check.
+  const refKm = (i) => {
+    let ref = Math.max(totals[i - 1], i >= 2 ? totals[i - 2] : 0);
+    for (let k = i - 3; ref === 0 && k >= 0; k--) ref = totals[k];
+    return ref;
+  };
   for (let i = 1; i < weeks.length; i++) {
     const w = weeks[i];
     if (w.phase === "TAPER" || w.phase === "RACE" || isRaceWeek(weeks[i - 1])) continue;
-    const ref = Math.max(totals[i - 1], i >= 2 ? totals[i - 2] : 0);
+    const ref = refKm(i);
     if (ref > 0 && totals[i] > ref * RAMP_FACTOR + RAMP_SLACK_KM) {
       issues.push({ code: "RAMP_EXCEEDED", severity: "error", weekNumber: w.weekNumber,
         message: `Week ${w.weekNumber} volume (${totals[i].toFixed(1)} km) jumps too far above the previous weeks (~${ref.toFixed(1)} km). Never "make up" missed volume.` });

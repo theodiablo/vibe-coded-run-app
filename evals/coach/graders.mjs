@@ -178,7 +178,7 @@ export const movedOffWeekday = (weekday, label) => onPlan(`moved-off-${label}`, 
 // Volume within the next 7 days from "today" went down (illness / acute pain).
 export const nextSevenDaysReduced = onPlan("next-7-days-reduced", ({ result, baseline, context }) => {
   const sum = (plan) => flat(plan).filter(s =>
-    !s.done && s.type !== "RACE" && s.date >= context.today && daysBetween(context.today, s.date) < 7)
+    !s.done && !s.skipped && s.type !== "RACE" && s.date >= context.today && daysBetween(context.today, s.date) < 7)
     .reduce((t, s) => t + (s.km || 0), 0);
   const b = sum(baseline), p = sum(result.plan);
   return { pass: p < b - 0.01, detail: `next 7 days: ${b.toFixed(1)} → ${p.toFixed(1)} km` };
