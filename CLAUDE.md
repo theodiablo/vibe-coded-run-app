@@ -36,6 +36,35 @@ and delete anything that becomes stale.
 - **Supabase config:** URL and anon key live in `src/config.js` (imported by
   `src/supabase.js`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
   override them at build time. Don't hardcode credentials elsewhere.
+- **Deploying edge functions (via the Supabase MCP tools, not the CLI):** the
+  project is **`run-app`, id `jpnxghiyjpuqnznxyfaf`** — don't call
+  `mcp__Supabase__list_projects` to rediscover it. To redeploy `coach-agent`
+  after editing `supabase/functions/coach-agent/index.ts` or any
+  `supabase/functions/_shared/coach/*.mjs`, go straight to
+  `mcp__Supabase__deploy_edge_function` with `project_id: jpnxghiyjpuqnznxyfaf`,
+  `name: "coach-agent"`, `entrypoint_path: "source/index.ts"`, `verify_jwt:
+  true`, and a `files` array of **exactly these five**, read fresh off disk
+  (content must match current `git` state, not a stale copy from earlier in
+  the conversation):
+  `source/index.ts` ← `supabase/functions/coach-agent/index.ts`,
+  `_shared/coach/engine.mjs`, `_shared/coach/validation.mjs`,
+  `_shared/coach/tools.mjs`, `_shared/coach/mock.mjs` (same relative names,
+  read from `supabase/functions/_shared/coach/`). This naming is load-bearing:
+  the entrypoint's `../_shared/coach/*.mjs` imports only resolve because
+  `_shared` sits as a sibling of `source/` in the upload, mirroring the real
+  `supabase/functions/` layout. No `list_edge_functions` / `get_edge_function`
+  round-trip needed first — this recipe is already confirmed working (deployed
+  successfully as version 5). `notify-contribution` is the only other function;
+  redeploy it the same way with its own single `source/index.ts` (no
+  `_shared` dependency) if it's ever changed.
+  Large payloads occasionally drop the MCP connection mid-call (seen twice
+  deploying `coach-agent`, ~60KB of files) — just retry `deploy_edge_function`
+  verbatim; it's a transient reconnect, not a real failure. This sandbox's
+  outbound proxy blocks arbitrary domains (`supabase.co` included), so a
+  post-deploy `curl` smoke test isn't possible here — confirm via the deploy
+  call's returned `status: "ACTIVE"` and, if you want request-level
+  confirmation, `mcp__Supabase__get_logs` with `service: "edge-function"`
+  instead.
 - **Multi-user:** The app is open to public signups — don't make single-user
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.
