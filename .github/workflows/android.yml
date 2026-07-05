@@ -59,7 +59,11 @@ jobs:
         run: npx cap sync android
 
       # versionName from the android-v* tag (e.g. android-v1.2.0 → 1.2.0);
-      # dev/manual runs use 0.0.0. versionCode is the run number (see Build AAB).
+      # dev/manual runs use 0.0.0. versionCode folds in run_attempt (not just
+      # run_number) — a plain run_number repeats on a re-run of the same run,
+      # and Google Play permanently rejects a re-used versionCode, so a retry
+      # after a partial failure (AAB built/uploaded, a later step failed) would
+      # otherwise fail every time with "Version code N has already been used."
       - name: Compute version name
         id: ver
         run: |
@@ -68,6 +72,7 @@ jobs:
           else
             echo "name=0.0.0" >> "$GITHUB_OUTPUT"
           fi
+          echo "code=$(( GITHUB_RUN_NUMBER * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
 
       # Release signing. Store a base64 keystore + credentials as Actions secrets.
       # Debug builds need no signing; only release AABs uploaded to Play do.
@@ -79,7 +84,7 @@ jobs:
         working-directory: android
         run: ./gradlew bundleRelease
         env:
-          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_VERSION_CODE: ${{ steps.ver.outputs.code }}
           ANDROID_VERSION_NAME: ${{ steps.ver.outputs.name }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
