@@ -284,9 +284,11 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
                 {location.acc <= 15 ? " — good to go" : " — wait for it to settle for a cleaner start"}
               </p>
             )}
-            <Ctrl onClick={() => guardedStart(t.start, true)} color="bg-orange-500 hover:bg-orange-600 text-white">
-              <Play size={20} />Start run
-            </Ctrl>
+            <div className="flex">
+              <Ctrl onClick={() => guardedStart(t.start, true)} color="bg-orange-500 hover:bg-orange-600 text-white">
+                <Play size={20} />Start run
+              </Ctrl>
+            </div>
           </>
         )}
         {state === "tracking" && (
