@@ -252,7 +252,10 @@ and delete anything that becomes stale.
   `app_config`, owner-scoped writes like `run_routes`, with a hard `verified = false`
   with-check so a contributor can never self-verify — only the service role does).
   `src/races.js` is the access module (mirrors `src/routes.js`: direct queries —
-  `listRaces`/`addRace`/`addEdition`/`reportRace`/`notifyContribution`). **The old
+  `listRaces`/`addRace`/`addEdition`/`reportRace`). `notifyContribution` (the
+  best-effort maintainer-email trigger) lives in `src/notify.js` — generic, not
+  race-specific, so other contribution-shaped writes (e.g. coach feedback) can
+  reuse it without importing a races module. **The old
   bundle is gone** — keep ALL catalogue lookups going through `src/utils/races.js`
   (`allRaces`, `allEditions`, `findEdition`, `findRace`), which holds the fetched
   catalogue in a module cache (`hydrateCatalogue`) loaded once at boot by
@@ -344,6 +347,14 @@ and delete anything that becomes stale.
   graders there, not in the offline tests. The prompts live server-side only:
   `SYSTEM_PROMPT` + context assembly (`buildMessages`) in
   `_shared/coach/engine.mjs`, tool descriptions in `_shared/coach/tools.mjs`.
+- **User feedback ("this answer is wrong"):** `coach_feedback` mirrors
+  `race_reports` — insert-only, no client SELECT, via
+  `submitCoachFeedback` (`src/coachFeedback.js`), referencing the exact
+  `agent_rounds` row via `(trajectory_id, round_index)` stamped onto coach
+  messages in `CoachChat.jsx`. No maintainer view; the review join lives in
+  `docs/coach-agent.md`, run ad hoc. `notifyContribution` was extracted from
+  `src/races.js` into `src/notify.js` (generic, not race-specific) so
+  `coachFeedback.js` doesn't import a races module.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`

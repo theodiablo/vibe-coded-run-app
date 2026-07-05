@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { currentUserId } from "./db";
+import { notifyContribution } from "./notify";
 
 // Shared race catalogue access (Phase 2). Mirrors src/routes.js: direct supabase
 // queries, owner-scoped writes, failure-tolerant reads. The rest of the app never
@@ -122,16 +123,4 @@ export async function reportRace({ raceSlug, editionId, reason, note }) {
     .insert({ race_slug: raceSlug || null, edition_id: editionId || null, reason, note: note || null, reporter_id: user_id });
   if (error) throw error;
   notifyContribution({ type: "report", raceSlug, editionId, reason, note });
-}
-
-// Best-effort: ask the notify-contribution edge function to email the maintainer
-// (and thank the contributor). Never throws and never blocks the UI — if the
-// function/secret isn't deployed the DB row is already written and that's enough.
-export function notifyContribution(payload) {
-  try {
-    supabase.functions.invoke("notify-contribution", { body: payload })
-      .catch(err => console.warn("notify-contribution failed (non-fatal)", err?.message || err));
-  } catch (err) {
-    console.warn("notify-contribution unavailable (non-fatal)", err?.message || err);
-  }
 }

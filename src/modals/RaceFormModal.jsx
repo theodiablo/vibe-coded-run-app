@@ -3,7 +3,8 @@ import { MapPin, Check, Plus, AlertTriangle, Loader } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
 import { LocationPicker } from "../components/LocationPicker";
-import { notifyContribution, deleteRace } from "../races";
+import { deleteRace } from "../races";
+import { notifyContribution } from "../notify";
 
 // "Add a race" — contributes to the SHARED catalogue (instant + global). New
 // entries are always unverified; the UI tags them so. Includes a live duplicate

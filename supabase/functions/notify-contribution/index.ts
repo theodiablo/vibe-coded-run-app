@@ -1,9 +1,10 @@
 // notify-contribution — emails the maintainer when a user contributes a race /
-// edition or files a report, and thanks the contributor. Invoked best-effort from
-// the client (src/races.js `notifyContribution`) right after the DB row is
-// written; it is NEVER on the critical path. If the SES credentials are unset the
-// function returns `{ skipped: true }` and the contribution still stands — the
-// row in races / race_editions / race_reports is the source of truth.
+// edition, files a report, or flags an AI coach answer as wrong, and thanks the
+// contributor (contribution types only). Invoked best-effort from the client
+// (src/notify.js `notifyContribution`) right after the DB row is written; it is
+// NEVER on the critical path. If the SES credentials are unset the function
+// returns `{ skipped: true }` and the write still stands — the row in
+// races / race_editions / race_reports / coach_feedback is the source of truth.
 //
 // Transport is AWS SES (v2 send API), signed with SigV4 via aws4fetch — no SDK,
 // no SMTP. The runtime IAM user is least-privilege: ses:SendEmail only, locked to
@@ -94,14 +95,23 @@ Deno.serve(async (req) => {
     const summary = JSON.stringify(payload, null, 2);
 
     // 1) Maintainer notice.
-    await sendEmail(
-      MAINTAINER_EMAIL,
-      `Running Coach — new race ${kind}`,
-      `A user submitted a race ${kind}.\n\nContributor: ${contributorEmail ?? "unknown"}\n\n${summary}\n\nReview in the Supabase dashboard (races / race_editions / race_reports).`,
-    );
+    if (kind === "coach_feedback") {
+      await sendEmail(
+        MAINTAINER_EMAIL,
+        "Running Coach — coach feedback",
+        `A user flagged an AI coach answer as wrong.\n\nContributor: ${contributorEmail ?? "unknown"}\n\n${summary}\n\nReview alongside the full round context (rationale, tool_calls, input_context) via the join query in docs/coach-agent.md, run against coach_feedback / agent_rounds in the Supabase SQL editor.`,
+      );
+    } else {
+      await sendEmail(
+        MAINTAINER_EMAIL,
+        `Running Coach — new race ${kind}`,
+        `A user submitted a race ${kind}.\n\nContributor: ${contributorEmail ?? "unknown"}\n\n${summary}\n\nReview in the Supabase dashboard (races / race_editions / race_reports).`,
+      );
+    }
 
-    // 2) Thank-you to the contributor (reports are anonymous-ish; still acknowledge).
-    if (contributorEmail && kind !== "report") {
+    // 2) Thank-you to the contributor (reports and coach feedback are
+    // anonymous-ish / already acknowledged in-app; skip the email there).
+    if (contributorEmail && kind !== "report" && kind !== "coach_feedback") {
       await sendEmail(
         contributorEmail,
         "Thanks for adding a race to Running Coach",

@@ -144,6 +144,28 @@ through `src/coach.js`.
 - **Headline metrics** — query the `agent_metrics` view (service role /
   dashboard): first-proposal acceptance rate, average rounds-to-accept, and
   the abandoned / no_valid_adjustment split.
+- **User feedback loop** — a "This isn't right" affordance on any coach answer
+  (`src/modals/CoachChat.jsx`) lets the user flag it and explain what's wrong;
+  `submitCoachFeedback` (`src/coachFeedback.js`) inserts into `coach_feedback`
+  (migration `20260705120000_coach_feedback.sql`), which references the exact
+  `agent_rounds` row via `(trajectory_id, round_index)`. Same trust model as
+  `race_reports`: INSERT-only from the client (`grant insert`, one `with check
+  (auth.uid() = user_id)` policy), **no client SELECT** — deliberately no view
+  either, since the join is only ever run ad hoc. Best-effort emails the
+  maintainer via `notify-contribution` (`type: "coach_feedback"`). To review
+  flags alongside their full round context, run in the Supabase SQL editor:
+  ```sql
+  select f.id, f.created_at, f.user_id, f.correction,
+         f.trajectory_id, f.round_index,
+         r.user_feedback, r.rationale, r.tool_calls, r.input_context,
+         r.proposed_plan, r.outcome, r.model
+  from public.coach_feedback f
+  join public.agent_rounds r
+    on r.trajectory_id = f.trajectory_id and r.round_index = f.round_index
+  order by f.created_at desc;
+  ```
+  This is a second source (alongside the raw log) for finding real turns worth
+  adding to `evals/coach/`.
 
 ## Later phases (designed-for, not built)
 
