@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Loader, MessageCircle, Send, X, Flag } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { coachPropose, coachCritique, coachConfirm } from "../coach";
+import { coachPropose, coachCritique, coachConfirm, coachPing } from "../coach";
 import { submitCoachFeedback } from "../coachFeedback";
 import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
@@ -71,6 +71,12 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
   const [flaggedKeys, setFlaggedKeys] = useState(() => new Set());
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+
+  // Warm the edge function the moment the chat opens so the user's first message
+  // lands on an already-booted isolate instead of eating the cold start (the
+  // failure mode where round 0 alone times out). Fire-and-forget; coachPing
+  // never throws.
+  useEffect(() => { coachPing(); }, []);
 
   // Only the most recent proposal is ever confirmable, and only while its
   // trajectory is still open — derived at render (not a per-message flag

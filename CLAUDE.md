@@ -324,6 +324,20 @@ and delete anything that becomes stale.
   `src/modals/CoachChat.jsx` (opened via `shared.openCoach`, PlanView's Coach
   button); access module `src/coach.js` (calls `flushNow()` first — the server
   reads the plan/runs from `app_state`, not the request body).
+- **Resiliency (the cold-start / transient-failure seam):** the dominant failure
+  is a *cold start* — round 0 after the isolate's been idle boots Deno + imports
+  `npm:@anthropic-ai/sdk` before any keep-alive byte can flow, and an
+  intermediary drops the connection. Three guards: (1) `coachPing()`
+  (`src/coach.js`) fires when `CoachChat` mounts — a `ping` action that returns
+  before auth/DB/model, paying the boot cost early; best-effort, never throws.
+  (2) transport errors from `functions.invoke` are mapped by kind in
+  `transportMessage` (`FunctionsFetchError` = offline/dropped,
+  `FunctionsHttpError` 401/403 = re-auth vs 5xx = "took too long to start"); note
+  `functions.invoke` has **no `timeout` option** (it's silently ignored — don't
+  re-add it; use an `AbortController` `signal` if a real client timeout is ever
+  wanted). (3) the Anthropic client sets `maxRetries`/`timeout`
+  (`COACH_MODEL_MAX_RETRIES`/`COACH_MODEL_TIMEOUT_MS`) so an `overloaded_error`
+  is retried inside the round rather than sinking it.
 - **Shared logic lives in `supabase/functions/_shared/coach/*.mjs`** (plain ESM
   so Deno AND Vitest import it): `validation.mjs` (the ONE validator — also
   guards `buildPlan` output via tests; baseline waiver: pre-existing violations
