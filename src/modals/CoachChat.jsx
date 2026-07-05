@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Loader, MessageCircle, Send, X } from "lucide-react";
+import { Loader, MessageCircle, Send, X, Flag } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { coachPropose, coachCritique, coachConfirm } from "../coach";
+import { submitCoachFeedback } from "../coachFeedback";
 import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
 import { track } from "../telemetry";
@@ -52,7 +53,11 @@ const COACH_EXAMPLES = [
 // accepted plan is re-validated client-side (belt and braces) before
 // applyPlan persists it through the normal savePlan path.
 export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
-  // msg: { role: "user"|"coach", text, proposal?: {plan, diff} }
+  // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, trajectoryId?, roundIndex? }
+  // trajectoryId/roundIndex are stamped on every real coach answer (the ones
+  // logged server-side to agent_rounds) so it can be flagged as wrong; the
+  // greeting, the post-accept "Done", and error bubbles have no round behind
+  // them and stay unstamped, which hides the flag affordance on them.
   const [msgs, setMsgs] = useState([{
     role: "coach",
     text: "Hi! Tell me what's going on — a niggle, a missed week, a schedule clash — and I'll suggest how to adapt your plan. You'll always see the change before anything is applied.",
@@ -60,6 +65,10 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [trajectoryId, setTrajectoryId] = useState(null);
+  const [flaggingIndex, setFlaggingIndex] = useState(-1);
+  const [flagText, setFlagText] = useState("");
+  const [flagBusy, setFlagBusy] = useState(false);
+  const [flaggedKeys, setFlaggedKeys] = useState(() => new Set());
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
 
@@ -87,17 +96,17 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
         // proposal on this trajectory stays confirmable — trust the server's
         // trajectoryClosed flag rather than re-deriving it from roundIndex.
         setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId);
-        setMsgs(m => [...m, { role: "coach", text: res.rationale }]);
+        setMsgs(m => [...m, { role: "coach", text: res.rationale, trajectoryId: res.trajectoryId, roundIndex: res.roundIndex }]);
       } else {
         if (!res.changed) {
           // Server supersedes the previous proposal even on changed:false — there
           // is nothing valid to confirm, so clear trajectoryId to hide Apply.
           setTrajectoryId(null);
-          setMsgs(m => [...m, { role: "coach", text: res.rationale || "Nothing in the plan needs to change for that." }]);
+          setMsgs(m => [...m, { role: "coach", text: res.rationale || "Nothing in the plan needs to change for that.", trajectoryId: res.trajectoryId, roundIndex: res.roundIndex }]);
         } else {
           setTrajectoryId(res.trajectoryId);
           const diff = diffPlans(plan, res.proposedPlan);
-          setMsgs(m => [...m, { role: "coach", text: res.rationale, proposal: { diff } }]);
+          setMsgs(m => [...m, { role: "coach", text: res.rationale, proposal: { diff }, trajectoryId: res.trajectoryId, roundIndex: res.roundIndex }]);
         }
       }
     } catch (err) {
@@ -129,6 +138,24 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
       setMsgs(m => [...m, { role: "coach", text: err.message }]);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const submitFlag = async (m) => {
+    const correction = flagText.trim();
+    if (!correction || flagBusy) return;
+    setFlagBusy(true);
+    try {
+      await submitCoachFeedback({ trajectoryId: m.trajectoryId, roundIndex: m.roundIndex, correction });
+      track("coach_feedback_submitted", { roundIndex: m.roundIndex });
+      setFlaggedKeys(prev => new Set(prev).add(`${m.trajectoryId}:${m.roundIndex}`));
+      setFlaggingIndex(-1);
+      setFlagText("");
+      showToast("Thanks — your feedback helps improve the coach");
+    } catch {
+      showToast("Couldn't send feedback — try again in a moment");
+    } finally {
+      setFlagBusy(false);
     }
   };
 
@@ -165,6 +192,32 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
                     </button>
                   )}
                 </div>
+              )}
+              {m.trajectoryId != null && m.roundIndex != null && (
+                flaggedKeys.has(`${m.trajectoryId}:${m.roundIndex}`) ? (
+                  <p className="mt-2 text-xs text-slate-500">Thanks — noted.</p>
+                ) : flaggingIndex === i ? (
+                  <div className="mt-2 pt-2 border-t border-slate-700 space-y-1.5">
+                    <textarea value={flagText} onChange={e => setFlagText(e.target.value)}
+                      placeholder="What did the coach get wrong?" rows={2} autoFocus
+                      className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-400 placeholder-slate-500 resize-none"/>
+                    <div className="flex gap-2">
+                      <button onClick={() => submitFlag(m)} disabled={flagBusy || !flagText.trim()}
+                        className="text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-2.5 py-1 rounded-lg transition-colors">
+                        Send
+                      </button>
+                      <button onClick={() => { setFlaggingIndex(-1); setFlagText(""); }} disabled={flagBusy}
+                        className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => { setFlaggingIndex(i); setFlagText(""); }}
+                    className="mt-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+                    <Flag size={11}/> This isn't right
+                  </button>
+                )
               )}
             </div>
           </div>
