@@ -39,6 +39,15 @@ const MOCK = Boolean(Deno.env.get("MOCK_LLM"));
 const DEFAULT_MODEL = Deno.env.get("COACH_MODEL") ?? "claude-sonnet-5";
 const LIGHT_MODEL = Deno.env.get("COACH_MODEL_LIGHT") ?? "claude-haiku-4-5";
 const RATE_LIMIT_PER_DAY = Number(Deno.env.get("RATE_LIMIT_PER_DAY") ?? 20);
+// The Anthropic SDK retries transient failures (429, 5xx incl. 529 overloaded,
+// and connection errors) with exponential backoff on its own. We set these
+// explicitly rather than leaning on the library default (maxRetries: 2) so a
+// momentarily overloaded model doesn't sink a whole coaching round on the first
+// blip, and so each attempt is bounded — one hung call can't stall the round
+// forever. The keep-alive stream (below) keeps the HTTP connection itself alive
+// while these retries happen, so the client never sees the churn.
+const MODEL_MAX_RETRIES = Number(Deno.env.get("COACH_MODEL_MAX_RETRIES") ?? 4);
+const MODEL_TIMEOUT_MS = Number(Deno.env.get("COACH_MODEL_TIMEOUT_MS") ?? 60000);
 // A propose/critique round spends most of its time awaiting Anthropic with
 // zero bytes flowing to the client — long enough (empirically ~12-15s+) for
 // some intermediary (mobile network, proxy) to treat the connection as dead
@@ -66,7 +75,7 @@ function makeCallModel(context: any, message: string) {
   if (MOCK) return { model: "mock", callModel: createMockModel(context) };
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured (set it, or MOCK_LLM=1)");
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: MODEL_MAX_RETRIES, timeout: MODEL_TIMEOUT_MS });
   const model = pickModel(message);
   // deno-lint-ignore no-explicit-any
   const callModel = (messages: any[], tools: any[]) =>
@@ -93,6 +102,12 @@ function makeCallModel(context: any, message: string) {
 async function handle(req: Request): Promise<any> {
   const body = await req.json().catch(() => ({}));
   const action = String(body.action ?? "");
+  // Cold-start warmer: the client fires this when the coach chat opens so the
+  // isolate is booted and the npm:@anthropic-ai/sdk module graph is imported by
+  // the time a real propose/critique arrives. Returns before any auth, DB read
+  // or model call — its only job is to pay the isolate boot cost early. The
+  // top-level imports (which dominate cold-boot) run on any request regardless.
+  if (action === "ping") return { ok: true };
   if (!["propose", "critique", "confirm"].includes(action)) {
     return { error: "action must be propose | critique | confirm" };
   }
