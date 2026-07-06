@@ -6,7 +6,7 @@
 // propose/confirm audit log (agent_rounds) grows this dataset in production.
 
 import { describe, it, expect } from "vitest";
-import { buildMessages, generateProposal, MAX_VALIDATOR_RETRIES, MAX_MODEL_CALLS } from "../../supabase/functions/_shared/coach/engine.mjs";
+import { buildMessages, generateProposal, MAX_VALIDATOR_RETRIES, MAX_MODEL_CALLS, SYSTEM_PROMPT } from "../../supabase/functions/_shared/coach/engine.mjs";
 import { createMockModel } from "../../supabase/functions/_shared/coach/mock.mjs";
 import { validatePlan } from "./coachValidation";
 import { buildPlan } from "./plan";
@@ -156,6 +156,11 @@ describe("golden cases (MOCK_LLM)", () => {
     const messages = buildMessages(context, [], null);
     expect(messages[0].content).toContain("USER-VISIBLE COACH MEMORY");
     expect(messages[0].content).toContain("Avoids downhill repeats");
+  });
+
+  it("system prompt asks about resolved memory pain before increasing load", () => {
+    expect(SYSTEM_PROMPT).toContain("ask whether the pain has gone away");
+    expect(SYSTEM_PROMPT).toContain("before increasing load");
   });
 
   it("memory-only tool suggestions do not mark the plan changed", async () => {
