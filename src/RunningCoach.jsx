@@ -252,14 +252,17 @@ export default function RunningCoach({ onSignOut }) {
     const baseNotes = String(prev.notes || "");
     const existing = new Set(baseNotes.split("\n").map(memoryKey).filter(Boolean));
     const nextLines = [];
+    let joined = baseNotes.trim();
     for (const line of incoming) {
       const key = memoryKey(line);
       if (!key || existing.has(key)) continue;
+      const candidate = [joined, line].filter(Boolean).join("\n");
+      if (candidate.length > USER_CONTEXT_MAX_CHARS) continue;
       existing.add(key);
       nextLines.push(line);
+      joined = candidate;
     }
     if (!nextLines.length) return false;
-    const joined = [baseNotes.trim(), ...nextLines].filter(Boolean).join("\n").slice(0, USER_CONTEXT_MAX_CHARS);
     const next = withLimitNotice({ ...prev, notes: joined });
     userContextRef.current = next;
     setUserContext(next);

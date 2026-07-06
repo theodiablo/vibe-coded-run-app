@@ -177,6 +177,17 @@ async function handle(req: Request): Promise<any> {
   const recentRuns = (blob.rc_runs ?? []).slice(0, 30).map((r: Record<string, unknown>) => ({
     date: r.date, type: r.type, km: r.km, durationSec: r.durationSec, hr: r.hr, effort: r.effort,
   }));
+  // Per-user daily budget; charge only after cheap request/state validation and
+  // before any trajectory mutation. The increment is atomic (SQL function) so
+  // concurrent requests can't slip past the limit.
+  const checkRateLimit = async () => {
+    const { data: count, error: usageErr } = await admin.rpc("increment_agent_usage", {
+      p_user_id: user.id, p_day: today,
+    });
+    if (usageErr) throw usageErr;
+    if (count > RATE_LIMIT_PER_DAY) return "daily coach limit reached — try again tomorrow";
+    return null;
+  };
 
   let trajectoryId: string;
   let history: unknown[] = [];
@@ -186,6 +197,8 @@ async function handle(req: Request): Promise<any> {
   let workingPlan = plan;
 
   if (action === "propose") {
+    const rateLimitError = await checkRateLimit();
+    if (rateLimitError) return { error: rateLimitError };
     // One live conversation at a time: anything still open is now abandoned
     // (feedback given but never accepted — a distinct fate in the metrics).
     await admin.from("agent_trajectories")
@@ -220,6 +233,8 @@ async function handle(req: Request): Promise<any> {
       .order("round_index", { ascending: false }).limit(1).maybeSingle();
     if (latestErr) throw latestErr;
     workingPlan = latestProposal?.proposed_plan ?? baselinePlan;
+    const rateLimitError = await checkRateLimit();
+    if (rateLimitError) return { error: rateLimitError };
   }
 
   // Single goal shape for every consumer (buildMessages' prompt text AND
@@ -238,15 +253,6 @@ async function handle(req: Request): Promise<any> {
     userContext,
     targetPace: workingPlan.targetPace,
   };
-
-  // Per-user daily budget; charge only after cheap request/state validation.
-  // The increment is atomic (SQL function) so concurrent requests can't slip
-  // past the limit.
-  const { data: count, error: usageErr } = await admin.rpc("increment_agent_usage", {
-    p_user_id: user.id, p_day: today,
-  });
-  if (usageErr) throw usageErr;
-  if (count > RATE_LIMIT_PER_DAY) return { error: "daily coach limit reached — try again tomorrow" };
 
   const { model, callModel } = makeCallModel(context, message);
   const result = await generateProposal({
