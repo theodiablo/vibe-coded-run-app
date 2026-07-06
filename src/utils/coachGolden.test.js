@@ -210,4 +210,59 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(result.status).toBe("proposed");
     expect(result.memorySuggestions).toEqual([]);
   });
+
+  it("context guard rejects add_session during pain even when structurally valid", async () => {
+    const context = makeContext("my knee hurts but I have a free day Thursday");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "I won't add training while your knee hurts." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(false);
+    expect(result.toolCalls).toEqual([]);
+  });
+
+  it("context guard rejects add_session as make-up volume after a missed week", async () => {
+    const context = makeContext("I missed the whole week, can I add an extra easy run?");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "A missed week is gone; resume gently instead." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(false);
+    expect(result.toolCalls).toEqual([]);
+  });
+
+  it("context guard rejects harder swaps during pain", async () => {
+    const context = makeContext("my calf is sore but I want to push harder");
+    const easy = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type === "EASY" && !s.done);
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "swap1", name: "swap_session", input: { session_id: easy.id, new_type: "TEMPO" } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "No intensity while your calf is sore." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(false);
+    expect(result.toolCalls).toEqual([]);
+  });
 });

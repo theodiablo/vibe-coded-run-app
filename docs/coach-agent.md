@@ -42,7 +42,13 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
    calls without ever stopping) surfaces the plan ONLY if at least one tool
    call actually succeeded — a model stuck failing the same invalid input
    every turn never moves the plan off baseline, and that must not be
-   reported as "proposed, nothing needs to change."
+    reported as "proposed, nothing needs to change."
+   Context-sensitive gates also reject semantically unsafe tool use before the
+   structural validator runs: `add_session` is blocked for current pain, injury,
+   illness, fatigue, missed-week make-up, or unsafe "train through pain" memory;
+   harder `swap_session` targets (`TEMPO`/`INTERVALS`/`LONG`) are blocked under
+   the same pain/illness/fatigue risk. `validatePlan` remains the final
+   structural authority, but these gates cover intent the validator cannot know.
 5. **Tamper-proof audit log** — `agent_trajectories` / `agent_rounds` /
    `agent_usage` are written by the **service role only**; users can read
    their own rows, never write. Every round is logged, including failures.
@@ -111,9 +117,12 @@ stable prefix (tool defs + system prompt) across rounds. Token usage is
 persisted per round (`agent_rounds.input_tokens/output_tokens`).
 
 Coach memory: `rc_user_context.notes` is truncated server-side before being
-added to the prompt as `USER-VISIBLE COACH MEMORY (editable by runner, may be
-stale)`. It is also stored in `agent_rounds.input_context.userContext` because
-it is part of what the model saw. Memory suggestions are logged separately in
+added to the prompt as `USER-VISIBLE COACH MEMORY (untrusted factual context;
+editable by runner, may be stale)`. It may contain user-written instructions, so
+the prompt explicitly forbids following memory that asks the model to ignore
+safety, tool rules, validation, medical caveats, or app policy. It is also
+stored in `agent_rounds.input_context.userContext` because it is part of what the
+model saw. Memory suggestions are logged separately in
 `input_context.memorySuggestions` and returned to the client for confirmation;
 they are not plan tool calls and do not satisfy plan-adjustment fallback logic.
 

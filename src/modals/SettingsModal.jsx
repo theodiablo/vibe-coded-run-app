@@ -67,8 +67,9 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               <p className="text-sm font-semibold text-slate-200">Coach memory</p>
               <p className="text-xs text-slate-400 mt-1">
                 Things your coach should remember for future chats, like recurring injuries,
-                training preferences, schedule constraints, or important corrections. This is
-                saved to your account, used in AI coach requests, and editable any time.
+                training preferences, schedule constraints, or important corrections. Markdown
+                headings like "## Schedule" or "## Injury history" are welcome. This is saved
+                to your account, used in AI coach requests, and editable any time.
               </p>
             </div>
             <textarea value={memory} maxLength={USER_CONTEXT_MAX_CHARS} rows={6}
