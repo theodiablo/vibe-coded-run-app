@@ -15,8 +15,8 @@ import {
 // Privacy toggle remains the durable control to change the choice later.
 //
 // `onConsentChange(granted)` lets the host re-identify the signed-in user the
-// moment they accept (events before that point are anonymous and merged on the
-// next identify anyway).
+// moment they accept (events before that point are anonymous; later events are
+// pseudonymous under the signed-in user id).
 export function ConsentBanner({ onConsentChange }) {
   const [show, setShow] = useState(
     () => isTelemetryConfigured() && getConsentDecision() === "unset"
@@ -39,9 +39,9 @@ export function ConsentBanner({ onConsentChange }) {
           </p>
         </div>
         <p className="text-xs text-slate-400">
-          We&apos;d like to collect anonymous usage analytics and crash reports to
+          We&apos;d like to collect pseudonymous usage analytics and crash reports to
           fix bugs and see what&apos;s used. No run data, routes, notes, or heart
-          rate are ever sent. You can change this any time in Settings → Privacy.{" "}
+          rate, or coach messages are ever sent. You can change this any time in Settings → Privacy.{" "}
           <a
             href={PRIVACY_URL}
             target="_blank"

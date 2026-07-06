@@ -6,7 +6,7 @@
 // propose/confirm audit log (agent_rounds) grows this dataset in production.
 
 import { describe, it, expect } from "vitest";
-import { generateProposal, MAX_VALIDATOR_RETRIES, MAX_MODEL_CALLS } from "../../supabase/functions/_shared/coach/engine.mjs";
+import { buildMessages, generateProposal, MAX_VALIDATOR_RETRIES, MAX_MODEL_CALLS } from "../../supabase/functions/_shared/coach/engine.mjs";
 import { createMockModel } from "../../supabase/functions/_shared/coach/mock.mjs";
 import { validatePlan } from "./coachValidation";
 import { buildPlan } from "./plan";
@@ -149,5 +149,65 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(true);
     expect(result.plan.weeks.flatMap(w => w.sessions).find(s => s.id === target.id).type).toBe("WALK");
+  });
+
+  it("buildMessages includes user-visible coach memory", () => {
+    const context = { ...makeContext("my knee hurts"), userContext: { notes: "2026-07-06: Avoids downhill repeats." } };
+    const messages = buildMessages(context, [], null);
+    expect(messages[0].content).toContain("USER-VISIBLE COACH MEMORY");
+    expect(messages[0].content).toContain("Avoids downhill repeats");
+  });
+
+  it("memory-only tool suggestions do not mark the plan changed", async () => {
+    const context = makeContext("please remember I prefer Sunday long runs");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "mem1", name: "remember_runner_context", input: { memory: "Prefers Sunday long runs." } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "I'll keep that preference in mind if you save it." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(false);
+    expect(result.toolCalls).toHaveLength(0);
+    expect(result.memorySuggestions.map(s => s.text)).toEqual([`${context.today}: Prefers Sunday long runs.`]);
+  });
+
+  it("memory-only tool calls do not satisfy the plan-tool max-call fallback", async () => {
+    const context = makeContext("remember that I prefer Sunday long runs");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      return {
+        content: [{ type: "tool_use", id: "mem" + calls, name: "remember_runner_context", input: { memory: "Prefers Sunday long runs." } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(calls).toBe(MAX_MODEL_CALLS);
+    expect(result.status).toBe("no_valid_adjustment");
+    expect(result.plan).toBeUndefined();
+  });
+
+  it("duplicate memory suggestions are rejected deterministically", async () => {
+    const context = { ...makeContext("remember my long-run preference"), userContext: { notes: "2026-07-01: Prefers Sunday long runs." } };
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "mem1", name: "remember_runner_context", input: { memory: "Prefers Sunday long runs." } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "That is already saved." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(result.status).toBe("proposed");
+    expect(result.memorySuggestions).toEqual([]);
   });
 });

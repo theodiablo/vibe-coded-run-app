@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { isNative } from "./native";
 import { Activity, Calendar, TrendingUp, Plus, Loader, Trophy, Settings } from "lucide-react";
 import { db, currentUserId } from "./db";
-import { STORAGE_KEYS } from "./constants";
+import { STORAGE_KEYS, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_NOTICE_CHARS } from "./constants";
 import { track } from "./telemetry";
 import { buildPlan } from "./utils/plan";
 import { computeBadges, unlockedIds } from "./utils/badges";
@@ -51,6 +51,9 @@ function computeVerifiedThanks(cat, racesObj, uid) {
   return { next: { ...racesObj, ackVerified: [...racesObj.ackVerified, ...fresh] }, fresh };
 }
 
+const memoryKey = line => String(line || "").toLowerCase().replace(/^\d{4}-\d{2}-\d{2}:\s*/, "").replace(/[^a-z0-9]+/g, " ").trim();
+const weekMs = 7 * 86400000;
+
 export default function RunningCoach({ onSignOut }) {
   const [loading,     setLoading]     = useState(true);
   const [tab,         setTab]         = useState("dash");
@@ -75,6 +78,7 @@ export default function RunningCoach({ onSignOut }) {
   // Personal races layer (wishlist / completed + seen-badge set). seenBadges is
   // null until first-run seeding so we can tell "never computed" from "none".
   const [races,       setRaces]       = useState({ participations: [], seenBadges: null });
+  const [userContext, setUserContext] = useState({ notes: "" });
   // Always-fresh mirror of `races` so async callbacks (the boot catalogue load)
   // merge onto the latest state, not a stale snapshot captured before the user
   // could touch their races mid-load. Synced in an effect (the catalogue resolves
@@ -93,6 +97,8 @@ export default function RunningCoach({ onSignOut }) {
   useEffect(() => { runsRef.current = runs; }, [runs]);
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
+  const userContextRef = useRef(userContext);
+  useEffect(() => { userContextRef.current = userContext; }, [userContext]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState([]);
@@ -107,6 +113,14 @@ export default function RunningCoach({ onSignOut }) {
 
   // An optional `action` ({label, onClick}) turns the toast into an undoable one.
   const showToast = (msg, type, action) => setToast({msg, type: type || "ok", action});
+  const withLimitNotice = ctx => {
+    const notes = ctx?.notes || "";
+    if (notes.length < USER_CONTEXT_NOTICE_CHARS) return ctx;
+    const last = ctx.lastLimitNoticeAt ? Date.parse(ctx.lastLimitNoticeAt) : 0;
+    if (last && Date.now() - last < weekMs) return ctx;
+    showToast("Coach memory is getting full — review it in Settings.");
+    return { ...ctx, lastLimitNoticeAt: new Date().toISOString() };
+  };
 
   // Shared by both Health Connect HR retry points (boot + foreground) below, so
   // the relink logic can't drift between the two call sites. Applies the fetched
@@ -127,9 +141,15 @@ export default function RunningCoach({ onSignOut }) {
       const p = await db.get(STORAGE_KEYS.PLAN);
       const s = await db.get(STORAGE_KEYS.SETTINGS);
       const rc = await db.get(STORAGE_KEYS.RACES);
+      const uc = await db.get(STORAGE_KEYS.USER_CONTEXT);
       if (r) setRuns(r);
       if (p) setPlan(p);
       if (s) setSettings(prev => ({...prev, ...s}));
+      if (uc) {
+        const nextContext = { notes: "", ...uc };
+        userContextRef.current = nextContext;
+        setUserContext(nextContext);
+      }
       // Seed seenBadges silently the first time so existing users with history
       // don't get a flurry of unlock toasts on first launch of this feature.
       const loaded = { participations: [], seenBadges: null, ...(rc || {}) };
@@ -219,6 +239,33 @@ export default function RunningCoach({ onSignOut }) {
 
   const savePlan     = p => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated"); };
   const saveSettings = s => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };
+  const saveUserContext = next => {
+    const clean = withLimitNotice({ notes: String(next?.notes || "").slice(0, USER_CONTEXT_MAX_CHARS), lastLimitNoticeAt: next?.lastLimitNoticeAt || null });
+    userContextRef.current = clean;
+    setUserContext(clean);
+    db.set(STORAGE_KEYS.USER_CONTEXT, clean);
+  };
+  const appendUserContext = lines => {
+    const incoming = (Array.isArray(lines) ? lines : [lines]).map(x => String(x || "").trim()).filter(Boolean);
+    if (!incoming.length) return false;
+    const prev = userContextRef.current || { notes: "" };
+    const baseNotes = String(prev.notes || "");
+    const existing = new Set(baseNotes.split("\n").map(memoryKey).filter(Boolean));
+    const nextLines = [];
+    for (const line of incoming) {
+      const key = memoryKey(line);
+      if (!key || existing.has(key)) continue;
+      existing.add(key);
+      nextLines.push(line);
+    }
+    if (!nextLines.length) return false;
+    const joined = [baseNotes.trim(), ...nextLines].filter(Boolean).join("\n").slice(0, USER_CONTEXT_MAX_CHARS);
+    const next = withLimitNotice({ ...prev, notes: joined });
+    userContextRef.current = next;
+    setUserContext(next);
+    db.set(STORAGE_KEYS.USER_CONTEXT, next);
+    return true;
+  };
 
   // Fold badge state into a races object: silently seed `seenBadges` the first
   // time (no toast flurry for existing users), then toast only genuinely new
@@ -351,7 +398,7 @@ export default function RunningCoach({ onSignOut }) {
     const added = rs.map((r, i) => ({...r, id: r.id || ("r" + Date.now() + i)}));
     const nextRuns = added.concat(runs).sort((a, b) => b.date.localeCompare(a.date));
     setRuns(nextRuns); db.set(STORAGE_KEYS.RUNS, nextRuns);
-    // Anonymous: how a run reached the log (GPS vs manual) and how many at once
+    // Telemetry-safe: how a run reached the log (GPS vs manual) and how many at once
     // (CSV import lands as a batch). No run contents are sent.
     track("run_logged", { count: rs.length, source: rs[0]?.source || "manual" });
     // Race-day auto-detect, then reconcile badges against the new runs + races.
@@ -434,6 +481,7 @@ export default function RunningCoach({ onSignOut }) {
     if (d.plan)     { setPlan(d.plan);          db.set(STORAGE_KEYS.PLAN, d.plan); }
     if (d.settings) { setSettings(d.settings);  db.set(STORAGE_KEYS.SETTINGS, d.settings); }
     if (d.races)    { setRaces(d.races);         db.set(STORAGE_KEYS.RACES, d.races); }
+    if (d.userContext) saveUserContext(d.userContext);
     if (d.routes)   { restoreRoutes(d.routes); }
     showToast("Restored — " + (d.runs ? d.runs.length : 0) + " run(s) imported.");
   };
@@ -446,7 +494,8 @@ export default function RunningCoach({ onSignOut }) {
 
   const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
   const goProgress = sub => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
-  const shared = {runs, plan, settings, races, catalogue, addRuns, savePlan, saveSettings, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings: () => setShowSettings(true), openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
+  const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
+  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   const TABS   = [
@@ -489,14 +538,17 @@ export default function RunningCoach({ onSignOut }) {
           track("onboarding_completed");
         }}/>}
       {showTracker && <LiveRunTracker showToast={showToast} hrMethod={settings.hrMethod} hrOptOut={settings.hrOptOut}
-        onConfigureHr={() => { setShowTracker(false); setShowSettings(true); }}
+        onConfigureHr={() => { setShowTracker(false); openSettings(); }}
         onDeclineHr={() => saveSettings({ ...settings, hrOptOut: true })}
         onFinish={prefill => { setShowTracker(false); goLog(prefill); }}
         onClose={() => setShowTracker(false)}/>}
-      {showBackup  && <BackupModal  data={{runs, plan, settings, races, ...(backupRoutes.length ? {routes: backupRoutes} : {})}} onClose={() => setShowBackup(false)}/>}
+      {showBackup && <BackupModal
+        data={{runs, plan, settings, races, userContext, ...(backupRoutes.length ? {routes: backupRoutes} : {})}}
+        onClose={() => setShowBackup(false)}/>
+      }
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showSettings && <SettingsModal
-        settings={settings} saveSettings={saveSettings} showToast={showToast}
+        settings={settings} saveSettings={saveSettings} userContext={userContext} saveUserContext={saveUserContext} showToast={showToast}
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
@@ -508,7 +560,7 @@ export default function RunningCoach({ onSignOut }) {
       {showCoach && plan && (
         <Suspense fallback={<div className="fixed inset-0 bg-slate-900 z-50"/>}>
           <CoachChat plan={plan} onApplyPlan={applyCoachPlan}
-            showToast={showToast} onClose={() => setShowCoach(false)}/>
+            appendUserContext={appendUserContext} showToast={showToast} onClose={() => setShowCoach(false)}/>
         </Suspense>
       )}
       {showRaceForm && <RaceFormModal
@@ -521,7 +573,7 @@ export default function RunningCoach({ onSignOut }) {
           <Activity size={15} className="text-orange-400"/>
           <span className="text-sm font-semibold">Running Coach</span>
         </div>
-        <button onClick={() => setShowSettings(true)} aria-label="Settings"
+        <button onClick={openSettings} aria-label="Settings"
           className="flex items-center justify-center text-slate-400 hover:text-white p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
           <Settings size={15}/>
         </button>

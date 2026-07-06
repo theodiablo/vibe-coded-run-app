@@ -1,7 +1,7 @@
 # Coach-agent live eval
 
 Grades the AI adjustment coach end-to-end against the **real Anthropic API**,
-through the exact production loop: `generateProposal` (engine) → the nine typed
+through the exact production loop: `generateProposal` (engine) → the bounded
 tools → the shared validator. Nothing is stubbed except the HTTP transport
 (`anthropic.mjs`, a plain `fetch` mirroring the edge function's request shape,
 including the prompt-cache breakpoint).

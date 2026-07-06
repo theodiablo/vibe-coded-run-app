@@ -313,7 +313,7 @@ and delete anything that becomes stale.
 
 ## AI coach agent (plan adjustments)
 - **Propose-and-confirm, editor-not-author:** `supabase/functions/coach-agent`
-  adapts the existing plan ("my knee hurts", "I missed a week") through nine
+  adapts the existing plan ("my knee hurts", "I missed a week") through bounded
   typed tools only — it never authors plans; `buildPlan` stays the author.
   Only `add_session` can increase load, bounded by the tool's own guards
   (no taper dates, km capped at the plan's longest session) + the validator's
@@ -354,6 +354,16 @@ and delete anything that becomes stale.
   debounced whole-blob upsert; it returns the re-validated plan and the client
   applies it via `applyCoachPlan` (`carryProgress` + `db.set`, RLS-guarded).
   Read `docs/coach-agent.md` before touching prompts, tools, or validator rules.
+- **Coach memory:** durable runner context lives in the synced blob as
+  `STORAGE_KEYS.USER_CONTEXT` / `rc_user_context`, shape `{notes,lastLimitNoticeAt}`.
+  It is deliberately a single user-visible textarea in Settings, autosaved on blur
+  and capped at 2000 chars with a weekly near-limit notice. The edge function reads
+  and truncates it from `app_state` before prompting the model and logs it in
+  `agent_rounds.input_context` because it is part of what the model saw. The model
+  may call `remember_runner_context`, but that only returns suggested dated lines;
+  the server must never write `app_state` directly, and the client persists a line
+  only after the user taps "Save to memory". Treat deleted text as gone — don't
+  re-add it unless the user states it again in the current chat.
 - **Coach evals:** offline (scripted model) in `npm test` / `npm run eval`;
   **live-model** eval in `evals/coach/` via `npm run eval:live` (needs
   `ANTHROPIC_API_KEY`; `COACH_EVAL_MOCK=1` = free plumbing check). Safety

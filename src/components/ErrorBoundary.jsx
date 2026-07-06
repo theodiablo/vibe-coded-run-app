@@ -163,7 +163,7 @@ export class ErrorBoundary extends Component {
           {askToSend ? (
             <div className="space-y-2">
               <p className="text-xs text-slate-400">
-                Send an anonymous crash report to help fix this?
+                Send a pseudonymous crash report to help fix this?
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={this.decline}

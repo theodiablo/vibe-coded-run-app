@@ -52,7 +52,7 @@ const COACH_EXAMPLES = [
 // follow-up message. Nothing touches the plan until Accept — and even then the
 // accepted plan is re-validated client-side (belt and braces) before
 // applyPlan persists it through the normal savePlan path.
-export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
+export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose }) {
   // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, trajectoryId?, roundIndex? }
   // trajectoryId/roundIndex are stamped on every real coach answer (the ones
   // logged server-side to agent_rounds) so it can be flagged as wrong; the
@@ -84,6 +84,38 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
   // append path that forgets to reset it.
   let lastProposalIndex = -1;
   for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].proposal) { lastProposalIndex = i; break; }
+  let lastOpenAnswerIndex = -1;
+  if (trajectoryId) {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === "coach" && msgs[i].trajectoryId === trajectoryId && msgs[i].roundIndex != null) {
+        lastOpenAnswerIndex = i;
+        break;
+      }
+    }
+  }
+
+  const coachMsg = (res, fallbackText) => ({
+    role: "coach",
+    text: res.rationale || fallbackText,
+    trajectoryId: res.trajectoryId,
+    roundIndex: res.roundIndex,
+    memorySuggestions: (res.memorySuggestions || []).map(s => ({ ...s, status: "pending" })),
+  });
+
+  const applyCoachResult = (res) => {
+    track("coach_proposal", { status: res.status, round: res.roundIndex });
+    if (res.status === "no_valid_adjustment") {
+      setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId);
+      setMsgs(m => [...m, coachMsg(res, "I couldn't find an adjustment that keeps your plan within the app's training rules — nothing was changed.")]);
+    } else if (!res.changed) {
+      setTrajectoryId(null);
+      setMsgs(m => [...m, coachMsg(res, "Nothing in the plan needs to change for that.")]);
+    } else {
+      setTrajectoryId(res.trajectoryId);
+      const diff = diffPlans(plan, res.proposedPlan);
+      setMsgs(m => [...m, { ...coachMsg(res, "Here's the adjustment I recommend."), proposal: { diff } }]);
+    }
+  };
 
   const send = async (preset) => {
     // `preset` comes from an example chip; a bare click/keydown passes an event,
@@ -95,26 +127,7 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
     setBusy(true);
     try {
       const res = trajectoryId ? await coachCritique(trajectoryId, text) : await coachPropose(text);
-      track("coach_proposal", { status: res.status, round: res.roundIndex });
-      if (res.status === "no_valid_adjustment") {
-        // A failed round 0 closes the trajectory server-side (nothing to fall
-        // back on); a failed critique leaves it open, so an earlier valid
-        // proposal on this trajectory stays confirmable — trust the server's
-        // trajectoryClosed flag rather than re-deriving it from roundIndex.
-        setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId);
-        setMsgs(m => [...m, { role: "coach", text: res.rationale, trajectoryId: res.trajectoryId, roundIndex: res.roundIndex }]);
-      } else {
-        if (!res.changed) {
-          // Server supersedes the previous proposal even on changed:false — there
-          // is nothing valid to confirm, so clear trajectoryId to hide Apply.
-          setTrajectoryId(null);
-          setMsgs(m => [...m, { role: "coach", text: res.rationale || "Nothing in the plan needs to change for that.", trajectoryId: res.trajectoryId, roundIndex: res.roundIndex }]);
-        } else {
-          setTrajectoryId(res.trajectoryId);
-          const diff = diffPlans(plan, res.proposedPlan);
-          setMsgs(m => [...m, { role: "coach", text: res.rationale, proposal: { diff }, trajectoryId: res.trajectoryId, roundIndex: res.roundIndex }]);
-        }
-      }
+      applyCoachResult(res);
     } catch (err) {
       setMsgs(m => [...m, { role: "coach", text: err.message }]);
     } finally {
@@ -147,22 +160,52 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
     }
   };
 
-  const submitFlag = async (m) => {
+  const submitFlag = async (m, index) => {
     const correction = flagText.trim();
     if (!correction || flagBusy) return;
+    const canCritique = index === lastOpenAnswerIndex && trajectoryId === m.trajectoryId;
     setFlagBusy(true);
     try {
       await submitCoachFeedback({ trajectoryId: m.trajectoryId, roundIndex: m.roundIndex, correction });
       track("coach_feedback_submitted", { roundIndex: m.roundIndex });
       setFlaggedKeys(prev => new Set(prev).add(`${m.trajectoryId}:${m.roundIndex}`));
-      setFlaggingIndex(-1);
-      setFlagText("");
-      showToast("Thanks — your feedback helps improve the coach");
     } catch {
       showToast("Couldn't send feedback — try again in a moment");
     } finally {
       setFlagBusy(false);
     }
+    setFlaggingIndex(-1);
+    setFlagText("");
+    if (!canCritique) {
+      showToast("Thanks — your feedback was sent.");
+      return;
+    }
+    setMsgs(cur => [...cur, { role: "user", text: correction }]);
+    setBusy(true);
+    try {
+      const res = await coachCritique(m.trajectoryId, correction);
+      applyCoachResult(res);
+    } catch (err) {
+      setMsgs(cur => [...cur, { role: "coach", text: err.message }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveMemorySuggestion = (msgIndex, suggestionId, text) => {
+    const saved = appendUserContext(text);
+    setMsgs(cur => cur.map((m, i) => i !== msgIndex ? m : {
+      ...m,
+      memorySuggestions: (m.memorySuggestions || []).map(s => s.id === suggestionId ? { ...s, status: "saved" } : s),
+    }));
+    showToast(saved ? "Saved to coach memory." : "Already in coach memory.");
+  };
+
+  const dismissMemorySuggestion = (msgIndex, suggestionId) => {
+    setMsgs(cur => cur.map((m, i) => i !== msgIndex ? m : {
+      ...m,
+      memorySuggestions: (m.memorySuggestions || []).map(s => s.id === suggestionId ? { ...s, status: "dismissed" } : s),
+    }));
   };
 
   return (
@@ -199,6 +242,26 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
                   )}
                 </div>
               )}
+              {(m.memorySuggestions || []).filter(s => s.status !== "dismissed").map(s => (
+                <div key={s.id} className="mt-3 pt-3 border-t border-slate-700 space-y-2">
+                  <p className="text-xs font-semibold text-slate-300">Remember this for future coach chats?</p>
+                  <p className="text-xs text-slate-400 whitespace-pre-wrap">{s.text}</p>
+                  {s.status === "saved" ? (
+                    <p className="text-xs text-emerald-400">Saved to coach memory.</p>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={() => saveMemorySuggestion(i, s.id, s.text)}
+                        className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-lg transition-colors">
+                        Save to memory
+                      </button>
+                      <button onClick={() => dismissMemorySuggestion(i, s.id)}
+                        className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg transition-colors">
+                        Not now
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
               {m.trajectoryId != null && m.roundIndex != null && (
                 flaggedKeys.has(`${m.trajectoryId}:${m.roundIndex}`) ? (
                   <p className="mt-2 text-xs text-slate-500">Thanks — noted.</p>
@@ -208,7 +271,7 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
                       placeholder="What did the coach get wrong?" rows={2} autoFocus
                       className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-400 placeholder-slate-500 resize-none"/>
                     <div className="flex gap-2">
-                      <button onClick={() => submitFlag(m)} disabled={flagBusy || !flagText.trim()}
+                      <button onClick={() => submitFlag(m, i)} disabled={flagBusy || busy || !flagText.trim()}
                         className="text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-2.5 py-1 rounded-lg transition-colors">
                         Send
                       </button>
@@ -243,6 +306,9 @@ export function CoachChat({ plan, onApplyPlan, showToast, onClose }) {
       </div>
 
       <div className="border-t border-slate-800 p-3 flex-shrink-0">
+        <div className="max-w-lg mx-auto text-[11px] text-slate-500 mb-2">
+          AI coach powered by Anthropic Claude. Your message, plan, recent run summary, and saved coach memory may be used to answer. Not medical advice.
+        </div>
         <div className="max-w-lg mx-auto flex gap-2">
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") send(); }}

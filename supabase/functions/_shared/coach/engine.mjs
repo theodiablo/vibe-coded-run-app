@@ -35,19 +35,55 @@ Rules:
 - Completed sessions and RACE sessions are immutable.
 - If no change is warranted, or the request needs information you don't have, say so in plain text and make no tool calls.
 - You are not a doctor; keep medical caveats brief but present.
+- Coach memory is user-visible and editable. Use remember_runner_context only for durable, future-useful facts that are not already in the plan, goal/settings, recent runs, or existing memory. Never infer a diagnosis. The runner must confirm before any suggested memory is saved.
 
 After your tool calls are applied and validated you'll get the results; then summarize for the runner in 2-4 warm, plain sentences: what you changed and why. Do not repeat the plan JSON back.`;
+
+const MAX_MEMORY_SUGGESTIONS = 2;
+const MAX_MEMORY_LINE_CHARS = 180;
+
+const memoryKey = (s) => String(s || "")
+  .toLowerCase()
+  .replace(/^\d{4}-\d{2}-\d{2}:\s*/, "")
+  .replace(/[^a-z0-9]+/g, " ")
+  .trim();
+
+function suggestMemory(input, context, suggestions) {
+  const raw = String(input?.memory || "").replace(/^\d{4}-\d{2}-\d{2}:\s*/, "").replace(/\s+/g, " ").trim();
+  if (raw.length < 8) return "Rejected: memory is too short to be useful.";
+  const lower = raw.toLowerCase();
+  if (/^(thanks?|great|ok|okay|cool|nice|good|bad|frustrated|annoyed)[.! ]*$/i.test(raw)) {
+    return "Rejected: trivial chat reactions are not durable coach memory.";
+  }
+  if (/\b(race date|goal distance|latest run|last run|weekly mileage|missed (last|this) week)\b/i.test(raw)) {
+    return "Rejected: that belongs in the current plan/recent runs context, not persistent memory.";
+  }
+  if (/\b(diagnosed|diagnosis|has [a-z ]+ syndrome|has [a-z ]+ disease)\b/i.test(lower)) {
+    return "Rejected: do not infer or store diagnoses as coach memory.";
+  }
+  const key = memoryKey(raw);
+  const existing = new Set(String(context.userContext?.notes || "").split("\n").map(memoryKey).filter(Boolean));
+  for (const s of suggestions) existing.add(memoryKey(s.text));
+  if (existing.has(key)) return "Rejected: this is already in Coach memory.";
+  if (suggestions.length >= MAX_MEMORY_SUGGESTIONS) return "Rejected: memory suggestion limit reached for this response.";
+  const clipped = raw.length > MAX_MEMORY_LINE_CHARS ? raw.slice(0, MAX_MEMORY_LINE_CHARS - 1).trimEnd() + "…" : raw;
+  const text = `${context.today}: ${clipped}`;
+  suggestions.push({ text });
+  return "Queued for runner confirmation. It is not saved unless the runner taps Save to memory.";
+}
 
 // Build the initial message list for a round.
 // history: prior rounds [{ user_feedback, rationale, tool_calls }] (round 0's
 // report lives in context.report). Rebuilt as plain-text turns — good enough
 // for steering, and avoids persisting raw content blocks.
 export function buildMessages(context, history, message) {
+  const memory = String(context.userContext?.notes || "").trim();
   const ctxBlock =
     `CURRENT PLAN (JSON):\n${JSON.stringify(context.plan)}\n\n` +
     `GOAL: ${context.goal.distanceKm} km on ${context.goal.raceDate}` +
     (context.goal.goalSec ? `, goal ${Math.round(context.goal.goalSec / 60)} min` : "") + `\n` +
     `TODAY: ${context.today}\n` +
+    (memory ? `USER-VISIBLE COACH MEMORY (editable by runner, may be stale):\n${memory}\n` : "") +
     `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}`;
   const messages = [{ role: "user", content: `${ctxBlock}\n\nRUNNER SAYS: ${context.report}` }];
   for (const r of history) {
@@ -76,6 +112,7 @@ export async function generateProposal({ baseline, context, history = [], messag
   const messages = buildMessages(context, history, message);
   const usage = { input_tokens: 0, output_tokens: 0 };
   const toolCalls = [];
+  const memorySuggestions = [];
   let retries = 0;
   let lastText = "";
   // Tracks the most recent validation of `working`, so that if the loop ends
@@ -100,7 +137,7 @@ export async function generateProposal({ baseline, context, history = [], messag
         return {
           status: "proposed", plan: working,
           changed: JSON.stringify(working) !== JSON.stringify(baseline),
-          rationale: lastText, toolCalls, usage, validation,
+          rationale: lastText, toolCalls, memorySuggestions, usage, validation,
         };
       }
       if (++retries > MAX_VALIDATOR_RETRIES) break;
@@ -117,7 +154,9 @@ export async function generateProposal({ baseline, context, history = [], messag
     for (const tu of uses) {
       try {
         let resultText;
-        if (tu.name === "reassess_goal_feasibility") {
+        if (tu.name === "remember_runner_context") {
+          resultText = suggestMemory(tu.input, context, memorySuggestions);
+        } else if (tu.name === "reassess_goal_feasibility") {
           resultText = assessGoalFeasibility(context);
         } else {
           working = applyToolCall(working, tu.name, tu.input);
@@ -162,8 +201,8 @@ export async function generateProposal({ baseline, context, history = [], messag
     return {
       status: "proposed", plan: working,
       changed: JSON.stringify(working) !== JSON.stringify(baseline),
-      rationale: lastText, toolCalls, usage, validation: lastValidation,
+      rationale: lastText, toolCalls, memorySuggestions, usage, validation: lastValidation,
     };
   }
-  return { status: "no_valid_adjustment", rationale: lastText, toolCalls, usage };
+  return { status: "no_valid_adjustment", rationale: lastText, toolCalls, memorySuggestions, usage };
 }

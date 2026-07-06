@@ -8,9 +8,10 @@ is an **editor, never an author**.
 ```
 Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ Anthropic API
      ▲    │                          │        │
-     │    └─ confirm ──▶ returns plan│        └─ service role → agent_* audit log
+     │    ├─ confirm ──▶ returns plan│        └─ service role → agent_* audit log
+     │    └─ memory suggestions ◀────┘
      │                               └─ user JWT → reads app_state (RLS)
-     └─ applies accepted plan via savePlan/db.set (user JWT, RLS)
+     └─ applies accepted plan / confirmed memory via db.set (user JWT, RLS)
 ```
 
 ## Invariants (do not break)
@@ -18,7 +19,7 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
 1. **Trust boundary** — the API key, the validator, the tool implementations,
    the rate limit, and the audit log live in the edge function. The client
    sends a message and renders the proposal.
-2. **Editor, never author** — the model acts only through the nine tools in
+2. **Editor, never author** — the model acts only through the bounded tools in
    `supabase/functions/_shared/coach/tools.mjs`. No free-text plan generation.
    The one load-increasing tool, `add_session`, is bounded three ways: the
    tool itself refuses dates inside the final 14 days and caps distance at
@@ -51,6 +52,11 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
    JWT. (A server-side write to `app_state` would be clobbered by the
    client's debounced whole-blob upsert — this is a deliberate deviation from
    the original plan, which assumed typed `plans`/`workouts` tables.)
+7. **Coach memory is user-owned** — `app_state.data.rc_user_context.notes` is a
+   single visible textarea in Settings. The edge function may suggest dated
+   memory lines through `remember_runner_context`, but it never writes
+   `app_state`; the client persists only after the runner taps **Save to
+   memory**.
 
 ## Key deviations from the original implementation plan
 
@@ -63,8 +69,9 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
   short-horizon generator output, user-chosen adjacent hard days). Errors that
   exist identically in the baseline are reported as warnings, so the agent can
   still help — it just can't make the plan worse.
-- The server reads the plan/runs from `app_state` (source of truth), not from
-  the request body; the client calls `flushNow()` first (`src/coach.js`).
+- The server reads the plan/runs/Coach memory from `app_state` (source of
+  truth), not from the request body; the client calls `flushNow()` first
+  (`src/coach.js`).
 - **A trajectory only closes (`no_valid_adjustment`) when there's nothing to
   fall back on** — round 0 failing (nothing was ever proposed). A failed
   *critique* on an otherwise-open trajectory leaves it `open`: the prior round
@@ -103,6 +110,13 @@ Prompt caching: one `cache_control` breakpoint on the system block caches the
 stable prefix (tool defs + system prompt) across rounds. Token usage is
 persisted per round (`agent_rounds.input_tokens/output_tokens`).
 
+Coach memory: `rc_user_context.notes` is truncated server-side before being
+added to the prompt as `USER-VISIBLE COACH MEMORY (editable by runner, may be
+stale)`. It is also stored in `agent_rounds.input_context.userContext` because
+it is part of what the model saw. Memory suggestions are logged separately in
+`input_context.memorySuggestions` and returned to the client for confirmation;
+they are not plan tool calls and do not satisfy plan-adjustment fallback logic.
+
 ## Local development
 
 ```sh
@@ -139,12 +153,13 @@ through `src/coach.js`.
   `SYSTEM_PROMPT`, tool descriptions, validator rules, or `COACH_MODEL`
   (`COACH_EVAL_MODEL=...` compares candidates). See `evals/coach/README.md`.
 - **The propose/confirm log is the eval dataset**: `agent_rounds.input_context`
-  labels what the model saw; `proposed_plan`, `tool_calls`, `outcome` label
-  what it did and how it fared.
+  labels what the model saw, including truncated Coach memory; `proposed_plan`,
+  `tool_calls`, memory suggestions, and `outcome` label what it did and how it
+  fared.
 - **Headline metrics** — query the `agent_metrics` view (service role /
   dashboard): first-proposal acceptance rate, average rounds-to-accept, and
   the abandoned / no_valid_adjustment split.
-- **User feedback loop** — a "This isn't right" affordance on any coach answer
+- **User feedback loop** — a "This isn't right" affordance on a coach answer
   (`src/modals/CoachChat.jsx`) lets the user flag it and explain what's wrong;
   `submitCoachFeedback` (`src/coachFeedback.js`) inserts into `coach_feedback`
   (migration `20260705120000_coach_feedback.sql`), which references the exact
@@ -152,7 +167,10 @@ through `src/coach.js`.
   `race_reports`: INSERT-only from the client (`grant insert`, one `with check
   (auth.uid() = user_id)` policy), **no client SELECT** — deliberately no view
   either, since the join is only ever run ad hoc. Best-effort emails the
-  maintainer via `notify-contribution` (`type: "coach_feedback"`). To review
+  maintainer via `notify-contribution` (`type: "coach_feedback"`). When the
+  flagged answer is the latest open coach answer, the same correction is also
+  sent as a `critique` round so the coach can revise the proposal in chat. Old
+  or closed answers are feedback-only. To review
   flags alongside their full round context, run in the Supabase SQL editor:
   ```sql
   select f.id, f.created_at, f.user_id, f.correction,

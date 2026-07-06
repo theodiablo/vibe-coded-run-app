@@ -6,7 +6,7 @@ export function RestoreModal({onRestore, onClose}) {
   const attempt = () => {
     try {
       const d = JSON.parse(text.trim());
-      if (!d.runs && !d.plan) { setErr("Doesn't look like a valid backup."); return; }
+      if (!d.runs && !d.plan && !d.userContext) { setErr("Doesn't look like a valid backup."); return; }
       onRestore(d); onClose();
     } catch { setErr("Invalid JSON — make sure you copied the entire backup."); }
   };

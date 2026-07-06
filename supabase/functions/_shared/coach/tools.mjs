@@ -1,6 +1,6 @@
-// The coach agent's bounded tool vocabulary: nine typed, pure transforms over
-// the buildPlan() JSON. The model is an EDITOR, never an author — it can only
-// act through these; there is deliberately no free-form edit tool. The one
+// The coach agent's bounded tool vocabulary: plan transforms over the
+// buildPlan() JSON plus one memory-suggestion tool. The model is an EDITOR,
+// never an author — it can only act through these; there is deliberately no free-form edit tool. The one
 // load-increasing tool (add_session) is tightly bounded: distance capped at
 // the plan's current longest training session, never inside the final 14
 // days, and the weekly-ramp validator still gates the result. Every transform
@@ -134,6 +134,18 @@ export const TOOL_DEFS = [
     description:
       "Analyse whether the race goal still looks realistic given recent training (returns an assessment; does NOT change the plan). Use when the runner doubts the goal, or when repeated reductions suggest the goal itself is the problem.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "remember_runner_context",
+    description:
+      "Suggest ONE durable, future-useful memory for the runner's visible Coach memory field. Use sparingly for recurring injuries/pain patterns, safety constraints, schedule preferences, terrain/equipment constraints, durable training preferences, or important user corrections about themselves. Do NOT suggest facts already present in the current plan, goal/settings, recent runs, or existing Coach memory; do NOT suggest one-off events (like a single missed week), trivial chat facts, compliments, emotions, race date/distance, latest run distance, weekly mileage, or diagnoses. Suggestions are NOT saved automatically: the runner must explicitly confirm them.",
+    input_schema: {
+      type: "object",
+      properties: {
+        memory: { type: "string", description: "Short memory text without a date prefix, e.g. 'Prefers Sunday long runs.'" },
+      },
+      required: ["memory"],
+    },
   },
 ];
 
