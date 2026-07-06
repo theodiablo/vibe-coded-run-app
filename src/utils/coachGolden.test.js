@@ -265,4 +265,28 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(result.changed).toBe(false);
     expect(result.toolCalls).toEqual([]);
   });
+
+  it("context guard allows add_session after the latest message says pain resolved", async () => {
+    const context = makeContext("my knee hurt earlier this week");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "Added a modest easy run now that the pain has resolved." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({
+      baseline: context.plan,
+      context,
+      history: [{ user_feedback: null, rationale: "Reduced load while your knee hurt.", tool_calls: [] }],
+      message: "The knee pain is gone and I feel normal now; I have a free day.",
+      callModel,
+    });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(true);
+    expect(result.toolCalls.map(t => t.name)).toEqual(["add_session"]);
+  });
 });

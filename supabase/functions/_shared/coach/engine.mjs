@@ -77,14 +77,17 @@ const riskText = (context, history, message) => [
   message,
   ...(history || []).map(r => r.user_feedback),
 ].filter(Boolean).join("\n").toLowerCase();
+const latestUserText = (context, message) => String(message ?? context.report ?? "").toLowerCase();
 const hasPainOrIllness = (s) => /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|cold|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b/i.test(s);
+const hasResolvedRisk = (s) => /\b(no|without|zero)\b[^.\n]{0,30}\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(gone|passed|resolved|cleared|better|fine)\b|\b(recovered|back to normal|feel normal|feeling normal)\b/i.test(s);
 const hasMissedWeek = (s) => /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b/i.test(s);
 const hasUnsafePainPreference = (s) => /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)/i.test(s);
 
 function guardToolForContext(name, input, context, history, message) {
   const current = riskText(context, history, message);
+  const latest = latestUserText(context, message);
   const memory = String(context.userContext?.notes || "");
-  const risk = hasPainOrIllness(current) || hasUnsafePainPreference(memory);
+  const risk = (hasPainOrIllness(current) && !hasResolvedRisk(latest)) || hasUnsafePainPreference(memory);
   if (name === "add_session") {
     if (risk) throw new CoachToolError("CONTEXT_UNSAFE", "add_session is blocked when the current conversation indicates pain, injury, illness, fatigue, or unsafe training-through-pain preferences.");
     if (hasMissedWeek(current)) throw new CoachToolError("CONTEXT_UNSAFE", "add_session is blocked after a missed week; missed volume must not be made up.");
