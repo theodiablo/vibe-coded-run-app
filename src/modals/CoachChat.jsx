@@ -321,7 +321,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
           .
         </div>
         <div className="max-w-lg mx-auto flex gap-2">
-          <input value={input} onChange={e => setInput(e.target.value)}
+          <input id="coach-message" name="coach-message" aria-label="Message to coach" value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") send(); }}
             placeholder={trajectoryId ? "Suggest an edit…" : "e.g. help me feel fresh for this weekend"}
             className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
