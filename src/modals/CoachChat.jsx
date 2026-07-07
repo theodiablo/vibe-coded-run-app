@@ -7,6 +7,7 @@ import { submitCoachFeedback } from "../coachFeedback";
 import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
 import { track } from "../telemetry";
+import { PRIVACY_URL, DISCLAIMER_URL } from "../constants";
 
 // The model replies in markdown (headers, bold, tables); rendered via
 // react-markdown rather than manually injecting raw HTML through a sanitizer
@@ -307,7 +308,17 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
 
       <div className="border-t border-slate-800 p-3 flex-shrink-0">
         <div className="max-w-lg mx-auto text-[11px] text-slate-500 mb-2">
-          AI coach powered by Anthropic Claude. Your message, plan, recent run summary, and saved coach memory may be used to answer. Not medical advice.
+          Your coach uses your message, plan, recent runs, and saved memory to answer. See our{" "}
+          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
+            className="text-slate-400 hover:text-orange-300 underline underline-offset-2">
+            privacy policy
+          </a>
+          {" "}and{" "}
+          <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer"
+            className="text-slate-400 hover:text-orange-300 underline underline-offset-2">
+            safety note
+          </a>
+          .
         </div>
         <div className="max-w-lg mx-auto flex gap-2">
           <input value={input} onChange={e => setInput(e.target.value)}
