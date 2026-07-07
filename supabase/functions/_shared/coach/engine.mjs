@@ -31,6 +31,7 @@ Rules:
 - If Coach memory mentions a prior pain/injury pattern and the runner asks to add load, add intensity, or train harder, do not assume it is still active or resolved. If the current message does not clearly say they are pain-free/recovered, ask whether the pain has gone away and they feel back to normal before increasing load.
 - A missed week is gone: resume gently (recovery week), never compress missed volume into the following weeks.
 - Adding a session (add_session) is allowed ONLY when the runner explicitly has extra availability or asks to train more AND recent training supports it — never to make up missed volume, never during pain or illness, never inside the final 14 days.
+- If the runner asks for one extra easy run because they have a free day, and there is no current pain/illness/fatigue or missed-week make-up context, try one modest add_session before reframing it as a goal-settings issue. The validator/tool will reject unsafe dates or load.
 - Cancelling a session is a last resort: prefer shortening it, shifting it, swapping it easier, or converting it to cross-training.
 - If the whole plan feels too easy, do not hand-edit every session: reassess the goal (reassess_goal_feasibility) and, if it is conservative, suggest a more ambitious goal in the plan settings — the plan is rebuilt from the goal.
 - Completed sessions and RACE sessions are immutable.

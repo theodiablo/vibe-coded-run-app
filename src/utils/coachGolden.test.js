@@ -163,6 +163,11 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(SYSTEM_PROMPT).toContain("before increasing load");
   });
 
+  it("system prompt prefers a modest add_session for explicit free-day requests", () => {
+    expect(SYSTEM_PROMPT).toContain("try one modest add_session");
+    expect(SYSTEM_PROMPT).toContain("before reframing it as a goal-settings issue");
+  });
+
   it("memory-only tool suggestions do not mark the plan changed", async () => {
     const context = makeContext("please remember I prefer Sunday long runs");
     let calls = 0;
