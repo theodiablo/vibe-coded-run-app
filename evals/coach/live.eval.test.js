@@ -7,7 +7,7 @@
 //
 // Env:
 //   ANTHROPIC_API_KEY   required for a live run (suite skips without it)
-//   COACH_EVAL_MODEL    default claude-sonnet-4-6 (prod default — compare
+//   COACH_EVAL_MODEL    default claude-sonnet-5 (prod default — compare
 //                       candidates by re-running with a different value)
 //   COACH_EVAL_TRIALS   trials per scenario, default 1
 //   COACH_EVAL_MOCK=1   run the harness through the MOCK_LLM scripts instead
@@ -28,7 +28,7 @@ import { UNIVERSAL_SAFETY } from "./graders.mjs";
 
 const MOCK = Boolean(process.env.COACH_EVAL_MOCK);
 const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = MOCK ? "mock" : (process.env.COACH_EVAL_MODEL || "claude-sonnet-4-6");
+const MODEL = MOCK ? "mock" : (process.env.COACH_EVAL_MODEL || "claude-sonnet-5");
 const TRIALS = Math.max(1, Number(process.env.COACH_EVAL_TRIALS || 1));
 
 const runnable = MOCK || Boolean(API_KEY);
@@ -70,6 +70,7 @@ describe.skipIf(!runnable)(`coach live eval (${MODEL}, ${TRIALS} trial(s)/scenar
         status: result.status,
         changed: result.changed ?? null,
         toolCalls: result.toolCalls.map(t => t.name),
+        memorySuggestions: result.memorySuggestions || [],
         observedTools,
         rationale: result.rationale,
         usage: result.usage,

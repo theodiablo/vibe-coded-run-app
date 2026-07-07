@@ -17,12 +17,12 @@ when changing `SYSTEM_PROMPT`, tool descriptions, validator rules, or
 
 ```sh
 ANTHROPIC_API_KEY=sk-ant-... npm run eval:live          # prod model
-COACH_EVAL_MODEL=claude-sonnet-5 ANTHROPIC_API_KEY=... npm run eval:live   # candidate
+COACH_EVAL_MODEL=claude-sonnet-5 ANTHROPIC_API_KEY=... npm run eval:live   # explicit prod model
 COACH_EVAL_TRIALS=3 ANTHROPIC_API_KEY=... npm run eval:live                # variance
 COACH_EVAL_MOCK=1 npm run eval:live                     # free plumbing check
 ```
 
-A full live run is 10 scenarios × ~2–4 model calls each (the plan JSON
+A full live run is 16 scenarios × ~2–4 model calls each (the plan JSON
 dominates input tokens; expect roughly 100–200K input / a few K output tokens
 per trial set — with caching, on the order of $0.10–0.30 per run on Sonnet).
 
@@ -46,7 +46,9 @@ Two tiers (see `graders.mjs`):
   family for the situation, graceful refusals (`proposed` + `changed:false` +
   an explanation beats burning retries into `no_valid_adjustment`),
   professional-referral language on sharp pain, no plan edits for a nutrition
-  question. Misses are reported and scored, not failed — models legitimately
+    question, and user-owned Coach memory behaviour (suggesting durable memory,
+    asking/declining when unresolved memory pain makes added load unsafe, and
+    adding load once the latest user message says the pain has resolved). Misses are reported and scored, not failed — models legitimately
   vary; the trend across runs/models is the signal.
 
 Assertions are **properties, not transcripts** — the same philosophy as the

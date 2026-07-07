@@ -160,6 +160,12 @@ export const observedTool = (...names) => grader(`observed-tool(${names.join("|"
   ({ pass: observedTools.some(n => names.includes(n)),
      detail: `observed: ${observedTools.join(", ") || "none"}` }));
 
+export const memorySuggested = (re, label = "memory") => grader(`memory-suggested(${label})`, ({ result }) => {
+  const suggestions = result.memorySuggestions || [];
+  const text = suggestions.map(s => s.text || "").join("\n");
+  return { pass: suggestions.length > 0 && re.test(text), detail: text || "none" };
+});
+
 export const rationaleMentions = (re, label) => grader(`rationale-mentions(${label})`, ({ result }) =>
   ({ pass: re.test(result.rationale || ""), detail: (result.rationale || "").slice(0, 160) }));
 
