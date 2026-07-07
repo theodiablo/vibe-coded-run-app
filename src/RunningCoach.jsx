@@ -555,6 +555,7 @@ export default function RunningCoach({ onSignOut }) {
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
+        onOpenCoach={plan ? () => { setShowSettings(false); setShowCoach(true); } : null}
         onDeleteAccount={() => { setShowSettings(false); setShowDeleteAccount(true); }}
         onClose={()   => setShowSettings(false)}/>}
       {showDeleteAccount && <DeleteAccountModal

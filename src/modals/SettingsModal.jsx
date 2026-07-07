@@ -9,7 +9,7 @@ import { getConsent, setConsent } from "../telemetry";
 // Full-screen settings: editable profile name, heart-rate zones, and the
 // less-frequently-used data actions (Backup / Restore) tucked away here so
 // they don't clutter the header.
-export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onClose, showToast}) {
+export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast}) {
   const [name, setName] = useState(settings.name || "");
   const sourceMemory = userContext?.notes || "";
   const [memorySource, setMemorySource] = useState(sourceMemory);
@@ -77,7 +77,16 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               placeholder="e.g. 2026-07-06: Prefers Sunday long runs."
               className={INPUT_CLS + " resize-none leading-relaxed"}/>
             <div className="flex items-center justify-between gap-3 text-xs">
-              <p className="text-slate-500">Autosaves on blur. AI suggestions are saved only if you choose.</p>
+              <p className="text-slate-500">
+                We only save the AI suggestions you choose to store
+                {onOpenCoach ? <>
+                  {" "}in your{" "}
+                  <button type="button" onClick={onOpenCoach}
+                    className="text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                    AI Coach conversations
+                  </button>
+                </> : " in your AI Coach conversations"}.
+              </p>
               <p className={memory.length >= USER_CONTEXT_NOTICE_CHARS ? "text-red-400" : memory.length >= USER_CONTEXT_WARN_CHARS ? "text-amber-400" : "text-slate-500"}>
                 {memory.length} / {USER_CONTEXT_MAX_CHARS}
               </p>
@@ -94,7 +103,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               <div className="min-w-0">
                 <p className="text-sm text-slate-200">Share usage &amp; crash reports</p>
                 <p className="text-xs text-slate-400">
-                  Pseudonymous app analytics and crash diagnostics. No run data,
+                  Limited app analytics and crash diagnostics. No run data,
                   routes, heart-rate samples, or coach messages are ever sent.
                 </p>
               </div>
