@@ -39,9 +39,9 @@
   <body>
     <div class="wrap">
       <h1>🏃 Running Coach — Privacy Policy</h1>
-      <p class="lead">A free, open-source running-training app. No ads, no analytics,
-        no upsells — and the same goes for your data.</p>
-      <p class="updated">Last updated: 1 July 2026</p>
+      <p class="lead">A free, open-source running-training app. No ads, no upsells,
+        and no selling your data.</p>
+      <p class="updated">Last updated: 6 July 2026</p>
 
       <h2>Who we are</h2>
       <p>Running Coach is an independent, open-source project. The source code is
@@ -55,6 +55,8 @@
         <li><strong>Your runs</strong> — date, distance, duration, heart rate, effort, and notes.</li>
         <li><strong>Your training plan and race settings.</strong></li>
         <li><strong>Your name</strong>, if you choose to enter one during onboarding.</li>
+        <li><strong>Coach memory</strong>, if you choose to save notes for future AI coach
+          chats, such as training preferences, schedule constraints, or injury context.</li>
         <li><strong>GPS location and route traces</strong>, when you use live run tracking
           (see below).</li>
         <li><strong>Heart-rate data</strong> — measured by a paired Bluetooth heart-rate
@@ -113,13 +115,31 @@
         <a href="https://www.maptiler.com">MapTiler</a>; rendering a map sends the
         relevant map-tile coordinates to MapTiler, but not your account identity.</p>
 
+      <h2>AI coach</h2>
+      <p>The AI coach is powered by Anthropic Claude. When you use the coach, your
+        message, current plan, goal, recent run summaries, and saved Coach memory may
+        be sent to Anthropic to generate a response. Coach conversations, proposals,
+        tool calls, and the context the model saw are stored in your account's
+        Supabase-backed audit logs so the app can validate proposals and improve the
+        coach. If you use "This isn't right", your correction may also be emailed to
+        the maintainer for review.</p>
+      <p>The AI coach may suggest a Coach memory note, but it is saved only if you
+        choose <strong>Save to memory</strong>. You can edit or delete Coach memory at
+        any time in <strong>Settings → Coach memory</strong>. The coach is not medical
+        advice.</p>
+
       <h2>How your data is used</h2>
       <p>Your data is used <strong>only to run the app for you</strong> — to build your
-        plan, log and display your runs, and show your routes. That's it.</p>
+        plan, log and display your runs, show your routes, and answer AI coach
+        requests you send.</p>
       <ul>
         <li>We do <strong>not</strong> sell your data.</li>
         <li>We do <strong>not</strong> share it with third parties for advertising.</li>
-        <li>There is <strong>no</strong> advertising, analytics, or behavioural tracking.</li>
+        <li>There is <strong>no</strong> advertising or behavioural tracking.</li>
+        <li>Optional, opt-in pseudonymous analytics and crash diagnostics may be
+          collected through PostHog if you choose to share them in the app. These
+          events do not include routes, run notes, heart-rate samples, or coach
+          message text.</li>
       </ul>
 
       <h2>Your rights &amp; deleting your data</h2>
@@ -127,10 +147,10 @@
         the app. To delete your entire account and all associated data, open the web app
         at <a href="https://run.camboulive.solutions">run.camboulive.solutions</a> and go
         to <strong>Settings → Delete account</strong>. This permanently and immediately
-        removes your account, all runs, GPS routes, training plan, and settings — it
-        cannot be undone. You can also export a full backup of your data from Settings
-        before deleting. If you would rather we do it for you, email the address below
-        and we will remove it manually.</p>
+        removes your account, all runs, GPS routes, training plan, Coach memory,
+        coach logs, and settings — it cannot be undone. You can also export an app
+        backup from Settings before deleting. If you would rather we do it for you,
+        email the address below and we will remove it manually.</p>
 
       <h2>Permissions (Android)</h2>
       <ul>

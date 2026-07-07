@@ -10,12 +10,17 @@ on:
       model:
         description: Model to evaluate (COACH_EVAL_MODEL)
         required: false
-        default: claude-sonnet-4-6
+        default: claude-sonnet-5
         type: string
       trials:
         description: Trials per scenario (COACH_EVAL_TRIALS)
         required: false
         default: "1"
+        type: string
+      scenarios:
+        description: Optional comma-separated scenario ids to run (COACH_EVAL_SCENARIOS)
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -54,6 +59,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           COACH_EVAL_MODEL: ${{ inputs.model }}
           COACH_EVAL_TRIALS: ${{ inputs.trials }}
+          COACH_EVAL_SCENARIOS: ${{ inputs.scenarios }}
         run: npm run eval:live
 
       # Keep the report even when a safety gate fails — that's exactly the run

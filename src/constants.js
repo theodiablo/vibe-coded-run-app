@@ -5,11 +5,17 @@ export const STORAGE_KEYS = {
   RUNS: "rc_runs",
   PLAN: "rc_plan",
   SETTINGS: "rc_settings",
+  // User-visible, editable context sent to the AI coach for future chats.
+  USER_CONTEXT: "rc_user_context",
   // Personal races layer: wishlist / completed participations + seen-badge set.
   // The race *catalogue* is NOT here — it's shared/heavy (a bundled seed in
   // Phase 1, a Supabase table in Phase 2); only per-user data lives in the blob.
   RACES: "rc_races",
 };
+
+export const USER_CONTEXT_MAX_CHARS = 2000;
+export const USER_CONTEXT_WARN_CHARS = 1600;
+export const USER_CONTEXT_NOTICE_CHARS = 1800;
 
 // localStorage key for the in-progress live run buffer (crash/refresh recovery).
 // Kept out of STORAGE_KEYS on purpose: it must NOT sync to the Supabase blob —

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
-import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL } from "../constants";
+import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_WARN_CHARS, USER_CONTEXT_NOTICE_CHARS } from "../constants";
 import { HRZones } from "../views/HRZones";
 import { HrSensor } from "../views/HrSensor";
 import { isNative } from "../native";
@@ -9,12 +9,23 @@ import { getConsent, setConsent } from "../telemetry";
 // Full-screen settings: editable profile name, heart-rate zones, and the
 // less-frequently-used data actions (Backup / Restore) tucked away here so
 // they don't clutter the header.
-export function SettingsModal({settings, saveSettings, onBackup, onRestore, onSignOut, onDeleteAccount, onClose, showToast}) {
+export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast}) {
   const [name, setName] = useState(settings.name || "");
+  const sourceMemory = userContext?.notes || "";
+  const [memorySource, setMemorySource] = useState(sourceMemory);
+  const [memory, setMemory] = useState(sourceMemory);
+  if (sourceMemory !== memorySource) {
+    setMemorySource(sourceMemory);
+    setMemory(sourceMemory);
+  }
   // Auto-save on blur/Enter — no Save button (matches the HR fields below).
   const commitName = () => {
     const n = name.trim();
     if (n !== (settings.name || "")) saveSettings({...settings, name: n});
+  };
+  const commitMemory = () => {
+    const notes = memory.slice(0, USER_CONTEXT_MAX_CHARS);
+    if (notes !== (userContext?.notes || "")) saveUserContext({ ...(userContext || {}), notes });
   };
 
   // Telemetry consent (opt-in). The source of truth is the telemetry module's
@@ -51,6 +62,37 @@ export function SettingsModal({settings, saveSettings, onBackup, onRestore, onSi
             {isNative && <HrSensor settings={settings} saveSettings={saveSettings} showToast={showToast}/>}
           </div>
 
+          <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-200">Coach memory</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Things your coach should remember for future chats, like recurring injuries,
+                training preferences, schedule constraints, or important corrections. Markdown
+                headings like "## Schedule" or "## Injury history" are welcome. This is saved
+                to your account, used in AI coach requests, and editable any time.
+              </p>
+            </div>
+            <textarea value={memory} maxLength={USER_CONTEXT_MAX_CHARS} rows={6}
+              onChange={e => setMemory(e.target.value)} onBlur={commitMemory}
+              placeholder="e.g. 2026-07-06: Prefers Sunday long runs."
+              className={INPUT_CLS + " resize-none leading-relaxed"}/>
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <p className="text-slate-500">
+                We only save the AI suggestions you choose to store
+                {onOpenCoach ? <>
+                  {" "}in your{" "}
+                  <button type="button" onClick={onOpenCoach}
+                    className="text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                    AI Coach conversations
+                  </button>
+                </> : " in your AI Coach conversations"}.
+              </p>
+              <p className={memory.length >= USER_CONTEXT_NOTICE_CHARS ? "text-red-400" : memory.length >= USER_CONTEXT_WARN_CHARS ? "text-amber-400" : "text-slate-500"}>
+                {memory.length} / {USER_CONTEXT_MAX_CHARS}
+              </p>
+            </div>
+          </div>
+
           {/* Privacy */}
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -61,8 +103,8 @@ export function SettingsModal({settings, saveSettings, onBackup, onRestore, onSi
               <div className="min-w-0">
                 <p className="text-sm text-slate-200">Share usage &amp; crash reports</p>
                 <p className="text-xs text-slate-400">
-                  Anonymous app analytics and crash diagnostics. No run data or
-                  routes are ever sent. You can change this any time.
+                  Limited app analytics and crash diagnostics. No run data,
+                  routes, heart-rate samples, or coach messages are ever sent.
                 </p>
               </div>
               <button onClick={toggleAnalytics} role="switch" aria-checked={analyticsOn}

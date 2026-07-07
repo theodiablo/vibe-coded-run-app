@@ -57,6 +57,7 @@ const MODEL_TIMEOUT_MS = Number(Deno.env.get("COACH_MODEL_TIMEOUT_MS") ?? 60000)
 // flight so the connection never looks idle; JSON.parse ignores leading
 // whitespace, so the eventual real body still parses cleanly.
 const KEEPALIVE_INTERVAL_MS = 5000;
+const USER_CONTEXT_MAX_CHARS = 2000;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -68,6 +69,13 @@ const CORS = {
 // classifier here — nothing else changes.
 function pickModel(_message: string): string {
   return DEFAULT_MODEL;
+}
+
+function cleanUserContext(value: unknown): { notes: string } {
+  const notes = typeof value === "object" && value && "notes" in value
+    ? String((value as { notes?: unknown }).notes ?? "")
+    : "";
+  return { notes: notes.replace(/\r\n?/g, "\n").slice(0, USER_CONTEXT_MAX_CHARS) };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -154,14 +162,7 @@ async function handle(req: Request): Promise<any> {
   const message = String(body.message ?? "").trim();
   if (!message) return { error: "message is required" };
 
-  // Per-user daily budget; the increment is atomic (SQL function) so
-  // concurrent requests can't slip past the limit.
   const today = new Date().toISOString().slice(0, 10);
-  const { data: count, error: usageErr } = await admin.rpc("increment_agent_usage", {
-    p_user_id: user.id, p_day: today,
-  });
-  if (usageErr) throw usageErr;
-  if (count > RATE_LIMIT_PER_DAY) return { error: "daily coach limit reached — try again tomorrow" };
 
   // The plan + run history come from the user's own app_state blob (RLS via
   // the caller's JWT) — the server-side source of truth, not the request body.
@@ -171,10 +172,22 @@ async function handle(req: Request): Promise<any> {
   const blob = stateRow?.data ?? {};
   const plan = blob.rc_plan;
   const settings = blob.rc_settings ?? {};
+  const userContext = cleanUserContext(blob.rc_user_context);
   if (!plan?.weeks?.length) return { error: "no training plan to adjust — build one first" };
   const recentRuns = (blob.rc_runs ?? []).slice(0, 30).map((r: Record<string, unknown>) => ({
     date: r.date, type: r.type, km: r.km, durationSec: r.durationSec, hr: r.hr, effort: r.effort,
   }));
+  // Per-user daily budget; charge only after cheap request/state validation and
+  // before any trajectory mutation. The increment is atomic (SQL function) so
+  // concurrent requests can't slip past the limit.
+  const checkRateLimit = async () => {
+    const { data: count, error: usageErr } = await admin.rpc("increment_agent_usage", {
+      p_user_id: user.id, p_day: today,
+    });
+    if (usageErr) throw usageErr;
+    if (count > RATE_LIMIT_PER_DAY) return "daily coach limit reached — try again tomorrow";
+    return null;
+  };
 
   let trajectoryId: string;
   let history: unknown[] = [];
@@ -184,6 +197,8 @@ async function handle(req: Request): Promise<any> {
   let workingPlan = plan;
 
   if (action === "propose") {
+    const rateLimitError = await checkRateLimit();
+    if (rateLimitError) return { error: rateLimitError };
     // One live conversation at a time: anything still open is now abandoned
     // (feedback given but never accepted — a distinct fate in the metrics).
     await admin.from("agent_trajectories")
@@ -218,6 +233,8 @@ async function handle(req: Request): Promise<any> {
       .order("round_index", { ascending: false }).limit(1).maybeSingle();
     if (latestErr) throw latestErr;
     workingPlan = latestProposal?.proposed_plan ?? baselinePlan;
+    const rateLimitError = await checkRateLimit();
+    if (rateLimitError) return { error: rateLimitError };
   }
 
   // Single goal shape for every consumer (buildMessages' prompt text AND
@@ -233,6 +250,7 @@ async function handle(req: Request): Promise<any> {
       distanceKm: Number(settings.distanceKm || workingPlan.distanceKm),
       goalSec: Number(settings.goalSec || workingPlan.goalSec) || null,
     },
+    userContext,
     targetPace: workingPlan.targetPace,
   };
 
@@ -265,7 +283,13 @@ async function handle(req: Request): Promise<any> {
     tool_calls: result.toolCalls,
     rationale: result.rationale || null,
     proposed_plan: failed ? context.plan : result.plan,
-    input_context: { report, goal: context.goal, today, recentRuns, plan: baselinePlan },
+    input_context: {
+      report, goal: context.goal, today, recentRuns, userContext,
+      baselinePlan, planSeenByModel: workingPlan,
+      memorySuggestions: result.memorySuggestions ?? [],
+      // Back-compat for existing confirm/client validation callers.
+      plan: baselinePlan,
+    },
     model,
     input_tokens: result.usage.input_tokens,
     output_tokens: result.usage.output_tokens,
@@ -284,6 +308,7 @@ async function handle(req: Request): Promise<any> {
       trajectoryId, roundIndex, status: "no_valid_adjustment", trajectoryClosed,
       rationale: result.rationale ||
         "I couldn't find an adjustment that keeps your plan safe — nothing was changed.",
+      memorySuggestions: (result.memorySuggestions ?? []).map((s: { text: string }, i: number) => ({ id: `${trajectoryId}:${roundIndex}:mem:${i}`, text: s.text })),
     };
   }
   return {
@@ -291,6 +316,7 @@ async function handle(req: Request): Promise<any> {
     changed: result.changed,
     rationale: result.rationale,
     proposedPlan: result.plan,
+    memorySuggestions: (result.memorySuggestions ?? []).map((s: { text: string }, i: number) => ({ id: `${trajectoryId}:${roundIndex}:mem:${i}`, text: s.text })),
     warnings: result.validation.warnings,
   };
 }

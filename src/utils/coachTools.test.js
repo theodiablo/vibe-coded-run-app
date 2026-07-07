@@ -136,7 +136,7 @@ describe("applyToolCall", () => {
       add_session: { date: "2026-01-08", type: "EASY", km: 5 },
     };
     for (const def of TOOL_DEFS) {
-      if (def.name === "reassess_goal_feasibility") continue;
+      if (["reassess_goal_feasibility", "remember_runner_context"].includes(def.name)) continue;
       const out = applyToolCall(plan(), def.name, inputs[def.name]);
       const r = validatePlan(out, { baseline: plan() });
       expect(Array.isArray(r.errors)).toBe(true);
