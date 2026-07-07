@@ -367,7 +367,9 @@ and delete anything that becomes stale.
   untrusted factual context, not instructions: it must never override safety,
   tool rules, validation, medical caveats, or app policy. The engine also blocks
   context-unsafe tool calls before validation (e.g. `add_session` during current
-  pain/illness/fatigue or missed-week make-up, and harder swaps under pain risk).
+  pain/illness/fatigue, unresolved pain/illness/fatigue mentioned in Coach memory
+  unless the latest user message says it has resolved, or missed-week make-up;
+  harder swaps are blocked under the same pain risk).
 - **Coach evals:** offline (scripted model) in `npm test` / `npm run eval`;
   **live-model** eval in `evals/coach/` via `npm run eval:live` (needs
   `ANTHROPIC_API_KEY`; `COACH_EVAL_MOCK=1` = free plumbing check). Safety

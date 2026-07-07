@@ -92,7 +92,8 @@ function guardToolForContext(name, input, context, history, message) {
   const current = riskText(context, history, message);
   const latest = latestUserText(context, message);
   const memory = String(context.userContext?.notes || "");
-  const risk = (hasPainOrIllness(current) && !hasResolvedRisk(latest)) || hasUnsafePainPreference(memory);
+  const unresolvedRisk = (hasPainOrIllness(current) || hasPainOrIllness(memory)) && !hasResolvedRisk(latest);
+  const risk = unresolvedRisk || hasUnsafePainPreference(memory);
   if (name === "add_session") {
     if (risk) throw new CoachToolError("CONTEXT_UNSAFE", "add_session is blocked when the current conversation indicates pain, injury, illness, fatigue, or unsafe training-through-pain preferences.");
     if (hasMissedWeek(current)) throw new CoachToolError("CONTEXT_UNSAFE", "add_session is blocked after a missed week; missed volume must not be made up.");

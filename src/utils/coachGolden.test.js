@@ -295,6 +295,53 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(result.toolCalls.map(t => t.name)).toEqual(["add_session"]);
   });
 
+  it("context guard treats unresolved pain from Coach memory as load-increase risk", async () => {
+    const context = {
+      ...makeContext("I have a free day Thursday — could you add an extra easy run?"),
+      userContext: { notes: "2026-07-01: Recurring Achilles soreness after hills." },
+    };
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "Before adding load, is the Achilles soreness gone?" }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(false);
+    expect(result.toolCalls).toEqual([]);
+  });
+
+  it("context guard allows load increases when latest message resolves Coach memory pain", async () => {
+    const context = {
+      ...makeContext("I have a free day Thursday — could you add an extra easy run?"),
+      userContext: { notes: "2026-07-01: Recurring Achilles soreness after hills." },
+    };
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "Added a modest easy run." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({
+      baseline: context.plan,
+      context,
+      message: "The Achilles soreness is gone and I feel normal now; I have a free day.",
+      callModel,
+    });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(true);
+    expect(result.toolCalls.map(t => t.name)).toEqual(["add_session"]);
+  });
+
   it("context guard does not treat negated recovery as resolved", async () => {
     const context = makeContext("my knee hurt earlier this week");
     let calls = 0;

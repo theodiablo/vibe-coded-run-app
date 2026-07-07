@@ -45,10 +45,12 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
     reported as "proposed, nothing needs to change."
    Context-sensitive gates also reject semantically unsafe tool use before the
    structural validator runs: `add_session` is blocked for current pain, injury,
-   illness, fatigue, missed-week make-up, or unsafe "train through pain" memory;
-   harder `swap_session` targets (`TEMPO`/`INTERVALS`/`LONG`) are blocked under
-   the same pain/illness/fatigue risk. `validatePlan` remains the final
-   structural authority, but these gates cover intent the validator cannot know.
+   illness, fatigue, missed-week make-up, unsafe "train through pain" memory, or
+   unresolved pain/injury/illness/fatigue mentioned in Coach memory unless the
+   latest user message clearly says it has resolved; harder `swap_session`
+   targets (`TEMPO`/`INTERVALS`/`LONG`) are blocked under the same risk.
+   `validatePlan` remains the final structural authority, but these gates cover
+   intent the validator cannot know.
 5. **Tamper-proof audit log** — `agent_trajectories` / `agent_rounds` /
    `agent_usage` are written by the **service role only**; users can read
    their own rows, never write. Every round is logged, including failures.
