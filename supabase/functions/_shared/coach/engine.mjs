@@ -79,8 +79,12 @@ const riskText = (context, history, message) => [
   ...(history || []).map(r => r.user_feedback),
 ].filter(Boolean).join("\n").toLowerCase();
 const latestUserText = (context, message) => String(message ?? context.report ?? "").toLowerCase();
-const hasPainOrIllness = (s) => /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|cold|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b/i.test(s);
-const hasResolvedRisk = (s) => /\b(no|without|zero)\b[^.\n]{0,30}\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(gone|passed|resolved|cleared|better|fine)\b|\b(recovered|back to normal|feel normal|feeling normal)\b/i.test(s);
+const hasPainOrIllness = (s) => /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b|\b(a|my|have|had|with|caught|getting|from) cold\b/i.test(s);
+function hasResolvedRisk(s) {
+  const positive = /\b(no|without|zero)\b[^.\n]{0,30}\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(gone|passed|resolved|cleared|better|fine)\b|\b(recovered|back to normal|feel normal|feeling normal)\b/i.test(s);
+  if (!positive) return false;
+  return !/\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent|don't|dont|doesn't|doesnt)\b[^.\n]{0,40}\b(gone|passed|resolved|cleared|better|fine|recovered|back to normal|feel normal|feeling normal)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent)\b[^.\n]{0,20}\b(gone|passed|resolved|cleared|better|fine)\b/i.test(s);
+}
 const hasMissedWeek = (s) => /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b/i.test(s);
 const hasUnsafePainPreference = (s) => /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)/i.test(s);
 

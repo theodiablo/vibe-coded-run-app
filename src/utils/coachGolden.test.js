@@ -294,4 +294,69 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(result.changed).toBe(true);
     expect(result.toolCalls.map(t => t.name)).toEqual(["add_session"]);
   });
+
+  it("context guard does not treat negated recovery as resolved", async () => {
+    const context = makeContext("my knee hurt earlier this week");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "I won't add training until the pain is actually gone." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({
+      baseline: context.plan,
+      context,
+      history: [{ user_feedback: null, rationale: "Reduced load while your knee hurt.", tool_calls: [] }],
+      message: "The knee pain is not gone, but I have a free day.",
+      callModel,
+    });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(false);
+    expect(result.toolCalls).toEqual([]);
+  });
+
+  it("context guard does not treat not feeling normal as resolved", async () => {
+    const context = makeContext("I had the flu last week");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "Wait until you feel back to normal before adding load." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({
+      baseline: context.plan,
+      context,
+      message: "I'm not feeling normal yet, but I have a free day.",
+      callModel,
+    });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(false);
+    expect(result.toolCalls).toEqual([]);
+  });
+
+  it("context guard does not confuse cold weather with illness", async () => {
+    const context = makeContext("It's cold outside, but I feel normal and have a free day Thursday.");
+    let calls = 0;
+    const callModel = async () => {
+      calls++;
+      if (calls === 1) return {
+        content: [{ type: "tool_use", id: "add1", name: "add_session", input: { date: context.plan.weeks[0].startDate, type: "EASY", km: 4 } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 5, output_tokens: 5 },
+      };
+      return { content: [{ type: "text", text: "Added a modest easy run." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
+    };
+    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    expect(result.status).toBe("proposed");
+    expect(result.changed).toBe(true);
+    expect(result.toolCalls.map(t => t.name)).toEqual(["add_session"]);
+  });
 });
