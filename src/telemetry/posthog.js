@@ -81,7 +81,7 @@ export const posthogProvider = {
   },
 
   reset() {
-    if (ph) ph.reset();
+    withPH((p) => p.reset());
   },
 
   track(event, props) {
