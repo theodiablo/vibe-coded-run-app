@@ -40,10 +40,10 @@ const CoachText = ({ text }) => (
 // Tappable starter prompts for the empty chat — teach what the coach can do and
 // lower the blank-page barrier. Each just seeds `send` with the phrase.
 const COACH_EXAMPLES = [
-  "My knee hurts after yesterday's run",
-  "I missed last week",
+  "Help me feel fresh for this weekend",
+  "I have an extra day to train",
   "Move my long run to Sunday",
-  "This week feels too hard",
+  "Build confidence for race day",
 ];
 
 // Full-screen coach chat (propose-and-confirm). The user describes what
@@ -60,7 +60,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // them and stay unstamped, which hides the flag affordance on them.
   const [msgs, setMsgs] = useState([{
     role: "coach",
-    text: "Hi! Tell me what's going on — a niggle, a missed week, a schedule clash — and I'll suggest how to adapt your plan. You'll always see the change before anything is applied.",
+    text: "Hi! Tell me what would help you train well this week — feeling fresher, fitting life around the plan, adding a little confidence, or handling a niggle — and I'll suggest a safe adjustment. You'll always see the change before anything is applied.",
   }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -312,7 +312,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
         <div className="max-w-lg mx-auto flex gap-2">
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") send(); }}
-            placeholder={trajectoryId ? "Suggest an edit…" : "e.g. my knee hurts after yesterday's run"}
+            placeholder={trajectoryId ? "Suggest an edit…" : "e.g. help me feel fresh for this weekend"}
             className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
           <button onClick={send} disabled={busy || !input.trim()} aria-label="Send"
             className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 rounded-xl transition-colors">
