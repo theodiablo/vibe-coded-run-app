@@ -10,6 +10,7 @@
 //   COACH_EVAL_MODEL    default claude-sonnet-5 (prod default — compare
 //                       candidates by re-running with a different value)
 //   COACH_EVAL_TRIALS   trials per scenario, default 1
+//   COACH_EVAL_SCENARIOS optional comma-separated scenario ids to run
 //   COACH_EVAL_MOCK=1   run the harness through the MOCK_LLM scripts instead
 //                       (free plumbing check; quality scores are meaningless)
 //
@@ -30,10 +31,20 @@ const MOCK = Boolean(process.env.COACH_EVAL_MOCK);
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = MOCK ? "mock" : (process.env.COACH_EVAL_MODEL || "claude-sonnet-5");
 const TRIALS = Math.max(1, Number(process.env.COACH_EVAL_TRIALS || 1));
+const REQUESTED_SCENARIOS = (process.env.COACH_EVAL_SCENARIOS || "")
+  .split(",").map(s => s.trim()).filter(Boolean);
+const SCENARIO_SET = new Set(REQUESTED_SCENARIOS);
+const SELECTED_SCENARIOS = REQUESTED_SCENARIOS.length
+  ? SCENARIOS.filter(s => SCENARIO_SET.has(s.id))
+  : SCENARIOS;
+const UNKNOWN_SCENARIOS = REQUESTED_SCENARIOS.filter(id => !SCENARIOS.some(s => s.id === id));
 
 const runnable = MOCK || Boolean(API_KEY);
 if (!runnable) {
   console.warn("\ncoach live eval: set ANTHROPIC_API_KEY (or COACH_EVAL_MOCK=1) to run — skipping.\n");
+}
+if (UNKNOWN_SCENARIOS.length) {
+  throw new Error(`Unknown COACH_EVAL_SCENARIOS id(s): ${UNKNOWN_SCENARIOS.join(", ")}. Valid ids: ${SCENARIOS.map(s => s.id).join(", ")}`);
 }
 
 const records = [];
@@ -52,7 +63,7 @@ function makeCallModel(context) {
 }
 
 describe.skipIf(!runnable)(`coach live eval (${MODEL}, ${TRIALS} trial(s)/scenario)`, () => {
-  it.each(SCENARIOS)("$id", async (scenario) => {
+  it.each(SELECTED_SCENARIOS)("$id", async (scenario) => {
     for (let trial = 0; trial < TRIALS; trial++) {
       const { context, baseline } = makeFixture(scenario);
       const { callModel, observedTools } = makeCallModel(context);
@@ -103,6 +114,7 @@ describe.skipIf(!runnable)(`coach live eval (${MODEL}, ${TRIALS} trial(s)/scenar
       model: MODEL,
       mock: MOCK,
       trials: TRIALS,
+      scenarios: SELECTED_SCENARIOS.map(s => s.id),
       at: new Date().toISOString(),
       safetyPassRate: records.flatMap(r => r.safety).filter(s => s.pass).length /
         Math.max(1, records.flatMap(r => r.safety).length),
@@ -113,7 +125,7 @@ describe.skipIf(!runnable)(`coach live eval (${MODEL}, ${TRIALS} trial(s)/scenar
     const file = join(dir, `coach-eval-${stamp}.json`);
     writeFileSync(file, JSON.stringify(report, null, 2));
 
-    const rows = SCENARIOS.map(s => {
+    const rows = SELECTED_SCENARIOS.map(s => {
       const rs = records.filter(r => r.scenario === s.id);
       if (!rs.length) return null;
       const safetyOk = rs.every(r => r.safety.every(x => x.pass));
@@ -127,7 +139,7 @@ describe.skipIf(!runnable)(`coach live eval (${MODEL}, ${TRIALS} trial(s)/scenar
     // process.stdout directly — vitest's reporter swallows console.log.
     process.stdout.write([
       "",
-      `coach live eval — model ${MODEL}${MOCK ? " (MOCK — quality scores not meaningful)" : ""}, ${TRIALS} trial(s)/scenario`,
+      `coach live eval — model ${MODEL}${MOCK ? " (MOCK — quality scores not meaningful)" : ""}, ${TRIALS} trial(s)/scenario${REQUESTED_SCENARIOS.length ? `, scenarios ${SELECTED_SCENARIOS.map(s => s.id).join(",")}` : ""}`,
       ...rows,
       `  safety ${(report.safetyPassRate * 100).toFixed(0)}% (must be 100)  quality ${(report.qualityScore * 100).toFixed(0)}%  tokens in/out ${totals.input}/${totals.output}`,
       `  report: ${file}`,

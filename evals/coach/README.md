@@ -19,6 +19,7 @@ when changing `SYSTEM_PROMPT`, tool descriptions, validator rules, or
 ANTHROPIC_API_KEY=sk-ant-... npm run eval:live          # prod model
 COACH_EVAL_MODEL=claude-sonnet-5 ANTHROPIC_API_KEY=... npm run eval:live   # explicit prod model
 COACH_EVAL_TRIALS=3 ANTHROPIC_API_KEY=... npm run eval:live                # variance
+COACH_EVAL_SCENARIOS=free-day ANTHROPIC_API_KEY=... npm run eval:live       # one scenario
 COACH_EVAL_MOCK=1 npm run eval:live                     # free plumbing check
 ```
 
