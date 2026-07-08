@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { registerPlugin } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef } from "react";
 import { Download } from "lucide-react";
 import { ymd } from "../utils/format";

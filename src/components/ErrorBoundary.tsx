@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Component } from "react";
 import { AlertTriangle } from "lucide-react";
 import { isNative } from "../native";

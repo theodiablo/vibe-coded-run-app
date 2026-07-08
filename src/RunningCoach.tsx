@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { isNative } from "./native";
 import { Activity, Calendar, TrendingUp, Plus, Loader, Trophy, Settings } from "lucide-react";

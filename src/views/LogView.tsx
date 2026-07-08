@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef } from "react";
 import { Loader, Plus, Upload, MapPin, HeartPulse } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";

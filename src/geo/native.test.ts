@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Geolocation } from "@capacitor/geolocation";
 import { adaptBgLocation, adaptBgError, ensureForegroundPermission } from "./native";

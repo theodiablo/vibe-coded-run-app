@@ -25,5 +25,8 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      '@typescript-eslint/ban-ts-comment': ['error', { 'ts-nocheck': false }],
+    },
   },
 ])

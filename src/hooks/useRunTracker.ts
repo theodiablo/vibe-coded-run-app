@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BleClient, numberToUUID } from "@capacitor-community/bluetooth-le";
 import { parseHrMeasurement } from "../utils/hr";
 

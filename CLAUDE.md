@@ -28,9 +28,9 @@ and delete anything that becomes stale.
 ## TypeScript
 - App source and tests live in `src/**/*.{ts,tsx}`; do not add new `src/**/*.js` or
   `src/**/*.jsx` files. Use `.tsx` for files containing JSX, `.ts` otherwise.
-- This is an incremental migration: `tsconfig.json` currently uses `noCheck` so the
-  build validates TS syntax/project wiring without requiring full app typing yet.
-  Tighten this in follow-up slices as modules get real types.
+- This is an incremental migration: `tsconfig.json` runs normal project checking,
+  but the still-untyped hotspots carry file-level `// @ts-nocheck`. Remove those
+  markers in follow-up slices as modules get real types.
 - Supabase Edge Function entrypoints are Deno TypeScript and are checked with
   `deno check` via `npm run typecheck:supabase`; keep Deno-specific code out of the
   browser ESLint config.

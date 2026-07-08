@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "lucide-react";
 import { App as CapApp } from "@capacitor/app";

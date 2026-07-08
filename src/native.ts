@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Capacitor } from "@capacitor/core";
 
 // True only inside the Phase-2 Capacitor shell; false in every browser (the pure

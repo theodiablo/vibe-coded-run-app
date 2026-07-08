@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 import { Loader, MessageCircle, Send, X, Flag } from "lucide-react";
 import ReactMarkdown from "react-markdown";

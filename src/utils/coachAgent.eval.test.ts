@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Offline eval harness for the coach agent. These cases drive the same
 // generateProposal loop the edge function uses, but with scripted model turns so
 // it never calls Anthropic. Assertions check coaching/safety properties rather

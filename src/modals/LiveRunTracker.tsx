@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Square, X, Loader, MapPin, HeartPulse } from "lucide-react";
 import { fmt, ymd } from "../utils/format";

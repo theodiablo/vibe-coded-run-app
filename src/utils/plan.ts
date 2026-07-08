@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Training-plan builder.
 import { VERT_COST } from "../constants";
 import { fmt, ymd } from "./format";

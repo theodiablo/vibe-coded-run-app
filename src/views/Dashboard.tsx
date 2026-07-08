@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Activity, Award, Check, ChevronRight, MessageCircle, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";

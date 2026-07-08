@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 import { ArrowDown, Check, ChevronRight, MessageCircle, Plus, RotateCcw, X } from "lucide-react";
 import { DAYS, TCLR } from "../constants";

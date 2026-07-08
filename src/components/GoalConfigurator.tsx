@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { fmt, parseDur } from "../utils/format";
 import { paceBand, suggestedGoalSec, clampGoalSec } from "../utils/goal";

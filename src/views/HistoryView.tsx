@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import { History, Pencil, Trash2, Map as MapIcon } from "lucide-react";
 import { fmt } from "../utils/format";

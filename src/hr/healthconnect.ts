@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { hrSummary } from "../utils/hr";
 import { isNative } from "../native";
 import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
