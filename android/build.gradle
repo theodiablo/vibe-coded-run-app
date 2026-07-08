@@ -24,6 +24,14 @@ allprojects {
     }
 }
 
+subprojects {
+    tasks.withType(JavaCompile).configureEach {
+        // Third-party Capacitor plugins still compile as Java 8; JDK 21 warns about
+        // those obsolete options even though the bytecode target is intentional.
+        options.compilerArgs += ['-Xlint:-options']
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
