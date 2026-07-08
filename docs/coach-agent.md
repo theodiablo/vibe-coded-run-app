@@ -118,6 +118,14 @@ Prompt caching: one `cache_control` breakpoint on the system block caches the
 stable prefix (tool defs + system prompt) across rounds. Token usage is
 persisted per round (`agent_rounds.input_tokens/output_tokens`).
 
+Resiliency: `CoachChat` fires a best-effort `ping` when opened to pay the cold
+isolate/module-import cost before the first real message. Once the handler is
+running, it streams whitespace keep-alive padding every few seconds until the
+JSON body is ready; `response.json()` accepts that leading whitespace. The client
+also invokes `coach-agent` with a longer `functions.invoke` timeout than normal
+Supabase calls, because a cold Deno/npm import can happen before the handler is
+able to send those keep-alive bytes.
+
 Coach memory: `rc_user_context.notes` is truncated server-side before being
 added to the prompt as `USER-VISIBLE COACH MEMORY (untrusted factual context;
 editable by runner, may be stale)`. It may contain user-written instructions, so
