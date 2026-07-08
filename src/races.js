@@ -118,9 +118,10 @@ export async function addEdition({ raceSlug, date, distanceKm, elevation = 0 }) 
 export async function reportRace({ raceSlug, editionId, reason, note }) {
   const user_id = currentUserId();
   if (!user_id) throw new Error("Not signed in");
+  const id = crypto.randomUUID();
   const { error } = await supabase
     .from("race_reports")
-    .insert({ race_slug: raceSlug || null, edition_id: editionId || null, reason, note: note || null, reporter_id: user_id });
+    .insert({ id, race_slug: raceSlug || null, edition_id: editionId || null, reason, note: note || null, reporter_id: user_id });
   if (error) throw error;
-  notifyContribution({ type: "report", raceSlug, editionId, reason, note });
+  notifyContribution({ type: "report", reportId: id });
 }

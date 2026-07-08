@@ -52,7 +52,7 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
         raceSlug = selected.slug; name = selected.name;
         created = await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
         track("race_contributed", { kind: "edition" });
-        notifyContribution({ type: "edition", raceSlug, name, date: f.date, distanceKm: dist });
+        notifyContribution({ type: "edition", editionId: created.id });
       } else {
         name = f.name.trim();
         const race = await addRace({
@@ -63,7 +63,7 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
         createdRaceSlug = race.slug;
         created = await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
         track("race_contributed", { kind: "race" });
-        notifyContribution({ type: "race", raceSlug, name, city: f.city.trim() || null, country: f.country.trim().toUpperCase() || null, url: f.url.trim() || null, date: f.date, distanceKm: dist });
+        notifyContribution({ type: "race", raceSlug, editionId: created.id });
       }
       await onContributed?.();
       // Hand the new edition back when the caller wants it (onboarding promotes it

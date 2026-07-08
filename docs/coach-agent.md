@@ -186,7 +186,9 @@ through `src/coach.js`.
   `race_reports`: INSERT-only from the client (`grant insert`, one `with check
   (auth.uid() = user_id)` policy), **no client SELECT** — deliberately no view
   either, since the join is only ever run ad hoc. Best-effort emails the
-  maintainer via `notify-contribution` (`type: "coach_feedback"`). When the
+  maintainer via `notify-contribution` (`type: "coach_feedback"`, `feedbackId`
+  from the client-generated row id; the function validates ownership and dedupes
+  before sending). When the
   flagged answer is the latest open coach answer, the same correction is also
   sent as a `critique` round so the coach can revise the proposal in chat. Old
   or closed answers are feedback-only. To review
