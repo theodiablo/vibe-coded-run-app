@@ -4,7 +4,7 @@ import { notifyContribution } from "./notify";
 
 // Flag a coach answer as wrong. Inserts WITHOUT a returning .select() —
 // coach_feedback has no client SELECT policy, so reading back the row would
-// 403 even though the write succeeds (mirrors reportRace in src/races.js).
+// 403 even though the write succeeds (mirrors reportRace in src/races.ts).
 export async function submitCoachFeedback({ trajectoryId, roundIndex, correction }) {
   const user_id = currentUserId();
   if (!user_id) throw new Error("Not signed in");

@@ -1,5 +1,5 @@
-// Access module for the coach-agent edge function (mirrors src/races.js /
-// src/routes.js: direct calls, not the db blob). The function reads the plan
+// Access module for the coach-agent edge function (mirrors src/races.ts /
+// src/routes.ts: direct calls, not the db blob). The function reads the plan
 // and run history from app_state server-side, so we flush the debounced blob
 // first — otherwise the coach could reason over a stale plan.
 

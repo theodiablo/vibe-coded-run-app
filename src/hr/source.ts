@@ -3,7 +3,7 @@ import { bleSource } from "./ble";
 import { healthConnectSource } from "./healthconnect";
 
 // Resolve the heart-rate source for a chosen method, or null for "off" / web /
-// unknown. Mirrors geoSource (src/geo/source.js): HR capture is native-only, so
+// unknown. Mirrors geoSource (src/geo/source.ts): HR capture is native-only, so
 // the web build always gets null and behaves exactly as before. Callers branch on
 // the returned source's `live` flag — true sources stream during the run
 // (useRunTracker), false sources are fetched post-run (LiveRunTracker on save).

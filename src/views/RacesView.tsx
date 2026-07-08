@@ -270,7 +270,8 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
 
   // With Near me on, split into distance-sorted (within radius) + a
   // location-unknown bucket; races with coordinates beyond the radius drop out.
-  let located, unlocated = [];
+  let located;
+  const unlocated = [];
   if (nearMe && loc) {
     const withCoord = [];
     for (const race of base) {

@@ -2,9 +2,9 @@ import { supabase } from "./supabase";
 import { currentUserId } from "./db";
 import { notifyContribution } from "./notify";
 
-// Shared race catalogue access (Phase 2). Mirrors src/routes.js: direct supabase
+// Shared race catalogue access (Phase 2). Mirrors src/routes.ts: direct supabase
 // queries, owner-scoped writes, failure-tolerant reads. The rest of the app never
-// imports this directly — catalogue lookups go through src/utils/races.js, which
+// imports this directly — catalogue lookups go through src/utils/races.ts, which
 // hydrates its cache from listRaces() here. Personal data (participations) stays
 // in the app_state blob; this module only touches the shared catalogue tables.
 

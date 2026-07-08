@@ -52,6 +52,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@3b15eb2faae27b426924f39cb4f8709eb5b540f4 # v2
+
+      - name: Typecheck functions
+        run: npm run typecheck:supabase
+
       - name: Determine changed functions
         id: changed
         env:

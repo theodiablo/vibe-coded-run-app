@@ -40,7 +40,7 @@ export async function initStore(uid) {
   }
 }
 
-// The signed-in user's id, for direct-table access modules (e.g. src/routes.js)
+// The signed-in user's id, for direct-table access modules (e.g. src/routes.ts)
 // that write rows outside the app_state blob and need to satisfy RLS
 // (with check auth.uid() = user_id). Null when signed out.
 export function currentUserId() {

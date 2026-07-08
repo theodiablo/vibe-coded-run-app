@@ -36,7 +36,7 @@ jobs:
         run: npm run build
         env:
           # Inlined into the client bundle by Vite at build time. Domain-restricted
-          # publishable key — see src/constants.js. Set in repo Actions secrets.
+          # publishable key — see src/constants.ts. Set in repo Actions secrets.
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
           # PostHog project API key (telemetry). Public/publishable, also inlined
           # at build time. Telemetry is a no-op if unset — see docs/telemetry.md.

@@ -1,7 +1,7 @@
 import { Footprints, Medal, Trophy, Gauge, CalendarCheck, CalendarHeart,
   Star, Flag, MapPin, Mountain, Award } from "lucide-react";
 
-// Lucide icons referenced by name from src/utils/badges.js (kept React-free).
+// Lucide icons referenced by name from src/utils/badges.ts (kept React-free).
 const ICONS = { Footprints, Medal, Trophy, Gauge, CalendarCheck, CalendarHeart,
   Star, Flag, MapPin, Mountain };
 

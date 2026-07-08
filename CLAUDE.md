@@ -18,23 +18,36 @@ and delete anything that becomes stale.
   `vitest` aren't on PATH otherwise — use the npm scripts or `npx`.)
 - `npm run dev` — local dev server (Vite).
 - `npm test` — Vitest (run mode). `npm run test:watch` for watch. Suite lives in
-  `src/utils/*.test.js`.
+  `src/**/*.test.{ts,tsx}`.
 - `npm run lint` — ESLint (flat config). Catches unused imports/vars; keep it clean.
-- `npm run build` — production build.
+- `npm run typecheck` — TypeScript project/syntax check for the Vite app.
+- `npm run typecheck:supabase` — Deno typecheck for Supabase Edge Functions.
+- `npm run typecheck:all` — app + Supabase typechecks; CI runs this.
+- `npm run build` — production build; runs `typecheck` before Vite emits `dist` for S3/CloudFront.
+
+## TypeScript
+- App source and tests live in `src/**/*.{ts,tsx}`; do not add new `src/**/*.js` or
+  `src/**/*.jsx` files. Use `.tsx` for files containing JSX, `.ts` otherwise.
+- This is an incremental migration: `tsconfig.json` currently uses `noCheck` so the
+  build validates TS syntax/project wiring without requiring full app typing yet.
+  Tighten this in follow-up slices as modules get real types.
+- Supabase Edge Function entrypoints are Deno TypeScript and are checked with
+  `deno check` via `npm run typecheck:supabase`; keep Deno-specific code out of the
+  browser ESLint config.
 
 ## Architecture
-- **No router.** `src/RunningCoach.jsx` is the **single state hub**: it owns
+- **No router.** `src/RunningCoach.tsx` is the **single state hub**: it owns
   `runs`, `plan`, `settings`, modal flags, and the active `tab`, and passes a
   `shared` props bag down to every view. The five views switch on `tab`
   (`dash`, `plan`, `log`, `history`, `stats`).
-- To add cross-view state or an action, define it in `RunningCoach.jsx` and add
+- To add cross-view state or an action, define it in `RunningCoach.tsx` and add
   it to `shared` (e.g. `goTab`, `goLog`, `addRuns`, `toggleSess`).
-- **Persistence:** `db.get/set(STORAGE_KEYS.*)` (`src/db.js`, `src/constants.js`;
+- **Persistence:** `db.get/set(STORAGE_KEYS.*)` (`src/db.ts`, `src/constants.ts`;
   keys `rc_runs`, `rc_plan`, `rc_settings`). Every state change is mirrored to
   `db` in the same handler that calls `setState`. Writes debounce ~600ms into a
   single upsert and flush on page hide/unload.
-- **Supabase config:** URL and anon key live in `src/config.js` (imported by
-  `src/supabase.js`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
+- **Supabase config:** URL and anon key live in `src/config.ts` (imported by
+  `src/supabase.ts`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
   override them at build time. Don't hardcode credentials elsewhere.
 - **Deploying edge functions (via the Supabase MCP tools, not the CLI):** the
   project is **`run-app`, id `jpnxghiyjpuqnznxyfaf`** — don't call
@@ -86,23 +99,23 @@ and delete anything that becomes stale.
   retry re-sent versionCode 45 and Play rejected it outright. The world-readable `app_config`
   row owns *policy*: `latest_version` (soft "update available" banner, written by
   the release workflow) and `min_supported_version` (hard gate, bumped by hand on a
-  breaking change). `App.jsx` compares the installed version (`App.getInfo()`) via
-  `versionStatus` (`src/utils/version.js`); a failed check never blocks the user.
+  breaking change). `App.tsx` compares the installed version (`App.getInfo()`) via
+  `versionStatus` (`src/utils/version.ts`); a failed check never blocks the user.
 - **Derived-state resets are done during render, not in effects** — see the
-  `if (plan !== prevPlan)` pattern in `PlanView.jsx`. Follow that style.
+  `if (plan !== prevPlan)` pattern in `PlanView.tsx`. Follow that style.
 - **Telemetry (analytics + crash reporting):** all routed through one
-  vendor-agnostic seam, `src/telemetry/index.js`; the vendor (**PostHog**) lives
-  behind it in `src/telemetry/posthog.js`, the **only** file that imports an SDK.
+  vendor-agnostic seam, `src/telemetry/index.ts`; the vendor (**PostHog**) lives
+  behind it in `src/telemetry/posthog.ts`, the **only** file that imports an SDK.
   App code never imports the SDK directly. It's a **no-op until keyed**
   (`VITE_POSTHOG_KEY`; default host `https://eu.i.posthog.com`), and `posthog-js`
   is a **dynamic import** so it stays out of the main bundle / any keyless build.
   Consent is **opt-in** (EU/ePrivacy): nothing collected until the user accepts
-  the first-run `ConsentBanner` (`src/components/ConsentBanner.jsx`, rendered in
-  `App.jsx` over login + app); changeable in Settings → Privacy. The single
+  the first-run `ConsentBanner` (`src/components/ConsentBanner.tsx`, rendered in
+  `App.tsx` over login + app); changeable in Settings → Privacy. The single
   source of truth is `localStorage` (`rc_telemetry_consent_v2`), **per-device** (NOT
   the synced blob — a fresh browser re-asks) and tri-state (`"1"`/`"0"`/absent =
   granted/denied/undecided; see `getConsentDecision`). The `ErrorBoundary`
-  (`src/components/ErrorBoundary.jsx`, wraps `<App/>` in `main.jsx`) auto-reports
+  (`src/components/ErrorBoundary.tsx`, wraps `<App/>` in `main.tsx`) auto-reports
   on web but, on **native, prompts per-crash before sending**. `track`/
   `identifyUser` are consent-gated; `captureError` is gated by its call sites.
   See `docs/telemetry.md` before adding/swapping a provider or an event.
@@ -111,7 +124,7 @@ and delete anything that becomes stale.
 - `settings` is the central config object (race fields, HR profile, `planSessions`,
   `name`, `onboarded`). The training plan is (re)built by
   `buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation, opts)`
-  (`src/utils/plan.js`). The `opts` object is additive (positional call sites keep
+  (`src/utils/plan.ts`). The `opts` object is additive (positional call sites keep
   working): `recentRuns` seeds a **fitness-aware** BASE start (longest run in the
   last ~5 weeks, clamped to the race-scaled peak) so a fit athlete isn't reset to a
   tiny long run; `mainEditionId` + `races` drive the **secondary-race overlay**.
@@ -125,10 +138,10 @@ and delete anything that becomes stale.
   `race-{editionId}`) by `buildPlan` when before the target and inside the window.
   A *substantial* secondary race (≥ half the main distance) auto-gets a mini-taper
   week; a small one just drops in — the user picks nothing (no A/B/C). Toggling a
-  race in/out goes through `setRaceInPlan` (`RunningCoach.jsx`), which rebuilds the
+  race in/out goes through `setRaceInPlan` (`RunningCoach.tsx`), which rebuilds the
   plan **preserving done/skipped by session id** (`carryProgress`) so progress isn't
   wiped. Every RACE session is stamped with its `editionId`; race-day auto-detect
-  (`detectAnyRace` in `src/utils/races.js`) matches a logged run against **all** plan
+  (`detectAnyRace` in `src/utils/races.ts`) matches a logged run against **all** plan
   races, not just the target.
 - `raceDate`, `distanceKm`, and `goalSec` start **empty** (`""`) — there are no
   seeded race defaults. Anything reading them before setup must guard (the
@@ -136,21 +149,21 @@ and delete anything that becomes stale.
   not assume a value.
 
 ## Live run tracking (GPS)
-- **Single GPS funnel:** `src/hooks/useRunTracker.js` owns all geolocation
+- **Single GPS funnel:** `src/hooks/useRunTracker.ts` owns all geolocation
   (`watchPosition`), the start/pause/resume/stop state machine, moving-time
   accounting, wake lock, and a `localStorage` recovery buffer (`LIVE_RUN_KEY`,
   deliberately NOT synced to the app_state blob). Keep GPS access behind this hook
   so a future native shell can swap the source without touching the UI.
-- **UI:** `src/modals/LiveRunTracker.jsx` (full-screen, gated by `showTracker` in
+- **UI:** `src/modals/LiveRunTracker.tsx` (full-screen, gated by `showTracker` in
   `RunningCoach`, opened via `shared.openTracker`). On finish it funnels into the
   normal save path — `goLog(prefill)` → `LogView` → `addRuns` — passing measured
   `durationSec`/`elevation` and the trace ref.
 - **Traces are NOT in the blob.** The polyline lives in its own Supabase
-  `run_routes` table via `src/routes.js` (direct queries, not `db`); a run only
+  `run_routes` table via `src/routes.ts` (direct queries, not `db`); a run only
   stores a `routeId` reference. `deleteRun` cascades to `deleteRoute`; backup/
   restore include routes. Offline saves queue in `localStorage` and relink on next
   load via `flushPendingRoutes` (run carries a temp `routeTmp`/`routePending`).
-- **Geo math:** `src/utils/geo.js` (haversine, jitter-gated `distanceKm`,
+- **Geo math:** `src/utils/geo.ts` (haversine, jitter-gated `distanceKm`,
   hysteresis `elevGainM`, Douglas–Peucker `simplify`, `segments`). A point is the
   tuple `[lat, lng, tEpochMs, alt|null]`; a `null` entry is a GAP marker (don't
   bridge it). Map basemap is MapTiler — needs `VITE_MAPTILER_KEY` (records fine
@@ -159,25 +172,25 @@ and delete anything that becomes stale.
   (screen must stay on). True background recording runs in a **Capacitor Android
   shell** that swaps the GPS source behind `useRunTracker`'s interface. The hook
   never touches `navigator.geolocation` directly anymore — it goes through
-  `geoSource` (`src/geo/source.js`), which picks `webSource` (`src/geo/web.js`,
+  `geoSource` (`src/geo/source.ts`), which picks `webSource` (`src/geo/web.ts`,
   `navigator.geolocation`, unchanged web behaviour) or `nativeSource`
-  (`src/geo/native.js`: @capacitor-community/background-geolocation foreground
+  (`src/geo/native.ts`: @capacitor-community/background-geolocation foreground
   service for `background:true`, @capacitor/geolocation for the idle preview).
-  Selection is by `isNative` (`src/native.js` → `Capacitor.isNativePlatform()`),
+  Selection is by `isNative` (`src/native.ts` → `Capacitor.isNativePlatform()`),
   which also sets `window.__NATIVE_SHELL__` for the UI. **One bundle serves both**
   web and shell; `isNative` is false in any browser, so the web build is unchanged
   — keep it that way. To add a GPS source, implement the
   `isAvailable / watchPosition(onPos,onErr,{background}) / clearWatch` interface and
   hand `onPos` a `{coords:{latitude,longitude,altitude,accuracy}, timestamp}` object
   (see `adaptBgLocation`). Native auth uses a deep link (`AUTH_DEEP_LINK` in
-  `src/supabase.js`, completed in `App.jsx`). Build: `npx cap sync android` then
+  `src/supabase.ts`, completed in `App.tsx`). Build: `npx cap sync android` then
   `.github/workflows/android.yml`; the web S3/CloudFront deploy stays untouched.
 - **Gotcha — Android permission prompt silently no-ops when Location Services
   are off:** `@capacitor/geolocation`'s `checkPermissions()`/`requestPermissions()`
   are gated *by the plugin itself* on the device's system Location toggle — they
   **reject immediately if it's off, before ever showing the OS permission
   dialog**. Relying on those alone (as `ensureForegroundPermission` in
-  `src/geo/native.js` used to) means a user with location off never sees any
+  `src/geo/native.ts` used to) means a user with location off never sees any
   prompt at all — not the permission dialog, not a "turn on location" one.
   `getCurrentPosition()`/`watchPosition()` aren't gated that way: they request the
   runtime permission themselves, then (via Google Play Services) surface the
@@ -188,18 +201,18 @@ and delete anything that becomes stale.
 
 ## Heart-rate sources (native HR capture)
 - **Same seam shape as GPS.** External HR capture mirrors `geoSource`: `getHrSource`
-  (`src/hr/source.js`) returns a source or **null** (off / web / unknown), gated by
+  (`src/hr/source.ts`) returns a source or **null** (off / web / unknown), gated by
   `isNative`, so the web build is unaffected (HR capture is native-only). Two **narrow
   capability contracts**, not one fat interface — a source carries a `live` flag:
-  - **Live** (`src/hr/ble.js`, `bleSource`): a standard BLE Heart Rate Profile sensor
+  - **Live** (`src/hr/ble.ts`, `bleSource`): a standard BLE Heart Rate Profile sensor
     (chest strap / armband / watch broadcasting, e.g. Amazfit "Heart Rate Push").
     `isAvailable / scan / requestPermissions / watch(onSample,onErr,{deviceId}) /
     clearWatch`. `useRunTracker` streams it **alongside GPS**; samples are `{bpm,t}`,
     appended only while `state==="tracking"` (mirrors `onPos`), summarised by
     `hrSummary` into `stats.{hr,hrAvg,hrMax}`, and persisted in the `LIVE_RUN_KEY`
     recovery buffer. Parsing of the `0x2A37` characteristic is the pure, unit-tested
-    `parseHrMeasurement` in `src/utils/hr.js` (takes the plugin/Web-Bluetooth DataView).
-  - **Post-run** (`src/hr/healthconnect.js`, `healthConnectSource`): reads HR from
+    `parseHrMeasurement` in `src/utils/hr.ts` (takes the plugin/Web-Bluetooth DataView).
+  - **Post-run** (`src/hr/healthconnect.ts`, `healthConnectSource`): reads HR from
     Android Health Connect after the run via **@pianissimoproject/capacitor-health-connect**,
     dynamic-`import()`ed lazily (not a static top-level import) so merely rendering the app
     can't touch the native Health Connect bridge — only actually using the source does.
@@ -225,14 +238,14 @@ and delete anything that becomes stale.
     `READ_HEART_RATE` + a Play health-data declaration/privacy policy.
 - **Method preference syncs; the device does NOT.** `settings.hrMethod`
   (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
-  `{id,name}` is **per-device localStorage** (`src/hr/device.js`, `HR_DEVICE_KEY`) —
+  `{id,name}` is **per-device localStorage** (`src/hr/device.ts`, `HR_DEVICE_KEY`) —
   like the consent / bg-disclosure flags — because Bluetooth bonding is per-phone.
   Treat the synced method as a preference only: before using it, derive local
   readiness from the per-device state (`getPairedDevice()` for Bluetooth,
   `hasHealthConnectAuthorization()` for Health Connect). `LiveRunTracker` uses an
   effective method (`"off"` when the selected source is not ready here) and prompts
   the user to pair/authorize in Settings before Start, without blocking the run.
-  Config UI is `HrSensor` (`src/views/HrSensor.jsx`), nested in Settings → Profile,
+  Config UI is `HrSensor` (`src/views/HrSensor.tsx`), nested in Settings → Profile,
   native-only. BLE pairing reuses the disclosure→OS-prompt pattern
   (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable nudge (in
   `LiveRunTracker`) offers setup on run start while HR is off; it reappears each run
@@ -251,29 +264,29 @@ and delete anything that becomes stale.
   (`supabase/migrations/20260629120000_races_catalogue.sql`; world-readable like
   `app_config`, owner-scoped writes like `run_routes`, with a hard `verified = false`
   with-check so a contributor can never self-verify — only the service role does).
-  `src/races.js` is the access module (mirrors `src/routes.js`: direct queries —
+  `src/races.ts` is the access module (mirrors `src/routes.ts`: direct queries —
   `listRaces`/`addRace`/`addEdition`/`reportRace`). `notifyContribution` (the
-  best-effort maintainer-email trigger) lives in `src/notify.js` — generic, not
+  best-effort maintainer-email trigger) lives in `src/notify.ts` — generic, not
   race-specific, so other contribution-shaped writes (e.g. coach feedback) can
   reuse it without importing a races module. **The old
-  bundle is gone** — keep ALL catalogue lookups going through `src/utils/races.js`
+  bundle is gone** — keep ALL catalogue lookups going through `src/utils/races.ts`
   (`allRaces`, `allEditions`, `findEdition`, `findRace`), which holds the fetched
   catalogue in a module cache (`hydrateCatalogue`) loaded once at boot by
   `loadCatalogue`. **Failure-tolerant:** a failed fetch leaves the cache `[]` and
   the app still renders (My Races falls back to participation snapshots); the boot
   load is fired **unawaited** so a slow/down Supabase never blocks the splash.
 - **Contributions are instant + global + unverified.** "Add a race"
-  (`src/modals/RaceFormModal.jsx`, opened via `shared.openRaceForm`) does a live
+  (`src/modals/RaceFormModal.tsx`, opened via `shared.openRaceForm`) does a live
   duplicate search and inserts `verified:false, created_by=uid`; the UI tags any
   unverified race/edition. After a contribution, `refreshCatalogue` (RunningCoach)
   re-fetches so it shows immediately. **Discover** is a RacesView segment: one-off
   `geoSource.getCurrentPosition()` (web/native), sort by `haversineM`, distance-band
   + radius chips. **km-only**; coordinates are never persisted or sent to telemetry.
   A race's own `lat`/`lng` (so *other* users' Discover can find it) is set via
-  `LocationPicker` (`src/components/LocationPicker.jsx`) — a tap/drag Leaflet pin,
+  `LocationPicker` (`src/components/LocationPicker.tsx`) — a tap/drag Leaflet pin,
   **not** the contributor's live GPS, since they're rarely standing where the race
   actually happens. It opens centered on a one-off forward geocode
-  (`src/utils/geocode.js`, MapTiler's geocoding endpoint — same `VITE_MAPTILER_KEY`
+  (`src/utils/geocode.ts`, MapTiler's geocoding endpoint — same `VITE_MAPTILER_KEY`
   as the tiles, already covered by the CSP's `connect-src`) of the city/country
   already typed in the form; "jump to my current location" is offered too, but only
   as one more way to seed the pin, never the only option.
@@ -297,23 +310,23 @@ and delete anything that becomes stale.
   (orphan tolerance). It's in the synced blob, so it's covered by backup/restore
   (add to both when extending) — the shared catalogue is NOT exported.
 - **One training target:** `settings.targetEditionId` marks which edition the plan
-  was built from. Promote via `promoteEdition` (`RunningCoach.jsx`) → prefills
+  was built from. Promote via `promoteEdition` (`RunningCoach.tsx`) → prefills
   PlanView's setup; the plan is built there (reusing `buildPlan`), which sets
   `targetEditionId`. Hand-editing the race in PlanView **clears** it (decouple).
 - **Two ways to complete:** manual "log result" (RacesView, optionally also adds a
   RACE run via `addRuns(..., {skipDetect:true})`), or **auto-detect** — a saved run
   on `settings.raceDate` within ±18% of the target distance triggers an undoable
   "mark done" toast (`detectRaceCompletion` + `detectCompletion` in
-  `RunningCoach.jsx`).
+  `RunningCoach.tsx`).
 - **Badges are pure & derived** (`computeBadges(runs, participations)` in
-  `src/utils/badges.js`) — never stored except `seenBadges`. Reconcile in event
+  `src/utils/badges.ts`) — never stored except `seenBadges`. Reconcile in event
   handlers, NOT an effect (the `react-hooks` rule forbids sync setState in
   effects): `reconcileBadges` seeds `seenBadges` silently on first run, then toasts
-  only new unlocks. Icons are lucide *names* mapped in `Badge.jsx` to keep
-  `badges.js` React-free/testable. Tone is gentle: cumulative active-weeks (not
+  only new unlocks. Icons are lucide *names* mapped in `Badge.tsx` to keep
+  `badges.ts` React-free/testable. Tone is gentle: cumulative active-weeks (not
   fragile streaks) and WALK counts.
 - **Nav:** Record is a center **FAB** (it's an action, not a destination); the four
-  row tabs are Home · Plan · Races · Progress. **Progress** (`ProgressView.jsx`)
+  row tabs are Home · Plan · Races · Progress. **Progress** (`ProgressView.tsx`)
   merges the old History + Stats under a toggle and adds Badges.
 
 ## AI coach agent (plan adjustments)
@@ -326,21 +339,21 @@ and delete anything that becomes stale.
   in the validator). A systematically-too-easy plan is a *goal* problem:
   `reassess_goal_feasibility` flags a CONSERVATIVE goal and the coach directs
   the user to plan settings rather than hand-editing sessions. UI is
-  `src/modals/CoachChat.jsx` (opened via `shared.openCoach`, PlanView's Coach
-  button); access module `src/coach.js` (calls `flushNow()` first — the server
+  `src/modals/CoachChat.tsx` (opened via `shared.openCoach`, PlanView's Coach
+  button); access module `src/coach.ts` (calls `flushNow()` first — the server
   reads the plan/runs from `app_state`, not the request body).
 - **Resiliency (the cold-start / transient-failure seam):** the dominant failure
   is a *cold start* — round 0 after the isolate's been idle boots Deno + imports
   `npm:@anthropic-ai/sdk` before any keep-alive byte can flow, and an
   intermediary drops the connection. Three guards: (1) `coachPing()`
-  (`src/coach.js`) fires when `CoachChat` mounts — a `ping` action that returns
+  (`src/coach.ts`) fires when `CoachChat` mounts — a `ping` action that returns
   before auth/DB/model, paying the boot cost early; best-effort, never throws.
   (2) transport errors from `functions.invoke` are mapped by kind in
   `transportMessage` (`FunctionsFetchError` = offline/dropped/aborted,
   `FunctionsRelayError` = Supabase relay could not reach/start the function,
   `FunctionsHttpError` 401/403 = re-auth vs 5xx = "took too long to start"); the
   app-wide Supabase `fetchWithTimeout` keeps auth/DB requests to 15s, but it
-  defers when a caller supplies its own `AbortSignal`; `src/coach.js` uses
+  defers when a caller supplies its own `AbortSignal`; `src/coach.ts` uses
   `functions.invoke(..., { timeout: 60000 })` so `coach-agent` has 60s to produce
   headers, because the edge handler cannot stream keep-alive bytes until after
   cold Deno/npm imports complete. (3) the Anthropic client sets `maxRetries`/`timeout`
@@ -353,7 +366,7 @@ and delete anything that becomes stale.
   (pure transforms; refuse done/RACE sessions), `engine.mjs` (validate-and-retry
   loop; exhaustion → distinct `no_valid_adjustment`, never a surfaced invalid
   plan), `mock.mjs` (`MOCK_LLM=1` canned responses for CI/golden tests).
-  App-side re-export: `src/utils/coachValidation.js`.
+  App-side re-export: `src/utils/coachValidation.ts`.
 - **Trust boundary:** the Anthropic key, validator, tools, rate limit
   (`agent_usage` + atomic `increment_agent_usage`) and audit log
   (`agent_trajectories`/`agent_rounds`, service-role-write-only, user read-own)
@@ -387,12 +400,12 @@ and delete anything that becomes stale.
   `_shared/coach/engine.mjs`, tool descriptions in `_shared/coach/tools.mjs`.
 - **User feedback ("this answer is wrong"):** `coach_feedback` mirrors
   `race_reports` — insert-only, no client SELECT, via
-  `submitCoachFeedback` (`src/coachFeedback.js`), referencing the exact
+  `submitCoachFeedback` (`src/coachFeedback.ts`), referencing the exact
   `agent_rounds` row via `(trajectory_id, round_index)` stamped onto coach
-  messages in `CoachChat.jsx`. No maintainer view; the review join lives in
+  messages in `CoachChat.tsx`. No maintainer view; the review join lives in
   `docs/coach-agent.md`, run ad hoc. `notifyContribution` was extracted from
-  `src/races.js` into `src/notify.js` (generic, not race-specific) so
-  `coachFeedback.js` doesn't import a races module.
+  `src/races.ts` into `src/notify.ts` (generic, not race-specific) so
+  `coachFeedback.ts` doesn't import a races module.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
@@ -413,12 +426,12 @@ and delete anything that becomes stale.
 ## Conventions
 - Reuse existing form pieces rather than re-rolling inputs: `SessionConfigurator`
   (training days), `GoalConfigurator` (goal time/pace — a slider whose range
-  comes from `paceBand(distanceKm)` in `src/utils/goal.js`, plus editable Time /
+  comes from `paceBand(distanceKm)` in `src/utils/goal.ts`, plus editable Time /
   Pace text fields for exact entry that commit on blur/Enter via `parseDur`, with
   a pre-filled mid-pack suggestion), `INPUT_CLS` /
-  `LABEL_CLS` (`src/constants.js`) for input styling, type colors `TCLR`, day
-  names `DAYS`, and the `fmt` helpers (`src/utils/format.js`) for durations/paces.
-- A logged run renders as `RunRow` (`src/components/RunRow.jsx`) — the shared
+  `LABEL_CLS` (`src/constants.ts`) for input styling, type colors `TCLR`, day
+  names `DAYS`, and the `fmt` helpers (`src/utils/format.ts`) for durations/paces.
+- A logged run renders as `RunRow` (`src/components/RunRow.tsx`) — the shared
   card used by both the dashboard's recent-runs list and the History view. Pass
   `dateFmt` (`fmt.sht` vs `fmt.date`), `showNotes`, and an `actions` slot rather
   than re-rolling the markup, so the two lists never drift.
@@ -430,20 +443,20 @@ and delete anything that becomes stale.
   (`buildPlan`/persistence), not in the `onChange`.
 - Tailwind utility classes inline; dark slate palette with orange-500 accents.
 - Dates are `YYYY-MM-DD` strings; use `ymd()` and the `fmt.*` helpers
-  (`src/utils/format.js`) for durations/paces. Parse local dates as
+  (`src/utils/format.ts`) for durations/paces. Parse local dates as
   `new Date(s + "T00:00:00")`.
-- First-run onboarding lives in `src/modals/OnboardingWizard.jsx`. It **branches
+- First-run onboarding lives in `src/modals/OnboardingWizard.tsx`. It **branches
   on `settings.intent`** (`"race"` | `"fitness"`): Welcome → Intent ─┬─ race: Pick
   race → Goal & days ─┐ └─ fitness: Your training ─┤ → Heart rate → **Health &
   safety** → Summary. The branch order is the pure `onboardingSteps(intent)`
-  (`src/utils/onboarding.js`, unit-tested); both branches share an identical
+  (`src/utils/onboarding.ts`, unit-tested); both branches share an identical
   `[welcome, intent]` prefix and end with the health gate then summary.
   - **Race branch** uses the catalogue: a search (`searchEditions` in
-    `src/utils/races.js`, upcoming-only) autofills date/distance/elevation and sets
+    `src/utils/races.ts`, upcoming-only) autofills date/distance/elevation and sets
     `targetEditionId` (same target wiring as `promoteEdition`); an "enter manually"
     toggle is the fallback and **clears** `targetEditionId` (decouple).
   - **Fitness branch** synthesizes a race-shaped target on exit — a `distanceKm`
-    pick, a horizon via `addWeeks` (`src/utils/format.js`), and a goal from
+    pick, a horizon via `addWeeks` (`src/utils/format.ts`), and a goal from
     `suggestedGoalSec` — so `buildPlan` always has a timeline (no empty dashboard).
     `targetEditionId` stays unset (auto-detect correctly never fires).
 - The **Health & safety** step is the **unskippable** medical-disclaimer +
@@ -451,7 +464,7 @@ and delete anything that becomes stale.
   around it). `summary` is an **in-memory-only** celebration *after* the gate;
   passing the gate advances to it and **`summary`'s "Get started" is the sole
   caller of `onComplete`**, which records `settings.healthAck = {v:
-  DISCLAIMER_VERSION, at}` and a plan (built in `RunningCoach.jsx` from the merged
+  DISCLAIMER_VERSION, at}` and a plan (built in `RunningCoach.tsx` from the merged
   race fields, incl. `targetEditionId`). The screening answer is GDPR health data —
   local state only, never persisted. Gated by `settings.onboarded` (+ legacy
   `settings.name`); set `onboarded: true` on any first-run completion/dismissal.
@@ -466,7 +479,7 @@ and delete anything that becomes stale.
   real manual save, not CSV import/cancel) — used to log a run straight from a
   plan session and auto-tick it.
 - **Settings fields auto-save** — the name and heart-rate inputs in
-  `SettingsModal.jsx` / `HRZones.jsx` commit on blur/Enter via `saveSettings`
+  `SettingsModal.tsx` / `HRZones.tsx` commit on blur/Enter via `saveSettings`
   (no Save buttons), following the commit-on-blur pattern in `GoalConfigurator`.
   Keep number fields as local string state and coalesce in the `commit` handler,
   not in `onChange`.
@@ -478,7 +491,7 @@ and delete anything that becomes stale.
   Profile card. The full zones reference (table + Karvonen explainer + recent-run
   zone analysis) lives in **Progress → Stats** as `HRZonesCard`. `HRZoneBar`
   (the slim colour bar) is shared by both so they don't drift; HR-to-zone
-  classification is the pure `runZoneIndex` in `src/utils/hr.js`.
+  classification is the pure `runZoneIndex` in `src/utils/hr.ts`.
 
 ## Git / PR workflow
 - Do not open or merge PRs unless explicitly asked.

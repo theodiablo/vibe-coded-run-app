@@ -1,6 +1,6 @@
 // Shared constants and presentational class strings used across the app.
 
-// Keys for the cloud-backed per-user store (see src/db.js).
+// Keys for the cloud-backed per-user store (see src/db.ts).
 export const STORAGE_KEYS = {
   RUNS: "rc_runs",
   PLAN: "rc_plan",

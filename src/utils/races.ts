@@ -1,6 +1,6 @@
 // Race helpers — catalogue lookups, race-day auto-detection, and personal-best
 // flagging. The catalogue itself is shared data fetched from Supabase (Phase 2,
-// src/races.js → listRaces); this module is the seam the rest of the app reads it through, so
+// src/races.ts → listRaces); this module is the seam the rest of the app reads it through, so
 // callers stay unchanged. It holds the fetched catalogue in a module-level cache
 // (hydrated once at boot) and exposes the same synchronous lookups as Phase 1.
 // The detection/PB helpers are pure over `participations` and stay unit-testable.
@@ -22,7 +22,7 @@ function flatten(races) {
   );
 }
 
-// Populate the cache from fetched data (src/races.js → listRaces). Called once at
+// Populate the cache from fetched data (src/races.ts → listRaces). Called once at
 // boot and again after a user contributes, so new entries appear immediately.
 export function hydrateCatalogue(races) {
   _races = races || [];

@@ -103,7 +103,7 @@ function makeCallModel(context: any, message: string) {
 // the client. HTTP status is intentionally NOT decided here — Deno.serve
 // below streams keep-alive padding before the outcome is known, so headers
 // (always 200) go out long before this resolves. Success/failure is carried
-// entirely in the body's shape (an `.error` field on failure); `src/coach.js`
+// entirely in the body's shape (an `.error` field on failure); `src/coach.ts`
 // already treats `data.error` and a non-2xx response identically, so this is
 // not a client-visible behaviour change.
 // deno-lint-ignore no-explicit-any

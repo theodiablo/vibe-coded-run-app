@@ -7,9 +7,9 @@ import { versionStatus } from "./utils/version";
 import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
 import { identifyUser, resetUser } from "./telemetry";
-import { ConsentBanner } from "./components/ConsentBanner.jsx";
-import RunningCoach from "./RunningCoach.jsx";
-import LoginScreen from "./LoginScreen.jsx";
+import { ConsentBanner } from "./components/ConsentBanner";
+import RunningCoach from "./RunningCoach";
+import LoginScreen from "./LoginScreen";
 
 // Defensive cap on the initial auth resolution. Supabase requests are already
 // bounded by the fetch timeout in supabase.js, so getSession() should always

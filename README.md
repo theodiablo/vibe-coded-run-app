@@ -78,7 +78,7 @@ supabase db push      # applies migrations
 
 ### 3. Point the app at your Supabase project
 
-Open `src/config.js` and replace the two default values with your project's
+Open `src/config.ts` and replace the two default values with your project's
 URL and anon key (both found under *Settings → API* in the Supabase dashboard):
 
 ```js
@@ -87,7 +87,7 @@ export const SUPABASE_ANON_KEY = "your-anon-key-here";
 ```
 
 Alternatively, you can set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as
-environment variables at build time — they take precedence over the values in `config.js`.
+environment variables at build time — they take precedence over the values in `config.ts`.
 
 ### 4. Run it
 
@@ -190,14 +190,14 @@ service-role key bypasses RLS and must **never** be put in the app bundle — CI
 
 | Secret | Value |
 |--------|-------|
-| `SUPABASE_URL` | your project URL — the same one in `src/config.js` (e.g. `https://xxxx.supabase.co`) |
+| `SUPABASE_URL` | your project URL — the same one in `src/config.ts` (e.g. `https://xxxx.supabase.co`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | a service-role / secret key (see below) |
 
 **Getting the service-role key.** You don't create it from scratch — a service-role
 credential is generated when the Supabase project is created. How you obtain it
 depends on the key system your project uses:
 
-- **New key system** (this project — `config.js` holds an `sb_publishable_…` key):
+- **New key system** (this project — `config.ts` holds an `sb_publishable_…` key):
   Dashboard → **Settings → API Keys → Secret keys → Create new secret key**, name it
   e.g. `github-actions-release`, and copy the `sb_secret_…` value (**shown once**).
   A dedicated named key is preferred — you can revoke just it later if it leaks.
@@ -206,7 +206,7 @@ depends on the key system your project uses:
 
 Either works (the workflow sends the key as both the `apikey` and `Authorization`
 header). ⚠️ This key has **full read/write to every user's data and bypasses RLS** —
-treat it like a root password: CI/server secrets only, never in `config.js`, the app
+treat it like a root password: CI/server secrets only, never in `config.ts`, the app
 bundle, or any `VITE_*` var. If it leaks, revoke it (new system) or rotate it
 (legacy). Without these two secrets the release step just prints "skipping" and the
 build still succeeds.
@@ -315,7 +315,7 @@ Android app, every crash also asks before it's sent. Builds without the key send
 nothing at all.
 
 The app is open source — you can read exactly what gets stored in
-`supabase/migrations/` and `src/db.js`, and exactly what telemetry is sent in
+`supabase/migrations/` and `src/db.ts`, and exactly what telemetry is sent in
 `src/telemetry/`.
 
 The workflow uses GitHub's OIDC provider to assume an AWS IAM role
