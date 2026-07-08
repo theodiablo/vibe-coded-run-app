@@ -90,8 +90,9 @@ and delete anything that becomes stale.
   reading straight off disk — no inline-content payload) for whichever
   function directories changed, redeploying `coach-agent` if `_shared/**`
   changed too. Needs a `SUPABASE_ACCESS_TOKEN` repo secret (Supabase
-  personal/service access token with deploy rights on `run-app`) — the MCP
-  recipe above is only for redeploying mid-session, before a merge.
+  personal/service access token with deploy rights on `run-app`) and a
+  `SUPABASE_PROJECT_REF` repo variable — the MCP recipe above is only for
+  redeploying mid-session, before a merge.
 - **Multi-user:** The app is open to public signups — don't make single-user
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.

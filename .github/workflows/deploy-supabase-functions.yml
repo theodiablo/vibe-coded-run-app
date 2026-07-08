@@ -31,7 +31,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUPABASE_PROJECT_REF: jpnxghiyjpuqnznxyfaf
+  SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
 
 jobs:
   deploy:
@@ -119,6 +119,10 @@ jobs:
           set -euo pipefail
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
             echo "::error::SUPABASE_ACCESS_TOKEN repo secret is not set — add it under Settings → Secrets and variables → Actions (a Supabase personal/service access token with deploy rights on run-app)."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "::error::SUPABASE_PROJECT_REF repo variable is not set."
             exit 1
           fi
           for name in ${{ steps.changed.outputs.functions }}; do

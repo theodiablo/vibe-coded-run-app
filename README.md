@@ -186,18 +186,20 @@ The app compares its installed `versionName` against the `app_config` row
 - `min_supported_version` — **you bump this by hand** in Supabase only when you ship
   a breaking change; clients below it get a non-dismissible "update required" screen.
 
-For the workflow to write `latest_version`, add a repository secret for the
-Supabase CLI (the same secret used by the Edge Function deploy workflow):
+For the workflow to write `latest_version`, configure the Supabase CLI credentials
+(the same values used by the Edge Function deploy workflow):
 
-| Secret | Value |
-|--------|-------|
-| `SUPABASE_ACCESS_TOKEN` | a Supabase personal/service access token with database query rights on `run-app` |
+| Name | Type | Value |
+|------|------|-------|
+| `SUPABASE_ACCESS_TOKEN` | Secret | a Supabase personal/service access token with database query rights on `run-app` |
+| `SUPABASE_PROJECT_REF` | Variable | the Supabase project ref to link/query |
 
-The release workflow uses `npx supabase db query --linked` against project
-`jpnxghiyjpuqnznxyfaf` to update `public.app_config.latest_version`. The token is a
-CI/server secret only: never put it in `config.ts`, the app bundle, or any `VITE_*`
-var. If it is missing, a tagged Android release fails after the Play upload instead
-of silently skipping the in-app update prompt bump.
+The release workflow uses `npx supabase db query --linked` against the project in
+repo variable `SUPABASE_PROJECT_REF` to update `public.app_config.latest_version`.
+The token is a CI/server secret only: never put it in `config.ts`, the app bundle,
+or any `VITE_*` var. If either the secret or project-ref variable is missing, a
+tagged Android release fails after the Play upload instead of silently skipping the
+in-app update prompt bump.
 
 ### Install a build on your phone
 
