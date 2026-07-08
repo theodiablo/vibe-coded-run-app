@@ -331,11 +331,14 @@ and delete anything that becomes stale.
   (`src/coach.js`) fires when `CoachChat` mounts — a `ping` action that returns
   before auth/DB/model, paying the boot cost early; best-effort, never throws.
   (2) transport errors from `functions.invoke` are mapped by kind in
-  `transportMessage` (`FunctionsFetchError` = offline/dropped,
-  `FunctionsHttpError` 401/403 = re-auth vs 5xx = "took too long to start"); note
-  `functions.invoke` has **no `timeout` option** (it's silently ignored — don't
-  re-add it; use an `AbortController` `signal` if a real client timeout is ever
-  wanted). (3) the Anthropic client sets `maxRetries`/`timeout`
+  `transportMessage` (`FunctionsFetchError` = offline/dropped/aborted,
+  `FunctionsRelayError` = Supabase relay could not reach/start the function,
+  `FunctionsHttpError` 401/403 = re-auth vs 5xx = "took too long to start"); the
+  app-wide Supabase `fetchWithTimeout` keeps auth/DB requests to 15s, but it
+  defers when a caller supplies its own `AbortSignal`; `src/coach.js` uses
+  `functions.invoke(..., { timeout: 60000 })` so `coach-agent` has 60s to produce
+  headers, because the edge handler cannot stream keep-alive bytes until after
+  cold Deno/npm imports complete. (3) the Anthropic client sets `maxRetries`/`timeout`
   (`COACH_MODEL_MAX_RETRIES`/`COACH_MODEL_TIMEOUT_MS`) so an `overloaded_error`
   is retried inside the round rather than sinking it.
 - **Shared logic lives in `supabase/functions/_shared/coach/*.mjs`** (plain ESM

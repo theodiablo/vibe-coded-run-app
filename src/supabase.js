@@ -15,22 +15,46 @@ import { isNative } from "./native";
 // hanging indefinitely.
 const REQUEST_TIMEOUT_MS = 15000;
 
+/**
+ * @typedef {RequestInit & {
+ *   timeoutMs?: number | null
+ * }} TimeoutRequestInit
+ *
+ * `timeoutMs` is intentionally a wrapper option, not part of the native fetch
+ * API. Pass `null` to opt out when another cancellation mechanism owns the
+ * request. If a caller supplies a native `signal` and no `timeoutMs`, we also
+ * opt out of the default timeout so the caller's signal is not accidentally
+ * shortened by this wrapper.
+ */
+
+/**
+ * @param {RequestInfo | URL} input
+ * @param {TimeoutRequestInit} init
+ */
 function fetchWithTimeout(input, init = {}) {
+  const { timeoutMs: configuredTimeoutMs, signal: upstreamSignal, ...fetchInit } = init;
+  const timeoutMs = configuredTimeoutMs ?? (upstreamSignal ? null : REQUEST_TIMEOUT_MS);
+
+  if (timeoutMs == null) return fetch(input, { ...fetchInit, signal: upstreamSignal });
+
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(new DOMException("Request timed out", "TimeoutError")),
-    REQUEST_TIMEOUT_MS
+    timeoutMs
   );
-  // Forward an upstream abort (e.g. a caller-supplied signal) to our controller
-  // so we don't override the library's own cancellation.
-  const upstream = init.signal;
-  if (upstream) {
-    if (upstream.aborted) controller.abort(upstream.reason);
-    else upstream.addEventListener("abort", () => controller.abort(upstream.reason), { once: true });
+  let removeUpstreamAbort = () => {};
+  if (upstreamSignal) {
+    const abortFromUpstream = () => controller.abort(upstreamSignal.reason);
+    if (upstreamSignal.aborted) abortFromUpstream();
+    else {
+      upstreamSignal.addEventListener("abort", abortFromUpstream, { once: true });
+      removeUpstreamAbort = () => upstreamSignal.removeEventListener("abort", abortFromUpstream);
+    }
   }
-  return fetch(input, { ...init, signal: controller.signal }).finally(() =>
-    clearTimeout(timer)
-  );
+  return fetch(input, { ...fetchInit, signal: controller.signal }).finally(() => {
+    clearTimeout(timer);
+    removeUpstreamAbort();
+  });
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
