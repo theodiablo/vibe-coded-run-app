@@ -2,7 +2,7 @@
 
 A propose-and-confirm AI agent that **adapts** the existing training plan
 through a bounded set of typed tools. The deterministic generator
-(`src/utils/plan.js` `buildPlan`) stays the author of plan structure; the model
+(`src/utils/plan.ts` `buildPlan`) stays the author of plan structure; the model
 is an **editor, never an author**.
 
 ```
@@ -32,8 +32,8 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
 3. **One validator, two callers** — `validatePlan`
    (`supabase/functions/_shared/coach/validation.mjs`) is shared by the agent
    path and confirmed against `buildPlan` output by
-   `src/utils/coachValidation.test.js`. The app re-exports it as
-   `src/utils/coachValidation.js`.
+   `src/utils/coachValidation.test.ts`. The app re-exports it as
+   `src/utils/coachValidation.ts`.
 4. **An invalid plan is never surfaced** — `generateProposal`
    (`_shared/coach/engine.mjs`) runs an internal validate-and-retry loop
    (bounded by `MAX_VALIDATOR_RETRIES`); on exhaustion the round ends in the
@@ -79,7 +79,7 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
   still help — it just can't make the plan worse.
 - The server reads the plan/runs/Coach memory from `app_state` (source of
   truth), not from the request body; the client calls `flushNow()` first
-  (`src/coach.js`).
+  (`src/coach.ts`).
 - **A trajectory only closes (`no_valid_adjustment`) when there's nothing to
   fall back on** — round 0 failing (nothing was ever proposed). A failed
   *critique* on an otherwise-open trajectory leaves it `open`: the prior round
@@ -145,16 +145,16 @@ MOCK_LLM=1 supabase functions serve coach-agent   # or set a dev ANTHROPIC_API_K
 
 Smoke: `curl -i -X POST http://127.0.0.1:54321/functions/v1/coach-agent -H 'Content-Type: application/json' -d '{"action":"propose","message":"hi"}'`
 → `401` (auth required) proves the function is up; a signed-in client goes
-through `src/coach.js`.
+through `src/coach.ts`.
 
 ## Eval & metrics
 
 - **Golden cases** run in CI with zero API calls, via two complementary
   harnesses over the same `generateProposal` loop:
-  - `src/utils/coachGolden.test.js` — free-text situations through the
+  - `src/utils/coachGolden.test.ts` — free-text situations through the
     keyword-based `MOCK_LLM` scripts (`_shared/coach/mock.mjs`), exercising
     realistic conversational flow.
-  - `src/utils/coachAgent.eval.test.js` — exact scripted tool-call sequences
+  - `src/utils/coachAgent.eval.test.ts` — exact scripted tool-call sequences
     per situation (`npm run eval` runs just this file), including the two
     tool-execution-error paths (a bad `factor` thrown by `applyToolCall`
     itself, and recovery from one) that the keyword mock doesn't reach.
@@ -179,8 +179,8 @@ through `src/coach.js`.
   dashboard): first-proposal acceptance rate, average rounds-to-accept, and
   the abandoned / no_valid_adjustment split.
 - **User feedback loop** — a "This isn't right" affordance on a coach answer
-  (`src/modals/CoachChat.jsx`) lets the user flag it and explain what's wrong;
-  `submitCoachFeedback` (`src/coachFeedback.js`) inserts into `coach_feedback`
+  (`src/modals/CoachChat.tsx`) lets the user flag it and explain what's wrong;
+  `submitCoachFeedback` (`src/coachFeedback.ts`) inserts into `coach_feedback`
   (migration `20260705120000_coach_feedback.sql`), which references the exact
   `agent_rounds` row via `(trajectory_id, round_index)`. Same trust model as
   `race_reports`: INSERT-only from the client (`grant insert`, one `with check

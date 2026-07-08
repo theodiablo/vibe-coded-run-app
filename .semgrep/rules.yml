@@ -18,7 +18,7 @@ rules:
     pattern-regex: '\beval\s*\('
     paths:
       include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html", "*.cjs", "*.mjs"]
-      exclude: ["*.test.js", "*.test.jsx", "*.spec.js"]
+      exclude: ["*.test.js", "*.test.jsx", "*.test.ts", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.tsx"]
 
   - id: no-new-function
     languages: [generic]
@@ -75,7 +75,7 @@ rules:
     pattern-regex: '["'']x-api-key["'']'
     paths:
       include: ["*.js", "*.jsx", "*.ts", "*.tsx", "*.html"]
-      exclude: ["*.test.js", "*.test.jsx", "*.spec.js"]
+      exclude: ["*.test.js", "*.test.jsx", "*.test.ts", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.tsx"]
 
   - id: hardcoded-private-key
     languages: [generic]

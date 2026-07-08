@@ -1,7 +1,7 @@
 // notify-contribution — emails the maintainer when a user contributes a race /
 // edition, files a report, or flags an AI coach answer as wrong, and thanks the
 // contributor (contribution types only). Invoked best-effort from the client
-// (src/notify.js `notifyContribution`) right after the DB row is written; it is
+// (src/notify.ts `notifyContribution`) right after the DB row is written; it is
 // NEVER on the critical path. If the SES credentials are unset the function
 // returns `{ skipped: true }` and the write still stands — the row in
 // races / race_editions / race_reports / coach_feedback is the source of truth.

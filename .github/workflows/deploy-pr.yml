@@ -78,7 +78,7 @@ jobs:
         run: npm run build
         env:
           # Inlined into the client bundle by Vite at build time. Domain-restricted
-          # publishable key — see src/constants.js. Set in repo Actions secrets.
+          # publishable key — see src/constants.ts. Set in repo Actions secrets.
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
           # Same PostHog project as production, but tagged "preview" so this
           # traffic is filterable out of production insights — see docs/telemetry.md.
@@ -97,7 +97,7 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
-          # vite.config.js sets `base: './'`, so the built index.html and assets
+          # vite.config.ts sets `base: './'`, so the built index.html and assets
           # use relative paths and work unchanged when served from a subfolder.
           # `--delete` keeps the prefix in sync with the latest build only.
           aws s3 sync dist/ "s3://${S3_BUCKET_NAME}/${PR_PREFIX}/${PR_NUMBER}/" --delete
