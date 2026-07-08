@@ -31,6 +31,8 @@ and delete anything that becomes stale.
 - This is an incremental migration: `tsconfig.json` runs normal project checking,
   but the still-untyped hotspots carry file-level `// @ts-nocheck`. Remove those
   markers in follow-up slices as modules get real types.
+- When touching a `// @ts-nocheck` file, prefer either removing the marker in that
+  same slice or keeping the change minimal enough that the marker debt does not grow.
 - Supabase Edge Function entrypoints are Deno TypeScript and are checked with
   `deno check` via `npm run typecheck:supabase`; keep Deno-specific code out of the
   browser ESLint config.
