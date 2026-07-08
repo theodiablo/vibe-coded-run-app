@@ -8,9 +8,10 @@ import { notifyContribution } from "./notify";
 export async function submitCoachFeedback({ trajectoryId, roundIndex, correction }) {
   const user_id = currentUserId();
   if (!user_id) throw new Error("Not signed in");
+  const id = crypto.randomUUID();
   const { error } = await supabase.from("coach_feedback").insert({
-    user_id, trajectory_id: trajectoryId, round_index: roundIndex, correction,
+    id, user_id, trajectory_id: trajectoryId, round_index: roundIndex, correction,
   });
   if (error) throw error;
-  notifyContribution({ type: "coach_feedback", trajectoryId, roundIndex, correction });
+  notifyContribution({ type: "coach_feedback", feedbackId: id });
 }

@@ -278,11 +278,16 @@ and delete anything that becomes stale.
   already typed in the form; "jump to my current location" is offered too, but only
   as one more way to seed the pin, never the only option.
 - **Moderation:** `reportRace` writes a `race_reports` row (insert-only RLS, no
-  client SELECT — so insert WITHOUT `.select()`) and best-effort invokes the
-  `notify-contribution` edge function (`supabase/functions/`), which emails the
-  maintainer + thanks the contributor via AWS SES (SigV4-signed with `aws4fetch`;
-  keys in `SES_AWS_ACCESS_KEY_ID`/`SES_AWS_SECRET_ACCESS_KEY`, optional
-  `SES_REGION`/`FROM_EMAIL`/`MAINTAINER_EMAIL`; degrades to a no-op if unset). The "verified → thank-you" half is in-app: `reconcileVerifiedThanks`
+  client SELECT — so insert WITHOUT `.select()`, using a client-generated id for
+  notification lookup) and best-effort invokes the `notify-contribution` edge
+  function (`supabase/functions/`), which emails the maintainer + thanks the
+  contributor via AWS SES (SigV4-signed with `aws4fetch`; keys in
+  `SES_AWS_ACCESS_KEY_ID`/`SES_AWS_SECRET_ACCESS_KEY`, optional
+  `SES_REGION`/`FROM_EMAIL`/`MAINTAINER_EMAIL`; degrades to a no-op if unset).
+  `notify-contribution` must only send from validated DB rows owned by the caller
+  and dedupes in `contribution_notifications`; callers pass stable row ids
+  (`raceSlug`, `editionId`, `reportId`, `feedbackId`), not arbitrary email bodies.
+  The "verified → thank-you" half is in-app: `reconcileVerifiedThanks`
   (RunningCoach) toasts once when a maintainer verifies the user's own contribution.
 - **Personal layer lives in the blob**, key `STORAGE_KEYS.RACES` (`rc_races`), NOT
   in the catalogue: `{participations:[...], seenBadges:[...], ackVerified:[...]}`
