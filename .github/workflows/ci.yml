@@ -27,6 +27,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@3b15eb2faae27b426924f39cb4f8709eb5b540f4 # v2
+
       - name: Typecheck
         run: npm run typecheck:all
 
