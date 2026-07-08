@@ -78,16 +78,14 @@ supabase db push      # applies migrations
 
 ### 3. Point the app at your Supabase project
 
-Open `src/config.ts` and replace the two default values with your project's
-URL and anon key (both found under *Settings → API* in the Supabase dashboard):
+Set your Supabase URL and anon key as Vite environment variables. For local
+development, put them in `.env.local`; CI builds derive the URL from the repo
+variable `SUPABASE_PROJECT_REF`.
 
-```js
-export const SUPABASE_URL = "https://your-project-id.supabase.co";
-export const SUPABASE_ANON_KEY = "your-anon-key-here";
+```sh
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
-
-Alternatively, you can set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as
-environment variables at build time — they take precedence over the values in `config.ts`.
 
 ### 4. Run it
 

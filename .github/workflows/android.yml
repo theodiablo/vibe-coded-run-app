@@ -46,6 +46,7 @@ jobs:
       - name: Build web assets
         run: npm run build
         env:
+          VITE_SUPABASE_URL: https://${{ vars.SUPABASE_PROJECT_REF }}.supabase.co
           # Same domain-restricted MapTiler key as the web deploy (see README → Maps).
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
           # Same PostHog project key as the web deploy (see docs/telemetry.md).

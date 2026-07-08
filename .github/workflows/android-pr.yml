@@ -49,6 +49,7 @@ jobs:
       - name: Build web assets
         run: npm run build
         env:
+          VITE_SUPABASE_URL: https://${{ vars.SUPABASE_PROJECT_REF }}.supabase.co
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
           # Tagged "preview" so PR-APK traffic is filterable out of production.
           # Empty (no-op) on fork PRs, which don't get secrets — that's fine.

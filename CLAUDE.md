@@ -47,8 +47,10 @@ and delete anything that becomes stale.
   `db` in the same handler that calls `setState`. Writes debounce ~600ms into a
   single upsert and flush on page hide/unload.
 - **Supabase config:** URL and anon key live in `src/config.ts` (imported by
-  `src/supabase.ts`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
-  override them at build time. Don't hardcode credentials elsewhere.
+  `src/supabase.ts`). `VITE_SUPABASE_URL` is required at build time; GitHub
+  workflows construct it from repo variable `SUPABASE_PROJECT_REF`. Env var
+  `VITE_SUPABASE_ANON_KEY` can override the publishable key. Don't hardcode
+  project refs or credentials elsewhere.
 - **Migrations are append-only once a version may have reached Supabase.** Do not
   rename or remove a `supabase/migrations/*.sql` version after it has been pushed
   or previewed remotely: Supabase Preview/db-push checks require every remote
@@ -56,11 +58,11 @@ and delete anything that becomes stale.
   keep a no-op compatibility marker with that timestamp and put real schema in a
   later migration.
 - **Deploying edge functions (via the Supabase MCP tools, not the CLI):** the
-  project is **`run-app`, id `jpnxghiyjpuqnznxyfaf`** — don't call
-  `mcp__Supabase__list_projects` to rediscover it. To redeploy `coach-agent`
+  project is **`run-app`**; use the project ref from the repo variable
+  `SUPABASE_PROJECT_REF` rather than hardcoding it. To redeploy `coach-agent`
   after editing `supabase/functions/coach-agent/index.ts` or any
   `supabase/functions/_shared/coach/*.mjs`, go straight to
-  `mcp__Supabase__deploy_edge_function` with `project_id: jpnxghiyjpuqnznxyfaf`,
+  `mcp__Supabase__deploy_edge_function` with that project id,
   `name: "coach-agent"`, `entrypoint_path: "source/index.ts"`, `verify_jwt:
   true`, and a `files` array of **exactly these five**, read fresh off disk
   (content must match current `git` state, not a stale copy from earlier in
