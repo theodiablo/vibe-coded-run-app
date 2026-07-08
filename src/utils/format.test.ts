@@ -9,13 +9,15 @@ describe("p2", () => {
 });
 
 describe("fmt.pace", () => {
+  const pace = fmt.pace as (secondsPerKm: number | null) => string;
+
   it("formats seconds-per-km as m:ss", () => {
     expect(fmt.pace(330)).toBe("5:30");
     expect(fmt.pace(65)).toBe("1:05");
   });
   it("returns placeholder for missing/zero", () => {
     expect(fmt.pace(0)).toBe("--:--");
-    expect(fmt.pace(null)).toBe("--:--");
+    expect(pace(null)).toBe("--:--");
   });
 });
 

@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { hrZoneBpm, sessionHR, runZoneIndex, parseHrMeasurement, hrSummary, HR_ZONES, SESSION_ZONES } from "./hr";
 
+type HrSample = { bpm: number; t: number };
+
+const summarize = hrSummary as (samples?: HrSample[]) => { hr: number | null; hrAvg: number | null; hrMax: number | null };
+
 // Build a DataView the way Web Bluetooth / the BLE plugin deliver a characteristic.
-const dv = (bytes) => new DataView(Uint8Array.from(bytes).buffer);
+const dv = (bytes: number[]) => new DataView(Uint8Array.from(bytes).buffer);
 
 describe("hrZoneBpm", () => {
   it("computes Karvonen (heart-rate reserve) ranges", () => {
@@ -25,7 +29,7 @@ describe("sessionHR", () => {
     expect(r).toMatchObject({lo: 144, hi: 158, label: SESSION_ZONES.EASY.label});
   });
   it("spans multiple zones for TEMPO (Z3-4)", () => {
-    const r = sessionHR("TEMPO", settings);
+    const r = sessionHR("TEMPO", settings)!;
     // lo from zone 3 (0.70), hi from zone 4 (0.90)
     expect(r.lo).toBe(158);
     expect(r.hi).toBe(186);
@@ -34,7 +38,7 @@ describe("sessionHR", () => {
     expect(sessionHR("MYSTERY", settings)).toEqual(sessionHR("EASY", settings));
   });
   it("returns null without a max HR", () => {
-    expect(sessionHR("EASY", {restHR: 60})).toBeNull();
+    expect(sessionHR("EASY", {maxHR: 0, restHR: 60})).toBeNull();
   });
 });
 
@@ -69,7 +73,7 @@ describe("parseHrMeasurement", () => {
   });
   it("reads multiple R-R intervals", () => {
     // flags 0x10 (RR only), bpm 150, RR 0x0300 (750ms) then 0x0200 (500ms)
-    expect(parseHrMeasurement(dv([0x10, 0x96, 0x00, 0x03, 0x00, 0x02])).rr).toEqual([750, 500]);
+    expect(parseHrMeasurement(dv([0x10, 0x96, 0x00, 0x03, 0x00, 0x02]))!.rr).toEqual([750, 500]);
   });
   it("tolerates flags declaring fields that aren't present", () => {
     // flags 0x10 (RR bit set) but no trailing RR bytes → bpm parsed, rr empty
@@ -93,7 +97,7 @@ describe("hrSummary", () => {
   });
   it("returns nulls for an empty/absent stream", () => {
     expect(hrSummary([])).toEqual({ hr: null, hrAvg: null, hrMax: null });
-    expect(hrSummary(undefined)).toEqual({ hr: null, hrAvg: null, hrMax: null });
+    expect(summarize(undefined)).toEqual({ hr: null, hrAvg: null, hrMax: null });
   });
 });
 

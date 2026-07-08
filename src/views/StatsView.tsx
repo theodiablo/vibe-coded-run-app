@@ -6,8 +6,13 @@ import { fmt, ymd } from "../utils/format";
 import { riegel, bestEffortAnchor, hrModelAnchor } from "../utils/predictions";
 import { PredictionsInfo } from "../components/PredictionsInfo";
 import { HRZonesCard } from "../components/HRZonesCard";
+import type { Run, SettingsState } from "../types";
 
-export function StatsView({runs, settings}) {
+type StatsViewProps = { runs: Run[]; settings: SettingsState };
+type StatCard = { l: string; v: string; s: string; c: string };
+type Period = "4w" | "12w" | "all";
+
+export function StatsView({runs, settings}: StatsViewProps) {
   return (
     <div className="max-w-lg mx-auto">
       <div className="px-4 pt-6 pb-0">
@@ -20,12 +25,12 @@ export function StatsView({runs, settings}) {
   );
 }
 
-function Overview({runs, settings}) {
-  const [period, setPeriod] = useState("12w");
+function Overview({runs, settings}: StatsViewProps) {
+  const [period, setPeriod] = useState<Period>("12w");
   // The user's goal pace, drawn on the pace trend so the reference line tracks
   // their actual target rather than a hardcoded 6:00.
   const goalPace = settings && settings.goalSec && settings.distanceKm
-    ? settings.goalSec / settings.distanceKm : 0;
+    ? Number(settings.goalSec) / Number(settings.distanceKm) : 0;
 
   const fRuns = period === "all" ? runs : (() => {
     const cut = new Date();
@@ -66,17 +71,17 @@ function Overview({runs, settings}) {
   const pLine = fRuns.slice()
     .filter(r => r.km && r.durationSec)
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map(r => ({d: fmt.sht(r.date), p: Math.round(r.durationSec / r.km)}));
+    .map(r => ({d: fmt.sht(r.date), p: Math.round((r.durationSec || 0) / r.km)}));
 
   const totKm   = fRuns.reduce((s, r) => s + (r.km || 0), 0);
   const pRuns   = fRuns.filter(r => r.km && r.durationSec);
-  const avgPace = pRuns.length ? pRuns.reduce((s, r) => s + r.durationSec / r.km, 0) / pRuns.length : 0;
-  const bestPace = pRuns.filter(r => r.km >= 3).reduce((b, r) => {
-    const p = r.durationSec / r.km;
+  const avgPace = pRuns.length ? pRuns.reduce((s, r) => s + (r.durationSec || 0) / r.km, 0) / pRuns.length : 0;
+  const bestPace = pRuns.filter(r => r.km >= 3).reduce<number | null>((b, r) => {
+    const p = (r.durationSec || 0) / r.km;
     return (!b || p < b) ? p : b;
   }, null);
   const hrRuns = fRuns.filter(r => r.hr);
-  const avgHR  = hrRuns.length ? hrRuns.reduce((s, r) => s + r.hr, 0) / hrRuns.length : 0;
+  const avgHR  = hrRuns.length ? hrRuns.reduce((s, r) => s + (r.hr || 0), 0) / hrRuns.length : 0;
   const totElev = fRuns.reduce((s, r) => s + (r.elevation || 0), 0);
   const totTime = fRuns.reduce((s, r) => s + (r.durationSec || 0), 0);
 
@@ -87,7 +92,7 @@ function Overview({runs, settings}) {
     totElev > 0 && {l:"Total elevation", v:Math.round(totElev).toLocaleString() + " m", s:"climbed", c:"text-emerald-400"},
     bestPace && {l:"Best pace",     v:fmt.pace(bestPace), s:"runs ≥3km",            c:"text-amber-400"},
     avgHR > 0 && {l:"Avg heart rate", v:Math.round(avgHR) + "", s:"bpm",           c:"text-red-400"},
-  ].filter(Boolean);
+  ].filter((s): s is StatCard => Boolean(s));
 
   const tt = {background:"#1e293b", border:"none", borderRadius:8, color:"#fff", fontSize:12};
 
@@ -104,7 +109,7 @@ function Overview({runs, settings}) {
         <p className="text-slate-400 text-xs">Totals for the selected window</p>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
           {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
-            <button key={pair[0]} onClick={() => setPeriod(pair[0])}
+            <button key={pair[0]} onClick={() => setPeriod(pair[0] as Period)}
               className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
               {pair[1]}
             </button>
@@ -176,8 +181,8 @@ function Overview({runs, settings}) {
 }
 
 // Project finish times from logged runs.
-function RacePredictions({runs, settings}) {
-  const [period, setPeriod] = useState("12w");
+function RacePredictions({runs, settings}: StatsViewProps) {
+  const [period, setPeriod] = useState<Period>("12w");
 
   // Same period filter the Overview uses, so both halves of Stats agree.
   const fRuns = period === "all" ? runs : (() => {
@@ -199,7 +204,7 @@ function RacePredictions({runs, settings}) {
 
   // 5 / 10 / 20 km, plus the race-day distance when it isn't already one of them.
   const dists = [5, 10, 20];
-  const raceD = settings.distanceKm;
+  const raceD = Number(settings.distanceKm) || 0;
   if (raceD && !dists.includes(raceD)) dists.push(raceD);
   dists.sort((a, b) => a - b);
 
@@ -222,7 +227,7 @@ function RacePredictions({runs, settings}) {
         </div>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
           {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
-            <button key={pair[0]} onClick={() => setPeriod(pair[0])}
+            <button key={pair[0]} onClick={() => setPeriod(pair[0] as Period)}
               className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
               {pair[1]}
             </button>
@@ -275,7 +280,7 @@ function RacePredictions({runs, settings}) {
             <p className="text-slate-400 text-xs">
               <span className="text-orange-400 font-semibold">Best-effort</span> projects your strongest run
               {" (" + best.raw.km + " km in " + fmt.dur(best.durationSec)
-                + (best.raw.elevation > 0 ? ", " + Math.round(best.raw.elevation) + " m climb" : "") + ")"}
+                + ((best.raw.elevation || 0) > 0 ? ", " + Math.round(best.raw.elevation || 0) + " m climb" : "") + ")"}
               {" "}to each distance with Riegel's formula.
             </p>
             {hrOk ? (

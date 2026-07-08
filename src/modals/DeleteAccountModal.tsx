@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Trash2, AlertTriangle } from "lucide-react";
 import { supabase } from "../supabase";
 
-export function DeleteAccountModal({ onSignOut, onClose }) {
+type DeleteAccountModalProps = { onSignOut: () => void; onClose: () => void };
+
+export function DeleteAccountModal({ onSignOut, onClose }: DeleteAccountModalProps) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleDelete = async () => {
     setBusy(true);

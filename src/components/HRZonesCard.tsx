@@ -1,11 +1,14 @@
 import { fmt } from "../utils/format";
 import { HR_ZONES, hrZoneBpm, runZoneIndex } from "../utils/hr";
 import { HRZoneBar } from "./HRZoneBar";
+import type { Run, SettingsState } from "../types";
+
+type HRZonesCardProps = { runs: Run[]; settings: SettingsState };
 
 // Heart-rate zones reference + recent-run zone breakdown, shown in Progress →
 // Stats. Reads the persisted HR profile from settings (configured in Settings →
 // Profile); renders nothing until a usable profile exists.
-export function HRZonesCard({runs, settings}) {
+export function HRZonesCard({runs, settings}: HRZonesCardProps) {
   const effMax = settings.maxHR || (settings.age ? Math.round(208 - 0.7 * settings.age) : 0);
   const restHR = settings.restHR || 60;
   const hrr    = effMax - restHR;

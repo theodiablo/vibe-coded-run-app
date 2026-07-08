@@ -19,20 +19,20 @@ export const webSource = {
   // Third arg (the shared `{ background }` option) is intentionally ignored — a
   // browser can't record in the background. Always high-accuracy, matching the
   // Phase-1 inline behaviour.
-  watchPosition(onPos, onErr) {
+  watchPosition(onPos: PositionCallback, onErr?: PositionErrorCallback) {
     return navigator.geolocation.watchPosition(onPos, onErr, {
       enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
     });
   },
 
-  clearWatch(handle) {
+  clearWatch(handle: number | null | undefined) {
     if (handle != null) navigator.geolocation.clearWatch(handle);
   },
 
   // One-off coarse fix for "races near me" (Discover) — not a watcher. Resolves
   // { lat, lng }; rejects (browser prompt denied / unavailable) so the UI can
   // show its location-unavailable state. Needs a secure context (https/localhost).
-  getCurrentPosition() {
+  getCurrentPosition(): Promise<{ lat: number; lng: number }> {
     return new Promise((resolve, reject) => {
       if (!this.isAvailable()) { reject(new Error("Geolocation unavailable")); return; }
       navigator.geolocation.getCurrentPosition(

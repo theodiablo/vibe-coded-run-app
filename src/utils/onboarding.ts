@@ -6,8 +6,12 @@
 // step. Both branches share an identical [welcome, intent] prefix so a refresh
 // before intent is chosen resolves the same regardless of branch, and both end
 // with the mandatory health gate followed by an (in-memory only) summary.
-export function onboardingSteps(intent) {
-  const tail = ["hr", "health", "summary"];
+import type { Intent } from "../types";
+
+export type OnboardingStep = "welcome" | "intent" | "race" | "raceGoal" | "training" | "hr" | "health" | "summary";
+
+export function onboardingSteps(intent: Intent | string | undefined): OnboardingStep[] {
+  const tail: OnboardingStep[] = ["hr", "health", "summary"];
   if (intent === "fitness") return ["welcome", "intent", "training", ...tail];
   // Default (intent unset or "race") — the race branch.
   return ["welcome", "intent", "race", "raceGoal", ...tail];

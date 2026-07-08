@@ -22,7 +22,7 @@ describe("flatEqKm", () => {
 
 describe("linReg", () => {
   it("recovers a perfect line with R²=1", () => {
-    const fit = linReg([{x: 0, y: 1}, {x: 1, y: 3}, {x: 2, y: 5}]);
+    const fit = linReg([{x: 0, y: 1}, {x: 1, y: 3}, {x: 2, y: 5}])!;
     expect(fit.a).toBeCloseTo(1, 6);
     expect(fit.b).toBeCloseTo(2, 6);
     expect(fit.r2).toBeCloseTo(1, 6);
@@ -37,16 +37,16 @@ describe("linReg", () => {
 
 describe("bestEffortAnchor", () => {
   it("picks the strongest Riegel-equivalent effort, not the shortest fast blip", () => {
-    const fastBlip = {km: 1, durationSec: 200};               // excluded (<3 km)
-    const okRun    = {km: 5, durationSec: 1500};              // 5:00/km
-    const strong   = {km: 10, durationSec: 3000};            // 5:00/km but longer → better eq
-    const best = bestEffortAnchor([fastBlip, okRun, strong]);
+    const fastBlip = {date: "2026-01-01", km: 1, durationSec: 200};               // excluded (<3 km)
+    const okRun    = {date: "2026-01-02", km: 5, durationSec: 1500};              // 5:00/km
+    const strong   = {date: "2026-01-03", km: 10, durationSec: 3000};            // 5:00/km but longer → better eq
+    const best = bestEffortAnchor([fastBlip, okRun, strong])!;
     expect(best.raw).toBe(strong);
     expect(best.km).toBe(10);
     expect(best.durationSec).toBe(3000);
   });
   it("returns null when no run qualifies", () => {
-    expect(bestEffortAnchor([{km: 2, durationSec: 600}])).toBeNull();
+    expect(bestEffortAnchor([{date: "2026-01-01", km: 2, durationSec: 600}])).toBeNull();
   });
 });
 
@@ -58,12 +58,12 @@ describe("hrModelAnchor", () => {
   it("fits pace against HR and projects to threshold effort", () => {
     // Four runs, 10 km each, pace falling as HR rises (negative slope).
     const runs = [
-      {km: 10, durationSec: 3600, hr: 130},
-      {km: 10, durationSec: 3500, hr: 140},
-      {km: 10, durationSec: 3400, hr: 150},
-      {km: 10, durationSec: 3300, hr: 160},
+      {date: "2026-01-01", km: 10, durationSec: 3600, hr: 130},
+      {date: "2026-01-02", km: 10, durationSec: 3500, hr: 140},
+      {date: "2026-01-03", km: 10, durationSec: 3400, hr: 150},
+      {date: "2026-01-04", km: 10, durationSec: 3300, hr: 160},
     ];
-    const r = hrModelAnchor(runs, 190, 60);
+    const r = hrModelAnchor(runs, 190, 60)!;
     expect(r.n).toBe(4);
     expect(r.durationSec).toBe(3600);
     expect(r.spread).toBe(30);

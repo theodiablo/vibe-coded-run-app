@@ -4,20 +4,36 @@
 // than exact wording.
 
 import { afterAll, describe, expect, it } from "vitest";
+// @ts-expect-error Shared edge-function ESM has no TypeScript declarations yet.
 import { generateProposal } from "../../supabase/functions/_shared/coach/engine.mjs";
 import { validatePlan } from "./coachValidation";
 import { buildPlan } from "./plan";
 import { ymd } from "./format";
 
+type TestSession = {
+  id: string;
+  date: string;
+  type: string;
+  km: number;
+  done?: boolean;
+  skipped?: boolean;
+  weekNumber?: number;
+};
+type TestWeek = { weekNumber: number; phase: string; sessions: TestSession[] };
+type TestPlan = { raceDate: string; targetPace: number; weeks: TestWeek[] };
+type TestContext = ReturnType<typeof makeContext>;
+type ToolCall = { name: string; input: Record<string, string | number> };
+type ProposalResult = { status: string; changed?: boolean; plan?: TestPlan };
+
 const SESSIONS = [{ dayOffset: 2, minutes: 45 }, { dayOffset: 6, minutes: 90 }];
-const weeksOut = (n) => {
+const weeksOut = (n: number) => {
   const d = new Date();
   d.setDate(d.getDate() + n * 7);
   return ymd(d);
 };
 
-function makeContext(report) {
-  const plan = buildPlan(weeksOut(18), 6600, SESSIONS, 21.1, 0, {});
+function makeContext(report: string) {
+  const plan = buildPlan(weeksOut(18), 6600, SESSIONS, 21.1, 0, {}) as TestPlan;
   return {
     plan,
     report,
@@ -31,7 +47,7 @@ function makeContext(report) {
   };
 }
 
-function scriptedModel(turns, finalText = "This keeps the plan safer without chasing missed volume.") {
+function scriptedModel(turns: ToolCall[][], finalText = "This keeps the plan safer without chasing missed volume.") {
   let turn = 0;
   return async () => {
     const calls = turns[Math.min(turn, turns.length - 1)] || [];
@@ -50,24 +66,24 @@ function scriptedModel(turns, finalText = "This keeps the plan safer without cha
   };
 }
 
-const run = (context, turns, finalText?) => generateProposal({
+const run = (context: TestContext, turns: ToolCall[][], finalText?: string) => generateProposal({
   baseline: context.plan,
   context,
   callModel: scriptedModel(turns, finalText),
-});
+}) as Promise<ProposalResult>;
 
-const buildWeek = (plan) => plan.weeks.find(w => w.phase === "BUILD" && w.sessions.some(s => s.type !== "RACE"));
-const weekVol = (week) => week.sessions.reduce((sum, s) => sum + (s.type === "RACE" ? 0 : s.km), 0);
-const allSessions = (plan) => plan.weeks.flatMap(w => w.sessions.map(s => ({ ...s, weekNumber: w.weekNumber })));
-const hardness = { WALK: 0, OTHER: 0, EASY: 1, LONG: 2, TEMPO: 3, INTERVALS: 4, RACE: 5 };
+const buildWeek = (plan: TestPlan) => plan.weeks.find(w => w.phase === "BUILD" && w.sessions.some(s => s.type !== "RACE"))!;
+const weekVol = (week: TestWeek) => week.sessions.reduce((sum, s) => sum + (s.type === "RACE" ? 0 : s.km), 0);
+const allSessions = (plan: TestPlan) => plan.weeks.flatMap(w => w.sessions.map(s => ({ ...s, weekNumber: w.weekNumber })));
+const hardness: Record<string, number> = { WALK: 0, OTHER: 0, EASY: 1, LONG: 2, TEMPO: 3, INTERVALS: 4, RACE: 5 };
 
 const cases = [
   {
     name: "knee pain removes impact and does not increase intensity",
     async check() {
       const context = makeContext("my knee hurts after yesterday's run");
-      const hard = allSessions(context.plan).find(s => ["TEMPO", "INTERVALS", "LONG"].includes(s.type));
-      const before = context.plan.weeks.find(w => w.weekNumber === hard.weekNumber);
+      const hard = allSessions(context.plan).find(s => ["TEMPO", "INTERVALS", "LONG"].includes(s.type))!;
+      const before = context.plan.weeks.find(w => w.weekNumber === hard.weekNumber)!;
       const result = await run(context, [
         [
           { name: "convert_to_cross_training", input: { session_id: hard.id } },
@@ -76,8 +92,8 @@ const cases = [
         [],
       ]);
       expect(result.status).toBe("proposed");
-      const after = result.plan.weeks.find(w => w.weekNumber === hard.weekNumber);
-      expect(after.sessions.find(s => s.id === hard.id).type).toBe("WALK");
+      const after = result.plan!.weeks.find(w => w.weekNumber === hard.weekNumber)!;
+      expect(after.sessions.find(s => s.id === hard.id)!.type).toBe("WALK");
       expect(weekVol(after)).toBeLessThanOrEqual(weekVol(before));
       for (const s of after.sessions) {
         const original = before.sessions.find(x => x.id === s.id);
@@ -96,7 +112,7 @@ const cases = [
         [],
       ]);
       expect(result.status).toBe("proposed");
-      const after = result.plan.weeks.find(w => w.weekNumber === week.weekNumber);
+      const after = result.plan!.weeks.find(w => w.weekNumber === week.weekNumber)!;
       expect(weekVol(after)).toBeLessThanOrEqual(weekVol(week));
       expect(after.sessions.every(s => s.type === "EASY" || s.type === "RACE")).toBe(true);
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
@@ -112,7 +128,7 @@ const cases = [
         [],
       ]);
       expect(result.status).toBe("proposed");
-      const after = result.plan.weeks.find(w => w.weekNumber === week.weekNumber);
+      const after = result.plan!.weeks.find(w => w.weekNumber === week.weekNumber)!;
       expect(weekVol(after)).toBeLessThan(weekVol(week));
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
     },
@@ -121,7 +137,7 @@ const cases = [
     name: "schedule clash moves one editable session to a requested date",
     async check() {
       const context = makeContext("I cannot run this Wednesday");
-      const session = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done);
+      const session = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done)!;
       const d = new Date(session.date + "T00:00:00");
       d.setDate(d.getDate() + 1);
       const newDate = ymd(d);
@@ -130,7 +146,7 @@ const cases = [
         [],
       ]);
       expect(result.status).toBe("proposed");
-      expect(allSessions(result.plan).find(s => s.id === session.id).date).toBe(newDate);
+      expect(allSessions(result.plan!).find(s => s.id === session.id)!.date).toBe(newDate);
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
     },
   },
@@ -151,18 +167,18 @@ const cases = [
     name: "single long run shortened without touching the rest of the week",
     async check() {
       const context = makeContext("this Sunday's long run is too much, just shorten it");
-      const long = allSessions(context.plan).find(s => s.type === "LONG" && !s.done);
-      const week = context.plan.weeks.find(w => w.weekNumber === long.weekNumber);
+      const long = allSessions(context.plan).find(s => s.type === "LONG" && !s.done)!;
+      const week = context.plan.weeks.find(w => w.weekNumber === long.weekNumber)!;
       const result = await run(context, [
         [{ name: "reduce_session_distance", input: { session_id: long.id, factor: 0.7 } }],
         [],
       ]);
       expect(result.status).toBe("proposed");
-      const after = result.plan.weeks.find(w => w.weekNumber === long.weekNumber);
-      expect(after.sessions.find(s => s.id === long.id).km).toBeLessThan(long.km);
+      const after = result.plan!.weeks.find(w => w.weekNumber === long.weekNumber)!;
+      expect(after.sessions.find(s => s.id === long.id)!.km).toBeLessThan(long.km);
       for (const s of after.sessions) {
         if (s.id === long.id) continue;
-        expect(s.km).toBe(week.sessions.find(x => x.id === s.id).km);
+        expect(s.km).toBe(week.sessions.find(x => x.id === s.id)!.km);
       }
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
     },
@@ -171,14 +187,14 @@ const cases = [
     name: "cancelled session is marked skipped, everything else untouched",
     async check() {
       const context = makeContext("drop Wednesday's run this week, I need the rest");
-      const target = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done);
+      const target = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done)!;
       const result = await run(context, [
         [{ name: "cancel_session", input: { session_id: target.id } }],
         [],
       ]);
       expect(result.status).toBe("proposed");
-      const after = allSessions(result.plan);
-      expect(after.find(s => s.id === target.id).skipped).toBe(true);
+      const after = allSessions(result.plan!);
+      expect(after.find(s => s.id === target.id)!.skipped).toBe(true);
       expect(after.filter(s => s.id !== target.id && s.skipped)).toHaveLength(0);
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
     },
@@ -187,7 +203,7 @@ const cases = [
     name: "added session lands on the requested free day and validates",
     async check() {
       const context = makeContext("I can train an extra day this week");
-      const anchor = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done);
+      const anchor = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done)!;
       const d = new Date(anchor.date + "T00:00:00");
       d.setDate(d.getDate() + 1);
       const date = ymd(d);
@@ -196,7 +212,7 @@ const cases = [
         [],
       ]);
       expect(result.status).toBe("proposed");
-      const added = allSessions(result.plan).filter(s => s.id.startsWith("coach-add-"));
+      const added = allSessions(result.plan!).filter(s => s.id.startsWith("coach-add-"));
       expect(added).toHaveLength(1);
       expect(added[0]).toMatchObject({ date, type: "EASY", km: 5 });
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
@@ -240,7 +256,7 @@ const cases = [
         [],
       ]);
       expect(result.status).toBe("proposed");
-      expect(weekVol(result.plan.weeks.find(w => w.weekNumber === week.weekNumber))).toBeLessThan(weekVol(week));
+      expect(weekVol(result.plan!.weeks.find(w => w.weekNumber === week.weekNumber)!)).toBeLessThan(weekVol(week));
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
     },
   },

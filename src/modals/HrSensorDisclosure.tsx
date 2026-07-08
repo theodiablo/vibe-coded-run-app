@@ -3,11 +3,13 @@ import { PRIVACY_URL } from "../constants";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
 import { BetaBadge } from "../components/BetaBadge";
 
+type HrSensorDisclosureProps = { onAccept: () => void; onCancel: () => void };
+
 // Prominent disclosure shown before the first Bluetooth permission prompt when
 // pairing a heart-rate sensor (native shell). Mirrors BgLocationDisclosure: the
 // user accepts in-app, then the OS dialog gates the actual BLUETOOTH_SCAN/CONNECT
 // grant. Gated once per install in SettingsModal via HR_BLE_DISCLOSED_KEY.
-export function HrSensorDisclosure({ onAccept, onCancel }) {
+export function HrSensorDisclosure({ onAccept, onCancel }: HrSensorDisclosureProps) {
   return (
     <ModalOverlay>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700">

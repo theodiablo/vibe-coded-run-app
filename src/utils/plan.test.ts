@@ -2,9 +2,22 @@ import { describe, it, expect } from "vitest";
 import { buildPlan } from "./plan";
 import { ymd } from "./format";
 
+type TestSession = {
+  id?: string;
+  date: string;
+  type: string;
+  km: number | string;
+  pace?: number | string | null;
+  done?: boolean;
+  desc?: string;
+  editionId?: string | null;
+};
+type TestWeek = { weekNumber: number; startDate: string; phase: string; sessions: TestSession[] };
+type TestPlan = { weeks: TestWeek[]; longRunPeakKm: number };
+
 // buildPlan is relative to "today"; build a race date a fixed span ahead so the
 // plan always has a healthy number of weeks regardless of when tests run.
-function raceDateInDays(days) {
+function raceDateInDays(days: number) {
   const d = new Date();
   d.setDate(d.getDate() + days);
   return ymd(d);
@@ -61,12 +74,12 @@ describe("buildPlan", () => {
 
   // ── Phase 1: distance-scaled long run ──────────────────────────────────────
   // Peak long run is driven by race distance, NOT the session minutes budget.
-  const longKms = plan => plan.weeks.slice(0, -1)
-    .flatMap(w => w.sessions).filter(s => s.type === "LONG").map(s => s.km);
-  const firstLong = plan => {
+  const longKms = (plan: TestPlan) => plan.weeks.slice(0, -1)
+    .flatMap(w => w.sessions).filter(s => s.type === "LONG").map(s => Number(s.km));
+  const firstLong = (plan: TestPlan) => {
     for (const w of plan.weeks.slice(0, -1)) {
       const l = w.sessions.find(s => s.type === "LONG");
-      if (l) return l.km;
+      if (l) return Number(l.km);
     }
     return null;
   };
@@ -111,7 +124,7 @@ describe("buildPlan", () => {
   });
 
   // ── Phase 2: secondary-race overlay ────────────────────────────────────────
-  const raceSessions = plan => plan.weeks.flatMap(w => w.sessions).filter(s => s.type === "RACE");
+  const raceSessions = (plan: TestPlan) => plan.weeks.flatMap(w => w.sessions).filter(s => s.type === "RACE");
 
   it("inserts a secondary race as a RACE session without adding weeks", () => {
     const base = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200);
@@ -120,22 +133,22 @@ describe("buildPlan", () => {
     expect(plan.weeks.length).toBe(base.weeks.length); // no extra weeks / renumber
     const sec = raceSessions(plan).find(s => s.editionId === "tuneup-10k");
     expect(sec).toBeTruthy();
-    expect(sec.date).toBe(raceDateInDays(60));
-    expect(sec.km).toBe(10);
-    expect(sec.id).toBe("race-tuneup-10k");
-    expect(sec.pace).toBeLessThan(plan.weeks.at(-1).sessions[0].pace); // 10k faster than 20k pace
+    expect(sec!.date).toBe(raceDateInDays(60));
+    expect(sec!.km).toBe(10);
+    expect(sec!.id).toBe("race-tuneup-10k");
+    expect(Number(sec!.pace)).toBeLessThan(Number(plan.weeks.at(-1)!.sessions[0]!.pace)); // 10k faster than 20k pace
   });
 
   it("stamps the main race session with mainEditionId", () => {
     const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {mainEditionId: "main-ed"});
-    const main = plan.weeks.at(-1).sessions[0];
+    const main = plan.weeks.at(-1)!.sessions[0]!;
     expect(main.id).toBe("race");
     expect(main.editionId).toBe("main-ed");
   });
 
   it("leaves the main race editionId null for a hand-entered target", () => {
     const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200);
-    expect(plan.weeks.at(-1).sessions[0].editionId).toBe(null);
+    expect(plan.weeks.at(-1)!.sessions[0]!.editionId).toBe(null);
   });
 
   it("does not insert a race too close to the main race (taper guard)", () => {
@@ -168,21 +181,21 @@ describe("buildPlan", () => {
     // collision (replace) branch always fires — not left to calendar luck.
     const base = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200);
     const victimWeek = base.weeks[5];
-    const victim = victimWeek.sessions[0];
+    const victim = victimWeek!.sessions[0]!;
     const races = [{editionId: "collide", date: victim.date, distanceKm: 10}];
     const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
-    const wk = plan.weeks.find(w => w.weekNumber === victimWeek.weekNumber);
+    const wk = plan.weeks.find(w => w.weekNumber === victimWeek!.weekNumber)!;
     const onDate = wk.sessions.filter(s => s.date === victim.date);
     expect(onDate).toHaveLength(1);                              // replaced, not duplicated
     expect(onDate[0].type).toBe("RACE");                         // the race took the slot
-    expect(wk.sessions.length).toBe(victimWeek.sessions.length); // same count → replaced
+    expect(wk.sessions.length).toBe(victimWeek!.sessions.length); // same count → replaced
   });
 
   it("eases the week around a substantial secondary race (mini-taper)", () => {
     const races = [{editionId: "half-tuneup", date: raceDateInDays(60), distanceKm: 10}]; // 10 of 20 km
     const plan = buildPlan(raceDateInDays(140), 6340, SESSIONS, 20, 200, {races});
     const wk = plan.weeks.find(w => w.sessions.some(s => s.editionId === "half-tuneup"));
-    const nonRace = wk.sessions.filter(s => s.type !== "RACE");
+    const nonRace = wk!.sessions.filter(s => s.type !== "RACE");
     expect(nonRace.every(s => s.type === "EASY")).toBe(true);
   });
 
@@ -190,7 +203,7 @@ describe("buildPlan", () => {
     const races = [{editionId: "parkrun", date: raceDateInDays(60), distanceKm: 5}]; // 5 of 42 km
     const plan = buildPlan(raceDateInDays(160), 14400, SESSIONS, 42.2, 0, {races});
     const wk = plan.weeks.find(w => w.sessions.some(s => s.editionId === "parkrun"));
-    const nonRace = wk.sessions.filter(s => s.type !== "RACE");
+    const nonRace = wk!.sessions.filter(s => s.type !== "RACE");
     // No mini-taper: the week's other session keeps its normal prescription.
     expect(nonRace.some(s => s.desc !== "Easy run — keep it light around your race")).toBe(true);
   });

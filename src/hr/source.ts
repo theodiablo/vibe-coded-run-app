@@ -1,13 +1,14 @@
 import { isNative } from "../native";
 import { bleSource } from "./ble";
 import { healthConnectSource } from "./healthconnect";
+import type { HrMethod } from "../types";
 
 // Resolve the heart-rate source for a chosen method, or null for "off" / web /
 // unknown. Mirrors geoSource (src/geo/source.ts): HR capture is native-only, so
 // the web build always gets null and behaves exactly as before. Callers branch on
 // the returned source's `live` flag — true sources stream during the run
 // (useRunTracker), false sources are fetched post-run (LiveRunTracker on save).
-export function getHrSource(method) {
+export function getHrSource(method: HrMethod | string | null | undefined) {
   if (!isNative) return null;
   if (method === "bluetooth") return bleSource;
   if (method === "healthconnect") return healthConnectSource;

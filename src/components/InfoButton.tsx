@@ -1,12 +1,16 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Info } from "lucide-react";
+
+type InfoButtonProps = { title: string; label?: string; children: ReactNode };
+type InfoSectionProps = { title: string; accent?: string; children: ReactNode };
 
 // A small "ⓘ info" label that opens an explanatory modal. The modal chrome
 // (overlay, header, scroll, close) lives here; callers pass a title and the
 // explanation as children, so the same affordance reads consistently across
 // the Plan and Stats views. A single centred card scrolls internally — no
 // full-screen takeover, no double scrollbar.
-export function InfoButton({title, label = "info", children}) {
+export function InfoButton({title, label = "info", children}: InfoButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -34,7 +38,7 @@ export function InfoButton({title, label = "info", children}) {
 }
 
 // Reusable section block inside an info panel: a coloured heading + body.
-export function InfoSection({title, accent = "text-orange-400", children}) {
+export function InfoSection({title, accent = "text-orange-400", children}: InfoSectionProps) {
   return (
     <div className="bg-slate-900/50 rounded-2xl p-4 space-y-2">
       <p className={"text-sm font-semibold " + accent}>{title}</p>

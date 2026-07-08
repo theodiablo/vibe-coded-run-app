@@ -18,9 +18,22 @@ const HOST = import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
 // `vite build` — so this is an explicit var.
 const ENV = import.meta.env.VITE_APP_ENV || "development";
 
-let ph = null; // resolved posthog instance, once loaded + init'd
-let loading = null; // in-flight dynamic import; null again if it fails (retryable)
-const queue = []; // (posthog) => void calls deferred until the SDK is ready
+type TelemetryProps = Record<string, unknown>;
+type PostHogLike = {
+  init: (key: string, options: Record<string, unknown>) => void;
+  register: (props: TelemetryProps) => void;
+  opt_in_capturing: (options?: Record<string, unknown>) => void;
+  opt_out_capturing: () => void;
+  has_opted_out_capturing: () => boolean;
+  identify: (id: string) => void;
+  reset: () => void;
+  capture: (event: string, props?: TelemetryProps) => void;
+  captureException: (error: Error, context?: TelemetryProps) => void;
+};
+
+let ph: PostHogLike | null = null; // resolved posthog instance, once loaded + init'd
+let loading: Promise<void> | null = null; // in-flight dynamic import; null again if it fails (retryable)
+const queue: ((posthog: PostHogLike) => void)[] = []; // calls deferred until the SDK is ready
 
 function ensureLoaded() {
   if (ph || loading) return;
@@ -50,16 +63,18 @@ function ensureLoaded() {
       // Super properties — merged into every event, including $exception, so
       // crashes carry the environment/platform too.
       posthog.register({ environment: ENV, native: isNative });
-      ph = posthog;
-      queue.forEach((fn) => fn(ph));
+      const loaded = posthog as PostHogLike;
+      ph = loaded;
+      queue.forEach((fn) => fn(loaded));
       queue.length = 0;
     })
     .catch(() => { loading = null; }); // swallow load failures; never crash the app
 }
 
 // Run `fn` against the posthog instance now, or queue it until the SDK loads.
-function withPH(fn) {
-  if (ph) fn(ph);
+function withPH(fn: (posthog: PostHogLike) => void) {
+  const current = ph;
+  if (current) fn(current);
   else { ensureLoaded(); queue.push(fn); }
 }
 
@@ -76,7 +91,7 @@ export const posthogProvider = {
     if (ph) ph.opt_out_capturing();
   },
 
-  identify(id) {
+  identify(id: string) {
     withPH((p) => p.identify(id));
   },
 
@@ -84,7 +99,7 @@ export const posthogProvider = {
     withPH((p) => p.reset());
   },
 
-  track(event, props) {
+  track(event: string, props?: TelemetryProps) {
     // `environment` and `native` ride along as super properties (see register).
     withPH((p) => p.capture(event, props));
   },
@@ -94,7 +109,7 @@ export const posthogProvider = {
   // re-opt-out synchronously (that can drop the still-queued report). It's safe:
   // the app is on the crash screen with no other events firing, and the next
   // reload re-reads the persisted opt-out and starts paused again.
-  captureError(error, context) {
+  captureError(error: Error, context?: TelemetryProps) {
     withPH((p) => {
       if (p.has_opted_out_capturing()) {
         p.opt_in_capturing({ captureEventName: false });

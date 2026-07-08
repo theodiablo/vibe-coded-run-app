@@ -1,11 +1,22 @@
 import { useState } from "react";
+import type { Plan, RouteBackup, Run, SettingsState, UserContextState } from "../types";
 
-export function RestoreModal({onRestore, onClose}) {
+type BackupPayload = {
+  runs?: Run[];
+  plan?: Plan | null;
+  settings?: Partial<SettingsState>;
+  routes?: RouteBackup[];
+  userContext?: UserContextState;
+};
+
+type RestoreModalProps = { onRestore: (payload: BackupPayload) => void; onClose: () => void };
+
+export function RestoreModal({onRestore, onClose}: RestoreModalProps) {
   const [text, setText] = useState("");
   const [err,  setErr]  = useState("");
   const attempt = () => {
     try {
-      const d = JSON.parse(text.trim());
+      const d = JSON.parse(text.trim()) as BackupPayload;
       if (!d.runs && !d.plan && !d.userContext) { setErr("Doesn't look like a valid backup."); return; }
       onRestore(d); onClose();
     } catch { setErr("Invalid JSON — make sure you copied the entire backup."); }

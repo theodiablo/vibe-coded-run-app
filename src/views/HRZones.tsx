@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { INPUT_CLS } from "../constants";
 import { HRZoneBar } from "../components/HRZoneBar";
+import type { SettingsState } from "../types";
+
+type HRZonesProps = {
+  settings: SettingsState;
+  saveSettings: (settings: SettingsState) => void;
+};
 
 // Editable heart-rate profile, nested inside the Settings → Profile card (no
 // outer card of its own). Auto-saves on blur; the full zone breakdown lives in
 // Progress → Stats (HRZonesCard).
-export function HRZones({settings, saveSettings}) {
+export function HRZones({settings, saveSettings}: HRZonesProps) {
   const [age,    setAge]    = useState(String(settings.age || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));

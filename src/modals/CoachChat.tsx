@@ -8,6 +8,7 @@ import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
 import { track } from "../telemetry";
 import { PRIVACY_URL, DISCLAIMER_URL } from "../constants";
+import type { Plan } from "../types";
 
 // The model replies in markdown (headers, bold, tables); rendered via
 // react-markdown rather than manually injecting raw HTML through a sanitizer
@@ -71,10 +72,18 @@ type CoachResult = {
   status?: string;
   trajectoryClosed?: boolean;
   changed?: boolean;
-  proposedPlan?: unknown;
+  proposedPlan?: Plan;
 };
 
-export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose }) {
+type CoachChatProps = {
+  plan: Plan;
+  onApplyPlan: (plan: Plan) => void;
+  appendUserContext: (text: string) => boolean;
+  showToast: (msg: string, type?: string) => void;
+  onClose: () => void;
+};
+
+export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose }: CoachChatProps) {
   // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, trajectoryId?, roundIndex? }
   // trajectoryId/roundIndex are stamped on every real coach answer (the ones
   // logged server-side to agent_rounds) so it can be flagged as wrong; the
@@ -127,13 +136,14 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   const applyCoachResult = (res: CoachResult) => {
     track("coach_proposal", { status: res.status, round: res.roundIndex });
     if (res.status === "no_valid_adjustment") {
-      setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId);
+      setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId ?? null);
       setMsgs(m => [...m, coachMsg(res, "I couldn't find an adjustment that keeps your plan within the app's training rules — nothing was changed.")]);
     } else if (!res.changed) {
       setTrajectoryId(null);
       setMsgs(m => [...m, coachMsg(res, "Nothing in the plan needs to change for that.")]);
     } else {
-      setTrajectoryId(res.trajectoryId);
+      setTrajectoryId(res.trajectoryId ?? null);
+      if (!res.proposedPlan) throw new Error("Coach response did not include a proposed plan.");
       const diff = diffPlans(plan, res.proposedPlan);
       setMsgs(m => [...m, { ...coachMsg(res, "Here's the adjustment I recommend."), proposal: { diff } }]);
     }
@@ -165,6 +175,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     try {
       if (!trajectoryId) throw new Error("No coach proposal is ready to apply.");
       const { plan: accepted, baseline: serverBaseline } = await coachConfirm(trajectoryId);
+      if (!accepted) throw new Error("Coach confirmation did not include a plan.");
       // Clear before the client check: the server already accepted the trajectory,
       // so the Apply button must not survive a client-side validation failure
       // (which would let a retry call coachConfirm on an already-accepted trajectory).

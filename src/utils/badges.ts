@@ -10,22 +10,33 @@
 // React-free and unit-testable.
 
 import { ymd } from "./format";
+import type { Participation, Run } from "../types";
 
-const clamp01 = x => Math.max(0, Math.min(1, x));
+export type Badge = {
+  id: string;
+  label: string;
+  Icon: "Footprints" | "Medal" | "Trophy" | "Gauge" | "CalendarCheck" | "CalendarHeart" | "Star" | "Flag" | "MapPin" | "Mountain";
+  unlocked: boolean;
+  progress: number;
+  desc: string;
+  hint: string | null;
+};
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
 // Monday (local) of a run's week, as YYYY-MM-DD — for counting active weeks.
-const weekKey = dateStr => {
+const weekKey = (dateStr: string) => {
   const d = new Date(dateStr + "T00:00:00");
   const mon = new Date(d);
   mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return ymd(mon);
 };
 
-const km1 = n => (n % 1 === 0 ? n : Math.round(n * 10) / 10);
+const km1 = (n: number) => (n % 1 === 0 ? n : Math.round(n * 10) / 10);
 
 // A milestone badge: unlocked once `value >= threshold`. `unit`/`noun` shape the
 // remaining-amount hint.
-function milestone(id, label, Icon, value, threshold, unit, noun) {
+function milestone(id: string, label: string, Icon: Badge["Icon"], value: number, threshold: number, unit: string, noun: string): Badge {
   const unlocked = value >= threshold;
   const remaining = Math.max(0, threshold - value);
   return {
@@ -36,7 +47,7 @@ function milestone(id, label, Icon, value, threshold, unit, noun) {
   };
 }
 
-export function computeBadges(runs = [], participations = []) {
+export function computeBadges(runs: Run[] = [], participations: Participation[] = []): Badge[] {
   const maxKm = runs.reduce((m, r) => Math.max(m, r.km || 0), 0);
   const totalKm = runs.reduce((s, r) => s + (r.km || 0), 0);
   const totalElev = runs.reduce((s, r) => s + (r.elevation || 0), 0);
@@ -79,7 +90,7 @@ export function computeBadges(runs = [], participations = []) {
 // The locked badge closest to completion (for the Dashboard teaser). Prefers
 // ones with real progress so we don't tease a 0% far-off badge. Returns null
 // when everything's unlocked.
-export function nextBadge(badges = []) {
+export function nextBadge(badges: Badge[] = []) {
   const locked = badges.filter(b => !b.unlocked);
   if (!locked.length) return null;
   return locked.slice().sort((a, b) => b.progress - a.progress)[0];
@@ -87,6 +98,6 @@ export function nextBadge(badges = []) {
 
 // Ids of every currently-unlocked badge — used to seed `seenBadges` silently on
 // first run and to diff for new-unlock toasts thereafter.
-export function unlockedIds(badges = []) {
+export function unlockedIds(badges: Badge[] = []) {
   return badges.filter(b => b.unlocked).map(b => b.id);
 }

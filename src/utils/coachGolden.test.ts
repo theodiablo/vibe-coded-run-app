@@ -6,16 +6,40 @@
 // propose/confirm audit log (agent_rounds) grows this dataset in production.
 
 import { describe, it, expect } from "vitest";
+// @ts-expect-error Shared edge-function ESM has no TypeScript declarations yet.
 import { buildMessages, generateProposal, MAX_VALIDATOR_RETRIES, MAX_MODEL_CALLS, SYSTEM_PROMPT } from "../../supabase/functions/_shared/coach/engine.mjs";
+// @ts-expect-error Shared edge-function ESM has no TypeScript declarations yet.
 import { createMockModel } from "../../supabase/functions/_shared/coach/mock.mjs";
 import { validatePlan } from "./coachValidation";
 import { buildPlan } from "./plan";
 import { ymd } from "./format";
 
-const weeksOut = (n) => { const d = new Date(); d.setDate(d.getDate() + n * 7); return ymd(d); };
+type TestSession = {
+  id: string;
+  date: string;
+  type: string;
+  km: number;
+  done?: boolean;
+};
+type TestWeek = { weekNumber: number; startDate: string; sessions: TestSession[] };
+type TestPlan = { raceDate: string; targetPace: number; weeks: TestWeek[] };
+type ModelMessage = { role: string; content: string };
+type ProposalResult = {
+  status: string;
+  changed: boolean;
+  plan?: TestPlan;
+  rationale: string;
+  toolCalls: { name: string }[];
+  memorySuggestions: { text: string }[];
+  usage: { input_tokens: number };
+};
 
-function makeContext(report) {
-  const plan = buildPlan(weeksOut(16), 6600, [{ dayOffset: 2, minutes: 45 }, { dayOffset: 6, minutes: 90 }], 21.1, 0, {});
+const generate = generateProposal as (input: Record<string, unknown>) => Promise<ProposalResult>;
+
+const weeksOut = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n * 7); return ymd(d); };
+
+function makeContext(report: string) {
+  const plan = buildPlan(weeksOut(16), 6600, [{ dayOffset: 2, minutes: 45 }, { dayOffset: 6, minutes: 90 }], 21.1, 0, {}) as TestPlan;
   return {
     plan,
     report,
@@ -26,17 +50,17 @@ function makeContext(report) {
   };
 }
 
-const run = (report) => {
+const run = (report: string) => {
   const context = makeContext(report);
-  return generateProposal({
+  return generate({
     baseline: context.plan, context, callModel: createMockModel(context),
   }).then(result => ({ context, result }));
 };
 
-const hardKm = (plan) => plan.weeks.flatMap(w => w.sessions)
+const hardKm = (plan: TestPlan) => plan.weeks.flatMap(w => w.sessions)
   .filter(s => ["TEMPO", "INTERVALS", "LONG"].includes(s.type) && !s.done)
   .reduce((t, s) => t + s.km, 0);
-const weekTotal = (plan, n) => plan.weeks.find(w => w.weekNumber === n)
+const weekTotal = (plan: TestPlan, n: number) => plan.weeks.find(w => w.weekNumber === n)
   ?.sessions.reduce((t, s) => t + (s.type === "RACE" ? 0 : s.km), 0) ?? 0;
 
 describe("golden cases (MOCK_LLM)", () => {
@@ -44,8 +68,8 @@ describe("golden cases (MOCK_LLM)", () => {
     const { context, result } = await run("my knee hurts after yesterday's run");
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(true);
-    expect(hardKm(result.plan)).toBeLessThan(hardKm(context.plan));
-    const walks = result.plan.weeks.flatMap(w => w.sessions).filter(s => s.type === "WALK");
+    expect(hardKm(result.plan!)).toBeLessThan(hardKm(context.plan));
+    const walks = result.plan!.weeks.flatMap(w => w.sessions).filter(s => s.type === "WALK");
     expect(walks.length).toBeGreaterThan(0);
     expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
     expect(result.usage.input_tokens).toBeGreaterThan(0); // cost is recorded
@@ -54,8 +78,8 @@ describe("golden cases (MOCK_LLM)", () => {
   it("missed week → resume gently, never 'make up' volume", async () => {
     const { context, result } = await run("I missed the whole week, work exploded");
     expect(result.status).toBe("proposed");
-    for (const w of result.plan.weeks) {
-      expect(weekTotal(result.plan, w.weekNumber))
+    for (const w of result.plan!.weeks) {
+      expect(weekTotal(result.plan!, w.weekNumber))
         .toBeLessThanOrEqual(weekTotal(context.plan, w.weekNumber) + 0.01);
     }
     expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
@@ -65,9 +89,9 @@ describe("golden cases (MOCK_LLM)", () => {
     const { context, result } = await run("I have a free day Thursday — could you add an extra easy run?");
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(true);
-    const added = result.plan.weeks.flatMap(w => w.sessions).filter(s => s.id.startsWith("coach-add-"));
+    const added = result.plan!.weeks.flatMap(w => w.sessions).filter(s => s.id.startsWith("coach-add-"));
     expect(added).toHaveLength(1);
-    expect(added[0].type).toBe("EASY");
+    expect(added[0]!.type).toBe("EASY");
     expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
   });
 
@@ -92,7 +116,7 @@ describe("golden cases (MOCK_LLM)", () => {
     // have its legitimate work thrown away under the "no adjustment" fate —
     // only a genuinely invalid working plan should end up there.
     const context = makeContext("please double-check this for me");
-    const target = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type !== "RACE" && !s.done);
+    const target = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type !== "RACE" && !s.done)!;
     let calls = 0;
     const callModel = async () => {
       calls++;
@@ -102,21 +126,21 @@ describe("golden cases (MOCK_LLM)", () => {
         usage: { input_tokens: 5, output_tokens: 5 },
       };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(calls).toBe(MAX_MODEL_CALLS);
     expect(result.status).toBe("proposed");
-    expect(result.plan.weeks.flatMap(w => w.sessions).find(s => s.id === target.id).type).toBe("WALK");
+    expect(result.plan!.weeks.flatMap(w => w.sessions).find(s => s.id === target.id)!.type).toBe("WALK");
     expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
   });
 
   it("critique round: history + feedback reach the model in order", async () => {
     const context = makeContext("my knee hurts");
-    const seen = [];
-    const callModel = async (messages) => {
+    const seen: string[] = [];
+    const callModel = async (messages: ModelMessage[]) => {
       seen.push(messages.map(m => m.role).join(","));
       return { content: [{ type: "text", text: "Understood — keeping it as is." }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } };
     };
-    const result = await generateProposal({
+    const result = await generate({
       baseline: context.plan, context,
       history: [{ user_feedback: null, rationale: "Eased week 2.", tool_calls: [{ name: "reduce_week_volume", input: { week_number: 2, factor: 0.7 } }] }],
       message: "actually only reduce the long run, keep the tempo",
@@ -129,16 +153,16 @@ describe("golden cases (MOCK_LLM)", () => {
 
   it("critique round starts from the latest proposal, not the saved baseline", async () => {
     const context = makeContext("my knee hurts");
-    const target = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type !== "RACE" && !s.done);
+    const target = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type !== "RACE" && !s.done)!;
     const proposed = structuredClone(context.plan);
-    proposed.weeks.flatMap(w => w.sessions).find(s => s.id === target.id).type = "WALK";
+    proposed.weeks.flatMap(w => w.sessions).find(s => s.id === target.id)!.type = "WALK";
     const callModel = async () => ({
       content: [{ type: "text", text: "Keeping the earlier change." }],
       stop_reason: "end_turn",
       usage: { input_tokens: 10, output_tokens: 10 },
     });
 
-    const result = await generateProposal({
+    const result = await generate({
       baseline: context.plan,
       context: { ...context, plan: proposed },
       history: [{ user_feedback: null, rationale: "Converted one session to WALK.", tool_calls: [{ name: "convert_to_cross_training", input: { session_id: target.id } }] }],
@@ -148,7 +172,7 @@ describe("golden cases (MOCK_LLM)", () => {
 
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(true);
-    expect(result.plan.weeks.flatMap(w => w.sessions).find(s => s.id === target.id).type).toBe("WALK");
+    expect(result.plan!.weeks.flatMap(w => w.sessions).find(s => s.id === target.id)!.type).toBe("WALK");
   });
 
   it("buildMessages includes user-visible coach memory", () => {
@@ -180,7 +204,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "I'll keep that preference in mind if you save it." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(false);
     expect(result.toolCalls).toHaveLength(0);
@@ -198,7 +222,7 @@ describe("golden cases (MOCK_LLM)", () => {
         usage: { input_tokens: 5, output_tokens: 5 },
       };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(calls).toBe(MAX_MODEL_CALLS);
     expect(result.status).toBe("no_valid_adjustment");
     expect(result.plan).toBeUndefined();
@@ -216,7 +240,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "That is already saved." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(result.status).toBe("proposed");
     expect(result.memorySuggestions).toEqual([]);
   });
@@ -233,7 +257,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "I won't add training while your knee hurts." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(false);
     expect(result.toolCalls).toEqual([]);
@@ -251,7 +275,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "A missed week is gone; resume gently instead." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(false);
     expect(result.toolCalls).toEqual([]);
@@ -259,7 +283,7 @@ describe("golden cases (MOCK_LLM)", () => {
 
   it("context guard rejects harder swaps during pain", async () => {
     const context = makeContext("my calf is sore but I want to push harder");
-    const easy = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type === "EASY" && !s.done);
+    const easy = context.plan.weeks.flatMap(w => w.sessions).find(s => s.type === "EASY" && !s.done)!;
     let calls = 0;
     const callModel = async () => {
       calls++;
@@ -270,7 +294,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "No intensity while your calf is sore." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(false);
     expect(result.toolCalls).toEqual([]);
@@ -288,7 +312,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "Added a modest easy run now that the pain has resolved." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({
+    const result = await generate({
       baseline: context.plan,
       context,
       history: [{ user_feedback: null, rationale: "Reduced load while your knee hurt.", tool_calls: [] }],
@@ -315,7 +339,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "Before adding load, is the Achilles soreness gone?" }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(false);
     expect(result.toolCalls).toEqual([]);
@@ -336,7 +360,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "Added a modest easy run." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({
+    const result = await generate({
       baseline: context.plan,
       context,
       message: "The Achilles soreness is gone and I feel normal now; I have a free day.",
@@ -359,7 +383,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "I won't add training until the pain is actually gone." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({
+    const result = await generate({
       baseline: context.plan,
       context,
       history: [{ user_feedback: null, rationale: "Reduced load while your knee hurt.", tool_calls: [] }],
@@ -383,7 +407,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "Wait until you feel back to normal before adding load." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({
+    const result = await generate({
       baseline: context.plan,
       context,
       message: "I'm not feeling normal yet, but I have a free day.",
@@ -406,7 +430,7 @@ describe("golden cases (MOCK_LLM)", () => {
       };
       return { content: [{ type: "text", text: "Added a modest easy run." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } };
     };
-    const result = await generateProposal({ baseline: context.plan, context, callModel });
+    const result = await generate({ baseline: context.plan, context, callModel });
     expect(result.status).toBe("proposed");
     expect(result.changed).toBe(true);
     expect(result.toolCalls.map(t => t.name)).toEqual(["add_session"]);

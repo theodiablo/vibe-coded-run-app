@@ -5,11 +5,26 @@ import { HRZones } from "../views/HRZones";
 import { HrSensor } from "../views/HrSensor";
 import { isNative } from "../native";
 import { getConsent, setConsent } from "../telemetry";
+import type { SettingsState, UserContextState } from "../types";
+
+type SettingsModalProps = {
+  settings: SettingsState;
+  saveSettings: (settings: SettingsState) => void;
+  userContext: UserContextState;
+  saveUserContext: (context: UserContextState) => void;
+  onBackup: () => void;
+  onRestore: () => void;
+  onSignOut?: () => void;
+  onDeleteAccount?: () => void;
+  onOpenCoach?: () => void;
+  onClose: () => void;
+  showToast?: (msg: string, type?: string) => void;
+};
 
 // Full-screen settings: editable profile name, heart-rate zones, and the
 // less-frequently-used data actions (Backup / Restore) tucked away here so
 // they don't clutter the header.
-export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast}) {
+export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast}: SettingsModalProps) {
   const [name, setName] = useState(settings.name || "");
   const sourceMemory = userContext?.notes || "";
   const [memorySource, setMemorySource] = useState(sourceMemory);

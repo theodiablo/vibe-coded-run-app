@@ -1,8 +1,15 @@
 import { Heart } from "lucide-react";
 import { sessionHR } from "../utils/hr";
+import type { RunType, SettingsState } from "../types";
+
+type HRTargetProps = {
+  type: RunType | string;
+  settings: SettingsState;
+  openSettings: () => void;
+};
 
 // Per-session heart-rate target shown on the dashboard and plan rows.
-export function HRTarget({type, settings, openSettings}) {
+export function HRTarget({type, settings, openSettings}: HRTargetProps) {
   if (!settings.maxHR) {
     return (
       <button type="button" onClick={openSettings}

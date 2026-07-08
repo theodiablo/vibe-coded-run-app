@@ -5,8 +5,8 @@
 
 // Compare dotted numeric versions ("1.2.0"). Returns -1 / 0 / 1. Any pre-release
 // suffix ("-beta") is ignored, and missing segments count as 0 (so "1.2" === "1.2.0").
-export function compareVersions(a, b) {
-  const parse = v => String(v).split("-")[0].split(".").map(n => parseInt(n, 10) || 0);
+export function compareVersions(a: string | number, b: string | number) {
+  const parse = (v: string | number) => String(v).split("-")[0].split(".").map((n) => parseInt(n, 10) || 0);
   const pa = parse(a), pb = parse(b);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const d = (pa[i] || 0) - (pb[i] || 0);
@@ -19,9 +19,11 @@ export function compareVersions(a, b) {
 //   "must-update"      — below the supported floor (e.g. a breaking backend change)
 //   "update-available" — usable but a newer version exists
 //   "ok"               — current, unknown (web), or config unavailable → never block
-export function versionStatus(current, config) {
+type VersionConfig = { min_supported_version?: string | number; latest_version?: string | number } | null | undefined;
+
+export function versionStatus(current: string | number | null | undefined, config: VersionConfig) {
   if (!current || !config) return "ok";
-  if (compareVersions(current, config.min_supported_version) < 0) return "must-update";
-  if (compareVersions(current, config.latest_version) < 0) return "update-available";
+  if (config.min_supported_version && compareVersions(current, config.min_supported_version) < 0) return "must-update";
+  if (config.latest_version && compareVersions(current, config.latest_version) < 0) return "update-available";
   return "ok";
 }

@@ -12,9 +12,9 @@ describe("flushPendingHr", () => {
     const patch = vi.fn();
 
     await flushPendingHr([
-      { id: "manual", hr: 140, hrPending: { start: now - 1000, end: now - 500, source: "healthconnect" } },
-      { id: "invalid", hrPending: { start: now, end: now - 1, source: "healthconnect" } },
-      { id: "stale", hrPending: { start: now - HR_PENDING_MAX_AGE_MS - 2000, end: now - HR_PENDING_MAX_AGE_MS - 1000, source: "healthconnect" } },
+      { id: "manual", hr: 140, hrPending: { start: String(now - 1000), end: String(now - 500), source: "healthconnect" } },
+      { id: "invalid", hrPending: { start: String(now), end: String(now - 1), source: "healthconnect" } },
+      { id: "stale", hrPending: { start: String(now - HR_PENDING_MAX_AGE_MS - 2000), end: String(now - HR_PENDING_MAX_AGE_MS - 1000), source: "healthconnect" } },
     ], patch, { enabled: false, now });
 
     expect(patch).toHaveBeenCalledTimes(3);
@@ -28,7 +28,7 @@ describe("flushPendingHr", () => {
     const patch = vi.fn();
 
     await flushPendingHr([
-      { id: "fresh", hrPending: { start: now - 2000, end: now - 1000, source: "healthconnect" } },
+      { id: "fresh", hrPending: { start: String(now - 2000), end: String(now - 1000), source: "healthconnect" } },
     ], patch, { enabled: false, now });
 
     expect(patch).not.toHaveBeenCalled();
@@ -39,7 +39,7 @@ describe("flushPendingHr", () => {
     const patch = vi.fn();
 
     await flushPendingHr([
-      { id: "fresh", hrPending: { start: now - 2000, end: now - 1000, source: "healthconnect" } },
+      { id: "fresh", hrPending: { start: String(now - 2000), end: String(now - 1000), source: "healthconnect" } },
     ], patch, { enabled: true, allowNativeRead: false, now });
 
     expect(patch).not.toHaveBeenCalled();
@@ -50,7 +50,7 @@ describe("flushPendingHr", () => {
     const patch = vi.fn();
 
     await flushPendingHr([
-      { id: "fresh", hrPending: { start: now - 2000, end: now - 1000, source: "healthconnect" } },
+      { id: "fresh", hrPending: { start: String(now - 2000), end: String(now - 1000), source: "healthconnect" } },
     ], patch, { enabled: true, allowNativeRead: true, now });
 
     expect(hasHealthConnectAuthorization()).toBe(false);

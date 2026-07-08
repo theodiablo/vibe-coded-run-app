@@ -69,8 +69,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentWillUnmount() {
     if (!isNative) return;
-    window.removeEventListener("error", this.onWindowError);
-    window.removeEventListener("unhandledrejection", this.onUnhandledRejection);
+    if (this.onWindowError) window.removeEventListener("error", this.onWindowError);
+    if (this.onUnhandledRejection) window.removeEventListener("unhandledrejection", this.onUnhandledRejection);
   }
 
   traceText() {

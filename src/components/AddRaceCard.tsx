@@ -1,11 +1,18 @@
 import { Plus } from "lucide-react";
+import type { ReactNode } from "react";
+
+type AddRaceCardProps = {
+  onClick: () => void;
+  subtitle: string;
+  children?: ReactNode;
+};
 
 // Shared "Don't see your race?" affordance — a divider + the orange dashed
 // "Add it to the catalogue" card. Used by onboarding (where the contributed race
 // becomes the training target) and the Races → Browse segment (plain contribute).
 // `children` slots in whatever follows the card (onboarding: the secondary manual
 // entry; Browse: the unverified disclaimer).
-export function AddRaceCard({ onClick, subtitle, children }) {
+export function AddRaceCard({ onClick, subtitle, children }: AddRaceCardProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">

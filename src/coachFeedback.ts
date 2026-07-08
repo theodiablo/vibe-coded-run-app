@@ -2,10 +2,16 @@ import { supabase } from "./supabase";
 import { currentUserId } from "./db";
 import { notifyContribution } from "./notify";
 
+type CoachFeedbackInput = {
+  trajectoryId: string;
+  roundIndex: number;
+  correction: string;
+};
+
 // Flag a coach answer as wrong. Inserts WITHOUT a returning .select() —
 // coach_feedback has no client SELECT policy, so reading back the row would
 // 403 even though the write succeeds (mirrors reportRace in src/races.ts).
-export async function submitCoachFeedback({ trajectoryId, roundIndex, correction }) {
+export async function submitCoachFeedback({ trajectoryId, roundIndex, correction }: CoachFeedbackInput) {
   const user_id = currentUserId();
   if (!user_id) throw new Error("Not signed in");
   const id = crypto.randomUUID();

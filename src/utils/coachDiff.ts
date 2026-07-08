@@ -1,22 +1,23 @@
 // Pure plan-diff for the coach chat: what did the proposal change, per week?
 // Sessions are matched by id (stable across edits — the coach tools never
 // change ids). Returns [{ weekNumber, changes: [string] }] in week order.
+import type { Plan, PlanSession } from "../types";
 
-const short = (ymd) => {
+const short = (ymd: string) => {
   const d = new Date(ymd + "T12:00:00");
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 };
 
-export function diffPlans(oldPlan, newPlan) {
-  const before = {};
+export function diffPlans(oldPlan: Plan | null | undefined, newPlan: Plan | null | undefined) {
+  const before: Record<string, PlanSession> = {};
   (oldPlan?.weeks || []).forEach(w => w.sessions.forEach(s => { before[s.id] = s; }));
-  const out = [];
+  const out: { weekNumber: number; changes: string[] }[] = [];
   for (const w of newPlan?.weeks || []) {
-    const changes = [];
+    const changes: string[] = [];
     for (const s of w.sessions) {
       const b = before[s.id];
       if (!b) { changes.push(`new ${s.type} · ${s.km} km on ${short(s.date)}`); continue; }
-      const parts = [];
+      const parts: string[] = [];
       if (b.type !== s.type) parts.push(`${b.type} → ${s.type}`);
       if (b.date !== s.date) parts.push(`moved ${short(b.date)} → ${short(s.date)}`);
       if (b.km !== s.km) parts.push(`${b.km} → ${s.km} km`);

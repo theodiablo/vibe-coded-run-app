@@ -86,7 +86,7 @@ export const INPUT_CLS = "w-full bg-slate-700 border border-slate-600 rounded-xl
 export const LABEL_CLS = "block text-xs text-slate-400 mb-1.5";
 
 // Colored accent bar per run type, shared by the dashboard and history list.
-export const runBarColor = type => {
+export const runBarColor = (type: string) => {
   if (type === "LONG")      return "bg-sky-400";
   if (type === "TEMPO")     return "bg-yellow-400";
   if (type === "INTERVALS") return "bg-orange-400";

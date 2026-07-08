@@ -1,9 +1,15 @@
 import { DAYS } from "../constants";
 import { fmt } from "../utils/format";
+import type { PlanSessionInput } from "../utils/plan";
+
+type SessionConfiguratorProps = {
+  sessions: PlanSessionInput[];
+  onChange: (sessions: PlanSessionInput[]) => void;
+};
 
 // Pick training days and per-day durations; the longest becomes the long run.
-export function SessionConfigurator({sessions, onChange}) {
-  const toggle = dOff => {
+export function SessionConfigurator({sessions, onChange}: SessionConfiguratorProps) {
+  const toggle = (dOff: number) => {
     const has = sessions.find(s => s.dayOffset === dOff);
     if (has) {
       if (sessions.length <= 1) return;
@@ -12,7 +18,7 @@ export function SessionConfigurator({sessions, onChange}) {
       onChange(sessions.concat({dayOffset: dOff, minutes: 45}).sort((a, b) => a.dayOffset - b.dayOffset));
     }
   };
-  const setMins = (dOff, m) => onChange(sessions.map(s => s.dayOffset === dOff ? {...s, minutes: m} : s));
+  const setMins = (dOff: number, m: number) => onChange(sessions.map(s => s.dayOffset === dOff ? {...s, minutes: m} : s));
 
   return (
     <div className="space-y-3">

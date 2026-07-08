@@ -1,15 +1,28 @@
 import { Footprints, Medal, Trophy, Gauge, CalendarCheck, CalendarHeart,
   Star, Flag, MapPin, Mountain, Award } from "lucide-react";
+import type { ComponentType } from "react";
 
 // Lucide icons referenced by name from src/utils/badges.ts (kept React-free).
 const ICONS = { Footprints, Medal, Trophy, Gauge, CalendarCheck, CalendarHeart,
   Star, Flag, MapPin, Mountain };
 
+type BadgeIconName = keyof typeof ICONS;
+type BadgeData = {
+  Icon: string;
+  unlocked: boolean;
+  label: string;
+  desc: string;
+  progress: number;
+  hint?: string | null;
+};
+
+type BadgeProps = { badge: BadgeData };
+
 // One badge: unlocked = orange accent + icon; locked = greyed with a thin
 // progress bar + remaining-amount hint, so it reads as "almost there", not
 // "you failed".
-export function Badge({ badge }) {
-  const Icon = ICONS[badge.Icon] || Award;
+export function Badge({ badge }: BadgeProps) {
+  const Icon: ComponentType<{ size?: number; className?: string }> = ICONS[badge.Icon as BadgeIconName] || Award;
   const u = badge.unlocked;
   return (
     <div className={"rounded-xl p-3 border flex flex-col items-center text-center gap-1.5 " +

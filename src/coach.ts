@@ -6,6 +6,7 @@
 import { supabase } from "./supabase";
 import { flushNow } from "./db";
 import { FunctionsHttpError, FunctionsFetchError, FunctionsRelayError } from "@supabase/supabase-js";
+import type { Plan } from "./types";
 
 // Longer than normal Supabase calls because a cold coach-agent boot may need to
 // start Deno and import the Anthropic SDK before it can send response headers.
@@ -27,9 +28,24 @@ const COACH_INVOKE_TIMEOUT_MS = 60000;
 //     long / timed out (5xx). Split those two — one needs re-auth, the other a
 //     plain retry onto a now-warm isolate.
 //   * anything else — keep the original generic line.
-function transportMessage(error) {
+type CoachAction =
+  | { action: "ping" }
+  | { action: "propose"; message: string }
+  | { action: "critique"; trajectoryId: string; message: string }
+  | { action: "confirm"; trajectoryId: string };
+
+export type CoachResponse = {
+  error?: string;
+  plan?: Plan;
+  trajectoryId?: string;
+  roundIndex?: number;
+  text?: string;
+  [key: string]: unknown;
+};
+
+function transportMessage(error: unknown) {
   if (error instanceof FunctionsFetchError) {
-    const reason = error.context;
+    const reason = error.context as { name?: string } | undefined;
     if (reason?.name === "TimeoutError" || reason?.name === "AbortError") {
       return "The coach took too long to start up — try again in a moment.";
     }
@@ -46,7 +62,7 @@ function transportMessage(error) {
   return "The coach is unavailable right now — try again in a moment.";
 }
 
-async function invoke(body) {
+async function invoke(body: CoachAction): Promise<CoachResponse> {
   // confirm reads from agent_rounds (not app_state), so no flush needed —
   // and a flush failure must not block confirming an already-proposed plan.
   if (body.action !== "confirm") await flushNow();
@@ -76,6 +92,6 @@ export async function coachPing() {
   }
 }
 
-export const coachPropose = (message) => invoke({ action: "propose", message });
-export const coachCritique = (trajectoryId, message) => invoke({ action: "critique", trajectoryId, message });
-export const coachConfirm = (trajectoryId) => invoke({ action: "confirm", trajectoryId });
+export const coachPropose = (message: string) => invoke({ action: "propose", message });
+export const coachCritique = (trajectoryId: string, message: string) => invoke({ action: "critique", trajectoryId, message });
+export const coachConfirm = (trajectoryId: string) => invoke({ action: "confirm", trajectoryId });

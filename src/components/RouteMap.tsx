@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import L from "leaflet";
+import type { CSSProperties } from "react";
+import L, { type Circle, type Control, type LatLngExpression, type Map, type Marker, type Polyline } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MAP_ATTRIBUTION, MAP_KEY, MAP_TILE_URL } from "../constants";
 import { segments } from "../utils/geo";
@@ -10,20 +11,34 @@ import { segments } from "../utils/geo";
 //
 // `points` is the tracker tuple array ([lat,lng,t,alt], null = gap). `follow`
 // recenters on the latest fix while live.
-export function RouteMap({ points = [], follow = false, interactive = true, location = null, className = "", style }) {
-  const elRef = useRef(null);
-  const mapRef = useRef(null);
-  const linesRef = useRef([]);
-  const dotRef = useRef(null);
-  const locDotRef = useRef(null);     // preview position dot (before recording)
-  const locCircleRef = useRef(null);  // accuracy circle around the preview dot
+export type TrackPoint = [number, number, number, number | null] | LatLngExpression;
+type PreviewLocation = { lat: number; lng: number; acc?: number | null };
+type RouteMapProps = {
+  points?: (TrackPoint | null)[];
+  follow?: boolean;
+  interactive?: boolean;
+  location?: PreviewLocation | null;
+  className?: string;
+  style?: CSSProperties;
+};
+
+type ToggleKey = "dragging" | "scrollWheelZoom" | "doubleClickZoom" | "boxZoom" | "keyboard" | "touchZoom" | "tap";
+
+export function RouteMap({ points = [], follow = false, interactive = true, location = null, className = "", style }: RouteMapProps) {
+  const elRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<Map | null>(null);
+  const linesRef = useRef<Polyline[]>([]);
+  const dotRef = useRef<Marker | null>(null);
+  const locDotRef = useRef<Marker | null>(null);     // preview position dot (before recording)
+  const locCircleRef = useRef<Circle | null>(null);  // accuracy circle around the preview dot
   const locCenteredRef = useRef(false);
-  const zoomCtrlRef = useRef(null);
+  const zoomCtrlRef = useRef<Control | null>(null);
 
   // Create the map once. Recreating it whenever interactivity changes would snap
   // the view back to the world map (it happened on every Start) — so interactive
   // is toggled in a separate effect below instead.
   useEffect(() => {
+    if (!elRef.current) return;
     const map = L.map(elRef.current, {
       zoomControl: false,
       attributionControl: true,
@@ -47,7 +62,7 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    ["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"]
+    (["dragging", "scrollWheelZoom", "doubleClickZoom", "boxZoom", "keyboard", "touchZoom", "tap"] as ToggleKey[])
       .forEach(h => map[h] && map[h][interactive ? "enable" : "disable"]());
     if (interactive && !zoomCtrlRef.current) {
       zoomCtrlRef.current = L.control.zoom();
@@ -66,9 +81,9 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
     linesRef.current.forEach(l => l.remove());
     linesRef.current = [];
 
-    const segs = segments(points);
-    const all = [];
-    let prevEnd = null;
+    const segs = segments(points) as LatLngExpression[][];
+    const all: LatLngExpression[] = [];
+    let prevEnd: LatLngExpression | null = null;
     segs.forEach(seg => {
       if (!seg.length) return;
       // Bridge a gap (signal loss / suspended background) with a faded dashed line
@@ -118,7 +133,7 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
     const map = mapRef.current;
     if (!map) return;
     if (location && !points.length) {
-      const ll = [location.lat, location.lng];
+      const ll: LatLngExpression = [location.lat, location.lng];
       const icon = L.divIcon({
         className: "",
         html: '<div style="width:14px;height:14px;border-radius:9999px;background:#60a5fa;border:2px solid #fff;box-shadow:0 0 0 2px rgba(96,165,250,.4)"></div>',

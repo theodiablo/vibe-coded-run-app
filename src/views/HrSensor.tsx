@@ -7,24 +7,32 @@ import { getPairedDevice, setPairedDevice, forgetPairedDevice } from "../hr/devi
 import { HrSensorDisclosure } from "../modals/HrSensorDisclosure";
 import { HR_BLE_DISCLOSED_KEY } from "../constants";
 import { BetaBadge } from "../components/BetaBadge";
+import type { HrMethod, SettingsState } from "../types";
+
+type HrDevice = { id: string; name: string };
+type HrSensorProps = {
+  settings: SettingsState;
+  saveSettings: (settings: SettingsState) => void;
+  showToast?: (msg: string, type?: string) => void;
+};
 
 // Heart-rate sensor configuration, nested in the Settings → Profile card (native
 // only — HR capture doesn't exist on web). The *method* preference syncs in
 // settings.hrMethod; the chosen Bluetooth device is stored per-device (device.js).
 // Pairing follows the disclosure-then-OS-prompt pattern of background location.
-export function HrSensor({ settings, saveSettings, showToast }) {
+export function HrSensor({ settings, saveSettings, showToast }: HrSensorProps) {
   const persistedMethod = settings.hrMethod || "off";
-  const [setupMethod, setSetupMethod] = useState(null);
+  const [setupMethod, setSetupMethod] = useState<HrMethod | null>(null);
   const method = setupMethod || persistedMethod;
-  const [paired, setPaired] = useState(getPairedDevice());
+  const [paired, setPaired] = useState<HrDevice | null>(() => getPairedDevice());
   const [scanning, setScanning] = useState(false);
-  const [found, setFound] = useState([]);
+  const [found, setFound] = useState<HrDevice[]>([]);
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [hcBusy, setHcBusy] = useState(false);
-  const [hcConnected, setHcConnected] = useState(null); // null = unknown/checking
+  const [hcConnected, setHcConnected] = useState<boolean | null>(null); // null = unknown/checking
 
-  const setMethod = (m) => saveSettings({ ...settings, hrMethod: m });
-  const chooseMethod = (m) => {
+  const setMethod = (m: HrMethod) => saveSettings({ ...settings, hrMethod: m });
+  const chooseMethod = (m: HrMethod) => {
     if (m === "off") {
       setSetupMethod(null);
       setMethod("off");
@@ -56,7 +64,7 @@ export function HrSensor({ settings, saveSettings, showToast }) {
     setFound([]);
     setScanning(true);
     try {
-      await bleSource.scan((d) => setFound((prev) => prev.some((x) => x.id === d.id) ? prev : [...prev, d]));
+      await bleSource.scan((d: HrDevice) => setFound((prev) => prev.some((x) => x.id === d.id) ? prev : [...prev, d]));
     } catch {
       showToast?.("Couldn't scan for sensors — make sure Bluetooth is on.", "err");
     }
@@ -73,7 +81,7 @@ export function HrSensor({ settings, saveSettings, showToast }) {
     runScan();
   };
 
-  const choose = (d) => {
+  const choose = (d: HrDevice) => {
     setPairedDevice(d);
     setPaired(d);
     setFound([]);
@@ -133,7 +141,7 @@ export function HrSensor({ settings, saveSettings, showToast }) {
       {/* Method selector */}
       <div className="grid grid-cols-3 gap-2">
         {HR_METHODS.map((m) => (
-          <button key={m.id} type="button" onClick={() => chooseMethod(m.id)}
+          <button key={m.id} type="button" onClick={() => chooseMethod(m.id as HrMethod)}
             className={"py-2 rounded-xl text-xs font-semibold border transition-colors flex items-center justify-center gap-1.5 " +
               (method === m.id
                 ? "bg-orange-500 border-orange-500 text-white"

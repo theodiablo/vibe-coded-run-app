@@ -6,6 +6,8 @@ import { geoSource } from "../geo/source";
 import { getHrSource } from "../hr/source";
 import { getPairedDevice } from "../hr/device";
 import { isNative } from "../native";
+import type { BleHrSample, BleWatchHandle } from "../hr/ble";
+import type { StoredTrackPoint } from "../utils/geo";
 
 // Live GPS run tracker. All geolocation access is funnelled through this one hook
 // so a Phase-2 native shell can swap watchPosition for a background-location
@@ -42,8 +44,46 @@ const PERMISSION_DENIED_MSG = isNative
   ? "Location is needed to record your run. Make sure Location is turned on for this device and allow access (“Allow all the time”) for this app, then try again."
   : "Location permission denied. Enable it for this site in your browser settings, then try again.";
 
-const readBuffer = () => {
-  try { return JSON.parse(localStorage.getItem(LIVE_RUN_KEY)); }
+type TrackerState = "idle" | "tracking" | "paused" | "stopped";
+type TrackPointOrGap = StoredTrackPoint | null;
+type LocationPreview = { lat: number; lng: number; acc: number | null };
+type GeoPosition = {
+  coords: { latitude: number; longitude: number; altitude?: number | null; accuracy?: number | null };
+  timestamp?: number;
+};
+type GeoError = {
+  code: number;
+  message?: string;
+  PERMISSION_DENIED: number;
+  POSITION_UNAVAILABLE: number;
+  TIMEOUT: number;
+};
+type GeoWatchHandle = number | { id: string | null; removed: boolean; background: boolean };
+type TrackerGeoSource = {
+  isAvailable: () => boolean;
+  checkPermissions: () => Promise<boolean>;
+  requestPermissions: () => Promise<boolean>;
+  watchPosition: (onPos: (position: GeoPosition) => void, onErr?: (error: GeoError) => void, opts?: { background?: boolean }) => GeoWatchHandle;
+  clearWatch: (handle: GeoWatchHandle | null | undefined) => void;
+};
+type LiveRunBuffer = {
+  points?: TrackPointOrGap[];
+  hrSamples?: BleHrSample[];
+  accSec?: number;
+  startAt?: number | null;
+  startedAt?: number | null;
+  stoppedAt?: number | null;
+  state?: TrackerState;
+  savedAt?: number;
+};
+
+const trackerGeoSource = geoSource as TrackerGeoSource;
+
+const readBuffer = (): LiveRunBuffer | null => {
+  try {
+    const raw = localStorage.getItem(LIVE_RUN_KEY);
+    return raw ? JSON.parse(raw) as LiveRunBuffer : null;
+  }
   catch { return null; }
 };
 const clearBuffer = () => { try { localStorage.removeItem(LIVE_RUN_KEY); } catch { /* ignore */ } };
@@ -54,12 +94,12 @@ type UseRunTrackerOptions = { hrMethod?: string };
 // LIVE source (Bluetooth) streams here alongside GPS; a post-run source (Health
 // Connect) is handled at save time in LiveRunTracker, not here. Absent/web → no HR.
 export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
-  const [state, setState] = useState("idle"); // idle | tracking | paused | stopped
-  const [points, setPoints] = useState([]);
-  const [hrSamples, setHrSamples] = useState([]); // { bpm, t } from a live HR sensor
-  const [error, setError] = useState(null);
+  const [state, setState] = useState<TrackerState>("idle");
+  const [points, setPoints] = useState<TrackPointOrGap[]>([]);
+  const [hrSamples, setHrSamples] = useState<BleHrSample[]>([]); // { bpm, t } from a live HR sensor
+  const [error, setError] = useState<string | null>(null);
   const [movingSec, setMovingSec] = useState(0);
-  const [location, setLocation] = useState(null); // preview position shown before recording starts
+  const [location, setLocation] = useState<LocationPreview | null>(null); // preview position shown before recording starts
   // Whether location is usable. On the web the browser handles its own prompt, so
   // the idle preview can always run (true). On native it gates the preview so we
   // never auto-prompt out of context — it flips true once permission is granted
@@ -78,13 +118,13 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   const pointsRef = useRef(points);
   const hrSamplesRef = useRef(hrSamples); // mirror so the async HR callback sees latest
   const lastHrPersistRef = useRef(0); // epoch ms of the last HR-triggered persist (throttle)
-  const hrWatchRef = useRef(null);  // live HR source watch handle (null when not streaming)
-  const runStartRef = useRef(null); // wall-clock run start (whole run, incl. pauses)
-  const runEndRef = useRef(null);   // wall-clock run stop — the Health Connect fetch window
+  const hrWatchRef = useRef<BleWatchHandle | null>(null);  // live HR source watch handle (null when not streaming)
+  const runStartRef = useRef<number | null>(null); // wall-clock run start (whole run, incl. pauses)
+  const runEndRef = useRef<number | null>(null);   // wall-clock run stop — the Health Connect fetch window
   const accRef = useRef(0);        // completed moving seconds
-  const startRef = useRef(null);   // epoch ms the current active segment began
-  const watchRef = useRef(null);
-  const wakeRef = useRef(null);
+  const startRef = useRef<number | null>(null);   // epoch ms the current active segment began
+  const watchRef = useRef<GeoWatchHandle | null>(null);
+  const wakeRef = useRef<WakeLockSentinel | null>(null);
   const lastFixRef = useRef(0);    // epoch ms of the last usable fix (incl. ones
                                    // dropped as jitter) — for true gap detection
 
@@ -122,7 +162,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   }, []);
 
   // ── geolocation callback ─────────────────────────────────────────────────
-  const onPos = useCallback((pos) => {
+  const onPos = useCallback((pos: GeoPosition) => {
     if (stateRef.current !== "tracking") return; // ignore fixes while paused
     if (!accuracyOK(pos, ACC_MAX_M)) return;
     const { latitude, longitude, altitude, accuracy } = pos.coords;
@@ -133,7 +173,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     const sinceLastFix = lastFixRef.current ? t - lastFixRef.current : 0;
     lastFixRef.current = t;
     const pts = pointsRef.current;
-    let last = null;
+    let last: StoredTrackPoint | null = null;
     for (let i = pts.length - 1; i >= 0; i--) { if (pts[i]) { last = pts[i]; break; } }
     let next = pts;
     if (last) {
@@ -151,7 +191,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
       // can report null accuracy (the next fix with a known-good reading anchors).
       return;
     }
-    const np = [latitude, longitude, t, altitude == null ? null : Math.round(altitude)];
+    const np: StoredTrackPoint = [latitude, longitude, t, altitude == null ? null : Math.round(altitude)];
     pointsRef.current = [...next, np];
     setPoints(pointsRef.current);
     persist();
@@ -164,7 +204,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   // whole recovery buffer is throttled to MIN_HR_PERSIST_MS — a strap notifies
   // at sensor rate (~1/s), and GPS fixes already keep the buffer fresh every
   // ~2s via onPos's own persist() while a run is actually moving.
-  const onHrSample = useCallback((sample) => {
+  const onHrSample = useCallback((sample: BleHrSample) => {
     if (stateRef.current !== "tracking") return;
     hrSamplesRef.current = [...hrSamplesRef.current, sample];
     setHrSamples(hrSamplesRef.current);
@@ -191,7 +231,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     hrWatchRef.current = null;
   }, [hrMethod]);
 
-  const onErr = useCallback((err) => {
+  const onErr = useCallback((err: GeoError) => {
     if (err.code === err.PERMISSION_DENIED)
       setError(PERMISSION_DENIED_MSG);
     else if (err.code === err.POSITION_UNAVAILABLE)
@@ -202,18 +242,18 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   }, []);
 
   const startWatch = useCallback(() => {
-    if (!geoSource.isAvailable()) {
+    if (!trackerGeoSource.isAvailable()) {
       setError("This browser/device doesn't support GPS (geolocation). Geolocation also needs a secure (https) connection.");
       return false;
     }
     // background:true → the native source runs a foreground service so recording
     // continues with the screen off; on web the flag is ignored (no-op).
-    watchRef.current = geoSource.watchPosition(onPos, onErr, { background: true });
+    watchRef.current = trackerGeoSource.watchPosition(onPos, onErr, { background: true });
     return true;
   }, [onPos, onErr]);
 
   const stopWatch = useCallback(() => {
-    if (watchRef.current != null) geoSource.clearWatch(watchRef.current);
+    if (watchRef.current != null) trackerGeoSource.clearWatch(watchRef.current);
     watchRef.current = null;
   }, []);
 
@@ -222,7 +262,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   // Returns whether location is usable; sets an actionable error if denied.
   const requestPermissions = useCallback(async () => {
     try {
-      const granted = await geoSource.requestPermissions();
+      const granted = await trackerGeoSource.requestPermissions();
       if (!granted) {
         setError(PERMISSION_DENIED_MSG);
         return false;
@@ -383,7 +423,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   useEffect(() => {
     if (!isNative) return;
     let cancelled = false;
-    geoSource.checkPermissions()
+    trackerGeoSource.checkPermissions()
       .then(ok => { if (!cancelled && ok) setPermGranted(true); })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -396,7 +436,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   // Silent on error — recording's own watch surfaces permission issues.
   useEffect(() => {
     if (state !== "idle") return;
-    if (!geoSource.isAvailable()) return;
+    if (!trackerGeoSource.isAvailable()) return;
     // On native, only after permission is granted — never auto-prompt out of
     // context before the disclosure. Once granted (returning user, or via the
     // consent accept), the preview shows the current position + accuracy just like
@@ -404,7 +444,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     if (!permGranted) return;
     // Foreground-only preview (background:false) — no foreground service /
     // notification while the user is still on the start screen.
-    const handle = geoSource.watchPosition(
+    const handle = trackerGeoSource.watchPosition(
       pos => setLocation({
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
@@ -413,7 +453,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
       () => {},
       { background: false },
     );
-    return () => geoSource.clearWatch(handle);
+    return () => trackerGeoSource.clearWatch(handle);
   }, [state, permGranted]);
 
   // ── derived stats ──────────────────────────────────────────────────────────
@@ -430,7 +470,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     if (points.length >= 2) {
       const lastT = points[points.length - 1]?.[2];
       if (lastT) {
-        const win = points.filter(p => p && p[2] >= lastT - CUR_PACE_WINDOW_MS);
+        const win = points.filter((p): p is StoredTrackPoint => !!p && p[2] >= lastT - CUR_PACE_WINDOW_MS);
         if (win.length >= 2) {
           const d = distanceKm(win);
           const dt = (win[win.length - 1][2] - win[0][2]) / 1000;

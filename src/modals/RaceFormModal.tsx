@@ -5,6 +5,29 @@ import { track } from "../telemetry";
 import { LocationPicker } from "../components/LocationPicker";
 import { deleteRace } from "../races";
 import { notifyContribution } from "../notify";
+import type { CatalogueRace, CatalogueEdition } from "../types";
+
+type LatLng = { lat: number; lng: number };
+type RaceForm = {
+  name: string;
+  city: string;
+  country: string;
+  url: string;
+  date: string;
+  distanceKm: string | number;
+  elevation: string | number;
+};
+type RaceFormPrefill = { date?: string; distanceKm?: string | number; elevation?: string | number };
+type RaceFormModalProps = {
+  catalogue: CatalogueRace[];
+  addRace: (race: { name?: string; city?: string | null; country?: string | null; lat?: number | null; lng?: number | null; distances?: number[]; url?: string | null }) => Promise<CatalogueRace>;
+  addEdition: (edition: { raceSlug: string; date: string; distanceKm: number; elevation: number }) => Promise<CatalogueEdition>;
+  onContributed?: () => void | Promise<void>;
+  showToast: (msg: string, type?: string) => void;
+  onClose: () => void;
+  prefill?: RaceFormPrefill;
+  onCreated?: (editionId: string) => void;
+};
 
 // "Add a race" — contributes to the SHARED catalogue (instant + global). New
 // entries are always unverified; the UI tags them so. Includes a live duplicate
@@ -17,15 +40,15 @@ import { notifyContribution } from "../notify";
 // (editionId) — when present, the caller wants the freshly-created edition back
 // (e.g. onboarding promotes it to the training target) instead of the default
 // toast-and-close.
-export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, showToast, onClose, prefill, onCreated }) {
-  const [selected, setSelected] = useState(null); // an existing race to add a date to
-  const [f, setF] = useState({ name: "", city: "", country: "", url: "",
+export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, showToast, onClose, prefill, onCreated }: RaceFormModalProps) {
+  const [selected, setSelected] = useState<CatalogueRace | null>(null); // an existing race to add a date to
+  const [f, setF] = useState<RaceForm>({ name: "", city: "", country: "", url: "",
     date: prefill?.date || "", distanceKm: prefill?.distanceKm ?? "", elevation: prefill?.elevation ?? "" });
-  const [loc, setLoc] = useState(null);   // { lat, lng } picked on the map
+  const [loc, setLoc] = useState<LatLng | null>(null);   // { lat, lng } picked on the map
   const [showPicker, setShowPicker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
+  const set = (k: keyof RaceForm, v: string | number) => setF(prev => ({ ...prev, [k]: v }));
 
   // Live duplicate search on the name field (skipped once a race is selected).
   const matches = useMemo(() => {
@@ -38,18 +61,18 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
 
   const submit = async () => {
     setErr("");
-    const dist = parseFloat(f.distanceKm);
+    const dist = parseFloat(String(f.distanceKm));
     if (!f.date || !dist) { setErr("A date and distance are required."); return; }
     if (!selected && !f.name.trim()) { setErr("A race name is required."); return; }
-    const elevation = f.elevation ? parseInt(f.elevation) : 0;
+    const elevation = f.elevation ? parseInt(String(f.elevation)) : 0;
     setBusy(true);
     // Track a race we create here so we can roll it back if the follow-up
     // addEdition fails — otherwise a childless race lingers in the catalogue.
-    let createdRaceSlug = null;
+    let createdRaceSlug: string | null = null;
     try {
-      let raceSlug, name, created;
+      let raceSlug: string, name: string, created: CatalogueEdition;
       if (selected) {
-        raceSlug = selected.slug; name = selected.name;
+        raceSlug = selected.slug || selected.id; name = selected.name;
         created = await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
         track("race_contributed", { kind: "edition" });
         notifyContribution({ type: "edition", editionId: created.id });
@@ -59,8 +82,8 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
           name, city: f.city.trim() || null, country: f.country.trim().toUpperCase() || null,
           lat: loc?.lat ?? null, lng: loc?.lng ?? null, distances: [dist], url: f.url.trim() || null,
         });
-        raceSlug = race.slug;
-        createdRaceSlug = race.slug;
+        raceSlug = race.slug || race.id;
+        createdRaceSlug = raceSlug;
         created = await addEdition({ raceSlug, date: f.date, distanceKm: dist, elevation });
         track("race_contributed", { kind: "race" });
         notifyContribution({ type: "race", raceSlug, editionId: created.id });

@@ -8,11 +8,17 @@
 // they're easy to unit-test.
 
 const R = 6371000; // Earth's mean radius, metres
-const rad = d => (d * Math.PI) / 180;
-const coord = p => (Array.isArray(p) ? { lat: p[0], lng: p[1] } : p);
+export type StoredTrackPoint = readonly [number, number, number, number | null];
+export type TrackPoint = readonly (number | null)[];
+export type TrackPointOrGap = TrackPoint | null;
+type Coord = { lat: number; lng: number; alt?: number | null };
+
+const rad = (d: number) => (d * Math.PI) / 180;
+const isArrayPoint = (p: TrackPoint | Coord): p is TrackPoint => Array.isArray(p);
+const coord = (p: TrackPoint | Coord): Coord => (isArrayPoint(p) ? { lat: Number(p[0]), lng: Number(p[1]) } : p);
 
 // Great-circle (haversine) distance between two points, in metres.
-export function haversineM(a, b) {
+export function haversineM(a: TrackPoint | Coord, b: TrackPoint | Coord) {
   const p = coord(a), q = coord(b);
   const dLat = rad(q.lat - p.lat), dLng = rad(q.lng - p.lng);
   const s = Math.sin(dLat / 2) ** 2 +
@@ -26,8 +32,8 @@ export function haversineM(a, b) {
 // distance to the next real fix: that geodesic is the *minimum* the runner could
 // have covered between the two fixes, so counting it gets closer to the truth
 // than dropping the stretch — and can't overestimate.
-export function distanceKm(points, minM = 3) {
-  let m = 0, prev = null;
+export function distanceKm(points: TrackPointOrGap[], minM = 3) {
+  let m = 0, prev: TrackPoint | null = null;
   for (const p of points) {
     if (!p) continue; // gap marker: bridge to the next real fix
     if (prev) {
@@ -46,11 +52,11 @@ export function distanceKm(points, minM = 3) {
 // whole metres, so a small band (e.g. 1m) lets every noise wiggle through and a
 // flat run accumulates phantom climb — keep the band at ~5m, the usual floor for
 // GPS-only (barometer-less) elevation.
-export function elevGainM(points, minM = 5) {
-  let gain = 0, prev = null;
+export function elevGainM(points: (TrackPointOrGap | Coord)[], minM = 5) {
+  let gain = 0, prev: number | null = null;
   for (const p of points) {
     if (!p) { prev = null; continue; }
-    const alt = Array.isArray(p) ? p[3] : p.alt;
+    const alt = isArrayPoint(p) ? p[3] : p.alt;
     if (alt == null) continue;
     if (prev != null) {
       const diff = alt - prev;
@@ -66,9 +72,9 @@ export function elevGainM(points, minM = 5) {
 
 // Perpendicular distance (metres) from point `pt` to segment a→b, using a local
 // equirectangular projection scaled to metres (accurate enough at run scale).
-function perpM(pt, a, b) {
-  const lat0 = rad(a[0]);
-  const toXY = p => [rad(p[1]) * Math.cos(lat0) * R, rad(p[0]) * R];
+function perpM(pt: TrackPoint, a: TrackPoint, b: TrackPoint) {
+  const lat0 = rad(Number(a[0]));
+  const toXY = (p: TrackPoint): [number, number] => [rad(Number(p[1])) * Math.cos(lat0) * R, rad(Number(p[0])) * R];
   const [px, py] = toXY(pt), [ax, ay] = toXY(a), [bx, by] = toXY(b);
   const dx = bx - ax, dy = by - ay;
   const len2 = dx * dx + dy * dy;
@@ -79,7 +85,7 @@ function perpM(pt, a, b) {
 }
 
 // Douglas–Peucker simplification of a single gap-free segment.
-function simplifyOne(seg, epsilonM) {
+function simplifyOne(seg: TrackPoint[], epsilonM: number): TrackPoint[] {
   if (seg.length <= 2) return seg.slice();
   const a = seg[0], b = seg[seg.length - 1];
   let idx = 0, max = 0;
@@ -96,15 +102,15 @@ function simplifyOne(seg, epsilonM) {
 }
 
 // Simplify a point array for storage, preserving gap markers between segments.
-export function simplify(points, epsilonM = 5) {
-  const segs = [];
-  let cur = [];
+export function simplify(points: TrackPointOrGap[], epsilonM = 5): TrackPointOrGap[] {
+  const segs: TrackPoint[][] = [];
+  let cur: TrackPoint[] = [];
   for (const p of points) {
     if (!p) { if (cur.length) { segs.push(cur); cur = []; } }
     else cur.push(p);
   }
   if (cur.length) segs.push(cur);
-  const out = [];
+  const out: TrackPointOrGap[] = [];
   segs.forEach((seg, i) => {
     if (i) out.push(null);
     out.push(...simplifyOne(seg, epsilonM));
@@ -114,12 +120,12 @@ export function simplify(points, epsilonM = 5) {
 
 // Split a point array into gap-free segments of [lat,lng] pairs — what Leaflet's
 // L.polyline wants (one polyline per segment so gaps aren't bridged).
-export function segments(points) {
-  const segs = [];
-  let cur = [];
+export function segments(points: TrackPointOrGap[]): [number, number][][] {
+  const segs: [number, number][][] = [];
+  let cur: [number, number][] = [];
   for (const p of points) {
     if (!p) { if (cur.length) { segs.push(cur); cur = []; } }
-    else cur.push([p[0], p[1]]);
+    else cur.push([Number(p[0]), Number(p[1])]);
   }
   if (cur.length) segs.push(cur);
   return segs;
@@ -127,7 +133,7 @@ export function segments(points) {
 
 // Whether a GeolocationPosition is accurate enough to keep (metres). A missing
 // accuracy reading is accepted rather than dropped.
-export function accuracyOK(pos, maxM = 35) {
+export function accuracyOK(pos: { coords?: { accuracy?: number | null } } | null | undefined, maxM = 35) {
   const acc = pos?.coords?.accuracy;
   return acc == null || acc <= maxM;
 }

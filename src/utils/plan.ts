@@ -8,7 +8,7 @@ type PlanSession = {
   date: string;
   type: string;
   desc: string;
-  km: number | string;
+  km: number;
   pace: number;
   done: boolean;
   runId: string | null;
@@ -50,7 +50,7 @@ export function buildPlan(
   const planOpts: BuildPlanOptions = opts && typeof opts === "object" ? opts as BuildPlanOptions : {};
   if (!goalSec) goalSec = 7200;
   if (!distanceKm) distanceKm = 20;
-  if (!planSessions) planSessions = [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}];
+  if (!planSessions?.length) planSessions = [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}];
   const goal = Number(goalSec);
   const dist = Number(distanceKm);
   const recentRuns = planOpts.recentRuns || [];
@@ -94,7 +94,7 @@ export function buildPlan(
   const RECENT_MS = 35 * 86400000;
   const cutoff = ymd(new Date(today.getTime() - RECENT_MS));
   const longestRecent = recentRuns.reduce(
-    (m, r) => (r && r.date && r.date >= cutoff && r.km > 0 ? Math.max(m, r.km) : m), 0);
+    (m, r) => (r && r.date && r.date >= cutoff && (r.km ?? 0) > 0 ? Math.max(m, r.km ?? 0) : m), 0);
   const fitFloor = Math.min(longestRecent * 0.8, peakLong);
   // Long run ramps linearly from this start to the peak over the pre-taper weeks.
   const startLong = Math.max(4.5, fitFloor);
@@ -110,7 +110,7 @@ export function buildPlan(
     const phase   = isTaper ? "TAPER" : isPeak ? "PEAK" : isBase ? "BASE" : "BUILD";
     const ss: PlanSession[] = [];
 
-    const addS = (dOff, type, km, desc, pace) => {
+    const addS = (dOff: number, type: string, km: number, desc: string, pace: number) => {
       const d = new Date(wS); d.setDate(wS.getDate() + dOff);
       if (d >= race) return;
       ss.push({
@@ -172,7 +172,7 @@ export function buildPlan(
   // feeds back into the prescribed training paces. Phase 3 adds taper/recovery
   // around them. `opts.races`: [{editionId, date, distanceKm, elevation}].
   const MIN_GAP_MS = 7 * 86400000; // keep a hard race out of the final taper days
-  const seenDates = new Set();
+  const seenDates = new Set<string>();
   (planOpts.races || []).forEach(r => {
     if (!r || !r.date || !r.distanceKm) return;
     const d = new Date(r.date + "T00:00:00");
@@ -185,12 +185,13 @@ export function buildPlan(
     const secKm = r.distanceKm;
     // Riegel projection of the main goal to this distance (t2 = t1·(d2/d1)^1.06).
     const secPace = Math.round(goal * Math.pow(secKm / dist, 1.06) / secKm);
-    const session = {
+    const session: PlanSession = {
       id: "race-" + (r.editionId || r.date), date: r.date, type: "RACE",
-      desc: "Race — " + secKm + "km" + (r.elevation > 0 ? " · +" + Math.round(r.elevation) + "m" : ""),
+      desc: "Race — " + secKm + "km" + ((r.elevation ?? 0) > 0 ? " · +" + Math.round(r.elevation ?? 0) + "m" : ""),
       km: secKm, pace: secPace, done: false, runId: null, editionId: r.editionId || null,
     };
     const wk = weeks[wi];
+    if (!wk) return;
     // Replace a same-day training session if one exists, else add an extra one.
     const same = wk.sessions.findIndex(s => s.date === r.date);
     if (same >= 0) wk.sessions[same] = session;

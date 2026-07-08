@@ -17,13 +17,15 @@ import {
 // `onConsentChange(granted)` lets the host re-identify the signed-in user the
 // moment they accept (events before that point are anonymous; later events use
 // the signed-in user id).
-export function ConsentBanner({ onConsentChange }) {
+type ConsentBannerProps = { onConsentChange?: (granted: boolean) => void };
+
+export function ConsentBanner({ onConsentChange }: ConsentBannerProps) {
   const [show, setShow] = useState(
     () => isTelemetryConfigured() && getConsentDecision() === "unset"
   );
   if (!show) return null;
 
-  const choose = (granted) => {
+  const choose = (granted: boolean) => {
     setConsent(granted);
     setShow(false);
     if (onConsentChange) onConsentChange(granted);

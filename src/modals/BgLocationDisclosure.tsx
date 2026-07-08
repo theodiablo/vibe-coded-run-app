@@ -2,11 +2,13 @@ import { MapPin } from "lucide-react";
 import { PRIVACY_URL } from "../constants";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
 
+type BgLocationDisclosureProps = { onAccept: () => void; onCancel: () => void };
+
 // Prominent disclosure for background location, shown in the native shell BEFORE
 // the OS permission prompt (a Google Play requirement for ACCESS_BACKGROUND_LOCATION).
 // The user must affirmatively accept this in-app screen; the OS dialog then gates
 // the actual grant. See LiveRunTracker for the once-per-install gating.
-export function BgLocationDisclosure({ onAccept, onCancel }) {
+export function BgLocationDisclosure({ onAccept, onCancel }: BgLocationDisclosureProps) {
   return (
     <ModalOverlay>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700">

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import L from "leaflet";
+import L, { type LeafletEvent, type LatLngTuple, type Map, type Marker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader, MapPin, Search, X } from "lucide-react";
 import { INPUT_CLS, MAP_ATTRIBUTION, MAP_KEY, MAP_TILE_URL } from "../constants";
@@ -15,7 +15,7 @@ type LocationPickerProps = {
   onCancel: () => void;
 };
 
-const WORLD_CENTER: L.LatLngTuple = [20, 0];
+const WORLD_CENTER: LatLngTuple = [20, 0];
 const WORLD_ZOOM = 2;
 const PICKED_ZOOM = 13;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -44,9 +44,9 @@ const PIN_ICON = L.divIcon({
 // more way to seed the pin, never the only option.
 export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: LocationPickerProps) {
   const elRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
-  const [picked, setPicked] = useState(initial || null);
+  const mapRef = useRef<Map | null>(null);
+  const markerRef = useRef<Marker | null>(null);
+  const [picked, setPicked] = useState<LatLng | null>(initial || null);
   const [locating, setLocating] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -75,7 +75,7 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: L
       initial ? PICKED_ZOOM : WORLD_ZOOM,
     );
     L.tileLayer(MAP_TILE_URL, { attribution: MAP_ATTRIBUTION, maxZoom: 20 }).addTo(map);
-    map.on("click", (e) => placeMarker(e.latlng.lat, e.latlng.lng));
+    map.on("click", (e: LeafletEvent) => placeMarker(e.latlng.lat, e.latlng.lng));
     mapRef.current = map;
     if (initial) placeMarker(initial.lat, initial.lng);
     return () => {

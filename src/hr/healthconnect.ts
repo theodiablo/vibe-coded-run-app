@@ -1,6 +1,7 @@
 import { hrSummary } from "../utils/hr";
 import { isNative } from "../native";
 import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
+import type { HrPending, Run } from "../types";
 
 export const HR_PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -14,13 +15,14 @@ type HealthConnectPlugin = {
   checkHealthPermissions: (options: unknown) => Promise<PermissionResult>;
   readRecords: (options: unknown) => Promise<{ records?: HeartRateSeriesRecord[] }>;
 };
+type PendingHrRun = Pick<Run, "id" | "hr" | "hrMax" | "hrPending"> & Record<string, unknown>;
 
 export function hasHealthConnectAuthorization() {
   try { return localStorage.getItem(HR_HEALTH_CONNECT_AUTH_KEY) === "1"; }
   catch { return false; }
 }
 
-function setHealthConnectAuthorization(ok) {
+function setHealthConnectAuthorization(ok: boolean) {
   try {
     if (ok) localStorage.setItem(HR_HEALTH_CONNECT_AUTH_KEY, "1");
     else localStorage.removeItem(HR_HEALTH_CONNECT_AUTH_KEY);
@@ -104,14 +106,14 @@ export const healthConnectSource = {
       const samples = (res?.records || [])
         .flatMap(rec => rec.samples || [])
         .map(s => ({ bpm: s.beatsPerMinute, t: +new Date(s.time) }))
-        .filter(s => s.bpm && s.t >= startMs && s.t <= endMs);
+        .filter((s): s is { bpm: number; t: number } => !!s.bpm && s.t >= startMs && s.t <= endMs);
       if (!samples.length) return null;
       return hrSummary(samples);
     } catch { return null; }
   },
 };
 
-function pendingWindow(hrPending) {
+function pendingWindow(hrPending: HrPending | null | undefined) {
   const source = hrPending?.source || "healthconnect";
   const start = Number(hrPending?.start);
   const end = Number(hrPending?.end);
@@ -123,17 +125,22 @@ function pendingWindow(hrPending) {
 // retry Health Connect for fresh runs stamped with `hrPending:{start,end}`. Invalid,
 // manually-filled, or stale markers are cleared first without touching the native
 // bridge, so a bad synced blob cannot crash the app forever after sign-in.
-export async function flushPendingHr(runs, patch, { enabled = true, allowNativeRead = true, now = Date.now() } = {}) {
+export async function flushPendingHr(
+  runs: PendingHrRun[],
+  patch: (id: string, fields: Partial<Pick<Run, "hr" | "hrMax">>) => void,
+  { enabled = true, allowNativeRead = true, now = Date.now() }: { enabled?: boolean; allowNativeRead?: boolean; now?: number } = {},
+) {
   const pending = (runs || []).filter(r => r.hrPending);
   if (!pending.length) return;
   // A run whose HR was filled some other way (manual edit) since it was stamped:
   // never overwrite it — just clear the marker so it stops retrying. patch({}) with
   // no HR fields lets the caller drop hrPending without touching hr/hrMax.
-  const stillPending = [];
+  const stillPending: { run: PendingHrRun & { id: string }; win: { start: number; end: number } }[] = [];
   for (const r of pending) {
+    if (!r.id) continue;
     const win = pendingWindow(r.hrPending);
     if (r.hr != null || !win || now - win.end > HR_PENDING_MAX_AGE_MS) patch(r.id, {});
-    else stillPending.push({ run: r, win });
+    else stillPending.push({ run: r as PendingHrRun & { id: string }, win });
   }
   if (!stillPending.length) return;
   if (!enabled || !allowNativeRead || !isNative || !hasHealthConnectAuthorization()) return;

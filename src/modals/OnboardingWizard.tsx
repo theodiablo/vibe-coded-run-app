@@ -9,7 +9,35 @@ import { onboardingSteps } from "../utils/onboarding";
 import { searchEditions, editionLabel, findEdition } from "../utils/races";
 import { suggestedGoalSec } from "../utils/goal";
 import { buildPlan } from "../utils/plan";
+import type { PlanSessionInput } from "../utils/plan";
 import { addWeeks, ymd, fmt } from "../utils/format";
+import type { CatalogueEdition, CatalogueRace, HealthAck, Intent, JoinedEdition, SettingsState } from "../types";
+
+type OnboardingStepKey = "welcome" | "intent" | "race" | "raceGoal" | "training" | "hr" | "health" | "summary";
+type OnboardingProgress = Partial<SettingsState>;
+type OnboardingCompletePayload = {
+  name: string;
+  plan: {
+    raceDate: string;
+    goalSec: string | number;
+    distanceKm: string | number;
+    raceElevation: number;
+    planSessions: PlanSessionInput[];
+    targetEditionId: string | null;
+  };
+  hr: Pick<SettingsState, "age" | "maxHR" | "restHR"> | null;
+  healthAck: NonNullable<HealthAck>;
+};
+type OnboardingWizardProps = {
+  settings: SettingsState;
+  onSaveProgress: (partial: OnboardingProgress, step: number) => void;
+  onComplete: (payload: OnboardingCompletePayload) => void;
+  catalogue: CatalogueRace[];
+  addRace: (race: { name?: string; city?: string | null; country?: string | null; lat?: number | null; lng?: number | null; distances?: number[]; url?: string | null }) => Promise<CatalogueRace>;
+  addEdition: (edition: { raceSlug: string; date: string; distanceKm: number; elevation: number }) => Promise<CatalogueEdition>;
+  refreshCatalogue: () => void | Promise<void>;
+  showToast: (msg: string, type?: string) => void;
+};
 
 // Guided first-run onboarding. The flow branches on the user's intent:
 //   Welcome → Intent ─┬─ (race)   → Pick race → Goal & days ─┐
@@ -19,10 +47,10 @@ import { addWeeks, ymd, fmt } from "../utils/format";
 // step is the mandatory gate and the only way into the app (header "Skip" jumps
 // TO it, never around it); `summary` is an in-memory-only celebration after the
 // gate. All input is held in local draft state and only committed via onComplete.
-export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogue, addRace, addEdition, refreshCatalogue, showToast}) {
+export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogue, addRace, addEdition, refreshCatalogue, showToast}: OnboardingWizardProps) {
   const today = ymd(new Date());
 
-  const [intent, setIntent] = useState(settings.intent || null); // null | "race" | "fitness"
+  const [intent, setIntent] = useState<Intent>(settings.intent || null); // null | "race" | "fitness"
   const seq = onboardingSteps(intent);
 
   const [stepIdx, setStepIdx] = useState(() =>
@@ -34,14 +62,14 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // target date + distance + goal when leaving the training step).
   const [name,          setName] = useState(settings.name || "");
   const [raceDate,      setRaceDate] = useState(settings.raceDate || "");
-  const [distanceKm,    setDist] = useState(settings.distanceKm || "");
-  const [raceElevation, setElev] = useState(settings.raceElevation || 0);
-  const [goalSec,       setGoal] = useState(settings.goalSec || "");
-  const [planSessions,  setSess] = useState(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
-  const [targetEditionId, setTargetEditionId] = useState(settings.targetEditionId);
+  const [distanceKm,    setDist] = useState<string | number>(settings.distanceKm || "");
+  const [raceElevation, setElev] = useState<string | number>(settings.raceElevation || 0);
+  const [goalSec,       setGoal] = useState<string | number>(settings.goalSec || "");
+  const [planSessions,  setSess] = useState<PlanSessionInput[]>(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
+  const [targetEditionId, setTargetEditionId] = useState<string | null | undefined>(settings.targetEditionId);
   const [pickedLabel,   setPickedLabel] = useState(() => {
     const e = findEdition(settings.targetEditionId);
-    return e ? editionLabel(e, e.edition) : "";
+    return e ? editionLabel({ name: String(e.name) }, e.edition) : "";
   });
 
   // Race-picker UI state.
@@ -65,7 +93,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // GDPR special-category health data, so it lives ONLY in local state and is
   // never persisted; we persist only the acknowledgment record (timestamp +
   // disclaimer version) at completion via onComplete.
-  const [screenApplies, setScreenApplies] = useState(null); // null | false | true
+  const [screenApplies, setScreenApplies] = useState<boolean | null>(null); // null | false | true
   const [ackChecked, setAckChecked] = useState(false);
   const [medConfirm, setMedConfirm] = useState(false);
   const flagged  = screenApplies === true;
@@ -80,7 +108,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // gate so `summary` is never persisted — a refresh on it resumes at the gate
   // and the acknowledgment is always captured fresh. `intent` is persisted too
   // so a mid-flow refresh rebuilds the right branch.
-  const go = (key, partial = {}, nextIntent = intent) => {
+  const go = (key: OnboardingStepKey, partial: OnboardingProgress = {}, nextIntent: Intent = intent) => {
     const ns = onboardingSteps(nextIntent);
     const idx = ns.indexOf(key);
     if (idx < 0) return;
@@ -101,12 +129,12 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // Pick a catalogue edition → autofill the race fields + set it as the training
   // target (mirrors RunningCoach's promoteEdition, but onboarding builds the plan
   // straight away so we set targetEditionId here).
-  const pick = e => {
+  const pick = (e: JoinedEdition) => {
     setRaceDate(e.edition.date);
     setDist(e.edition.distanceKm);
     setElev(e.edition.elevation || 0);
     setTargetEditionId(e.edition.id);
-    setPickedLabel(editionLabel(e, e.edition));
+    setPickedLabel(editionLabel({ name: String(e.name) }, e.edition));
   };
   const clearPick = () => {
     setPickedLabel(""); setTargetEditionId(undefined);
@@ -119,7 +147,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // A race contributed to the catalogue from here becomes the training target:
   // feed it back into the same pick() path. The catalogue is already refreshed by
   // the modal, so findEdition resolves; if it lags, keep the typed values as-is.
-  const onRaceCreated = editionId => {
+  const onRaceCreated = (editionId: string) => {
     const j = findEdition(editionId);
     if (j) pick(j);
     setManual(false);
@@ -142,7 +170,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     const mhrN = parseInt(maxHR) || 0;
     const hasHR = ageN > 0 || mhrN > 0;
     const hr = hasHR ? {age: ageN, maxHR: mhrN || tanakaMax || 0, restHR: parseInt(restHR) || 60} : null;
-    const plan = {raceDate, goalSec, distanceKm, raceElevation, planSessions, targetEditionId: targetEditionId || null};
+    const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null};
     onComplete({name: trimmedName, plan, hr, healthAck: {v: DISCLAIMER_VERSION, at: new Date().toISOString()}});
   };
 
@@ -292,7 +320,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                       {editionResults.slice(0, 25).map(e => (
                         <button key={e.edition.id} onClick={() => pick(e)}
                           className="w-full text-left bg-slate-800 rounded-xl border border-slate-700 px-4 py-3 hover:border-orange-400/50 transition-colors">
-                          <p className="font-semibold truncate">{e.name}</p>
+                          <p className="font-semibold truncate">{String(e.name)}</p>
                           <p className="text-xs text-slate-400">{[e.city, e.country].filter(Boolean).join(", ") + " · " + fmt.date(e.edition.date) + " · " + e.edition.distanceKm + " km"}</p>
                         </button>
                       ))}
@@ -330,7 +358,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 </>
               )}
 
-              <button onClick={() => go("raceGoal", {raceDate, distanceKm, raceElevation, targetEditionId})} disabled={!raceDate || !distanceKm}
+              <button onClick={() => go("raceGoal", {raceDate, distanceKm, raceElevation: Number(raceElevation) || 0, targetEditionId})} disabled={!raceDate || !distanceKm}
                 className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 Continue
               </button>
@@ -569,7 +597,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
       {showAddRace && <RaceFormModal
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
         onContributed={refreshCatalogue} showToast={showToast}
-        prefill={{date: raceDate, distanceKm, elevation: raceElevation}}
+        prefill={{date: raceDate, distanceKm, elevation: Number(raceElevation) || 0}}
         onCreated={onRaceCreated}
         onClose={() => setShowAddRace(false)}/>}
     </div>

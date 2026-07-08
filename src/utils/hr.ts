@@ -1,5 +1,6 @@
 // Heart-rate zone definitions and bpm calculations, shared by the HR Zones
 // settings screen and the per-session targets on the plan.
+import type { RunType, SettingsState } from "../types";
 
 export const HR_ZONES = [
   {n:1,name:"Recovery",     lo:0.50,hi:0.60,clr:"#60a5fa",type:"Aerobic",   desc:"Very easy — active recovery, warm-up/cool-down"},
@@ -19,11 +20,13 @@ export const SESSION_ZONES = {
   RACE:      {zones:[3,4], label:"Z3-4 · Race effort",       clr:"#fb923c"},
   WALK:      {zones:[1],   label:"Z1 · Recovery",            clr:"#60a5fa"},
 };
+type SessionZoneType = keyof typeof SESSION_ZONES;
+type HrSample = { bpm: number; t: number };
 
 // Compute the bpm range for a zone using the Karvonen (heart-rate reserve)
 // method — it accounts for resting HR, so it's more accurate than plain % of
 // MaxHR.
-export function hrZoneBpm(loPct, hiPct, maxHR, restHR) {
+export function hrZoneBpm(loPct: number, hiPct: number, maxHR: number, restHR: number) {
   if (!maxHR) return null;
   const hrr = maxHR - restHR;
   if (hrr <= 0) return null;
@@ -32,7 +35,7 @@ export function hrZoneBpm(loPct, hiPct, maxHR, restHR) {
 
 // Classify an average HR into its zone number (1..5) for the given profile,
 // or null if it can't be computed. Last zone is open-ended at the top.
-export function runZoneIndex(hr, maxHR, restHR) {
+export function runZoneIndex(hr: number | null | undefined, maxHR: number, restHR: number) {
   if (!hr || !maxHR) return null;
   const idx = HR_ZONES.findIndex((z, i) => {
     const r = hrZoneBpm(z.lo, z.hi, maxHR, restHR);
@@ -51,7 +54,7 @@ export function runZoneIndex(hr, maxHR, restHR) {
 // Layout: byte 0 is flags; bit 0 picks the HR value format (0 = uint8,
 // 1 = uint16), bit 3 flags an optional energy-expended uint16, bit 4 flags
 // trailing R-R intervals (uint16, units of 1/1024 s).
-export function parseHrMeasurement(view) {
+export function parseHrMeasurement(view: DataView | null | undefined) {
   if (!view || typeof view.getUint8 !== "function" || view.byteLength < 2) return null;
   const flags = view.getUint8(0);
   let i = 1;
@@ -63,7 +66,7 @@ export function parseHrMeasurement(view) {
   else { bpm = view.getUint8(i); i += 1; }
   if (!bpm) return null; // 0 bpm = no skin contact / invalid reading
   if (flags & 0x08) i += 2; // skip energy expended
-  const rr = [];
+  const rr: number[] = [];
   if (flags & 0x10) {
     for (; i + 2 <= view.byteLength; i += 2) {
       rr.push(Math.round(view.getUint16(i, true) * 1000 / 1024)); // 1/1024 s → ms
@@ -74,7 +77,7 @@ export function parseHrMeasurement(view) {
 
 // Reduce a stream of { bpm, t } samples to the summary a run stores: latest
 // (live display), rounded average, and peak. Empty stream → all null.
-export function hrSummary(samples) {
+export function hrSummary(samples?: HrSample[] | null) {
   if (!samples || !samples.length) return { hr: null, hrAvg: null, hrMax: null };
   let sum = 0, max = 0;
   for (const s of samples) { sum += s.bpm; if (s.bpm > max) max = s.bpm; }
@@ -82,8 +85,9 @@ export function hrSummary(samples) {
 }
 
 // Resolve a session type's target bpm range from settings.
-export function sessionHR(type, settings) {
-  const cfg    = SESSION_ZONES[type] || SESSION_ZONES.EASY;
+export function sessionHR(type: RunType | string, settings: Partial<Pick<SettingsState, "maxHR" | "restHR">>) {
+  const key = type in SESSION_ZONES ? type as SessionZoneType : "EASY";
+  const cfg = SESSION_ZONES[key];
   const loZone = HR_ZONES[cfg.zones[0] - 1];
   const hiZone = HR_ZONES[cfg.zones[cfg.zones.length - 1] - 1];
   const r = hrZoneBpm(loZone.lo, hiZone.hi, settings.maxHR || 0, settings.restHR || 60);

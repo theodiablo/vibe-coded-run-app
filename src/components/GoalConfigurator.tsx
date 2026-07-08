@@ -16,13 +16,14 @@ type GoalConfiguratorProps = {
 };
 
 export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfiguratorProps) {
-  const band = paceBand(distanceKm);
-  const suggested = suggestedGoalSec(distanceKm);
+  const dist = parseFloat(String(distanceKm));
+  const band = paceBand(dist);
+  const suggested = suggestedGoalSec(dist);
 
   // When the distance is unset/out-of-band we fill a suggestion, otherwise we
   // clamp an existing goal into the distance-appropriate range. The distance
   // change itself is handled in the effect below.
-  const normalised = band ? (goalSec ? clampGoalSec(goalSec, distanceKm) : suggested) : goalSec;
+  const normalised = band ? (goalSec ? clampGoalSec(Number(goalSec), dist) : suggested) : goalSec;
 
   // Push the normalised value up to the parent (never setState during render).
   // A change in distance always re-suggests rather than carrying the old goal
@@ -33,8 +34,8 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfigurat
     const distChanged = prevDist.current !== distanceKm;
     prevDist.current = distanceKm;
     if (!band) return;
-    if (distChanged) onChange(suggested);
-    else if (normalised !== goalSec) onChange(normalised);
+    if (distChanged && suggested != null) onChange(suggested);
+    else if (normalised != null && normalised !== goalSec) onChange(normalised);
   }, [band, distanceKm, suggested, normalised, goalSec, onChange]);
 
   // Local text for the editable Time / Pace fields. `null` means "not editing,
@@ -55,8 +56,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfigurat
     );
   }
 
-  const dist  = parseFloat(String(distanceKm));
-  const eff   = normalised;
+  const eff   = Number(normalised) || suggested || 0;
   const pace  = Math.round(eff / dist);
   const tMin  = Math.round(band.fast * dist);
   const tMax  = Math.round(band.slow * dist);
@@ -65,12 +65,12 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfigurat
   // distance-appropriate band so manual entry stays as realistic as the slider.
   const commitTime = () => {
     const sec = parseDur(timeText);
-    if (sec != null) onChange(clampGoalSec(sec, distanceKm));
+    if (sec != null) onChange(clampGoalSec(sec, dist));
     setTimeText(null);
   };
   const commitPace = () => {
     const p = parseDur(paceText);
-    if (p != null) onChange(clampGoalSec(Math.round(p * dist), distanceKm));
+    if (p != null) onChange(clampGoalSec(Math.round(p * dist), dist));
     setPaceText(null);
   };
 

@@ -1,20 +1,24 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Activity, Loader, Mail, Lock } from "lucide-react";
 import { Browser } from "@capacitor/browser";
 import { supabase, authRedirectTo } from "./supabase";
 import { isNative } from "./native";
 import { PRIVACY_URL } from "./constants";
 
+type LoginMode = "signin" | "signup" | "magic";
+type LoginMessage = { type: "err" | "ok"; text: string };
+type LoginScreenProps = { authError?: string | null; onClearAuthError?: () => void };
+
 // `authError` is a native deep-link sign-in failure surfaced by App.jsx (e.g. the
 // user cancels Google consent); shown until the user takes another action.
-export default function LoginScreen({ authError, onClearAuthError }) {
-  const [mode, setMode] = useState("signin"); // signin | signup | magic
+export default function LoginScreen({ authError, onClearAuthError }: LoginScreenProps) {
+  const [mode, setMode] = useState<LoginMode>("signin"); // signin | signup | magic
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null); // { type: "err"|"ok", text }
+  const [msg, setMsg] = useState<LoginMessage | null>(null); // { type: "err"|"ok", text }
 
-  const note = (type, text) => { onClearAuthError?.(); setMsg({ type, text }); };
+  const note = (type: LoginMessage["type"], text: string) => { onClearAuthError?.(); setMsg({ type, text }); };
   // Local form messages take precedence; otherwise fall back to a deep-link error.
   const shownMsg = msg || (authError ? { type: "err", text: authError } : null);
 
@@ -45,7 +49,7 @@ export default function LoginScreen({ authError, onClearAuthError }) {
     // Web: the page itself is redirected to the provider, so leave busy=true.
   }
 
-  async function onSubmit(e) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
@@ -71,13 +75,13 @@ export default function LoginScreen({ authError, onClearAuthError }) {
         // onAuthStateChange in App handles the transition
       }
     } catch (err) {
-      note("err", err.message || "Something went wrong.");
+      note("err", err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setBusy(false);
     }
   }
 
-  const tab = (id, label) => (
+  const tab = (id: LoginMode, label: string) => (
     <button
       type="button"
       onClick={() => { onClearAuthError?.(); setMode(id); setMsg(null); }}

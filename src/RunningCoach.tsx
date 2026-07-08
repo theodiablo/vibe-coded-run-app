@@ -5,6 +5,7 @@ import { db, currentUserId } from "./db";
 import { STORAGE_KEYS, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_NOTICE_CHARS } from "./constants";
 import { track } from "./telemetry";
 import { buildPlan } from "./utils/plan";
+import { ymd } from "./utils/format";
 import { computeBadges, unlockedIds } from "./utils/badges";
 import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils/races";
 import { addRace, addEdition } from "./races";
@@ -23,101 +24,24 @@ import { PlanView } from "./views/PlanView";
 import { LogView } from "./views/LogView";
 import { RacesView } from "./views/RacesView";
 import { ProgressView } from "./views/ProgressView";
+import type {
+  CatalogueRace,
+  JoinedEdition,
+  Plan,
+  PlanPrefill,
+  PlanProgress,
+  RacesState,
+  RouteBackup,
+  Run,
+  RunPatch,
+  SettingsState,
+  ToastAction,
+  ToastState,
+  UserContextState,
+} from "./types";
 
-type SettingsState = {
-  raceDate: string;
-  goalSec: string | number;
-  distanceKm: string | number;
-  raceElevation: number;
-  name: string;
-  age: number;
-  maxHR: number;
-  restHR: number;
-  onboarded: boolean;
-  onboardStep: number;
-  intent: string | null;
-  healthAck: { v?: string | number; at?: string } | null;
-  hrMethod: string;
-  hrOptOut: boolean;
-  planSessions: { dayOffset: number; minutes: number }[];
-  targetEditionId?: string | null;
-  [key: string]: unknown;
-};
-
-type Run = Record<string, unknown> & {
-  id?: string;
-  date: string;
-  km: number;
-  durationSec?: number;
-  source?: string;
-  routeId?: string;
-  routeTmp?: string;
-  routePending?: boolean;
-  hrPending?: unknown;
-  wNum?: number;
-  sId?: string;
-};
-
-type PlanSession = Record<string, unknown> & {
-  id: string;
-  date: string;
-  type: string;
-  km: number | string;
-  done?: boolean;
-  skipped?: boolean;
-  runId?: string | null;
-  editionId?: string | null;
-};
-
-type PlanWeek = Record<string, unknown> & { weekNumber: number; sessions: PlanSession[] };
-type Plan = Record<string, unknown> & { weeks: PlanWeek[] };
-type RouteBackup = Record<string, unknown>;
-type UserContextState = { notes: string; lastLimitNoticeAt?: string | null };
-
-type Participation = Record<string, unknown> & {
-  editionId?: string | null;
-  raceId?: string | null;
-  label?: string;
-  raceDate?: string;
-  distanceKm?: number;
-  status?: string;
-  inPlan?: boolean;
-  timeSec?: number | null;
-  runId?: string | null;
-  source?: string;
-  notes?: string;
-};
-
-type RacesState = Record<string, unknown> & {
-  participations: Participation[];
-  seenBadges: string[] | null;
-  ackVerified?: string[];
-};
-
-type CatalogueEdition = Record<string, unknown> & {
-  id: string;
-  date: string;
-  distanceKm: number;
-  elevation?: number;
-  createdBy?: string | null;
-  verified?: boolean;
-};
-
-type CatalogueRace = Record<string, unknown> & {
-  id?: string;
-  slug?: string;
-  createdBy?: string | null;
-  verified?: boolean;
-  editions?: CatalogueEdition[];
-};
-
-type JoinedEdition = { raceId?: string | null; edition: CatalogueEdition; [key: string]: unknown };
-type PlanPrefill = { raceDate: string; distanceKm: number; raceElevation: number; editionId: string; label: string };
-type RunPatch = Partial<Run>;
-type PlanProgress = Pick<PlanSession, "done" | "skipped" | "runId">;
-
-type ToastAction = { label: string; onClick: () => void };
-type ToastState = { msg: string; type: string; action?: ToastAction };
+type ProgressSub = "log" | "stats" | "badges";
+type PromotableEdition = { name: string; raceId?: string; edition: { id: string; date: string; distanceKm: number; elevation?: number } };
 
 // Lazy: pulls in react-markdown + remark-gfm (~47 KB gzipped) for rendering
 // the coach's markdown replies. On the web that weight only belongs on the
@@ -140,10 +64,11 @@ function computeVerifiedThanks(cat: CatalogueRace[], racesObj: RacesState, uid: 
     if (r.createdBy === uid && r.verified) mine.push("race:" + r.slug);
     for (const e of r.editions || []) if (e.createdBy === uid && e.verified) mine.push("ed:" + e.id);
   }
-  if (racesObj.ackVerified == null) return { next: { ...racesObj, ackVerified: mine }, fresh: [] };
-  const fresh = mine.filter(id => !racesObj.ackVerified.includes(id));
+  const ackVerified = racesObj.ackVerified;
+  if (ackVerified == null) return { next: { ...racesObj, ackVerified: mine }, fresh: [] };
+  const fresh = mine.filter(id => !ackVerified.includes(id));
   if (!fresh.length) return { next: racesObj, fresh: [] };
-  return { next: { ...racesObj, ackVerified: [...racesObj.ackVerified, ...fresh] }, fresh };
+  return { next: { ...racesObj, ackVerified: [...ackVerified, ...fresh] }, fresh };
 }
 
 const memoryKey = (line: unknown) => String(line || "").toLowerCase().replace(/^\d{4}-\d{2}-\d{2}:\s*/, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -203,7 +128,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const [planPrefill, setPlanPrefill] = useState<PlanPrefill | null>(null);
   // Which Progress sub-tab to open, and a nonce so navigating there again (even
   // to the same sub-tab) re-applies it.
-  const [progressSub,  setProgressSub]  = useState("log");
+  const [progressSub,  setProgressSub]  = useState<ProgressSub>("log");
   const [progressNonce,setProgressNonce]= useState(0);
 
   // An optional `action` ({label, onClick}) turns the toast into an undoable one.
@@ -232,11 +157,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
   useEffect(() => {
     (async () => {
-      const r = await db.get(STORAGE_KEYS.RUNS);
-      const p = await db.get(STORAGE_KEYS.PLAN);
-      const s = await db.get(STORAGE_KEYS.SETTINGS);
-      const rc = await db.get(STORAGE_KEYS.RACES);
-      const uc = await db.get(STORAGE_KEYS.USER_CONTEXT);
+      const r = await db.get(STORAGE_KEYS.RUNS) as Run[] | null;
+      const p = await db.get(STORAGE_KEYS.PLAN) as Plan | null;
+      const s = await db.get(STORAGE_KEYS.SETTINGS) as Partial<SettingsState> | null;
+      const rc = await db.get(STORAGE_KEYS.RACES) as Partial<RacesState> | null;
+      const uc = await db.get(STORAGE_KEYS.USER_CONTEXT) as Partial<UserContextState> | null;
       if (r) setRuns(r);
       if (p) setPlan(p);
       if (s) setSettings(prev => ({...prev, ...s}));
@@ -247,7 +172,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       }
       // Seed seenBadges silently the first time so existing users with history
       // don't get a flurry of unlock toasts on first launch of this feature.
-      const loaded = { participations: [], seenBadges: null, ...(rc || {}) };
+      const loaded: RacesState = { participations: [], seenBadges: null, ...(rc || {}) };
       if (loaded.seenBadges == null) {
         loaded.seenBadges = unlockedIds(computeBadges(r || [], loaded.participations));
         db.set(STORAGE_KEYS.RACES, loaded);
@@ -373,10 +298,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     const badges = computeBadges(nextRuns, nextRaces.participations || []);
     const unlocked = unlockedIds(badges);
     if (nextRaces.seenBadges == null) return { ...nextRaces, seenBadges: unlocked };
-    const fresh = unlocked.filter(id => !nextRaces.seenBadges.includes(id));
+    const seenBadges = nextRaces.seenBadges;
+    const fresh = unlocked.filter(id => !seenBadges.includes(id));
     if (!fresh.length) return nextRaces;
     const first = badges.find(b => b.id === fresh[0]);
-    showToast(fresh.length === 1 ? "Badge unlocked: " + first.label + " 🏅" : fresh.length + " new badges unlocked 🏅");
+    showToast(fresh.length === 1 ? "Badge unlocked: " + (first?.label || "New badge") + " 🏅" : fresh.length + " new badges unlocked 🏅");
     return { ...nextRaces, seenBadges: unlocked };
   };
   const commitRaces = (next: RacesState) => { setRaces(next); db.set(STORAGE_KEYS.RACES, next); };
@@ -425,7 +351,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       const secRaces = parts
         .filter(p => p.status === "wishlist" && p.inPlan && p.editionId !== settings.targetEditionId)
         .map(p => ({ editionId: p.editionId, date: p.raceDate, distanceKm: p.distanceKm,
-          elevation: findEdition(p.editionId)?.edition?.elevation || 0 }));
+          elevation: p.editionId ? findEdition(p.editionId)?.edition?.elevation || 0 : 0 }));
       const np = buildPlan(settings.raceDate, settings.goalSec, settings.planSessions,
         settings.distanceKm, settings.raceElevation,
         { recentRuns: runs, races: secRaces, mainEditionId: settings.targetEditionId ?? null });
@@ -442,9 +368,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // and a fresh realistic goal suggestion. Nothing is committed (no settings or
   // plan change) until the user picks a goal and builds — so we never leave an
   // unrealistic auto-goal behind. targetEditionId is set by PlanView on build.
-  const promoteEdition = (joined: JoinedEdition) => {
+  const promoteEdition = (joined: JoinedEdition | PromotableEdition) => {
     const e = joined.edition;
-    setPlanPrefill({ raceDate: e.date, distanceKm: e.distanceKm, raceElevation: e.elevation || 0, editionId: e.id, label: editionLabel(joined, e) });
+    setPlanPrefill({ raceDate: e.date, distanceKm: e.distanceKm, raceElevation: e.elevation || 0, editionId: e.id, label: editionLabel({ name: String(joined.name) }, e) });
     setTab("plan");
     track("race_target_set", {});
   };
@@ -458,12 +384,12 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     // Candidate races = every RACE session on the plan carrying an editionId,
     // deduped. This covers the main race (stamped from targetEditionId) and any
     // secondary races; a hand-entered target has no editionId and stays undetected.
-    const cands: { editionId: string; date: string; distanceKm: number | string }[] = [];
+    const cands: { editionId: string; date: string; distanceKm: number }[] = [];
     const seen = new Set<string>();
     (plan?.weeks || []).forEach(w => w.sessions.forEach(s => {
       if (s.type === "RACE" && s.editionId && !seen.has(s.editionId)) {
         seen.add(s.editionId);
-        cands.push({ editionId: s.editionId, date: s.date, distanceKm: s.km });
+        cands.push({ editionId: s.editionId, date: s.date, distanceKm: Number(s.km) });
       }
     }));
     // Fallback for plans built before RACE sessions carried editionId: detect the
@@ -483,7 +409,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     if (prev?.status === "done") return null; // already logged — don't double-mark
     const joined = findEdition(edId);
     const ed = joined?.edition || { id: edId, date: match.date, distanceKm: match.km };
-    const label = prev?.label || (joined ? editionLabel(joined, ed) : "your race");
+    const label = prev?.label || (joined ? editionLabel({ name: String(joined.name) }, ed) : "your race");
     const snapshot = { editionId: edId, raceId: joined?.raceId, label, raceDate: ed.date, distanceKm: ed.distanceKm };
     const done = { ...(prev || snapshot), status: "done", timeSec: match.durationSec, runId: match.id, source: "auto", notes: prev?.notes || "" };
     const next = prev ? parts.map(p => p.editionId === edId ? done : p) : [...parts, done];
@@ -492,8 +418,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
   // `opts.skipDetect` is set when the run is created by the Races "log result"
   // flow, which already marks the race done — so we don't double-detect it.
-  const addRuns = (rs: Run[], opts: { skipDetect?: boolean } = {}) => {
-    const added: Run[] = rs.map((r, i) => ({...r, id: r.id || ("r" + Date.now() + i)}));
+  const addRuns = (rs: Partial<Run>[], opts: { skipDetect?: boolean } = {}) => {
+    const added: Run[] = rs.map((r, i) => ({...r, date: r.date || ymd(new Date()), km: Number(r.km) || 0, id: r.id || ("r" + Date.now() + i)} as Run));
     const nextRuns = added.concat(runs).sort((a, b) => b.date.localeCompare(a.date));
     setRuns(nextRuns); db.set(STORAGE_KEYS.RUNS, nextRuns);
     // Telemetry-safe: how a run reached the log (GPS vs manual) and how many at once
@@ -576,13 +502,13 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     setBackupRoutes(routes);
     setShowBackup(true);
   };
-  const handleRestore = (d: { runs?: Run[]; plan?: Plan; settings?: SettingsState; races?: RacesState; userContext?: UserContextState; routes?: RouteBackup[] }) => {
+  const handleRestore = (d: { runs?: Run[]; plan?: Plan | null; settings?: Partial<SettingsState>; races?: RacesState; userContext?: UserContextState; routes?: RouteBackup[] }) => {
     if (d.runs)     { setRuns(d.runs);         db.set(STORAGE_KEYS.RUNS, d.runs); }
     if (d.plan)     { setPlan(d.plan);          db.set(STORAGE_KEYS.PLAN, d.plan); }
-    if (d.settings) { setSettings(d.settings);  db.set(STORAGE_KEYS.SETTINGS, d.settings); }
+    if (d.settings) { const nextSettings = { ...settings, ...d.settings }; setSettings(nextSettings);  db.set(STORAGE_KEYS.SETTINGS, nextSettings); }
     if (d.races)    { setRaces(d.races);         db.set(STORAGE_KEYS.RACES, d.races); }
     if (d.userContext) saveUserContext(d.userContext);
-    if (d.routes)   { restoreRoutes(d.routes); }
+    if (d.routes)   { restoreRoutes(d.routes as Parameters<typeof restoreRoutes>[0]); }
     showToast("Restored — " + (d.runs ? d.runs.length : 0) + " run(s) imported.");
   };
 
@@ -593,7 +519,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   );
 
   const goLog = (prefill?: Partial<Run> & { wNum?: number; sId?: string }) => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
-  const goProgress = (sub?: string) => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
+  const goProgress = (sub?: string) => { setProgressSub(sub === "stats" || sub === "badges" ? sub : "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
   const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
@@ -629,7 +555,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
           if (joined && !(races.participations || []).some(p => p.editionId === next.targetEditionId)) {
             const ed = joined.edition;
             saveRaces({ ...races, participations: [...(races.participations || []), {
-              editionId: ed.id, raceId: joined.raceId, label: editionLabel(joined, ed),
+              editionId: ed.id, raceId: joined.raceId, label: editionLabel({ name: String(joined.name) }, ed),
               raceDate: ed.date, distanceKm: ed.distanceKm,
               status: "wishlist", timeSec: null, runId: null, source: "onboarding", notes: "",
             }] });
@@ -652,7 +578,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
-        onOpenCoach={plan ? () => { setShowSettings(false); setShowCoach(true); } : null}
+        onOpenCoach={plan ? () => { setShowSettings(false); setShowCoach(true); } : undefined}
         onDeleteAccount={() => { setShowSettings(false); setShowDeleteAccount(true); }}
         onClose={()   => setShowSettings(false)}/>}
       {showDeleteAccount && <DeleteAccountModal
@@ -666,7 +592,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       )}
       {showRaceForm && <RaceFormModal
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
-        onContributed={refreshCatalogue} showToast={showToast} prefill={null} onCreated={undefined}
+        onContributed={refreshCatalogue} showToast={showToast} onCreated={undefined}
         onClose={() => setShowRaceForm(false)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>

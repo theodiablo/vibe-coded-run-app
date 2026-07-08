@@ -8,13 +8,17 @@
 // parser dependency. All numeric fields are validated; rows that don't parse to
 // sane values are skipped rather than silently coerced to 0.
 import { ymd } from "./format";
+import type { Run } from "../types";
+
+type CsvRow = Record<string, string>;
+type CsvRun = Run;
 
 // Guard against pathologically large uploads (memory / DOM blow-up).
 export const MAX_CSV_BYTES = 5 * 1024 * 1024; // 5 MB
 
 // Split a single CSV line, respecting simple double-quoted fields.
-function splitCsvLine(line) {
-  const out = [];
+function splitCsvLine(line: string) {
+  const out: string[] = [];
   let cur = "", inQuotes = false;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
@@ -23,18 +27,18 @@ function splitCsvLine(line) {
     cur += c;
   }
   out.push(cur);
-  return out.map(v => v.trim());
+  return out.map((v) => v.trim());
 }
 
 // Parse a non-negative finite number, or return null when absent/invalid.
-function num(v) {
+function num(v: string | null | undefined) {
   if (v == null || v === "") return null;
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 }
 
 // Parse raw CSV text into run objects. Returns { runs, error }.
-export function parseRunsCsv(text) {
+export function parseRunsCsv(text: string): { runs: CsvRun[]; error: string | null } {
   const trimmed = (text || "").trim();
   if (!trimmed) return {runs: [], error: "Empty file."};
 
@@ -50,11 +54,11 @@ export function parseRunsCsv(text) {
     return {runs: [], error: "No runs found. Check it's a Zepp or Strava CSV."};
   }
 
-  const runs = [];
+  const runs: CsvRun[] = [];
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
     const vals = splitCsvLine(lines[i]);
-    const row  = {};
+    const row: CsvRow = {};
     hdrs.forEach((h, j) => { row[h] = vals[j] != null ? vals[j] : ""; });
 
     if (isZepp) {
@@ -80,7 +84,7 @@ export function parseRunsCsv(text) {
           date: dStr, type: "EASY", km: dK, durationSec: dur != null ? Math.round(dur) : 0,
           hr:    num(row["average heart rate"]),
           hrMax: num(row["max heart rate"]),
-          elevation: num(row["elevation gain"]),
+          elevation: num(row["elevation gain"]) ?? undefined,
           effort: 5, notes: "Strava import",
         });
       }

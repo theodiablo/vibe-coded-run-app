@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Search, Star, Flag, Target, ExternalLink, X, Check, Plus, Trophy, ChevronRight, Navigation, AlertTriangle, Loader } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
@@ -8,20 +9,41 @@ import { AddRaceCard } from "../components/AddRaceCard";
 import { haversineM } from "../utils/geo";
 import { geoSource } from "../geo/source";
 import { reportRace } from "../races";
+import type { CatalogueEdition, CatalogueRace, JoinedEdition, Participation, RacesState, Run, SettingsState } from "../types";
 
 const SEGMENTS = [["mine", "My Races"], ["find", "Find a race"]];
 // Find-a-race filter chips: event distance bands (km) and "near me" radius (km).
 const BANDS = [5, 10, 21.1, 42.2];
 const RADII = [25, 50, 100, 500];
 
+type Segment = "mine" | "find";
+type LocationFix = { lat: number; lng: number };
+type JoinedRace = Omit<Partial<CatalogueRace>, "editions"> & {
+  name: string;
+  raceId: string;
+  edition: CatalogueEdition;
+  orphan?: boolean;
+};
+type RacesViewProps = {
+  races: RacesState | null;
+  saveRaces: (races: RacesState) => void;
+  settings: SettingsState;
+  promoteEdition: (joined: JoinedRace | JoinedEdition) => void;
+  setRaceInPlan: (editionId: string, inPlan: boolean) => void;
+  addRuns: (runs: Run[], opts?: { skipDetect?: boolean }) => void;
+  showToast: (msg: string, type?: string) => void;
+  catalogue: CatalogueRace[];
+  openRaceForm: () => void;
+};
+
 // Resolve a stored participation to its catalogue edition; fall back to the
 // snapshot fields if the catalogue no longer lists it (orphan tolerance).
-function resolveJoined(part) {
-  const found = findEdition(part.editionId);
-  if (found) return found;
+function resolveJoined(part: Participation): JoinedRace | JoinedEdition {
+  const found = part.editionId ? findEdition(part.editionId) : null;
+  if (found) return found as JoinedEdition;
   return {
-    name: part.label || "Race", raceId: part.raceId, url: null, orphan: true,
-    edition: { id: part.editionId, date: part.raceDate, distanceKm: part.distanceKm },
+    name: part.label || "Race", raceId: part.raceId || "", url: null, orphan: true,
+    edition: { id: part.editionId || "", date: part.raceDate || "", distanceKm: part.distanceKm || 0 },
   };
 }
 
@@ -34,24 +56,24 @@ function UnverifiedTag() {
   );
 }
 
-export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceInPlan, addRuns, showToast, catalogue, openRaceForm }) {
-  const [seg, setSeg] = useState("mine");
-  const [logFor, setLogFor] = useState(null); // editionId being logged
+export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceInPlan, addRuns, showToast, catalogue, openRaceForm }: RacesViewProps) {
+  const [seg, setSeg] = useState<Segment>("mine");
+  const [logFor, setLogFor] = useState<string | null>(null); // editionId being logged
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = ymd(today);
   const parts = races?.participations || [];
-  const byId = Object.fromEntries(parts.map(p => [p.editionId, p]));
+  const byId = Object.fromEntries(parts.filter(p => p.editionId).map(p => [p.editionId as string, p]));
   const cat = catalogue || [];
 
   // ── persistence ───────────────────────────────────────────────────────────
-  const writeParts = next => saveRaces({ ...(races || {}), participations: next });
+  const writeParts = (next: Participation[]) => saveRaces({ ...(races || { seenBadges: null }), participations: next });
 
-  const upsertPart = (joined, fields) => {
+  const upsertPart = (joined: JoinedRace | JoinedEdition, fields: Partial<Participation>) => {
     const ed = joined.edition;
     const snapshot = {
       editionId: ed.id, raceId: joined.raceId,
-      label: editionLabel(joined, ed), raceDate: ed.date, distanceKm: ed.distanceKm,
+      label: editionLabel({ name: joined.name }, ed), raceDate: ed.date, distanceKm: ed.distanceKm,
     };
     const exists = parts.some(p => p.editionId === ed.id);
     const next = exists
@@ -60,24 +82,24 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
     writeParts(next);
   };
 
-  const removePart = editionId => writeParts(parts.filter(p => p.editionId !== editionId));
+  const removePart = (editionId?: string | null) => writeParts(parts.filter(p => p.editionId !== editionId));
 
-  const addWishlist = joined => {
+  const addWishlist = (joined: JoinedRace | JoinedEdition) => {
     upsertPart(joined, { status: "wishlist" });
     showToast("Added to your races.");
   };
 
-  const setTarget = joined => { promoteEdition(joined); };
+  const setTarget = (joined: JoinedRace | JoinedEdition) => { promoteEdition(joined); };
 
-  const saveResult = (joined, timeSec, notes, alsoLog) => {
+  const saveResult = (joined: JoinedRace | JoinedEdition, timeSec: number, notes: string, alsoLog: boolean) => {
     const ed = joined.edition;
     let runId = null;
     if (alsoLog) {
       runId = "r" + Date.now();
       addRuns([{
         id: runId, date: ed.date, type: "RACE", km: ed.distanceKm, durationSec: timeSec,
-        hr: null, hrMax: null, elevation: ed.elevation || null, effort: 8,
-        notes: notes || (editionLabel(joined, ed) + " — race"),
+        hr: null, hrMax: null, elevation: ed.elevation || undefined, effort: 8,
+        notes: notes || (editionLabel({ name: joined.name }, ed) + " — race"),
       }], { skipDetect: true });
     }
     upsertPart(joined, { status: "done", timeSec, notes, source: "manual", runId });
@@ -89,8 +111,8 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
   // ── My Races ──────────────────────────────────────────────────────────────
   const done = parts.filter(p => p.status === "done");
   const wishlist = parts.filter(p => p.status === "wishlist");
-  const upcoming = wishlist.filter(p => p.raceDate >= todayStr).sort((a, b) => a.raceDate.localeCompare(b.raceDate));
-  const past = wishlist.filter(p => p.raceDate < todayStr).sort((a, b) => b.raceDate.localeCompare(a.raceDate));
+  const upcoming = wishlist.filter(p => p.raceDate && p.raceDate >= todayStr).sort((a, b) => String(a.raceDate).localeCompare(String(b.raceDate)));
+  const past = wishlist.filter(p => p.raceDate && p.raceDate < todayStr).sort((a, b) => String(b.raceDate).localeCompare(String(a.raceDate)));
 
   return (
     <div className="max-w-lg mx-auto p-4">
@@ -98,7 +120,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
 
       <div className="flex bg-slate-800 rounded-xl p-1 gap-1 mb-5">
         {SEGMENTS.map(([id, label]) => (
-          <button key={id} onClick={() => setSeg(id)}
+          <button key={id} onClick={() => setSeg(id as Segment)}
             className={"flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors " +
               (seg === id ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200")}>
             {label}
@@ -130,14 +152,14 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                 // — a checkpoint along the way. We key off settings.raceDate rather
                 // than targetEditionId so a hand-entered main race (no catalogue
                 // edition) can still have tune-ups added.
-                const inPlannable = settings.raceDate && !isTarget && p.raceDate < settings.raceDate;
+                const inPlannable = settings.raceDate && !isTarget && String(p.raceDate) < settings.raceDate;
                 return (
                   <div key={p.editionId} className="rounded-2xl p-4 border border-orange-500/30"
                     style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
                     <div className="flex justify-between items-start gap-3">
                       <div className="min-w-0">
                         <p className="font-semibold line-clamp-2 leading-snug">{p.label}</p>
-                        <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
+                        <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate || "") + " · " + p.distanceKm + " km"}</p>
                         {isTarget && <span className="inline-flex items-center gap-1 text-xs text-orange-300 mt-1.5 font-semibold"><Target size={12}/>Training target</span>}
                         {inPlannable && p.inPlan && <span className="inline-flex items-center gap-1 text-xs text-orange-300/80 mt-1.5 font-semibold"><Check size={12}/>In your plan</span>}
                       </div>
@@ -154,13 +176,13 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                         </button>
                       )}
                       {inPlannable && (
-                        <button onClick={() => setRaceInPlan(p.editionId, !p.inPlan)}
+                        <button onClick={() => p.editionId && setRaceInPlan(p.editionId, !p.inPlan)}
                           title={p.inPlan ? "Remove from plan" : "Add this race to your plan"}
                           className={"flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors " + (p.inPlan ? "bg-orange-500/20 text-orange-300 hover:bg-orange-500/30" : "bg-slate-700 hover:bg-slate-600 text-slate-200")}>
                           {p.inPlan ? <><Check size={14}/>In plan</> : <><Plus size={14}/>Add to plan</>}
                         </button>
                       )}
-                      <button onClick={() => setLogFor(p.editionId)}
+                       <button onClick={() => setLogFor(p.editionId || null)}
                         className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold transition-colors">
                         <Check size={14}/>Done
                       </button>
@@ -183,10 +205,10 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                 return (
                   <div key={p.editionId} className="rounded-xl p-4 border border-amber-500/25 bg-amber-500/5">
                     <p className="font-semibold">{p.label}</p>
-                    <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
+                    <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate || "") + " · " + p.distanceKm + " km"}</p>
                     <p className="text-amber-200/80 text-xs mt-1">This race has passed — add your time to keep the record.</p>
                     <div className="flex gap-2 mt-3">
-                      <button onClick={() => setLogFor(p.editionId)}
+                       <button onClick={() => setLogFor(p.editionId || null)}
                         className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
                         Add your time
                       </button>
@@ -204,12 +226,12 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
 
           {done.length > 0 && (
             <Section title="Completed">
-              {done.slice().sort((a, b) => b.raceDate.localeCompare(a.raceDate)).map(p => (
+              {done.slice().sort((a, b) => String(b.raceDate).localeCompare(String(a.raceDate))).map(p => (
                 <div key={p.editionId} className="bg-slate-800 rounded-xl p-4">
                   <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold line-clamp-2 leading-snug">{p.label}</p>
-                      <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate) + " · " + p.distanceKm + " km"}</p>
+                       <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate || "") + " · " + p.distanceKm + " km"}</p>
                       {p.notes && <p className="text-slate-400 text-xs mt-1 truncate">{p.notes}</p>}
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -240,15 +262,26 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
 // always apply; the "Near me" toggle layers on a one-off geolocation sort
 // (distance shown as "X km away"). Races without coordinates fall into a
 // "Location unknown" bucket while Near me is on rather than disappearing.
-function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult, showToast, openRaceForm }) {
+type FindPanelProps = {
+  catalogue: CatalogueRace[];
+  byId: Record<string, Participation>;
+  addWishlist: (joined: JoinedRace | JoinedEdition) => void;
+  logFor: string | null;
+  setLogFor: (editionId: string | null) => void;
+  saveResult: (joined: JoinedRace | JoinedEdition, timeSec: number, notes: string, alsoLog: boolean) => void;
+  showToast: (msg: string, type?: string) => void;
+  openRaceForm: () => void;
+};
+
+function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult, showToast, openRaceForm }: FindPanelProps) {
   const [query, setQuery] = useState("");
-  const [expanded, setExpanded] = useState(null); // raceId expanded
-  const [reportFor, setReportFor] = useState(null); // raceId being reported
-  const [band, setBand] = useState(null);          // event distance band (km) or null
+  const [expanded, setExpanded] = useState<string | null>(null); // raceId expanded
+  const [reportFor, setReportFor] = useState<string | null>(null); // raceId being reported
+  const [band, setBand] = useState<number | null>(null);          // event distance band (km) or null
   const [nearMe, setNearMe] = useState(false);
   const [radius, setRadius] = useState(100);        // km
-  const [loc, setLoc] = useState(null);
-  const [status, setStatus] = useState("idle");     // idle | locating | denied
+  const [loc, setLoc] = useState<LocationFix | null>(null);
+  const [status, setStatus] = useState<"idle" | "locating" | "denied">("idle");
 
   const toggleNearMe = async () => {
     if (nearMe) { setNearMe(false); return; }
@@ -265,15 +298,15 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
 
   // Text + band narrow the catalogue; a race passes the band if any of its
   // editions falls in it.
-  const matchesBand = race => band == null || (race.editions || []).some(e => Math.abs(e.distanceKm - band) <= band * 0.12);
+  const matchesBand = (race: CatalogueRace) => band == null || (race.editions || []).some(e => Math.abs(e.distanceKm - band) <= band * 0.12);
   const base = filterRaces(catalogue, query).filter(matchesBand);
 
   // With Near me on, split into distance-sorted (within radius) + a
   // location-unknown bucket; races with coordinates beyond the radius drop out.
-  let located;
-  const unlocated = [];
+  let located: { race: CatalogueRace; distM: number | null }[];
+  const unlocated: CatalogueRace[] = [];
   if (nearMe && loc) {
-    const withCoord = [];
+    const withCoord: { race: CatalogueRace; distM: number }[] = [];
     for (const race of base) {
       if (race.lat == null || race.lng == null) { unlocated.push(race); continue; }
       const distM = haversineM(loc, { lat: race.lat, lng: race.lng });
@@ -366,7 +399,16 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
 // A single catalogue race, grouped: collapsed header (name, place, distances,
 // optional "X km away", unverified flag) expanding to its editions, official
 // site link, and a report affordance.
-function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setLogFor, saveResult, reportFor, setReportFor, showToast }) {
+type RaceCardProps = Omit<FindPanelProps, "catalogue" | "openRaceForm"> & {
+  race: CatalogueRace;
+  distM: number | null;
+  open: boolean;
+  onToggle: () => void;
+  reportFor: string | null;
+  setReportFor: (raceId: string | null) => void;
+};
+
+function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setLogFor, saveResult, reportFor, setReportFor, showToast }: RaceCardProps) {
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
       <button onClick={onToggle} className="w-full px-4 py-3 flex items-center gap-2 text-left">
@@ -398,7 +440,8 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
           )}
           <p className="text-[11px] text-slate-500">Dates are user-submitted — always verify on the official site before planning.</p>
           {race.editions.map(e => {
-            const joined = { ...race, editions: undefined, raceId: race.id, edition: e };
+            const raceBase = { ...race, editions: undefined };
+            const joined: JoinedRace = { ...raceBase, raceId: race.id, edition: e };
             const part = byId[e.id];
             return (
               <div key={e.id} className="flex items-center gap-2 border-t border-slate-700/30 pt-3 flex-wrap">
@@ -446,7 +489,9 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
   );
 }
 
-function Chip({ active, onClick, children }) {
+type ChipProps = { active: boolean; onClick: () => void; children: ReactNode };
+
+function Chip({ active, onClick, children }: ChipProps) {
   return (
     <button onClick={onClick}
       className={"px-3 py-1 rounded-full text-xs font-semibold transition-colors border " +
@@ -456,7 +501,9 @@ function Chip({ active, onClick, children }) {
   );
 }
 
-function Section({ title, children }) {
+type SectionProps = { title: string; children: ReactNode };
+
+function Section({ title, children }: SectionProps) {
   return (
     <div>
       <p className="text-slate-400 text-xs uppercase tracking-widest mb-2">{title}</p>
@@ -467,7 +514,13 @@ function Section({ title, children }) {
 
 // Inline finish-time form for marking a race done. Defaults to also adding a
 // RACE run to the log so the result flows into History/Stats/predictions.
-function ResultForm({ joined, onSave, onCancel }) {
+type ResultFormProps = {
+  joined: JoinedRace | JoinedEdition;
+  onSave: (joined: JoinedRace | JoinedEdition, timeSec: number, notes: string, alsoLog: boolean) => void;
+  onCancel: () => void;
+};
+
+function ResultForm({ joined, onSave, onCancel }: ResultFormProps) {
   const [h, setH] = useState("");
   const [m, setM] = useState("");
   const [s, setS] = useState("");
@@ -508,7 +561,9 @@ function ResultForm({ joined, onSave, onCancel }) {
 
 // Inline "report this race" form → race_reports + maintainer notification.
 const REPORT_REASONS = ["Wrong date", "Wrong distance / details", "Duplicate", "Doesn't exist / spam", "Other"];
-function ReportForm({ onSubmit, onCancel }) {
+type ReportFormProps = { onSubmit: (reason: string, note: string) => void; onCancel: () => void };
+
+function ReportForm({ onSubmit, onCancel }: ReportFormProps) {
   const [reason, setReason] = useState(REPORT_REASONS[0]);
   const [note, setNote] = useState("");
   return (
@@ -530,15 +585,16 @@ function ReportForm({ onSubmit, onCancel }) {
 }
 
 // ── small helpers ─────────────────────────────────────────────────────────────
-function daysUntil(dateStr, today) {
+function daysUntil(dateStr: string | undefined, today: Date) {
+  if (!dateStr) return 0;
   return Math.ceil((new Date(dateStr + "T00:00:00").getTime() - today.getTime()) / 86400000);
 }
-function filterRaces(list, query) {
+function filterRaces(list: CatalogueRace[], query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return list;
   return list.filter(r => (r.name + " " + (r.city || "") + " " + (r.country || "")).toLowerCase().includes(q));
 }
-function fmtKm(distM) {
+function fmtKm(distM: number) {
   const km = distM / 1000;
   // Right on top of it (e.g. same city centroid) reads as a broken "0.0 km".
   if (km < 0.1) return "< 100 m";

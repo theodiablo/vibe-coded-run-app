@@ -7,13 +7,13 @@ import { supabase } from "./supabase";
 // cache so the synchronous-style db.get/db.set the app already uses keep
 // working; writes are debounced into a single upsert.
 
-let userId = null;
-let cache = {};
-let saveTimer = null;
+let userId: string | null = null;
+let cache: Record<string, unknown> = {};
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Load the user's app_state blob into the cache. Call once after sign-in,
 // before rendering the app.
-export async function initStore(uid) {
+export async function initStore(uid: string) {
   // Flush any write still sitting in the debounce buffer before we replace the
   // cache, otherwise a reload would silently discard unsaved changes.
   await flushNow();
@@ -50,12 +50,12 @@ export function currentUserId() {
 export function clearStore() {
   userId = null;
   cache = {};
-  clearTimeout(saveTimer);
+  if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
 }
 
 async function flush() {
-  clearTimeout(saveTimer);
+  if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
   if (!userId) return;
   const { error } = await supabase.from("app_state").upsert({
@@ -86,12 +86,12 @@ if (typeof window !== "undefined") {
 }
 
 export const db = {
-  async get(k) {
-    return k in cache ? cache[k] : null;
+  async get<T = unknown>(k: string): Promise<T | null> {
+    return k in cache ? cache[k] as T : null;
   },
-  async set(k, v) {
+  async set(k: string, v: unknown) {
     cache[k] = v;
-    clearTimeout(saveTimer);
+    if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(flush, 600);
   },
 };

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "lucide-react";
 import { App as CapApp } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { isNative } from "./native";
 import { versionStatus } from "./utils/version";
@@ -26,20 +28,20 @@ function Splash() {
 }
 
 export default function App() {
-  const [session, setSession] = useState(undefined); // undefined = still resolving
+  const [session, setSession] = useState<Session | null | undefined>(undefined); // undefined = still resolving
   const [storeReady, setStoreReady] = useState(false);
-  const [authError, setAuthError] = useState(null); // native deep-link sign-in failure
-  const [updateState, setUpdateState] = useState("ok"); // version gate: ok | update-available | must-update
+  const [authError, setAuthError] = useState<string | null>(null); // native deep-link sign-in failure
+  const [updateState, setUpdateState] = useState<"ok" | "update-available" | "must-update">("ok"); // version gate
   // Which user id the store is currently loaded for. Guards against reloading
   // (and clobbering the in-memory cache) on every auth event — Supabase fires
   // onAuthStateChange on token refresh, tab refocus, and repeat SIGNED_IN, each
   // time with a brand-new session object.
-  const loadedUidRef = useRef(null);
+  const loadedUidRef = useRef<string | null>(null);
 
   // Track the auth session.
   useEffect(() => {
     let active = true;
-    const settle = (s) => {
+    const settle = (s: Session | null) => {
       if (active) setSession(s);
     };
 
@@ -82,19 +84,19 @@ export default function App() {
   // stays out of the web bundle.
   // Persists the last-processed URL across Strict Mode remounts so a PKCE code
   // is never exchanged twice (codes are single-use; a double call yields invalid_grant).
-  const lastUrlRef = useRef(null);
+  const lastUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isNative) return;
     let mounted = true;
-    let listenerHandle = null;
+    let listenerHandle: PluginListenerHandle | null = null;
 
     // Surface an auth failure on the login screen (passed down as a prop). When
     // there's no session, LoginScreen is rendered as our child, so this re-render
     // reaches it for both the warm-return and cold-start cases.
-    const reportAuthError = (text) => setAuthError(text);
+    const reportAuthError = (text: string) => setAuthError(text);
 
-    const processUrl = async (url) => {
+    const processUrl = async (url: string) => {
       if (!url || url === lastUrlRef.current) return; // de-dupe appUrlOpen vs getLaunchUrl
       lastUrlRef.current = url;
       let params;
@@ -109,7 +111,7 @@ export default function App() {
         await supabase.auth.exchangeCodeForSession(code);
       } catch (err) {
         console.error("Deep-link auth exchange failed", err);
-        reportAuthError(err?.message || "Sign-in failed. Please try again.");
+        reportAuthError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
       }
     };
 

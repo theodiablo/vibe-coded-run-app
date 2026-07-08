@@ -13,6 +13,21 @@ type BgLocation = {
 };
 
 type BgError = { code?: string; message?: string } | null | undefined;
+type NativePosition = {
+  coords: {
+    latitude: number;
+    longitude: number;
+    altitude: number | null;
+    accuracy: number | null;
+    altitudeAccuracy: number | null | undefined;
+    speed: number | null;
+    heading: number | null;
+  };
+  timestamp: number;
+};
+type NativePositionCallback = (position: GeolocationPosition | NativePosition) => void;
+type NativeError = ReturnType<typeof adaptBgError>;
+type NativeErrorCallback = (error: NativeError) => void;
 
 type BackgroundGeolocationPlugin = {
   addWatcher: (
@@ -51,7 +66,7 @@ const PERMISSION_DENIED = 1, POSITION_UNAVAILABLE = 2, TIMEOUT = 3;
 // Normalize a background-geolocation `location` into the GeolocationPosition
 // shape that onPos already consumes (coords.{latitude,longitude,altitude,
 // accuracy} + timestamp). Exported pure so it can be unit-tested.
-export function adaptBgLocation(loc: BgLocation) {
+export function adaptBgLocation(loc: BgLocation): NativePosition {
   return {
     coords: {
       latitude: loc.latitude,
@@ -66,16 +81,17 @@ export function adaptBgLocation(loc: BgLocation) {
   };
 }
 
-export function adaptBgError(error: BgError | GeolocationPositionError) {
-  const code = error && error.code === "NOT_AUTHORIZED" ? PERMISSION_DENIED : POSITION_UNAVAILABLE;
+export function adaptBgError(error: unknown) {
+  const err = typeof error === "object" && error ? error as { code?: unknown; message?: unknown } : null;
+  const code = err?.code === "NOT_AUTHORIZED" ? PERMISSION_DENIED : POSITION_UNAVAILABLE;
   return {
-    code, message: (error && error.message) || "Location error",
+    code, message: typeof err?.message === "string" ? err.message : "Location error",
     PERMISSION_DENIED, POSITION_UNAVAILABLE, TIMEOUT,
   };
 }
 
 // True if a Geolocation permission status grants fine or coarse location.
-const isGranted = (p) => !!p && (p.location === "granted" || p.coarseLocation === "granted");
+const isGranted = (p: { location?: string; coarseLocation?: string } | null | undefined) => !!p && (p.location === "granted" || p.coarseLocation === "granted");
 
 // Request foreground (fine) location, reliably showing the OS dialog(s). Returns
 // true if location is usable; never throws (fast to check below).
@@ -117,7 +133,7 @@ export const nativeSource = {
 
   // Returns a sync handle immediately. The underlying watcher id resolves
   // asynchronously; `handle.removed` covers a clearWatch that races ahead of it.
-  watchPosition(onPos, onErr, { background = false } = {}) {
+  watchPosition(onPos: NativePositionCallback, onErr?: NativeErrorCallback, { background = false }: { background?: boolean } = {}) {
     const handle: NativeWatchHandle = { id: null, removed: false, background };
 
     if (background) {
@@ -170,7 +186,7 @@ export const nativeSource = {
     return handle;
   },
 
-  clearWatch(handle) {
+  clearWatch(handle: NativeWatchHandle | null | undefined) {
     if (!handle) return;
     handle.removed = true;
     if (handle.id == null) return; // not yet started; the resolver above will remove it

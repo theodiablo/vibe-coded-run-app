@@ -3,14 +3,26 @@ import { HistoryView } from "./HistoryView";
 import { StatsView } from "./StatsView";
 import { Badge } from "../components/Badge";
 import { computeBadges } from "../utils/badges";
+import type { RacesState, Run, SettingsState, RunPatch } from "../types";
 
 // "Progress" merges the former History + Stats tabs and adds Badges, under a
 // segmented toggle. Each sub-view is the existing component, unchanged.
 const TABS = [["log", "Log"], ["stats", "Stats"], ["badges", "Badges"]];
+type ProgressSub = "log" | "stats" | "badges";
+type ProgressViewProps = {
+  runs: Run[];
+  races: RacesState | null;
+  settings: SettingsState;
+  initialSub?: ProgressSub;
+  navKey?: number;
+  deleteRun: (id: string) => void;
+  updateRun: (id: string, patch: RunPatch) => void;
+  goTab?: (tab: string) => void;
+};
 
-export function ProgressView(props) {
+export function ProgressView(props: ProgressViewProps) {
   const { runs, races, initialSub, navKey } = props;
-  const [sub, setSub] = useState(initialSub || "log");
+  const [sub, setSub] = useState<ProgressSub>(initialSub || "log");
   // Re-apply the requested sub-tab whenever we're navigated here (navKey bumps),
   // even if it's the same target as last time. Render-time sync, not an effect.
   const [prevKey, setPrevKey] = useState(navKey);
@@ -23,7 +35,7 @@ export function ProgressView(props) {
       <div className="max-w-lg mx-auto px-4 pt-4">
         <div className="flex bg-slate-800 rounded-xl p-1 gap-1">
           {TABS.map(([id, label]) => (
-            <button key={id} onClick={() => setSub(id)}
+            <button key={id} onClick={() => setSub(id as ProgressSub)}
               className={"flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors " +
                 (sub === id ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200")}>
               {label}

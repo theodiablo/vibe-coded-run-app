@@ -13,11 +13,12 @@ const ANCHORS = [
   {d: 42.195,  fast: 225, slow: 570}, // full   · 3:45 – 9:30 /km
   {d: 100,     fast: 270, slow: 660}, // ultra  · 4:30 – 11:00 /km
 ];
+type PaceBand = { fast: number; slow: number };
 
 // Returns {fast, slow} pace bounds in sec/km for a distance, or null if the
 // distance isn't set yet (so callers can show a "set a distance first" state).
-export function paceBand(distanceKm) {
-  const d = parseFloat(distanceKm);
+export function paceBand(distanceKm: string | number): PaceBand | null {
+  const d = Number(distanceKm);
   if (!d || d <= 0) return null;
   if (d <= ANCHORS[0].d) return {fast: ANCHORS[0].fast, slow: ANCHORS[0].slow};
   for (let i = 0; i < ANCHORS.length - 1; i++) {
@@ -36,23 +37,23 @@ export function paceBand(distanceKm) {
 
 // Mid-pack-leaning suggested pace (sec/km) — sits a little under the midpoint of
 // the band so the default feels achievable rather than slow.
-export function suggestedPace(distanceKm) {
+export function suggestedPace(distanceKm: string | number) {
   const b = paceBand(distanceKm);
   return b ? Math.round(b.fast + (b.slow - b.fast) * 0.45) : null;
 }
 
 // Suggested goal finish time (seconds) for a freshly entered distance.
-export function suggestedGoalSec(distanceKm) {
+export function suggestedGoalSec(distanceKm: string | number) {
   const p = suggestedPace(distanceKm);
-  const d = parseFloat(distanceKm);
+  const d = Number(distanceKm);
   return p ? Math.round(p * d) : null;
 }
 
 // Keep a goal time inside the distance-appropriate band (in seconds).
-export function clampGoalSec(goalSec, distanceKm) {
+export function clampGoalSec(goalSec: number, distanceKm: string | number) {
   const b = paceBand(distanceKm);
   if (!b) return goalSec;
-  const d = parseFloat(distanceKm);
+  const d = Number(distanceKm);
   const min = Math.round(b.fast * d);
   const max = Math.round(b.slow * d);
   return Math.min(max, Math.max(min, goalSec));

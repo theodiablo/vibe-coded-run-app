@@ -6,25 +6,26 @@
 // The detection/PB helpers are pure over `participations` and stay unit-testable.
 
 import { listRaces } from "../races";
+import type { CatalogueRace, JoinedEdition, Participation, RaceCandidate, Run, SettingsState } from "../types";
 
 // Module-level cache: the grouped races (each with an `editions` array) plus a
 // flat edition→race join derived from them. Empty until hydrateCatalogue runs;
 // a failed fetch simply leaves it empty and every lookup degrades gracefully
 // (findEdition → null → callers fall back to the participation snapshot).
-let _races = [];
-let _editions = [];
+let _races: CatalogueRace[] = [];
+let _editions: JoinedEdition[] = [];
 
 // Flatten grouped races into the edition-joined shape lookups expect: each entry
 // carries the race fields plus `raceId` and the single `edition`.
-function flatten(races) {
+function flatten(races: CatalogueRace[]): JoinedEdition[] {
   return races.flatMap(r =>
-    (r.editions || []).map(e => ({ ...r, editions: undefined, raceId: r.id, edition: e }))
+    (r.editions || []).map((e) => ({ ...r, raceId: r.id, edition: e }))
   );
 }
 
 // Populate the cache from fetched data (src/races.ts → listRaces). Called once at
 // boot and again after a user contributes, so new entries appear immediately.
-export function hydrateCatalogue(races) {
+export function hydrateCatalogue(races: CatalogueRace[] = []) {
   _races = races || [];
   _editions = flatten(_races);
 }
@@ -33,7 +34,7 @@ export function hydrateCatalogue(races) {
 // already returns [] on error, so a down/slow Supabase just leaves an empty
 // catalogue and the app still renders. Returns the grouped races.
 export async function loadCatalogue() {
-  let races = [];
+  let races: CatalogueRace[] = [];
   try { races = await listRaces(); } catch (err) { console.error("catalogue load failed", err); }
   hydrateCatalogue(races);
   return _races;
@@ -51,12 +52,12 @@ export function allEditions() {
 
 // Resolve an editionId to its joined race+edition object, or null if it's no
 // longer in the catalogue (an orphaned participation handles its own snapshot).
-export function findEdition(editionId) {
+export function findEdition(editionId?: string | null) {
   if (!editionId) return null;
   return _editions.find(e => e.edition.id === editionId) || null;
 }
 
-export function findRace(raceId) {
+export function findRace(raceId?: string | null) {
   return _races.find(r => r.id === raceId) || null;
 }
 
@@ -64,7 +65,7 @@ export function findRace(raceId) {
 // the race name / city / country, and by default hides editions whose date has
 // already passed (a stale past date would build a degenerate plan). `today` is a
 // YYYY-MM-DD string; pass it from the caller so the function stays pure.
-export function searchEditions(query, today, { upcomingOnly = true } = {}) {
+export function searchEditions(query: string, today: string, { upcomingOnly = true }: { upcomingOnly?: boolean } = {}) {
   const q = (query || "").trim().toLowerCase();
   return _editions.filter(e => {
     if (upcomingOnly && today && e.edition.date < today) return false;
@@ -74,7 +75,7 @@ export function searchEditions(query, today, { upcomingOnly = true } = {}) {
 }
 
 // A human label for a participation/edition, e.g. "Behobia-San Sebastián 2026".
-export function editionLabel(race, edition) {
+export function editionLabel(race?: Pick<CatalogueRace, "name"> | null, edition?: { date?: string } | null) {
   const year = (edition?.date || "").slice(0, 4);
   return [race?.name, year].filter(Boolean).join(" ");
 }
@@ -85,7 +86,7 @@ export function editionLabel(race, edition) {
 //
 // A match needs: a target set, the run on the race date, and a distance within
 // tolerance of the target (race courses run a little long/short, and GPS drifts).
-export function detectRaceCompletion(run, settings, tolerance = 0.18) {
+export function detectRaceCompletion(run: Run | null | undefined, settings: SettingsState | null | undefined, tolerance = 0.18) {
   if (!run || !settings) return null;
   const editionId = settings.targetEditionId;
   const target = Number(settings.distanceKm);
@@ -100,20 +101,21 @@ export function detectRaceCompletion(run, settings, tolerance = 0.18) {
 // session on the plan that carries an editionId (the main race + any secondary
 // races). Returns the matched editionId, or null. Same date + distance-tolerance
 // rule as detectRaceCompletion.
-export function detectAnyRace(run, candidates = [], tolerance = 0.18) {
+export function detectAnyRace(run: Run | null | undefined, candidates: RaceCandidate[] = [], tolerance = 0.18) {
   if (!run || !run.date || !run.km) return null;
   for (const c of candidates) {
     if (!c || !c.editionId || !c.date || !c.distanceKm) continue;
     if (run.date !== c.date) continue;
-    if (Math.abs(run.km - c.distanceKm) <= c.distanceKm * tolerance) return c.editionId;
+    const distanceKm = Number(c.distanceKm);
+    if (Math.abs(run.km - distanceKm) <= distanceKm * tolerance) return c.editionId;
   }
   return null;
 }
 
 // Fastest done time per distance bucket, used to flag personal bests. Distances
 // are bucketed to the nearest 0.1 km so 21.1 and 21.10 group together.
-export function bestTimesByDistance(participations = []) {
-  const best = {};
+export function bestTimesByDistance(participations: Participation[] = []) {
+  const best: Record<number, number> = {};
   for (const p of participations) {
     if (p.status !== "done" || !p.timeSec || !p.distanceKm) continue;
     const key = Math.round(p.distanceKm * 10) / 10;
@@ -123,8 +125,8 @@ export function bestTimesByDistance(participations = []) {
 }
 
 // Is this done participation the fastest the user has logged at its distance?
-export function isPersonalBest(participation, participations = []) {
-  if (participation?.status !== "done" || !participation.timeSec) return false;
+export function isPersonalBest(participation: Participation | null | undefined, participations: Participation[] = []) {
+  if (participation?.status !== "done" || !participation.timeSec || !participation.distanceKm) return false;
   const best = bestTimesByDistance(participations);
   const key = Math.round(participation.distanceKm * 10) / 10;
   return best[key] === participation.timeSec;

@@ -13,6 +13,19 @@ import { BetaBadge } from "../components/BetaBadge";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
 import { isNative } from "../native";
 import { BG_LOC_DISCLOSED_KEY } from "../constants";
+import type { HrMethod, HrPending, Run } from "../types";
+
+type LiveRunTrackerProps = {
+  onFinish: (prefill: Partial<Run> & { hrPending?: HrPending | null }) => void;
+  onClose: () => void;
+  showToast?: (msg: string, type?: string) => void;
+  hrMethod: HrMethod;
+  hrOptOut?: boolean;
+  onConfigureHr?: () => void;
+  onDeclineHr?: () => void;
+};
+
+type LocationPreview = { lat: number; lng: number; acc?: number | null };
 
 function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -33,7 +46,7 @@ function Ctrl({ onClick, color, children, disabled = false }: { onClick: () => v
   );
 }
 
-export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOut, onConfigureHr, onDeclineHr }) {
+export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOut, onConfigureHr, onDeclineHr }: LiveRunTrackerProps) {
   const pairedHrDevice = getPairedDevice();
   const healthConnectAuthorized = hasHealthConnectAuthorization();
   const hrReady = !isNative
@@ -42,7 +55,8 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     || (hrMethod === "healthconnect" && healthConnectAuthorized);
   const effectiveHrMethod = hrReady ? hrMethod : "off";
   const t = useRunTracker({ hrMethod: effectiveHrMethod });
-  const { state, points, stats, error, pending, location } = t;
+  const tracker = t as Omit<typeof t, "location"> & { location: LocationPreview | null };
+  const { state, points, stats, error, pending, location } = tracker;
   const [busy, setBusy] = useState(false);
   // Resolve the HR source once per render from the seam (source.js), instead of
   // matching method-id strings all over this file — null off web/"off"/unknown,
@@ -137,7 +151,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     const granted = isNative ? await t.requestPermissions() : true;
     if (!granted || !mountedRef.current) return;
     markDisclosed();
-    if (checkHr && maybeShowHrNudge(run)) return;
+    if (checkHr && run && maybeShowHrNudge(run)) return;
     run?.();
   };
   const cancelDisclosure = () => {
@@ -196,7 +210,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       const { startedAt, stoppedAt } = t.runWindow();
       const startMs = startedAt || points.find(Boolean)?.[2] || Date.now();
       let endMs = stoppedAt || Date.now();
-      if (!stoppedAt) for (let i = points.length - 1; i >= 0; i--) { if (points[i]) { endMs = points[i][2]; break; } }
+      if (!stoppedAt) for (let i = points.length - 1; i >= 0; i--) { const p = points[i]; if (p) { endMs = p[2]; break; } }
       let res = null;
       try { res = await (hrSrc as { fetchRange: (startMs: number, endMs: number) => Promise<{ hrAvg?: number; hrMax?: number }> }).fetchRange(startMs, endMs); } catch { /* unsynced — leave null */ }
       if (res && res.hrAvg) { hr = res.hrAvg; hrMax = res.hrMax; }
@@ -207,7 +221,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     onFinish({
       date, type: "EASY", km,
       durationSec: stats.movingSec,
-      elevation: stats.elevation || null,
+      elevation: stats.elevation || undefined,
       source: "gps",
       ...(routeId ? { routeId } : {}),
       ...(routeTmp ? { routeTmp, routePending: true } : {}),
@@ -238,7 +252,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
         {state === "idle" && pending && (
           <div className="bg-slate-800 rounded-xl p-3 space-y-2 border border-slate-700">
             <p className="text-sm text-slate-200">Resume your previous run?
-              <span className="text-slate-400"> {pending.points.filter(Boolean).length} points saved.</span></p>
+              <span className="text-slate-400"> {(pending.points || []).filter(Boolean).length} points saved.</span></p>
             <div className="flex gap-2">
               <button onClick={t.resumePrevious}
                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-semibold">Resume</button>

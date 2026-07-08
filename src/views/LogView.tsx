@@ -3,6 +3,7 @@ import { Loader, Plus, Upload, MapPin, HeartPulse } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
 import { parseRunsCsv, MAX_CSV_BYTES } from "../utils/csv";
+import type { HrPending, Run } from "../types";
 
 type LogForm = {
   date: string;
@@ -18,7 +19,22 @@ type LogForm = {
   notes: string;
 };
 
-export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
+type LogPrefill = Partial<Run> & {
+  pace?: number;
+  wNum?: number;
+  sId?: string;
+  hrPending?: HrPending | null;
+};
+
+type LogViewProps = {
+  addRuns: (runs: Partial<Run>[]) => void;
+  onDone: () => void;
+  onSaved?: () => void;
+  prefill?: LogPrefill | null;
+  openTracker?: () => void;
+};
+
+export function LogView({addRuns, onDone, onSaved, prefill, openTracker}: LogViewProps) {
   // A GPS-tracked run prefills its real measured duration; a plan session
   // prefills an estimate from km × prescribed pace.
   const estSec = prefill?.durationSec != null
@@ -52,7 +68,7 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
       date: f.date, type: f.type, km: parseFloat(f.km), durationSec: sec,
       hr:        f.hr    ? parseInt(f.hr, 10)    : null,
       hrMax:     f.hrMax ? parseInt(f.hrMax, 10) : null,
-      elevation: f.elev  ? parseInt(f.elev, 10)  : null,
+      elevation: f.elev  ? parseInt(f.elev, 10)  : undefined,
       effort:    parseInt(String(f.effort), 10), notes: f.notes,
       // Carry the GPS trace reference through from a live-tracked run.
       ...(prefill?.source   ? { source: prefill.source } : {}),

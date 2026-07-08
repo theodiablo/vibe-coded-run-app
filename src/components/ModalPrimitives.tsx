@@ -3,10 +3,19 @@
 // accept/cancel button pair were being hand-copied into every one of them,
 // so a z-index or styling fix (like the Toast bump to sit above these) had
 // to be applied in three places by hand instead of one.
+import type { ReactNode } from "react";
+
+type ModalOverlayProps = { children: ReactNode };
+type ConfirmButtonsProps = {
+  onCancel: () => void;
+  onAccept: () => void;
+  cancelLabel: string;
+  acceptLabel: string;
+};
 
 // Full-screen dim backdrop, centered content, consistent stacking above the
 // live tracker (z-50) and other in-app sheets.
-export function ModalOverlay({ children }) {
+export function ModalOverlay({ children }: ModalOverlayProps) {
   return (
     <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4">
       {children}
@@ -15,7 +24,7 @@ export function ModalOverlay({ children }) {
 }
 
 // The cancel/accept button pair shared by every disclosure and confirm sheet.
-export function ConfirmButtons({ onCancel, onAccept, cancelLabel, acceptLabel }) {
+export function ConfirmButtons({ onCancel, onAccept, cancelLabel, acceptLabel }: ConfirmButtonsProps) {
   return (
     <div className="grid grid-cols-2 gap-2 pt-1">
       <button onClick={onCancel}

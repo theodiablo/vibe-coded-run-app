@@ -13,7 +13,9 @@ const HR_SERVICE = numberToUUID(0x180d);
 const HR_MEASUREMENT = numberToUUID(0x2a37);
 
 type BleWatchOptions = { deviceId?: string };
-type BleWatchHandle = { deviceId?: string; stopped: boolean };
+export type BleDevice = { id: string; name: string };
+export type BleHrSample = { bpm: number; t: number };
+export type BleWatchHandle = { deviceId?: string; stopped: boolean };
 
 let initialized = false;
 async function ensureInit() {
@@ -38,7 +40,7 @@ const bleSourceImpl = {
   // Scan for HR-profile peripherals for `ms`, reporting each unique device as
   // {id,name} via onDevice. Resolves when the scan window ends. Initializing /
   // scanning triggers the Android 12+ BLUETOOTH_SCAN/CONNECT runtime prompt.
-  async scan(onDevice, ms = 8000) {
+  async scan(onDevice: (device: BleDevice) => void, ms = 8000) {
     await ensureInit();
     const seen = new Set();
     await BleClient.requestLEScan({ services: [HR_SERVICE] }, (result) => {
@@ -60,7 +62,7 @@ const bleSourceImpl = {
   // Connect to the paired deviceId and stream { bpm, t } samples to onSample.
   // Auto-reconnects with capped backoff on an unsolicited disconnect so a strap
   // dropping mid-run doesn't end HR capture. Returns a handle for clearWatch.
-  watch(onSample, onErr, { deviceId }: BleWatchOptions = {}) {
+  watch(onSample: (sample: BleHrSample) => void, onErr?: (error: unknown) => void, { deviceId }: BleWatchOptions = {}) {
     const handle: BleWatchHandle = { deviceId, stopped: false };
     if (!deviceId) { onErr?.(new Error("No heart-rate sensor paired.")); return handle; }
     let backoff = 1000;
@@ -92,7 +94,7 @@ const bleSourceImpl = {
     return handle;
   },
 
-  async clearWatch(handle) {
+  async clearWatch(handle?: BleWatchHandle | null) {
     if (!handle) return;
     handle.stopped = true;
     if (!handle.deviceId) return;

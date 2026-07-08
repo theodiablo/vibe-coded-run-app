@@ -4,8 +4,26 @@ import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
 import { computeBadges, nextBadge } from "../utils/badges";
 import { HRTarget } from "../components/HRTarget";
 import { RunRow } from "../components/RunRow";
+import type { Plan, PlanSession, RacesState, Run, RunType, SettingsState } from "../types";
 
-export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach}) {
+type DashboardSession = PlanSession & { wNum: number };
+type DashboardProps = {
+  runs: Run[];
+  plan: Plan | null;
+  settings: SettingsState;
+  races: RacesState | null;
+  goTab: (tab: string) => void;
+  goProgress: (sub: string) => void;
+  goLog: (prefill: Partial<Run>) => void;
+  toggleSess: (weekNumber: number, sessionId: string) => void;
+  skipSess: (weekNumber: number, sessionId: string) => void;
+  openSettings: () => void;
+  openCoach: () => void;
+};
+
+const sessionTypeClass = (type: PlanSession["type"], classes: Record<string, string>) => classes[(type as RunType) || "OTHER"] || classes.OTHER;
+
+export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach}: DashboardProps) {
   const nb = nextBadge(computeBadges(runs, races?.participations || []));
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
@@ -14,12 +32,12 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
   // checkpoint to flag under the main-race countdown.
   const todayStr = ymd(today);
   const nextRace = (races?.participations || [])
-    .filter(p => p.status === "wishlist" && p.inPlan && p.raceDate >= todayStr && p.raceDate < settings.raceDate)
-    .sort((a, b) => a.raceDate.localeCompare(b.raceDate))[0];
+    .filter(p => p.status === "wishlist" && p.inPlan && p.raceDate && p.raceDate >= todayStr && p.raceDate < settings.raceDate)
+      .sort((a, b) => String(a.raceDate).localeCompare(String(b.raceDate)))[0];
   // Carry the week number alongside each session so the card's Record / Mark
   // done actions can target the right session via goLog / toggleSess.
   const nextSess = plan
-    ? plan.weeks.flatMap(w => w.sessions.map(s => ({...s, wNum: w.weekNumber})))
+    ? plan.weeks.flatMap(w => w.sessions.map(s => ({...s, wNum: w.weekNumber} as DashboardSession)))
         .filter(s => !s.done && !s.skipped && new Date(s.date + "T00:00:00") >= today)
         .sort((a, b) => a.date.localeCompare(b.date))[0]
     : null;
@@ -56,7 +74,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
             <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>
             <p className="font-semibold">{fmt.date(settings.raceDate)}</p>
             <p className="text-slate-400 text-sm mt-1">
-              {settings.distanceKm + "km · target sub " + fmt.dur(settings.goalSec) + " · " + fmt.pace(Math.round(settings.goalSec/settings.distanceKm)) + "/km"}
+              {settings.distanceKm + "km · target sub " + fmt.dur(Number(settings.goalSec) || 0) + " · " + fmt.pace(Math.round(Number(settings.goalSec)/Number(settings.distanceKm))) + "/km"}
             </p>
           </div>
           <div className="text-right">
@@ -114,23 +132,23 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
           <p className="text-orange-300 text-xs font-bold uppercase tracking-widest mb-2">
             {nextIsToday ? "Today's session" : "Up next"}
           </p>
-          <div className={"border-2 rounded-2xl p-4 " + (TBG[nextSess.type] || TBG.OTHER)}>
+          <div className={"border-2 rounded-2xl p-4 " + sessionTypeClass(nextSess.type, TBG)}>
             <button onClick={() => goTab("plan")} className="w-full text-left group" title="View in your plan">
               <div className="flex items-start justify-between gap-2">
-                <span className={"text-xs font-bold uppercase tracking-wide " + (TCLR[nextSess.type] || TCLR.OTHER)}>
+                <span className={"text-xs font-bold uppercase tracking-wide " + sessionTypeClass(nextSess.type, TCLR)}>
                   {nextSess.type}
                 </span>
                 <ChevronRight size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0 mt-0.5"/>
               </div>
               <p className="text-white text-base font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
               <p className="text-slate-400 text-xs mt-2">
-                {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(nextSess.km, nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
+                {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(Number(nextSess.km), nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
               </p>
             </button>
             <HRTarget type={nextSess.type} settings={settings} openSettings={openSettings}/>
             <div className="flex gap-2 mt-3">
               <button
-                onClick={() => goLog({date: nextSess.date, type: nextSess.type, km: nextSess.km, pace: nextSess.pace, wNum: nextSess.wNum, sId: nextSess.id})}
+                onClick={() => goLog({date: nextSess.date, type: nextSess.type, km: Number(nextSess.km), pace: nextSess.pace, wNum: nextSess.wNum, sId: nextSess.id})}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 <Plus size={15}/>Record
               </button>

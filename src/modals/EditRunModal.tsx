@@ -1,11 +1,32 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
+import type { Run, RunPatch } from "../types";
+
+type EditRunForm = {
+  date: string;
+  type: string;
+  km: string;
+  dH: string;
+  dM: string;
+  dS: string;
+  hr: string;
+  hrMax: string;
+  elev: string;
+  effort: string | number;
+  notes: string;
+};
+
+type EditRunModalProps = {
+  run: Run;
+  onSave: (patch: RunPatch) => void;
+  onClose: () => void;
+};
 
 // Edit an existing run — mirrors the fields on the Log a Run form.
-export function EditRunModal({run, onSave, onClose}) {
+export function EditRunModal({run, onSave, onClose}: EditRunModalProps) {
   const sec = run.durationSec || 0;
-  const [f, setF] = useState({
+  const [f, setF] = useState<EditRunForm>({
     date:  run.date,
     type:  run.type || "EASY",
     km:    run.km != null ? String(run.km) : "",
@@ -19,7 +40,7 @@ export function EditRunModal({run, onSave, onClose}) {
     notes:  run.notes || "",
   });
   const [err, setErr] = useState("");
-  const set = (k, v) => setF(prev => ({...prev, [k]: v}));
+  const set = (k: keyof EditRunForm, v: string | number) => setF(prev => ({...prev, [k]: v}));
 
   const save = () => {
     if (!f.km || (!f.dM && !f.dH)) { setErr("Distance and duration are required."); return; }
@@ -28,8 +49,8 @@ export function EditRunModal({run, onSave, onClose}) {
       date: f.date, type: f.type, km: parseFloat(f.km), durationSec: s,
       hr:        f.hr    ? parseInt(f.hr)    : null,
       hrMax:     f.hrMax ? parseInt(f.hrMax) : null,
-      elevation: f.elev  ? parseInt(f.elev)  : null,
-      effort:    parseInt(f.effort), notes: f.notes,
+      elevation: f.elev  ? parseInt(f.elev)  : undefined,
+      effort:    parseInt(String(f.effort)), notes: f.notes,
     });
     onClose();
   };

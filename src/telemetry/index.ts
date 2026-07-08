@@ -44,6 +44,7 @@ export const TELEMETRY_CONSENT_KEY = "rc_telemetry_consent_v2";
 //   captureError(error, context): void
 //
 const provider = posthogProvider;
+export type TelemetryProps = Record<string, unknown>;
 
 // ---- Consent -------------------------------------------------------------
 let started = false;
@@ -94,7 +95,7 @@ export function initTelemetry() {
 
 // Persist the user's choice and start/stop the provider to match. Called from
 // the first-run ConsentBanner and the Settings → Privacy toggle.
-export function setConsent(enabled) {
+export function setConsent(enabled: boolean) {
   try {
     localStorage.setItem(TELEMETRY_CONSENT_KEY, enabled ? "1" : "0");
   } catch { /* storage unavailable — getConsent() will fall back to off */ }
@@ -103,7 +104,7 @@ export function setConsent(enabled) {
 }
 
 // ---- Identity ------------------------------------------------------------
-export function identifyUser(id) {
+export function identifyUser(id: string) {
   if (!started || !getConsent()) return;
   provider.identify(id);
 }
@@ -115,7 +116,7 @@ export function resetUser() {
 
 // ---- Events --------------------------------------------------------------
 // Analytics events. Silently dropped without a provider or consent.
-export function track(event, props) {
+export function track(event: string, props?: TelemetryProps) {
   if (!started || !getConsent()) return;
   provider.track(event, props || {});
 }
@@ -127,7 +128,7 @@ export function track(event, props) {
 //   • native: the crash screen calls this ONLY after the user taps "Send
 //     report", so a crash is never reported without an explicit per-crash OK
 //     (even if analytics consent is already on).
-export function captureError(error, context) {
+export function captureError(error: Error, context?: TelemetryProps) {
   if (!provider.isConfigured()) return;
   // No start()/consent flip here: the adapter loads the SDK on demand and sends
   // just this one error even while opted out, so an opted-out user's per-crash
