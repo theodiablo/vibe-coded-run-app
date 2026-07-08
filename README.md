@@ -171,8 +171,9 @@ git tag android-v1.2.0 && git push origin android-v1.2.0
 ```
 
 - **`versionName`** (e.g. `1.2.0`) comes from the `android-v*` tag.
-- **`versionCode`** (what Play orders uploads by — must always increase) is the
-  GitHub Actions **run number**, injected automatically. No manual bumping.
+- **`versionCode`** (what Play orders uploads by — must always increase) is
+  `run_number*1000 + run_attempt`, injected automatically so a rerun after a
+  partial release still gets a fresh Play Store version code. No manual bumping.
 - Local/debug builds fall back to `1` / `1.0`.
 
 ### In-app update prompt
@@ -185,31 +186,18 @@ The app compares its installed `versionName` against the `app_config` row
 - `min_supported_version` — **you bump this by hand** in Supabase only when you ship
   a breaking change; clients below it get a non-dismissible "update required" screen.
 
-For the workflow to write `latest_version`, add two more repository secrets (the
-service-role key bypasses RLS and must **never** be put in the app bundle — CI only):
+For the workflow to write `latest_version`, add a repository secret for the
+Supabase CLI (the same secret used by the Edge Function deploy workflow):
 
 | Secret | Value |
 |--------|-------|
-| `SUPABASE_URL` | your project URL — the same one in `src/config.ts` (e.g. `https://xxxx.supabase.co`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | a service-role / secret key (see below) |
+| `SUPABASE_ACCESS_TOKEN` | a Supabase personal/service access token with database query rights on `run-app` |
 
-**Getting the service-role key.** You don't create it from scratch — a service-role
-credential is generated when the Supabase project is created. How you obtain it
-depends on the key system your project uses:
-
-- **New key system** (this project — `config.ts` holds an `sb_publishable_…` key):
-  Dashboard → **Settings → API Keys → Secret keys → Create new secret key**, name it
-  e.g. `github-actions-release`, and copy the `sb_secret_…` value (**shown once**).
-  A dedicated named key is preferred — you can revoke just it later if it leaks.
-- **Legacy key system:** Dashboard → **Settings → API → Project API keys →
-  `service_role`** → reveal and copy the `eyJ…` JWT.
-
-Either works (the workflow sends the key as both the `apikey` and `Authorization`
-header). ⚠️ This key has **full read/write to every user's data and bypasses RLS** —
-treat it like a root password: CI/server secrets only, never in `config.ts`, the app
-bundle, or any `VITE_*` var. If it leaks, revoke it (new system) or rotate it
-(legacy). Without these two secrets the release step just prints "skipping" and the
-build still succeeds.
+The release workflow uses `npx supabase db query --linked` against project
+`jpnxghiyjpuqnznxyfaf` to update `public.app_config.latest_version`. The token is a
+CI/server secret only: never put it in `config.ts`, the app bundle, or any `VITE_*`
+var. If it is missing, a tagged Android release fails after the Play upload instead
+of silently skipping the in-app update prompt bump.
 
 ### Install a build on your phone
 

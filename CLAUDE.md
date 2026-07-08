@@ -49,6 +49,12 @@ and delete anything that becomes stale.
 - **Supabase config:** URL and anon key live in `src/config.ts` (imported by
   `src/supabase.ts`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
   override them at build time. Don't hardcode credentials elsewhere.
+- **Migrations are append-only once a version may have reached Supabase.** Do not
+  rename or remove a `supabase/migrations/*.sql` version after it has been pushed
+  or previewed remotely: Supabase Preview/db-push checks require every remote
+  migration version to exist locally. If a historical version was superseded,
+  keep a no-op compatibility marker with that timestamp and put real schema in a
+  later migration.
 - **Deploying edge functions (via the Supabase MCP tools, not the CLI):** the
   project is **`run-app`, id `jpnxghiyjpuqnznxyfaf`** — don't call
   `mcp__Supabase__list_projects` to rediscover it. To redeploy `coach-agent`
@@ -98,8 +104,9 @@ and delete anything that becomes stale.
   like the Supabase version bump fails) prompts a retry. Seen in practice: run 45's
   retry re-sent versionCode 45 and Play rejected it outright. The world-readable `app_config`
   row owns *policy*: `latest_version` (soft "update available" banner, written by
-  the release workflow) and `min_supported_version` (hard gate, bumped by hand on a
-  breaking change). `App.tsx` compares the installed version (`App.getInfo()`) via
+  the Android release workflow via `supabase db query --linked` using
+  `SUPABASE_ACCESS_TOKEN`) and `min_supported_version` (hard gate, bumped by hand on
+  a breaking change). `App.tsx` compares the installed version (`App.getInfo()`) via
   `versionStatus` (`src/utils/version.ts`); a failed check never blocks the user.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.tsx`. Follow that style.
