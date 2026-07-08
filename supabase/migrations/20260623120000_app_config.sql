@@ -1,8 +1,8 @@
 -- Running Coach — app version gate. A single config row the client reads on
 -- launch to decide whether to softly nudge (latest_version) or hard-block
 -- (min_supported_version) an update. The strings are not sensitive, so the row is
--- world-readable; only the service role (the release CI) writes it, so there are
--- NO insert/update/delete policies for client roles.
+-- world-readable; release CI writes it through Supabase Management API SQL, so
+-- there are NO insert/update/delete policies for client roles.
 
 create table if not exists public.app_config (
   id                     int primary key default 1,
@@ -19,7 +19,7 @@ alter table public.app_config enable row level security;
 
 -- Readable by everyone, including signed-out clients (the version check runs
 -- before login). Base SELECT privilege + a permissive SELECT policy; no write
--- privileges, so only the service role (which bypasses RLS) can update the row.
+-- privileges, so maintainer/CI writes go through privileged SQL, not client roles.
 grant select on public.app_config to anon, authenticated;
 
 drop policy if exists "app_config readable by all" on public.app_config;

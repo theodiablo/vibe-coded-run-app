@@ -47,14 +47,22 @@ and delete anything that becomes stale.
   `db` in the same handler that calls `setState`. Writes debounce ~600ms into a
   single upsert and flush on page hide/unload.
 - **Supabase config:** URL and anon key live in `src/config.ts` (imported by
-  `src/supabase.ts`). Env vars `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
-  override them at build time. Don't hardcode credentials elsewhere.
+  `src/supabase.ts`). `VITE_SUPABASE_URL` is required at build time; GitHub
+  workflows construct it from repo variable `SUPABASE_PROJECT_REF`. Env var
+  `VITE_SUPABASE_ANON_KEY` can override the publishable key. Don't hardcode
+  project refs or credentials elsewhere.
+- **Migrations are append-only once a version may have reached Supabase.** Do not
+  rename or remove a `supabase/migrations/*.sql` version after it has been pushed
+  or previewed remotely: Supabase Preview/db-push checks require every remote
+  migration version to exist locally. If a historical version was superseded,
+  keep a no-op compatibility marker with that timestamp and put real schema in a
+  later migration.
 - **Deploying edge functions (via the Supabase MCP tools, not the CLI):** the
-  project is **`run-app`, id `jpnxghiyjpuqnznxyfaf`** — don't call
-  `mcp__Supabase__list_projects` to rediscover it. To redeploy `coach-agent`
+  project is **`run-app`**; use the project ref from the repo variable
+  `SUPABASE_PROJECT_REF` rather than hardcoding it. To redeploy `coach-agent`
   after editing `supabase/functions/coach-agent/index.ts` or any
   `supabase/functions/_shared/coach/*.mjs`, go straight to
-  `mcp__Supabase__deploy_edge_function` with `project_id: jpnxghiyjpuqnznxyfaf`,
+  `mcp__Supabase__deploy_edge_function` with that project id,
   `name: "coach-agent"`, `entrypoint_path: "source/index.ts"`, `verify_jwt:
   true`, and a `files` array of **exactly these five**, read fresh off disk
   (content must match current `git` state, not a stale copy from earlier in
@@ -84,8 +92,9 @@ and delete anything that becomes stale.
   reading straight off disk — no inline-content payload) for whichever
   function directories changed, redeploying `coach-agent` if `_shared/**`
   changed too. Needs a `SUPABASE_ACCESS_TOKEN` repo secret (Supabase
-  personal/service access token with deploy rights on `run-app`) — the MCP
-  recipe above is only for redeploying mid-session, before a merge.
+  personal/service access token with deploy rights on `run-app`) and a
+  `SUPABASE_PROJECT_REF` repo variable — the MCP recipe above is only for
+  redeploying mid-session, before a merge.
 - **Multi-user:** The app is open to public signups — don't make single-user
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.
@@ -98,8 +107,9 @@ and delete anything that becomes stale.
   like the Supabase version bump fails) prompts a retry. Seen in practice: run 45's
   retry re-sent versionCode 45 and Play rejected it outright. The world-readable `app_config`
   row owns *policy*: `latest_version` (soft "update available" banner, written by
-  the release workflow) and `min_supported_version` (hard gate, bumped by hand on a
-  breaking change). `App.tsx` compares the installed version (`App.getInfo()`) via
+  the Android release workflow via `supabase db query --linked` using
+  `SUPABASE_ACCESS_TOKEN`) and `min_supported_version` (hard gate, bumped by hand on
+  a breaking change). `App.tsx` compares the installed version (`App.getInfo()`) via
   `versionStatus` (`src/utils/version.ts`); a failed check never blocks the user.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.tsx`. Follow that style.
