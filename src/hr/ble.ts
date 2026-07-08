@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { BleClient, numberToUUID } from "@capacitor-community/bluetooth-le";
 import { parseHrMeasurement } from "../utils/hr";
 
@@ -13,6 +12,9 @@ import { parseHrMeasurement } from "../utils/hr";
 const HR_SERVICE = numberToUUID(0x180d);
 const HR_MEASUREMENT = numberToUUID(0x2a37);
 
+type BleWatchOptions = { deviceId?: string };
+type BleWatchHandle = { deviceId?: string; stopped: boolean };
+
 let initialized = false;
 async function ensureInit() {
   if (!initialized) {
@@ -23,9 +25,9 @@ async function ensureInit() {
   }
 }
 
-export const bleSource = {
-  id: "bluetooth",
-  live: true,
+const bleSourceImpl = {
+  id: "bluetooth" as const,
+  live: true as const,
 
   // True only when BLE is usable (initialized + adapter on). Never throws.
   async isAvailable() {
@@ -58,8 +60,8 @@ export const bleSource = {
   // Connect to the paired deviceId and stream { bpm, t } samples to onSample.
   // Auto-reconnects with capped backoff on an unsolicited disconnect so a strap
   // dropping mid-run doesn't end HR capture. Returns a handle for clearWatch.
-  watch(onSample, onErr, { deviceId } = {}) {
-    const handle = { deviceId, stopped: false };
+  watch(onSample, onErr, { deviceId }: BleWatchOptions = {}) {
+    const handle: BleWatchHandle = { deviceId, stopped: false };
     if (!deviceId) { onErr?.(new Error("No heart-rate sensor paired.")); return handle; }
     let backoff = 1000;
     const start = async () => {
@@ -98,3 +100,5 @@ export const bleSource = {
     try { await BleClient.disconnect(handle.deviceId); } catch { /* ignore */ }
   },
 };
+
+export const bleSource = bleSourceImpl as typeof bleSourceImpl & { fetchRange?: never };

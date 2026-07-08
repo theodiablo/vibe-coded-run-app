@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
@@ -49,10 +48,12 @@ const readBuffer = () => {
 };
 const clearBuffer = () => { try { localStorage.removeItem(LIVE_RUN_KEY); } catch { /* ignore */ } };
 
+type UseRunTrackerOptions = { hrMethod?: string };
+
 // `hrMethod` (settings.hrMethod) selects an optional live heart-rate source. A
 // LIVE source (Bluetooth) streams here alongside GPS; a post-run source (Health
 // Connect) is handled at save time in LiveRunTracker, not here. Absent/web → no HR.
-export function useRunTracker({ hrMethod } = {}) {
+export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   const [state, setState] = useState("idle"); // idle | tracking | paused | stopped
   const [points, setPoints] = useState([]);
   const [hrSamples, setHrSamples] = useState([]); // { bpm, t } from a live HR sensor
@@ -177,7 +178,7 @@ export function useRunTracker({ hrMethod } = {}) {
   const startHrWatch = useCallback(() => {
     if (hrWatchRef.current) return; // already streaming (e.g. resume)
     const src = getHrSource(hrMethod);
-    if (!src || !src.live) return;  // off / web / post-run source → nothing to stream
+    if (!src || !("watch" in src)) return;  // off / web / post-run source → nothing to stream
     const device = getPairedDevice();
     if (!device?.id) return;
     hrWatchRef.current = src.watch(onHrSample, () => { /* non-fatal; run continues */ },
@@ -186,7 +187,7 @@ export function useRunTracker({ hrMethod } = {}) {
 
   const stopHrWatch = useCallback(() => {
     const src = getHrSource(hrMethod);
-    if (hrWatchRef.current && src) src.clearWatch(hrWatchRef.current);
+    if (hrWatchRef.current && src && "clearWatch" in src) src.clearWatch(hrWatchRef.current);
     hrWatchRef.current = null;
   }, [hrMethod]);
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useState } from "react";
 import { History, Pencil, Trash2, Map as MapIcon } from "lucide-react";
 import { fmt } from "../utils/format";
@@ -27,7 +26,7 @@ function RouteMapLoader({run}) {
       {!run.routeId && (
         <p className="text-[11px] text-amber-400 text-center">Saved on this device — will sync to the cloud when possible.</p>
       )}
-      <RouteMap points={route.points} interactive className="h-56 rounded-xl overflow-hidden"/>
+      <RouteMap points={route.points} interactive className="h-56 rounded-xl overflow-hidden" style={{}}/>
     </>
   );
 }

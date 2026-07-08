@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { Play, Pause, Square, X, Loader, MapPin, HeartPulse } from "lucide-react";
 import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
@@ -15,7 +14,7 @@ import { BgLocationDisclosure } from "./BgLocationDisclosure";
 import { isNative } from "../native";
 import { BG_LOC_DISCLOSED_KEY } from "../constants";
 
-function Stat({ label, value }) {
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="bg-slate-800 rounded-xl px-3 py-2.5 text-center">
       <p className="text-2xl font-bold text-white leading-tight tabular-nums">{value}</p>
@@ -25,7 +24,7 @@ function Stat({ label, value }) {
 }
 
 // Large, glove-friendly control button.
-function Ctrl({ onClick, color, children, disabled }) {
+function Ctrl({ onClick, color, children, disabled = false }: { onClick: () => void; color: string; children: ReactNode; disabled?: boolean }) {
   return (
     <button onClick={onClick} disabled={disabled}
       className={"flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-semibold transition-colors disabled:opacity-50 " + color}>
@@ -90,7 +89,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   // grant succeeds (acceptDisclosure), so a denial naturally re-shows the disclosure
   // next time — no need to watch the error text. guardedStart gates Start/Resume too.
   const [showDisclosure, setShowDisclosure] = useState(() => isNative && !disclosed());
-  const pendingStartRef = useRef(null); // deferred Start/Resume action, run once consented/nudged
+  const pendingStartRef = useRef<(() => void) | null>(null); // deferred Start/Resume action, run once consented/nudged
   const pendingHrCheckRef = useRef(false); // whether that deferred action should also offer the HR nudge
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
@@ -100,7 +99,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   // Offer the HR nudge in place of `fn`, deferring it the same way the
   // disclosure does. Returns whether the nudge took over (caller must not also
   // call fn in that case).
-  const maybeShowHrNudge = (fn) => {
+  const maybeShowHrNudge = (fn: () => void) => {
     if (hrNudge) {
       pendingStartRef.current = fn;
       setShowHrNudge(true);
@@ -115,7 +114,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   // "Resume" (incl. the crash-recovery resume, which starts a fresh watch), so a
   // background-location request never fires without a prior disclosure. No-op
   // gate on the web / once already disclosed.
-  const guardedStart = (fn, checkHr = false) => {
+  const guardedStart = (fn: () => void, checkHr = false) => {
     if (isNative && !disclosed()) {
       pendingStartRef.current = fn;
       pendingHrCheckRef.current = checkHr;
@@ -148,7 +147,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   };
   // "Not now"/"Don't record" both let the deferred Start/Resume proceed (the
   // nudge never blocks Start); "Set up" hands off to Settings instead.
-  const dismissHrNudge = (run) => {
+  const dismissHrNudge = (run: boolean) => {
     setShowHrNudge(false);
     const fn = pendingStartRef.current;
     pendingStartRef.current = null;
@@ -199,7 +198,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       let endMs = stoppedAt || Date.now();
       if (!stoppedAt) for (let i = points.length - 1; i >= 0; i--) { if (points[i]) { endMs = points[i][2]; break; } }
       let res = null;
-      try { res = await hrSrc.fetchRange(startMs, endMs); } catch { /* unsynced — leave null */ }
+      try { res = await (hrSrc as { fetchRange: (startMs: number, endMs: number) => Promise<{ hrAvg?: number; hrMax?: number }> }).fetchRange(startMs, endMs); } catch { /* unsynced — leave null */ }
       if (res && res.hrAvg) { hr = res.hrAvg; hrMax = res.hrMax; }
       else hrPending = { start: startMs, end: endMs, source: hrSrc.id };
     }
@@ -230,7 +229,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
 
       <div className="flex-1 min-h-0">
         <RouteMap points={points} follow={state === "tracking"} interactive={!live}
-          location={location} className="h-full w-full" />
+          location={location} className="h-full w-full" style={{}} />
       </div>
 
       <div className="p-4 space-y-3 border-t border-slate-800">

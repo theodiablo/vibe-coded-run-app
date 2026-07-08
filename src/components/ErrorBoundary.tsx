@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { Component } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { isNative } from "../native";
 import { getConsent, captureError } from "../telemetry";
@@ -15,8 +14,21 @@ const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || "";
 //     (their explicit requirement). Nothing is uploaded until they tap "Send".
 //
 // Class component because error boundaries have no hooks equivalent.
-export class ErrorBoundary extends Component {
-  constructor(props) {
+type ErrorBoundaryProps = { children: ReactNode };
+type ErrorBoundaryState = {
+  error: Error | null;
+  decision: "sent" | "declined" | null;
+  showDetails: boolean;
+  copied: boolean;
+};
+
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  info: ErrorInfo | null;
+  kind: string;
+  onWindowError?: (e: ErrorEvent) => void;
+  onUnhandledRejection?: (e: PromiseRejectionEvent) => void;
+
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     // decision: null = undecided (native prompt showing), "sent" | "declined".
     this.state = { error: null, decision: null, showDetails: false, copied: false };
@@ -24,11 +36,11 @@ export class ErrorBoundary extends Component {
     this.kind = "react";
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { error, decision: null };
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(_error: Error, info: ErrorInfo) {
     this.info = info;
     this.kind = "react";
     // Web auto-reports (consent permitting); native waits for the user.
@@ -80,6 +92,7 @@ export class ErrorBoundary extends Component {
   }
 
   report() {
+    if (!this.state.error) return;
     captureError(this.state.error, {
       kind: this.kind,
       componentStack: this.info?.componentStack,

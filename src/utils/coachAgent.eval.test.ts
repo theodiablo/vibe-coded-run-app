@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Offline eval harness for the coach agent. These cases drive the same
 // generateProposal loop the edge function uses, but with scripted model turns so
 // it never calls Anthropic. Assertions check coaching/safety properties rather
@@ -51,7 +50,7 @@ function scriptedModel(turns, finalText = "This keeps the plan safer without cha
   };
 }
 
-const run = (context, turns, finalText) => generateProposal({
+const run = (context, turns, finalText?) => generateProposal({
   baseline: context.plan,
   context,
   callModel: scriptedModel(turns, finalText),

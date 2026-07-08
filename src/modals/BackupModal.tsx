@@ -1,11 +1,20 @@
-// @ts-nocheck
 import { useState, useRef } from "react";
 import { Download } from "lucide-react";
 import { ymd } from "../utils/format";
 
-export function BackupModal({data, onClose}) {
+type BackupData = {
+  runs?: unknown[];
+  plan?: unknown;
+  userContext?: { notes?: string };
+  routes?: unknown[];
+  [key: string]: unknown;
+};
+
+type BackupModalProps = { data: BackupData; onClose: () => void };
+
+export function BackupModal({data, onClose}: BackupModalProps) {
   const [copied, setCopied] = useState(false);
-  const taRef = useRef();
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
   const json  = JSON.stringify(data, null, 2);
 
   const tryDownload = () => {

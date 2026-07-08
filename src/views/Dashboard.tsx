@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Activity, Award, Check, ChevronRight, MessageCircle, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
@@ -10,7 +9,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
   const nb = nextBadge(computeBadges(runs, races?.participations || []));
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
-  const daysLeft = Math.max(0, Math.ceil((raceD - today) / 86400000));
+  const daysLeft = Math.max(0, Math.ceil((raceD.getTime() - today.getTime()) / 86400000));
   // The soonest secondary race folded into the plan before the main race — a
   // checkpoint to flag under the main-race countdown.
   const todayStr = ymd(today);
@@ -72,7 +71,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
               <span className="text-orange-300/80 font-semibold">Next up: </span>
               {nextRace.label + " · " + nextRace.distanceKm + "km"}
             </span>
-            <span className="text-xs text-slate-400 flex-shrink-0">{Math.max(0, Math.ceil((new Date(nextRace.raceDate + "T00:00:00") - today) / 86400000)) + "d"}</span>
+            <span className="text-xs text-slate-400 flex-shrink-0">{Math.max(0, Math.ceil((new Date(nextRace.raceDate + "T00:00:00").getTime() - today.getTime()) / 86400000)) + "d"}</span>
           </button>
         )}
         </>

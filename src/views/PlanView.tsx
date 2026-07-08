@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 import { ArrowDown, Check, ChevronRight, MessageCircle, Plus, RotateCcw, X } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
@@ -8,6 +7,14 @@ import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
+
+type GeneratePlanOptions = {
+  planSessions?: unknown;
+  raceDate?: string;
+  goalSec?: number | string;
+  distanceKm?: number | string;
+  raceElevation?: number | string;
+};
 
 export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, openCoach, goLog, planPrefill, clearPlanPrefill}) {
   // Index of the week containing today — the one we auto-expand.
@@ -66,7 +73,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     }
   }
 
-  const genPlan = opts => {
+  const genPlan = (opts: GeneratePlanOptions = {}) => {
     const o    = opts || {};
     const ps   = o.planSessions || draft;
     const date = o.raceDate     || settings.raceDate;

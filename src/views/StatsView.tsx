@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
@@ -35,7 +34,7 @@ function Overview({runs, settings}) {
   })();
 
   const wkBars = (() => {
-    const m = {};
+    const m: Record<string, number> = {};
     fRuns.forEach(r => {
       const d   = new Date(r.date + "T00:00:00");
       const mon = new Date(d);
@@ -51,7 +50,7 @@ function Overview({runs, settings}) {
   // Weekly elevation gain, bucketed the same way as weekly distance so the two
   // charts share a timeline. Weeks with runs but no elevation contribute 0.
   const wkElevBars = (() => {
-    const m = {};
+    const m: Record<string, number> = {};
     fRuns.forEach(r => {
       const d   = new Date(r.date + "T00:00:00");
       const mon = new Date(d);
@@ -129,7 +128,7 @@ function Overview({runs, settings}) {
               <CartesianGrid strokeDasharray="3 3" stroke="#0f172a"/>
               <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
               <YAxis tick={{fill:"#475569",fontSize:10}}/>
-              <Tooltip contentStyle={tt} formatter={v => [v + " km", "Distance"]}/>
+              <Tooltip contentStyle={tt} formatter={v => [String(v) + " km", "Distance"]}/>
               <Bar dataKey="km" fill="#f97316" radius={[4,4,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
@@ -143,7 +142,7 @@ function Overview({runs, settings}) {
               <CartesianGrid strokeDasharray="3 3" stroke="#0f172a"/>
               <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
               <YAxis tick={{fill:"#475569",fontSize:10}}/>
-              <Tooltip contentStyle={tt} formatter={v => [v + " m", "Elevation"]}/>
+              <Tooltip contentStyle={tt} formatter={v => [String(v) + " m", "Elevation"]}/>
               <Bar dataKey="elev" fill="#10b981" radius={[4,4,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
@@ -160,8 +159,8 @@ function Overview({runs, settings}) {
               <CartesianGrid strokeDasharray="3 3" stroke="#0f172a"/>
               <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
               <YAxis tick={{fill:"#475569",fontSize:10}} domain={["dataMin - 30","dataMax + 30"]}
-                tickFormatter={v => fmt.pace(v)}/>
-              <Tooltip contentStyle={tt} formatter={v => [fmt.pace(v) + "/km", "Pace"]}/>
+                tickFormatter={v => fmt.pace(Number(v))}/>
+              <Tooltip contentStyle={tt} formatter={v => [fmt.pace(Number(v)) + "/km", "Pace"]}/>
               {goalPace > 0 && (
                 <ReferenceLine y={Math.round(goalPace)} stroke="#f97316" strokeDasharray="5 3"
                   label={{value: fmt.pace(goalPace) + " goal", fill:"#f97316", fontSize:10, position:"right"}}/>

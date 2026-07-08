@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from "react";
 import { Search, Star, Flag, Target, ExternalLink, X, Check, Plus, Trophy, ChevronRight, Navigation, AlertTriangle, Loader } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
@@ -256,9 +255,9 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
     if (loc) { setNearMe(true); return; }           // reuse an earlier fix
     setStatus("locating");
     try {
-      const p = await geoSource.getCurrentPosition();
+      const p = await geoSource.getCurrentPosition() as { lat: number; lng: number };
       setLoc(p); setNearMe(true); setStatus("idle");
-      track("find_near_me");
+      track("find_near_me", {});
     } catch {
       setStatus("denied");
     }
@@ -430,7 +429,7 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
           <div className="border-t border-slate-700/30 pt-3">
             {reportFor === race.id ? (
               <ReportForm onSubmit={(reason, note) => {
-                reportRace({ raceSlug: race.slug || race.id, reason, note }).catch(() => {});
+                reportRace({ raceSlug: race.slug || race.id, editionId: null, reason, note }).catch(() => {});
                 setReportFor(null);
                 showToast("Thanks — reported for review.");
               }} onCancel={() => setReportFor(null)}/>
@@ -532,7 +531,7 @@ function ReportForm({ onSubmit, onCancel }) {
 
 // ── small helpers ─────────────────────────────────────────────────────────────
 function daysUntil(dateStr, today) {
-  return Math.ceil((new Date(dateStr + "T00:00:00") - today) / 86400000);
+  return Math.ceil((new Date(dateStr + "T00:00:00").getTime() - today.getTime()) / 86400000);
 }
 function filterRaces(list, query) {
   const q = query.trim().toLowerCase();

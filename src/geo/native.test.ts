@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Geolocation } from "@capacitor/geolocation";
 import { adaptBgLocation, adaptBgError, ensureForegroundPermission } from "./native";
@@ -63,30 +62,41 @@ describe("adaptBgError", () => {
 describe("ensureForegroundPermission", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  const checkPermissions = vi.mocked(Geolocation.checkPermissions);
+  const getCurrentPosition = vi.mocked(Geolocation.getCurrentPosition);
+
+  const permission = (location: "granted" | "denied") => ({
+    location,
+    coarseLocation: "denied" as const,
+  }) as Awaited<ReturnType<typeof Geolocation.checkPermissions>>;
+  const position = () => ({
+    coords: { latitude: 1, longitude: 2 },
+  }) as Awaited<ReturnType<typeof Geolocation.getCurrentPosition>>;
+
   it("returns true on the fast path when already granted", async () => {
-    Geolocation.checkPermissions.mockResolvedValue({ location: "granted" });
+    checkPermissions.mockResolvedValue(permission("granted"));
     await expect(ensureForegroundPermission()).resolves.toBe(true);
-    expect(Geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
   it("falls back to getCurrentPosition when checkPermissions rejects (location services off)", async () => {
-    Geolocation.checkPermissions.mockRejectedValue(
+    checkPermissions.mockRejectedValue(
       Object.assign(new Error("Location services are not enabled."), { code: "OS-PLUG-GLOC-0007" }),
     );
-    Geolocation.getCurrentPosition.mockResolvedValue({ coords: { latitude: 1, longitude: 2 } });
+    getCurrentPosition.mockResolvedValue(position());
     await expect(ensureForegroundPermission()).resolves.toBe(true);
-    expect(Geolocation.getCurrentPosition).toHaveBeenCalled();
+    expect(getCurrentPosition).toHaveBeenCalled();
   });
 
   it("falls back to getCurrentPosition when checkPermissions resolves not-granted", async () => {
-    Geolocation.checkPermissions.mockResolvedValue({ location: "denied" });
-    Geolocation.getCurrentPosition.mockResolvedValue({ coords: { latitude: 1, longitude: 2 } });
+    checkPermissions.mockResolvedValue(permission("denied"));
+    getCurrentPosition.mockResolvedValue(position());
     await expect(ensureForegroundPermission()).resolves.toBe(true);
   });
 
   it("returns false (not a dead-end throw) when the fallback probe also fails", async () => {
-    Geolocation.checkPermissions.mockRejectedValue(new Error("Location services are not enabled."));
-    Geolocation.getCurrentPosition.mockRejectedValue(new Error("Request to enable location was denied."));
+    checkPermissions.mockRejectedValue(new Error("Location services are not enabled."));
+    getCurrentPosition.mockRejectedValue(new Error("Request to enable location was denied."));
     await expect(ensureForegroundPermission()).resolves.toBe(false);
   });
 });

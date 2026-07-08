@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ComponentPropsWithoutRef } from "react";
 import { Loader, MessageCircle, Send, X, Flag } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -17,25 +16,25 @@ import { PRIVACY_URL, DISCLAIMER_URL } from "../constants";
 // dark slate / orange-500 palette instead of react-markdown's default
 // (unstyled, full-size) tags.
 const MD_COMPONENTS = {
-  h1: (p) => <p className="text-sm font-bold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
-  h2: (p) => <p className="text-sm font-bold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
-  h3: (p) => <p className="text-sm font-semibold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
-  p: (p) => <p className="mb-2 last:mb-0 leading-relaxed" {...p}/>,
-  strong: (p) => <strong className="font-semibold text-slate-100" {...p}/>,
-  ul: (p) => <ul className="list-disc pl-4 mb-2 space-y-0.5 last:mb-0" {...p}/>,
-  ol: (p) => <ol className="list-decimal pl-4 mb-2 space-y-0.5 last:mb-0" {...p}/>,
-  li: (p) => <li className="leading-relaxed" {...p}/>,
-  a: (p) => <a className="text-orange-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer" {...p}/>,
-  code: (p) => <code className="bg-slate-900/60 px-1 py-0.5 rounded text-orange-300 text-xs font-mono" {...p}/>,
-  pre: (p) => <pre className="bg-slate-900/60 rounded-lg p-2 overflow-x-auto text-xs font-mono mb-2 last:mb-0" {...p}/>,
-  blockquote: (p) => <blockquote className="border-l-2 border-slate-600 pl-2 italic text-slate-400 mb-2 last:mb-0" {...p}/>,
+  h1: (p: ComponentPropsWithoutRef<"p">) => <p className="text-sm font-bold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
+  h2: (p: ComponentPropsWithoutRef<"p">) => <p className="text-sm font-bold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
+  h3: (p: ComponentPropsWithoutRef<"p">) => <p className="text-sm font-semibold text-slate-100 mt-2 mb-1 first:mt-0" {...p}/>,
+  p: (p: ComponentPropsWithoutRef<"p">) => <p className="mb-2 last:mb-0 leading-relaxed" {...p}/>,
+  strong: (p: ComponentPropsWithoutRef<"strong">) => <strong className="font-semibold text-slate-100" {...p}/>,
+  ul: (p: ComponentPropsWithoutRef<"ul">) => <ul className="list-disc pl-4 mb-2 space-y-0.5 last:mb-0" {...p}/>,
+  ol: (p: ComponentPropsWithoutRef<"ol">) => <ol className="list-decimal pl-4 mb-2 space-y-0.5 last:mb-0" {...p}/>,
+  li: (p: ComponentPropsWithoutRef<"li">) => <li className="leading-relaxed" {...p}/>,
+  a: (p: ComponentPropsWithoutRef<"a">) => <a className="text-orange-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer" {...p}/>,
+  code: (p: ComponentPropsWithoutRef<"code">) => <code className="bg-slate-900/60 px-1 py-0.5 rounded text-orange-300 text-xs font-mono" {...p}/>,
+  pre: (p: ComponentPropsWithoutRef<"pre">) => <pre className="bg-slate-900/60 rounded-lg p-2 overflow-x-auto text-xs font-mono mb-2 last:mb-0" {...p}/>,
+  blockquote: (p: ComponentPropsWithoutRef<"blockquote">) => <blockquote className="border-l-2 border-slate-600 pl-2 italic text-slate-400 mb-2 last:mb-0" {...p}/>,
   hr: () => <hr className="border-slate-700 my-2"/>,
-  table: (p) => <div className="overflow-x-auto mb-2 last:mb-0"><table className="w-full text-xs border-collapse" {...p}/></div>,
-  th: (p) => <th className="border border-slate-700 px-2 py-1 text-left font-semibold bg-slate-800/60" {...p}/>,
-  td: (p) => <td className="border border-slate-700 px-2 py-1 align-top" {...p}/>,
+  table: (p: ComponentPropsWithoutRef<"table">) => <div className="overflow-x-auto mb-2 last:mb-0"><table className="w-full text-xs border-collapse" {...p}/></div>,
+  th: (p: ComponentPropsWithoutRef<"th">) => <th className="border border-slate-700 px-2 py-1 text-left font-semibold bg-slate-800/60" {...p}/>,
+  td: (p: ComponentPropsWithoutRef<"td">) => <td className="border border-slate-700 px-2 py-1 align-top" {...p}/>,
 };
 
-const CoachText = ({ text }) => (
+const CoachText = ({ text }: { text: string }) => (
   <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{text}</ReactMarkdown>
 );
 
@@ -54,24 +53,45 @@ const COACH_EXAMPLES = [
 // follow-up message. Nothing touches the plan until Accept — and even then the
 // accepted plan is re-validated client-side (belt and braces) before
 // applyPlan persists it through the normal savePlan path.
+type MemorySuggestion = { id: string; text: string; status: "pending" | "saved" | "dismissed" };
+type CoachMessage = {
+  role: "user" | "coach";
+  text: string;
+  proposal?: { diff: { weekNumber: number; changes: string[] }[] };
+  trajectoryId?: string | null;
+  roundIndex?: number | null;
+  memorySuggestions?: MemorySuggestion[];
+};
+
+type CoachResult = {
+  rationale?: string;
+  trajectoryId?: string | null;
+  roundIndex?: number;
+  memorySuggestions?: { id: string; text: string }[];
+  status?: string;
+  trajectoryClosed?: boolean;
+  changed?: boolean;
+  proposedPlan?: unknown;
+};
+
 export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose }) {
   // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, trajectoryId?, roundIndex? }
   // trajectoryId/roundIndex are stamped on every real coach answer (the ones
   // logged server-side to agent_rounds) so it can be flagged as wrong; the
   // greeting, the post-accept "Done", and error bubbles have no round behind
   // them and stay unstamped, which hides the flag affordance on them.
-  const [msgs, setMsgs] = useState([{
+  const [msgs, setMsgs] = useState<CoachMessage[]>([{
     role: "coach",
     text: "Hi! Tell me what would help you train well this week — feeling fresher, fitting life around the plan, adding a little confidence, or handling a niggle — and I'll suggest a safe adjustment. You'll always see the change before anything is applied.",
   }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [trajectoryId, setTrajectoryId] = useState(null);
+  const [trajectoryId, setTrajectoryId] = useState<string | null>(null);
   const [flaggingIndex, setFlaggingIndex] = useState(-1);
   const [flagText, setFlagText] = useState("");
   const [flagBusy, setFlagBusy] = useState(false);
-  const [flaggedKeys, setFlaggedKeys] = useState(() => new Set());
-  const endRef = useRef(null);
+  const [flaggedKeys, setFlaggedKeys] = useState<Set<string>>(() => new Set());
+  const endRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
 
   // Warm the edge function the moment the chat opens so the user's first message
@@ -96,7 +116,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     }
   }
 
-  const coachMsg = (res, fallbackText) => ({
+  const coachMsg = (res: CoachResult, fallbackText: string): CoachMessage => ({
     role: "coach",
     text: res.rationale || fallbackText,
     trajectoryId: res.trajectoryId,
@@ -104,7 +124,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     memorySuggestions: (res.memorySuggestions || []).map(s => ({ ...s, status: "pending" })),
   });
 
-  const applyCoachResult = (res) => {
+  const applyCoachResult = (res: CoachResult) => {
     track("coach_proposal", { status: res.status, round: res.roundIndex });
     if (res.status === "no_valid_adjustment") {
       setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId);
@@ -119,7 +139,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     }
   };
 
-  const send = async (preset) => {
+  const send = async (preset?: string | unknown) => {
     // `preset` comes from an example chip; a bare click/keydown passes an event,
     // so only treat a real string as an override and otherwise read the input.
     const text = (typeof preset === "string" ? preset : input).trim();
@@ -131,7 +151,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       const res = trajectoryId ? await coachCritique(trajectoryId, text) : await coachPropose(text);
       applyCoachResult(res);
     } catch (err) {
-      setMsgs(m => [...m, { role: "coach", text: err.message }]);
+      setMsgs(m => [...m, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
     } finally {
       setBusy(false);
     }
@@ -143,6 +163,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     if (busy) return;
     setBusy(true);
     try {
+      if (!trajectoryId) throw new Error("No coach proposal is ready to apply.");
       const { plan: accepted, baseline: serverBaseline } = await coachConfirm(trajectoryId);
       // Clear before the client check: the server already accepted the trajectory,
       // so the Apply button must not survive a client-side validation failure
@@ -152,22 +173,23 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       const check = validatePlan(accepted, { baseline: serverBaseline ?? plan });
       if (!check.ok) throw new Error("The proposal no longer validates — nothing was applied.");
       onApplyPlan(accepted);
-      track("coach_plan_applied");
+      track("coach_plan_applied", {});
       setMsgs(m => [...m, { role: "coach", text: "Done — your plan is updated. Anything else?" }]);
       showToast("Plan adjusted by your coach ✓");
     } catch (err) {
-      setMsgs(m => [...m, { role: "coach", text: err.message }]);
+      setMsgs(m => [...m, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
     } finally {
       setBusy(false);
     }
   };
 
-  const submitFlag = async (m, index) => {
+  const submitFlag = async (m: CoachMessage, index: number) => {
     const correction = flagText.trim();
     if (!correction || flagBusy) return;
     const canCritique = index === lastOpenAnswerIndex && trajectoryId === m.trajectoryId;
     setFlagBusy(true);
     try {
+      if (!m.trajectoryId || m.roundIndex == null) throw new Error("No coach response to flag.");
       await submitCoachFeedback({ trajectoryId: m.trajectoryId, roundIndex: m.roundIndex, correction });
       track("coach_feedback_submitted", { roundIndex: m.roundIndex });
       setFlaggedKeys(prev => new Set(prev).add(`${m.trajectoryId}:${m.roundIndex}`));
@@ -185,16 +207,17 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     setMsgs(cur => [...cur, { role: "user", text: correction }]);
     setBusy(true);
     try {
+      if (!m.trajectoryId) throw new Error("No coach conversation is open.");
       const res = await coachCritique(m.trajectoryId, correction);
       applyCoachResult(res);
     } catch (err) {
-      setMsgs(cur => [...cur, { role: "coach", text: err.message }]);
+      setMsgs(cur => [...cur, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
     } finally {
       setBusy(false);
     }
   };
 
-  const saveMemorySuggestion = (msgIndex, suggestionId, text) => {
+  const saveMemorySuggestion = (msgIndex: number, suggestionId: string, text: string) => {
     const saved = appendUserContext(text);
     setMsgs(cur => cur.map((m, i) => i !== msgIndex ? m : {
       ...m,
@@ -203,7 +226,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     showToast(saved ? "Saved to coach memory." : "Already in coach memory.");
   };
 
-  const dismissMemorySuggestion = (msgIndex, suggestionId) => {
+  const dismissMemorySuggestion = (msgIndex: number, suggestionId: string) => {
     setMsgs(cur => cur.map((m, i) => i !== msgIndex ? m : {
       ...m,
       memorySuggestions: (m.memorySuggestions || []).map(s => s.id === suggestionId ? { ...s, status: "dismissed" } : s),

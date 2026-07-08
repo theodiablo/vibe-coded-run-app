@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "lucide-react";
 import { App as CapApp } from "@capacitor/app";
@@ -190,7 +189,7 @@ export default function App() {
     return (
       <>
         <LoginScreen authError={authError} onClearAuthError={() => setAuthError(null)} />
-        <ConsentBanner />
+        <ConsentBanner onConsentChange={() => {}} />
       </>
     );
   }

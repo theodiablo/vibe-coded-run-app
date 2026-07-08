@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { fmt, parseDur } from "../utils/format";
 import { paceBand, suggestedGoalSec, clampGoalSec } from "../utils/goal";
@@ -10,7 +9,13 @@ import { paceBand, suggestedGoalSec, clampGoalSec } from "../utils/goal";
 // distance resets the goal to a fresh mid-pack suggestion for that distance, so a
 // time picked for one race length never lingers on another (e.g. a 5 km time left
 // sitting on a 20 km race).
-export function GoalConfigurator({distanceKm, goalSec, onChange}) {
+type GoalConfiguratorProps = {
+  distanceKm: number | string;
+  goalSec: number | string;
+  onChange: (goalSec: number | string) => void;
+};
+
+export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfiguratorProps) {
   const band = paceBand(distanceKm);
   const suggested = suggestedGoalSec(distanceKm);
 
@@ -36,8 +41,8 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}) {
   // show the derived value"; while a field is focused we let it hold whatever
   // the user is typing (including an empty string) and only commit on blur/Enter
   // — committing an unparseable value is a no-op so the field reverts.
-  const [timeText, setTimeText] = useState(null);
-  const [paceText, setPaceText] = useState(null);
+  const [timeText, setTimeText] = useState<string | null>(null);
+  const [paceText, setPaceText] = useState<string | null>(null);
 
   if (!band) {
     return (
@@ -50,7 +55,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}) {
     );
   }
 
-  const dist  = parseFloat(distanceKm);
+  const dist  = parseFloat(String(distanceKm));
   const eff   = normalised;
   const pace  = Math.round(eff / dist);
   const tMin  = Math.round(band.fast * dist);
@@ -75,7 +80,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}) {
     <div>
       <label className="text-xs text-slate-400 block mb-1.5">Goal time</label>
       <input type="range" min={tMin} max={tMax} step={10} value={eff}
-        onChange={e => onChange(parseInt(e.target.value))}
+        onChange={e => onChange(parseInt(e.target.value, 10))}
         className="w-full accent-orange-500"/>
       <div className="flex justify-between text-xs text-slate-400 mt-1">
         <span>{fmt.dur(tMin)}</span><span>{fmt.dur(tMax)}</span>
@@ -88,7 +93,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}) {
             onChange={e => setTimeText(e.target.value)}
             onFocus={e => e.target.select()}
             onBlur={commitTime}
-            onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}/>
+            onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}/>
         </label>
         <label className="flex-1">
           <span className="text-[11px] text-slate-400 block mb-1">Pace /km</span>
@@ -97,7 +102,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}) {
             onChange={e => setPaceText(e.target.value)}
             onFocus={e => e.target.select()}
             onBlur={commitPace}
-            onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}/>
+            onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}/>
         </label>
       </div>
     </div>

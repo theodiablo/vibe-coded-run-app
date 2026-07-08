@@ -1,5 +1,10 @@
-// @ts-nocheck
 import { Capacitor } from "@capacitor/core";
+
+declare global {
+  interface Window {
+    __NATIVE_SHELL__?: boolean;
+  }
+}
 
 // True only inside the Phase-2 Capacitor shell; false in every browser (the pure
 // web build). A SINGLE bundle serves both — `Capacitor.isNativePlatform()`

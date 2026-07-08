@@ -1,9 +1,22 @@
-// @ts-nocheck
-import { useState, useRef } from "react";
+import { useState, useRef, type ChangeEvent } from "react";
 import { Loader, Plus, Upload, MapPin, HeartPulse } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
 import { parseRunsCsv, MAX_CSV_BYTES } from "../utils/csv";
+
+type LogForm = {
+  date: string;
+  type: string;
+  km: string;
+  dH: string;
+  dM: string;
+  dS: string;
+  hr: string;
+  hrMax: string;
+  elev: string;
+  effort: number | string;
+  notes: string;
+};
 
 export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
   // A GPS-tracked run prefills its real measured duration; a plan session
@@ -22,14 +35,14 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
     hrMax: prefill?.hrMax != null ? String(prefill.hrMax) : "",
     elev: prefill?.elevation != null ? String(prefill.elevation) : "",effort:5,notes:"",
   };
-  const [f,      setF]    = useState(INIT);
+  const [f,      setF]    = useState<LogForm>(INIT);
   const [busy,   setBusy] = useState(false);
   const [showImp,setImp]  = useState(false);
   const [csvMsg, setCsvMsg] = useState("");
-  const fRef = useRef();
-  const set  = (k, v) => setF(prev => ({...prev, [k]: v}));
+  const fRef = useRef<HTMLInputElement | null>(null);
+  const set  = (k: keyof LogForm, v: string | number) => setF(prev => ({...prev, [k]: v}));
 
-  const showMsg = (msg, ms) => { setCsvMsg(msg); setTimeout(() => setCsvMsg(""), ms || 3000); };
+  const showMsg = (msg: string, ms?: number) => { setCsvMsg(msg); setTimeout(() => setCsvMsg(""), ms || 3000); };
 
   const submit = async () => {
     if (!f.km || (!f.dM && !f.dH)) { showMsg("Distance and duration are required."); return; }
@@ -37,10 +50,10 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
     const sec = (parseInt(f.dH)||0)*3600 + (parseInt(f.dM)||0)*60 + (parseInt(f.dS)||0);
     addRuns([{
       date: f.date, type: f.type, km: parseFloat(f.km), durationSec: sec,
-      hr:        f.hr    ? parseInt(f.hr)    : null,
-      hrMax:     f.hrMax ? parseInt(f.hrMax) : null,
-      elevation: f.elev  ? parseInt(f.elev)  : null,
-      effort:    parseInt(f.effort), notes: f.notes,
+      hr:        f.hr    ? parseInt(f.hr, 10)    : null,
+      hrMax:     f.hrMax ? parseInt(f.hrMax, 10) : null,
+      elevation: f.elev  ? parseInt(f.elev, 10)  : null,
+      effort:    parseInt(String(f.effort), 10), notes: f.notes,
       // Carry the GPS trace reference through from a live-tracked run.
       ...(prefill?.source   ? { source: prefill.source } : {}),
       ...(prefill?.routeId  ? { routeId: prefill.routeId } : {}),
@@ -51,8 +64,8 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
     setBusy(false); onSaved?.(); onDone();
   };
 
-  const handleCSV = e => {
-    const file = e.target.files[0]; if (!file) return;
+  const handleCSV = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
     e.target.value = "";
     if (file.size > MAX_CSV_BYTES) {
       showMsg("File too large — max 5 MB.");
@@ -61,7 +74,7 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
     const reader = new FileReader();
     reader.onerror = () => showMsg("Couldn't read that file.");
     reader.onload = ev => {
-      const {runs, error} = parseRunsCsv(ev.target.result);
+      const {runs, error} = parseRunsCsv(String(ev.target?.result || ""));
       if (runs.length) {
         addRuns(runs);
         showMsg("Imported " + runs.length + " run" + (runs.length > 1 ? "s" : "") + ".");
@@ -115,7 +128,7 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}) {
             <span className="text-slate-300">Strava:</span> Settings → My Account → Download or Delete → Request Archive
           </p>
           <input ref={fRef} type="file" accept=".csv" onChange={handleCSV} className="hidden"/>
-          <button onClick={() => fRef.current.click()}
+          <button onClick={() => fRef.current?.click()}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
             Choose CSV file
           </button>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { isNative } from "./native";
 import { Activity, Calendar, TrendingUp, Plus, Loader, Trophy, Settings } from "lucide-react";
@@ -25,6 +24,101 @@ import { LogView } from "./views/LogView";
 import { RacesView } from "./views/RacesView";
 import { ProgressView } from "./views/ProgressView";
 
+type SettingsState = {
+  raceDate: string;
+  goalSec: string | number;
+  distanceKm: string | number;
+  raceElevation: number;
+  name: string;
+  age: number;
+  maxHR: number;
+  restHR: number;
+  onboarded: boolean;
+  onboardStep: number;
+  intent: string | null;
+  healthAck: { v?: string | number; at?: string } | null;
+  hrMethod: string;
+  hrOptOut: boolean;
+  planSessions: { dayOffset: number; minutes: number }[];
+  targetEditionId?: string | null;
+  [key: string]: unknown;
+};
+
+type Run = Record<string, unknown> & {
+  id?: string;
+  date: string;
+  km: number;
+  durationSec?: number;
+  source?: string;
+  routeId?: string;
+  routeTmp?: string;
+  routePending?: boolean;
+  hrPending?: unknown;
+  wNum?: number;
+  sId?: string;
+};
+
+type PlanSession = Record<string, unknown> & {
+  id: string;
+  date: string;
+  type: string;
+  km: number | string;
+  done?: boolean;
+  skipped?: boolean;
+  runId?: string | null;
+  editionId?: string | null;
+};
+
+type PlanWeek = Record<string, unknown> & { weekNumber: number; sessions: PlanSession[] };
+type Plan = Record<string, unknown> & { weeks: PlanWeek[] };
+type RouteBackup = Record<string, unknown>;
+type UserContextState = { notes: string; lastLimitNoticeAt?: string | null };
+
+type Participation = Record<string, unknown> & {
+  editionId?: string | null;
+  raceId?: string | null;
+  label?: string;
+  raceDate?: string;
+  distanceKm?: number;
+  status?: string;
+  inPlan?: boolean;
+  timeSec?: number | null;
+  runId?: string | null;
+  source?: string;
+  notes?: string;
+};
+
+type RacesState = Record<string, unknown> & {
+  participations: Participation[];
+  seenBadges: string[] | null;
+  ackVerified?: string[];
+};
+
+type CatalogueEdition = Record<string, unknown> & {
+  id: string;
+  date: string;
+  distanceKm: number;
+  elevation?: number;
+  createdBy?: string | null;
+  verified?: boolean;
+};
+
+type CatalogueRace = Record<string, unknown> & {
+  id?: string;
+  slug?: string;
+  createdBy?: string | null;
+  verified?: boolean;
+  editions?: CatalogueEdition[];
+};
+
+type JoinedEdition = { raceId?: string | null; edition: CatalogueEdition; [key: string]: unknown };
+type PlanPrefill = { raceDate: string; distanceKm: number; raceElevation: number; editionId: string; label: string };
+type RunPatch = Partial<Run>;
+type PlanProgress = Pick<PlanSession, "done" | "skipped" | "runId">;
+
+type ToastAction = { label: string; onClick: () => void };
+type ToastState = { msg: string; type: string; action?: ToastAction };
+
 // Lazy: pulls in react-markdown + remark-gfm (~47 KB gzipped) for rendering
 // the coach's markdown replies. On the web that weight only belongs on the
 // wire once someone actually opens the chat; on native the bundle already
@@ -39,7 +133,7 @@ const CoachChat = lazy(() => import("./modals/CoachChat").then(m => ({ default: 
 // rides backup) records which verified ids we've already acknowledged. Returns
 // the (possibly updated) races object plus the freshly-verified ids — the caller
 // toasts. Seeds silently on the first reconcile so a pre-existing set never floods.
-function computeVerifiedThanks(cat, racesObj, uid) {
+function computeVerifiedThanks(cat: CatalogueRace[], racesObj: RacesState, uid: string | null | undefined) {
   if (!uid) return { next: racesObj, fresh: [] };
   const mine = [];
   for (const r of cat) {
@@ -52,22 +146,22 @@ function computeVerifiedThanks(cat, racesObj, uid) {
   return { next: { ...racesObj, ackVerified: [...racesObj.ackVerified, ...fresh] }, fresh };
 }
 
-const memoryKey = line => String(line || "").toLowerCase().replace(/^\d{4}-\d{2}-\d{2}:\s*/, "").replace(/[^a-z0-9]+/g, " ").trim();
+const memoryKey = (line: unknown) => String(line || "").toLowerCase().replace(/^\d{4}-\d{2}-\d{2}:\s*/, "").replace(/[^a-z0-9]+/g, " ").trim();
 const weekMs = 7 * 86400000;
 
-export default function RunningCoach({ onSignOut }) {
+export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () => void }) {
   const [loading,     setLoading]     = useState(true);
   const [tab,         setTab]         = useState("dash");
-  const [runs,        setRuns]        = useState([]);
-  const [plan,        setPlan]        = useState(null);
-  const [settings,    setSettings]    = useState({
+  const [runs,        setRuns]        = useState<Run[]>([]);
+  const [plan,        setPlan]        = useState<Plan | null>(null);
+  const [settings,    setSettings]    = useState<SettingsState>({
     raceDate:"", goalSec:"", distanceKm:"", raceElevation:0, name:"",
     age:0, maxHR:0, restHR:60, onboarded:false, onboardStep:0, intent:null,
     healthAck:null, hrMethod:"off", hrOptOut:false,
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
-  const [toast,       setToast]       = useState(null);
-  const [logPrefill,  setLogPrefill]  = useState(null);
+  const [toast,       setToast]       = useState<ToastState | null>(null);
+  const [logPrefill,  setLogPrefill]  = useState<(Partial<Run> & { wNum?: number; sId?: string }) | null>(null);
   const [prefillVer,  setPrefillVer]  = useState(0);
   const [showBackup,  setShowBackup]  = useState(false);
   const [showRestore, setShowRestore] = useState(false);
@@ -75,11 +169,11 @@ export default function RunningCoach({ onSignOut }) {
   const [showDeleteAccount,setShowDeleteAccount]= useState(false);
   const [onboarding,  setOnboarding]  = useState(false);
   const [showTracker, setShowTracker] = useState(false);
-  const [backupRoutes,setBackupRoutes]= useState([]);
+  const [backupRoutes,setBackupRoutes]= useState<RouteBackup[]>([]);
   // Personal races layer (wishlist / completed + seen-badge set). seenBadges is
   // null until first-run seeding so we can tell "never computed" from "none".
-  const [races,       setRaces]       = useState({ participations: [], seenBadges: null });
-  const [userContext, setUserContext] = useState({ notes: "" });
+  const [races,       setRaces]       = useState<RacesState>({ participations: [], seenBadges: null });
+  const [userContext, setUserContext] = useState<UserContextState>({ notes: "" });
   // Always-fresh mirror of `races` so async callbacks (the boot catalogue load)
   // merge onto the latest state, not a stale snapshot captured before the user
   // could touch their races mid-load. Synced in an effect (the catalogue resolves
@@ -102,19 +196,19 @@ export default function RunningCoach({ onSignOut }) {
   useEffect(() => { userContextRef.current = userContext; }, [userContext]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
   // failed fetch — the app renders regardless.
-  const [catalogue,   setCatalogue]   = useState([]);
+  const [catalogue,   setCatalogue]   = useState<CatalogueRace[]>([]);
   const [showRaceForm,setShowRaceForm]= useState(false);
   const [showCoach,   setShowCoach]   = useState(false);
   // Stash from a "Set as target" promote → consumed by PlanView's setup form.
-  const [planPrefill, setPlanPrefill] = useState(null);
+  const [planPrefill, setPlanPrefill] = useState<PlanPrefill | null>(null);
   // Which Progress sub-tab to open, and a nonce so navigating there again (even
   // to the same sub-tab) re-applies it.
   const [progressSub,  setProgressSub]  = useState("log");
   const [progressNonce,setProgressNonce]= useState(0);
 
   // An optional `action` ({label, onClick}) turns the toast into an undoable one.
-  const showToast = (msg, type, action) => setToast({msg, type: type || "ok", action});
-  const withLimitNotice = ctx => {
+  const showToast = (msg: string, type = "ok", action?: ToastAction) => setToast({msg, type, action});
+  const withLimitNotice = (ctx: UserContextState) => {
     const notes = ctx?.notes || "";
     if (notes.length < USER_CONTEXT_NOTICE_CHARS) return ctx;
     const last = ctx.lastLimitNoticeAt ? Date.parse(ctx.lastLimitNoticeAt) : 0;
@@ -127,7 +221,7 @@ export default function RunningCoach({ onSignOut }) {
   // the relink logic can't drift between the two call sites. Applies the fetched
   // HR (or, for a run resolved some other way, just clears the marker) and
   // toasts only when a run actually gets filled in.
-  const patchRunHr = (runId, patch) => {
+  const patchRunHr = (runId: string, patch: RunPatch) => {
     setRuns(prev => {
       const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
       db.set(STORAGE_KEYS.RUNS, next);
@@ -199,8 +293,8 @@ export default function RunningCoach({ onSignOut }) {
       // Patch the loaded array directly instead of going through patchRunHr's
       // setRuns(prev => ...): React may not have committed setRuns(r) yet.
       // Actual relinks still run on foreground and when a run is saved.
-      let bootRuns = r || [];
-      const patchBootRunHr = (runId, patch) => {
+      let bootRuns: Run[] = r || [];
+      const patchBootRunHr = (runId: string, patch: RunPatch) => {
         bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
         setRuns(bootRuns);
         db.set(STORAGE_KEYS.RUNS, bootRuns);
@@ -238,15 +332,15 @@ export default function RunningCoach({ onSignOut }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const savePlan     = p => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated"); };
-  const saveSettings = s => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };
-  const saveUserContext = next => {
+  const savePlan     = (p: Plan) => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated", {}); };
+  const saveSettings = (s: SettingsState) => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };
+  const saveUserContext = (next: Partial<UserContextState>) => {
     const clean = withLimitNotice({ notes: String(next?.notes || "").slice(0, USER_CONTEXT_MAX_CHARS), lastLimitNoticeAt: next?.lastLimitNoticeAt || null });
     userContextRef.current = clean;
     setUserContext(clean);
     db.set(STORAGE_KEYS.USER_CONTEXT, clean);
   };
-  const appendUserContext = lines => {
+  const appendUserContext = (lines: string | string[]) => {
     const incoming = (Array.isArray(lines) ? lines : [lines]).map(x => String(x || "").trim()).filter(Boolean);
     if (!incoming.length) return false;
     const prev = userContextRef.current || { notes: "" };
@@ -275,7 +369,7 @@ export default function RunningCoach({ onSignOut }) {
   // time (no toast flurry for existing users), then toast only genuinely new
   // unlocks. Pure-ish — only side effect is the toast — so it's safe to call
   // from event handlers (badges are derived, never an effect/cascading render).
-  const reconcileBadges = (nextRuns, nextRaces) => {
+  const reconcileBadges = (nextRuns: Run[], nextRaces: RacesState): RacesState => {
     const badges = computeBadges(nextRuns, nextRaces.participations || []);
     const unlocked = unlockedIds(badges);
     if (nextRaces.seenBadges == null) return { ...nextRaces, seenBadges: unlocked };
@@ -285,16 +379,16 @@ export default function RunningCoach({ onSignOut }) {
     showToast(fresh.length === 1 ? "Badge unlocked: " + first.label + " 🏅" : fresh.length + " new badges unlocked 🏅");
     return { ...nextRaces, seenBadges: unlocked };
   };
-  const commitRaces = next => { setRaces(next); db.set(STORAGE_KEYS.RACES, next); };
+  const commitRaces = (next: RacesState) => { setRaces(next); db.set(STORAGE_KEYS.RACES, next); };
   // Passed to children: persist a races change and reconcile badges off it.
-  const saveRaces  = next => commitRaces(reconcileBadges(runs, next));
+  const saveRaces  = (next: RacesState) => commitRaces(reconcileBadges(runs, next));
 
   // Re-apply done/skipped/runId from an old plan onto a freshly built one by
   // session id (ids are stable: w{n}d{dOff} for training, race-{editionId} for
   // races). Lets us add/remove a race without wiping weeks of progress.
-  const carryProgress = (oldPlan, np) => {
+  const carryProgress = (oldPlan: Plan | null, np: Plan): Plan => {
     if (!oldPlan) return np;
-    const flags = {};
+    const flags: Record<string, PlanProgress> = {};
     oldPlan.weeks.forEach(w => w.sessions.forEach(s => {
       flags[s.id] = { done: s.done, skipped: s.skipped, runId: s.runId };
     }));
@@ -314,7 +408,7 @@ export default function RunningCoach({ onSignOut }) {
   // session id, so a session ticked while the chat was open isn't lost (the
   // coach tools never edit done sessions, so this can't undo an adjustment).
   // Deliberately NOT savePlan: that tracks "plan_generated" — this is an edit.
-  const applyCoachPlan = p => {
+  const applyCoachPlan = (p: Plan) => {
     const merged = carryProgress(plan, p);
     setPlan(merged);
     db.set(STORAGE_KEYS.PLAN, merged);
@@ -323,10 +417,10 @@ export default function RunningCoach({ onSignOut }) {
   // Toggle whether a wishlisted race is folded into the current plan. Persists the
   // flag and, if there's an active plan, rebuilds it preserving progress — so
   // adding a race shows up immediately without nuking completed sessions.
-  const setRaceInPlan = (editionId, inPlan) => {
+  const setRaceInPlan = (editionId: string, inPlan: boolean) => {
     const parts = (races.participations || []).map(p => p.editionId === editionId ? { ...p, inPlan } : p);
     saveRaces({ ...races, participations: parts });
-    if (inPlan) track("plan_race_added");
+    if (inPlan) track("plan_race_added", {});
     if (plan && settings.raceDate && settings.distanceKm) {
       const secRaces = parts
         .filter(p => p.status === "wishlist" && p.inPlan && p.editionId !== settings.targetEditionId)
@@ -348,11 +442,11 @@ export default function RunningCoach({ onSignOut }) {
   // and a fresh realistic goal suggestion. Nothing is committed (no settings or
   // plan change) until the user picks a goal and builds — so we never leave an
   // unrealistic auto-goal behind. targetEditionId is set by PlanView on build.
-  const promoteEdition = joined => {
+  const promoteEdition = (joined: JoinedEdition) => {
     const e = joined.edition;
     setPlanPrefill({ raceDate: e.date, distanceKm: e.distanceKm, raceElevation: e.elevation || 0, editionId: e.id, label: editionLabel(joined, e) });
     setTab("plan");
-    track("race_target_set");
+    track("race_target_set", {});
   };
 
   // Race-day auto-detect: when a just-saved run matches the date + distance of any
@@ -360,12 +454,12 @@ export default function RunningCoach({ onSignOut }) {
   // marked done (plus the pre-change participations for Undo). `isMain` flags the
   // training target so the caller can prompt for the next race only then. null when
   // nothing matches.
-  const detectCompletion = (added, baseRaces) => {
+  const detectCompletion = (added: Run[], baseRaces: RacesState) => {
     // Candidate races = every RACE session on the plan carrying an editionId,
     // deduped. This covers the main race (stamped from targetEditionId) and any
     // secondary races; a hand-entered target has no editionId and stays undetected.
-    const cands = [];
-    const seen = new Set();
+    const cands: { editionId: string; date: string; distanceKm: number | string }[] = [];
+    const seen = new Set<string>();
     (plan?.weeks || []).forEach(w => w.sessions.forEach(s => {
       if (s.type === "RACE" && s.editionId && !seen.has(s.editionId)) {
         seen.add(s.editionId);
@@ -398,8 +492,8 @@ export default function RunningCoach({ onSignOut }) {
 
   // `opts.skipDetect` is set when the run is created by the Races "log result"
   // flow, which already marks the race done — so we don't double-detect it.
-  const addRuns = (rs, opts = {}) => {
-    const added = rs.map((r, i) => ({...r, id: r.id || ("r" + Date.now() + i)}));
+  const addRuns = (rs: Run[], opts: { skipDetect?: boolean } = {}) => {
+    const added: Run[] = rs.map((r, i) => ({...r, id: r.id || ("r" + Date.now() + i)}));
     const nextRuns = added.concat(runs).sort((a, b) => b.date.localeCompare(a.date));
     setRuns(nextRuns); db.set(STORAGE_KEYS.RUNS, nextRuns);
     // Telemetry-safe: how a run reached the log (GPS vs manual) and how many at once
@@ -416,8 +510,9 @@ export default function RunningCoach({ onSignOut }) {
     }
   };
 
-  const toggleSess = (wNum, sId) => {
+  const toggleSess = (wNum: number, sId: string) => {
     setPlan(prev => {
+      if (!prev) return prev;
       const p = {...prev,
         weeks: prev.weeks.map(w => {
           if (w.weekNumber !== wNum) return w;
@@ -431,8 +526,9 @@ export default function RunningCoach({ onSignOut }) {
     });
   };
 
-  const skipSess = (wNum, sId) => {
+  const skipSess = (wNum: number, sId: string) => {
     setPlan(prev => {
+      if (!prev) return prev;
       const p = {...prev,
         weeks: prev.weeks.map(w => {
           if (w.weekNumber !== wNum) return w;
@@ -446,7 +542,7 @@ export default function RunningCoach({ onSignOut }) {
     });
   };
 
-  const deleteRun = id => {
+  const deleteRun = (id: string) => {
     setRuns(prev => {
       const r = prev.find(x => x.id === id);
       // Drop the GPS trace too (privacy) — whether already synced (routeId) or
@@ -461,7 +557,7 @@ export default function RunningCoach({ onSignOut }) {
     showToast("Run deleted.");
   };
 
-  const updateRun = (id, patch) => {
+  const updateRun = (id: string, patch: RunPatch) => {
     setRuns(prev => {
       // The date may have changed, so re-sort to keep the list newest-first.
       const next = prev.map(r => r.id === id ? {...r, ...patch} : r)
@@ -475,12 +571,12 @@ export default function RunningCoach({ onSignOut }) {
   const exportData    = async () => {
     // GPS traces live in their own table, so pull them in to make the backup
     // self-contained (and portable for data-export requests).
-    let routes = [];
+    let routes: RouteBackup[] = [];
     try { routes = await getAllRoutes(); } catch { /* backup still works without */ }
     setBackupRoutes(routes);
     setShowBackup(true);
   };
-  const handleRestore = d => {
+  const handleRestore = (d: { runs?: Run[]; plan?: Plan; settings?: SettingsState; races?: RacesState; userContext?: UserContextState; routes?: RouteBackup[] }) => {
     if (d.runs)     { setRuns(d.runs);         db.set(STORAGE_KEYS.RUNS, d.runs); }
     if (d.plan)     { setPlan(d.plan);          db.set(STORAGE_KEYS.PLAN, d.plan); }
     if (d.settings) { setSettings(d.settings);  db.set(STORAGE_KEYS.SETTINGS, d.settings); }
@@ -496,8 +592,8 @@ export default function RunningCoach({ onSignOut }) {
     </div>
   );
 
-  const goLog = prefill => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
-  const goProgress = sub => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
+  const goLog = (prefill?: Partial<Run> & { wNum?: number; sId?: string }) => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
+  const goProgress = (sub?: string) => { setProgressSub(sub || "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
   const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
@@ -539,7 +635,7 @@ export default function RunningCoach({ onSignOut }) {
             }] });
           }
           setOnboarding(false);
-          track("onboarding_completed");
+          track("onboarding_completed", {});
         }}/>}
       {showTracker && <LiveRunTracker showToast={showToast} hrMethod={settings.hrMethod} hrOptOut={settings.hrOptOut}
         onConfigureHr={() => { setShowTracker(false); openSettings(); }}
@@ -570,7 +666,7 @@ export default function RunningCoach({ onSignOut }) {
       )}
       {showRaceForm && <RaceFormModal
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
-        onContributed={refreshCatalogue} showToast={showToast}
+        onContributed={refreshCatalogue} showToast={showToast} prefill={null} onCreated={undefined}
         onClose={() => setShowRaceForm(false)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
@@ -614,7 +710,7 @@ export default function RunningCoach({ onSignOut }) {
 }
 
 // One bottom-nav destination button (the center Record action is a separate FAB).
-function NavBtn({ item, tab, setTab, onSelect }) {
+function NavBtn({ item, tab, setTab, onSelect }: { item: { id: string; label: string; Icon: React.ComponentType<{ size?: number }> }; tab: string; setTab: (tab: string) => void; onSelect?: () => void }) {
   return (
     <button onClick={() => onSelect ? onSelect() : setTab(item.id)}
       className={"flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors " + (tab === item.id ? "text-orange-400" : "text-slate-400 hover:text-slate-200")}>

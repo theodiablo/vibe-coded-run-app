@@ -1,9 +1,19 @@
-// @ts-nocheck
 import { hrSummary } from "../utils/hr";
 import { isNative } from "../native";
 import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
 
 export const HR_PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+type HealthConnectAvailability = "Available" | "NotInstalled" | "NotSupported";
+type PermissionResult = { hasAllPermissions?: boolean; grantedPermissions?: unknown[] };
+type HeartRateSampleRecord = { beatsPerMinute?: number; time: string | Date };
+type HeartRateSeriesRecord = { samples?: HeartRateSampleRecord[] };
+type HealthConnectPlugin = {
+  checkAvailability: () => Promise<{ availability?: HealthConnectAvailability }>;
+  requestHealthPermissions: (options: unknown) => Promise<PermissionResult>;
+  checkHealthPermissions: (options: unknown) => Promise<PermissionResult>;
+  readRecords: (options: unknown) => Promise<{ records?: HeartRateSeriesRecord[] }>;
+};
 
 export function hasHealthConnectAuthorization() {
   try { return localStorage.getItem(HR_HEALTH_CONNECT_AUTH_KEY) === "1"; }
@@ -36,9 +46,9 @@ function setHealthConnectAuthorization(ok) {
 // Load the plugin lazily so merely rendering the app after sign-in cannot touch
 // the native Health Connect bridge. Some devices/versions are sensitive to the
 // Cap-7 plugin under Cap-8; failures are treated as unavailable.
-async function getHealthConnect() {
+async function getHealthConnect(): Promise<{ plugin: HealthConnectPlugin }> {
   const mod = await import("@pianissimoproject/capacitor-health-connect");
-  return { plugin: mod.HealthConnect };
+  return { plugin: mod.HealthConnect as unknown as HealthConnectPlugin };
 }
 
 // Raw Health Connect availability: "Available" | "NotInstalled" | "NotSupported".
@@ -53,8 +63,8 @@ async function availability() {
 async function isAvailable() { return (await availability()) === "Available"; }
 
 export const healthConnectSource = {
-  id: "healthconnect",
-  live: false,
+  id: "healthconnect" as const,
+  live: false as const,
   isAvailable,
   availability,
 
@@ -82,7 +92,7 @@ export const healthConnectSource = {
   // Read HeartRateSeries records in [startMs, endMs], flatten to samples inside the
   // window, and reduce to {hr,hrAvg,hrMax}. Returns null when nothing is available yet
   // (watch not synced) so the caller can defer and retry.
-  async fetchRange(startMs, endMs) {
+  async fetchRange(startMs: number, endMs: number) {
     try {
       if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return null;
       const res = await (await getHealthConnect()).plugin.readRecords({

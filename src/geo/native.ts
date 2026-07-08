@@ -1,6 +1,28 @@
-// @ts-nocheck
 import { registerPlugin } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
+
+type BgLocation = {
+  latitude: number;
+  longitude: number;
+  altitude?: number | null;
+  accuracy?: number | null;
+  altitudeAccuracy?: number | null;
+  speed?: number | null;
+  bearing?: number | null;
+  time?: number;
+};
+
+type BgError = { code?: string; message?: string } | null | undefined;
+
+type BackgroundGeolocationPlugin = {
+  addWatcher: (
+    options: Record<string, unknown>,
+    callback: (location?: BgLocation, error?: BgError) => void,
+  ) => Promise<string>;
+  removeWatcher: (options: { id: string }) => Promise<void> | void;
+};
+
+type NativeWatchHandle = { id: string | null; removed: boolean; background: boolean };
 
 // Native geolocation source for the Capacitor shell. It exposes the SAME
 // interface as the web source (isAvailable / watchPosition / clearWatch) so
@@ -20,7 +42,7 @@ import { Geolocation } from "@capacitor/geolocation";
 // registerPlugin by name — its native code is discovered by `cap sync`, so we
 // don't depend on the package's JS export shape, only on it being installed.
 
-const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
+const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
 
 // GeolocationPositionError-style codes, so the existing onErr in useRunTracker
 // (which reads `err.code === err.PERMISSION_DENIED`) works unchanged.
@@ -29,7 +51,7 @@ const PERMISSION_DENIED = 1, POSITION_UNAVAILABLE = 2, TIMEOUT = 3;
 // Normalize a background-geolocation `location` into the GeolocationPosition
 // shape that onPos already consumes (coords.{latitude,longitude,altitude,
 // accuracy} + timestamp). Exported pure so it can be unit-tested.
-export function adaptBgLocation(loc) {
+export function adaptBgLocation(loc: BgLocation) {
   return {
     coords: {
       latitude: loc.latitude,
@@ -44,7 +66,7 @@ export function adaptBgLocation(loc) {
   };
 }
 
-export function adaptBgError(error) {
+export function adaptBgError(error: BgError | GeolocationPositionError) {
   const code = error && error.code === "NOT_AUTHORIZED" ? PERMISSION_DENIED : POSITION_UNAVAILABLE;
   return {
     code, message: (error && error.message) || "Location error",
@@ -96,7 +118,7 @@ export const nativeSource = {
   // Returns a sync handle immediately. The underlying watcher id resolves
   // asynchronously; `handle.removed` covers a clearWatch that races ahead of it.
   watchPosition(onPos, onErr, { background = false } = {}) {
-    const handle = { id: null, removed: false, background };
+    const handle: NativeWatchHandle = { id: null, removed: false, background };
 
     if (background) {
       (async () => {

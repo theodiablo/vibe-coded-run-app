@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -7,7 +6,16 @@ import { INPUT_CLS, MAP_ATTRIBUTION, MAP_KEY, MAP_TILE_URL } from "../constants"
 import { geoSource } from "../geo/source";
 import { geocodePlace } from "../utils/geocode";
 
-const WORLD_CENTER = [20, 0];
+type LatLng = { lat: number; lng: number };
+
+type LocationPickerProps = {
+  initial?: LatLng | null;
+  geocodeQuery?: string;
+  onConfirm: (point: LatLng) => void;
+  onCancel: () => void;
+};
+
+const WORLD_CENTER: L.LatLngTuple = [20, 0];
 const WORLD_ZOOM = 2;
 const PICKED_ZOOM = 13;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -34,10 +42,10 @@ const PIN_ICON = L.divIcon({
 // `geocodeQuery` (the city/country they already typed), falling back to the
 // world view. "Jump to my current location" is offered too, but only as one
 // more way to seed the pin, never the only option.
-export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
-  const elRef = useRef(null);
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
+export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: LocationPickerProps) {
+  const elRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
   const [picked, setPicked] = useState(initial || null);
   const [locating, setLocating] = useState(false);
   const [query, setQuery] = useState("");
@@ -45,14 +53,15 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
   const [searchMiss, setSearchMiss] = useState(false);
   const searchSeqRef = useRef(0);
 
-  const placeMarker = (lat, lng) => {
+  const placeMarker = (lat: number, lng: number) => {
     const map = mapRef.current;
     if (!map) return;
     if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
     else {
       markerRef.current = L.marker([lat, lng], { draggable: true, icon: PIN_ICON }).addTo(map);
       markerRef.current.on("dragend", () => {
-        const ll = markerRef.current.getLatLng();
+        const ll = markerRef.current?.getLatLng();
+        if (!ll) return;
         setPicked({ lat: ll.lat, lng: ll.lng });
       });
     }
@@ -60,6 +69,7 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
   };
 
   useEffect(() => {
+    if (!elRef.current) return;
     const map = L.map(elRef.current, { zoomControl: true }).setView(
       initial ? [initial.lat, initial.lng] : WORLD_CENTER,
       initial ? PICKED_ZOOM : WORLD_ZOOM,
@@ -119,7 +129,7 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
     return () => clearTimeout(t);
   }, [query]);
 
-  const onQueryChange = (v) => {
+  const onQueryChange = (v: string) => {
     setQuery(v);
     setSearching(false);
     setSearchMiss(false);
@@ -128,7 +138,7 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }) {
   const useMyLocation = async () => {
     setLocating(true);
     try {
-      const p = await geoSource.getCurrentPosition();
+      const p = await geoSource.getCurrentPosition() as LatLng;
       mapRef.current?.setView([p.lat, p.lng], PICKED_ZOOM, { animate: false });
       placeMarker(p.lat, p.lng);
     } catch { /* the map itself is the fallback — no need to surface this */ }

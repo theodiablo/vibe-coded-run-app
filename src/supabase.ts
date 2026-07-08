@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config";
 import { isNative } from "./native";
@@ -16,23 +15,14 @@ import { isNative } from "./native";
 // hanging indefinitely.
 const REQUEST_TIMEOUT_MS = 15000;
 
-/**
- * @typedef {RequestInit & {
- *   timeoutMs?: number | null
- * }} TimeoutRequestInit
- *
- * `timeoutMs` is intentionally a wrapper option, not part of the native fetch
- * API. Pass `null` to opt out when another cancellation mechanism owns the
- * request. If a caller supplies a native `signal` and no `timeoutMs`, we also
- * opt out of the default timeout so the caller's signal is not accidentally
- * shortened by this wrapper.
- */
+type TimeoutRequestInit = RequestInit & { timeoutMs?: number | null };
 
-/**
- * @param {RequestInfo | URL} input
- * @param {TimeoutRequestInit} init
- */
-function fetchWithTimeout(input, init = {}) {
+// `timeoutMs` is intentionally a wrapper option, not part of the native fetch
+// API. Pass `null` to opt out when another cancellation mechanism owns the
+// request. If a caller supplies a native `signal` and no `timeoutMs`, we also
+// opt out of the default timeout so the caller's signal is not accidentally
+// shortened by this wrapper.
+function fetchWithTimeout(input: RequestInfo | URL, init: TimeoutRequestInit = {}) {
   const { timeoutMs: configuredTimeoutMs, signal: upstreamSignal, ...fetchInit } = init;
   const timeoutMs = configuredTimeoutMs ?? (upstreamSignal ? null : REQUEST_TIMEOUT_MS);
 
