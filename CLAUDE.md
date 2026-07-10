@@ -28,6 +28,11 @@ and delete anything that becomes stale.
 ## TypeScript
 - App source and tests live in `src/**/*.{ts,tsx}`; do not add new `src/**/*.js` or
   `src/**/*.jsx` files. Use `.tsx` for files containing JSX, `.ts` otherwise.
+- **Stay on TypeScript 6.x for now.** TS 7.0 is the native "Corsa" compiler port;
+  `typescript-eslint` (`^8.63.0`) doesn't support it yet (peer range caps below
+  7.0, and it crashes against the 7.0 compiler API — no stable programmatic API
+  until 7.1). Don't bump `typescript` past 6.x in a routine dependency update
+  until `typescript-eslint` declares TS 7 support.
 - `tsconfig.json` runs normal project checking; do not add file-level
   `// @ts-nocheck` to app source. Prefer narrow local aliases/interfaces when a
   module needs incremental typing.
