@@ -1,4 +1,24 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+// Kotlin for this module's local WatchImportPlugin (Health Connect reads are
+// suspend APIs). Declared HERE, not in the root buildscript: a module-level
+// classpath stays in this module's classloader, so the Capacitor plugin
+// subprojects keep resolving their own KGP versions (see the root build.gradle
+// note). 2.2.20 matches @capacitor-community/bluetooth-le, so no new Kotlin
+// version enters the build, and it targets JVM 21 like the Capacitor-generated
+// Java config.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20"
+    }
+}
+
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace = "solutions.camboulive.run"
@@ -62,9 +82,24 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // WatchImportPlugin (local, in this module): read finished exercise sessions
+    // from Health Connect. connect-client is pinned to the same version the
+    // health-connect plugin resolves; coroutines back its suspend read APIs.
+    // (No explicit kotlin-stdlib — KGP 2.x adds its own matching stdlib.)
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+    implementation "androidx.health.connect:connect-client:1.1.0-alpha02"
 }
 
 apply from: 'capacitor.build.gradle'
+
+// Kotlin targets JVM 21, matching the Java 21 that capacitor.build.gradle sets —
+// same DSL the bluetooth-le plugin uses on KGP 2.2.
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_21
+    }
+}
 
 try {
     def servicesJSON = file('google-services.json')

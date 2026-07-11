@@ -107,6 +107,15 @@
          Health Connect recognise the app and grant permission. -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
 
+    <!-- Post-run watch import (WatchImportPlugin): read finished exercise sessions
+         and their distance / elevation gain that a watch (e.g. Garmin Connect on
+         Android 14+) has written to Health Connect, so a phone-free run still lands
+         in the log. Each of these read scopes must also be declared in the Google
+         Play health-data declaration before release. -->
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <uses-permission android:name="android.permission.health.READ_ELEVATION_GAINED" />
+
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
         <intent>

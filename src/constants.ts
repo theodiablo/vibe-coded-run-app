@@ -37,6 +37,15 @@ export const HR_DEVICE_KEY = "rc_hr_device";          // JSON {id,name} of the b
 export const HR_BLE_DISCLOSED_KEY = "rc_hr_ble_disclosed"; // BLE permission disclosure seen
 export const HR_HEALTH_CONNECT_AUTH_KEY = "rc_hr_healthconnect_auth"; // local HC permission was granted
 
+// ── Watch run import (native) — PER-DEVICE, never in the synced blob ──
+// Importing finished runs (distance/duration/elevation/HR) from a watch via
+// Health Connect. The *preference* lives in synced settings.watchImport; these
+// device-local keys mirror the HR reasoning: an Android Health Connect grant is
+// per-install, so a synced preference alone must never touch the native bridge.
+export const WATCH_HC_AUTH_KEY = "rc_watch_hc_auth";        // local exercise-read permission was granted
+export const WATCH_SEEN_HC_IDS_KEY = "rc_watch_seen_hc_ids"; // JSON array of already-handled HC session ids
+export const WATCH_SEEN_MAX = 200;                          // cap on the seen-ids list (FIFO)
+
 // Public privacy policy (static page in public/privacy.html, served at the site
 // root). Linked from the disclosure + login screen and required by the app stores
 // for background-location apps.

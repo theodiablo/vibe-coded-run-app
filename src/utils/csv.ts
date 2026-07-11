@@ -37,6 +37,17 @@ function num(v: string | null | undefined) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Parse an export's start timestamp to an ISO instant, or null. Zepp uses
+// "YYYY-MM-DD HH:MM[:SS]" (local time); Strava a locale datetime like
+// "Jul 1, 2026, 8:00:00 AM". Carried as Run.startedAt so imports dedupe by
+// real time-window overlap instead of the lossy same-day fuzzy fallback.
+function isoStart(v: string | null | undefined) {
+  if (!v) return null;
+  const s = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(v) ? v.replace(" ", "T") : v;
+  const t = new Date(s);
+  return Number.isNaN(+t) ? null : t.toISOString();
+}
+
 // Parse raw CSV text into run objects. Returns { runs, error }.
 export function parseRunsCsv(text: string): { runs: CsvRun[]; error: string | null } {
   const trimmed = (text || "").trim();
@@ -66,12 +77,14 @@ export function parseRunsCsv(text: string): { runs: CsvRun[]; error: string | nu
       const dM   = num(row["distance (m)"] ?? row["distance"]);
       const dur  = num(row["duration (s)"] ?? row["duration"]);
       if (dM != null && dur != null && dM > 500 && dur > 60) {
+        const startedAt = isoStart(row["start time"]);
         runs.push({
           date: dStr || ymd(new Date()),
           type: "EASY", km: Math.round(dM / 100) / 10, durationSec: Math.round(dur),
           hr:    num(row["average heart rate (bpm)"]),
           hrMax: num(row["max heart rate (bpm)"]),
           elevation: null, effort: 5, notes: "Zepp import",
+          ...(startedAt ? { startedAt } : {}),
         });
       }
     } else {
@@ -80,12 +93,14 @@ export function parseRunsCsv(text: string): { runs: CsvRun[]; error: string | nu
       const dur  = num(row["elapsed time"] ?? row["moving time"]);
       const aT   = (row["activity type"] || "run").toLowerCase();
       if (aT.includes("run") && dK != null && dK > 0.5) {
+        const startedAt = isoStart(row["activity date"]);
         runs.push({
           date: dStr, type: "EASY", km: dK, durationSec: dur != null ? Math.round(dur) : 0,
           hr:    num(row["average heart rate"]),
           hrMax: num(row["max heart rate"]),
           elevation: num(row["elevation gain"]) ?? undefined,
           effort: 5, notes: "Strava import",
+          ...(startedAt ? { startedAt } : {}),
         });
       }
     }

@@ -327,6 +327,85 @@ and delete anything that becomes stale.
   `LogView` prefill — still user-editable — so all HR display (`HRZonesCard`,
   `runZoneIndex`, Stats) works unchanged.
 
+## Watch run import (phone-free runs)
+- **For runners who leave the phone at home** (e.g. Garmin Forerunner, Amazfit):
+  import a *finished* run's stats (distance, duration, elevation gain, avg/max HR)
+  after the fact, instead of live GPS. Native-only, opt-in (`settings.watchImport`).
+- **All import sources go through the provider registry** (`src/imports/`):
+  `types.ts` defines `ImportProvider` (+ `ImportedRun` = `Partial<Run>` with
+  transient route `points` the *caller* persists via `saveRoute` and strips before
+  `addRuns`); `registry.ts` lists providers and `scanAllProviders` merges scans
+  with **cross-provider dedupe** (`dedupe.ts` `isDuplicateRun`: hcId/extId
+  id-spaces, `startedAt` window overlap, fuzzy date+10%-km) so the same run from
+  two sources collapses. Adding an integration = implement the interface +
+  register it; the toast/goLog/addRuns pipeline needs no changes. Three providers:
+  **healthConnect** (wraps `src/watch/`, deliberately brand-agnostic — one
+  "Watch" entry for Garmin/Zepp/etc., brand stamped into run notes via
+  `dataOrigin.ts`), **file** (CSV via `parseRunsCsv` + GPX/TCX via
+  `src/utils/gpx.ts`, works on web, GPX/TCX return route `points` → LogView
+  saves them so imported files get maps), **cloud scaffold** (`providers/cloud.ts`
+  — interface only, `isAvailable()→false` so **never user-visible**; a real one
+  needs server-side OAuth/webhooks in an edge function. **Strava API is
+  deliberately excluded**: its agreement bans AI-model use of API data and the
+  coach reads runs — users' own CSV/GPX exports are fine, that's data
+  portability, not the API. There is **no usable Zepp cloud API**; password-based
+  scraping libs are ToS-violating — Amazfit rides Health Connect or files).
+  Settings UI is `src/views/Integrations.tsx` (registry-driven, connectable
+  providers only; file import lives in LogView's "Import file"). Whether Zepp
+  writes exercise *sessions with distance* to HC (vs wellness only) is
+  **unverified on-device**.
+- **Source is Health Connect exercise sessions, NOT the pinned HR plugin.** The
+  `@pianissimoproject/capacitor-health-connect` plugin can only read
+  `HeartRateSeries`, so this feature ships its **own local Capacitor plugin**
+  (`android/app/src/main/java/solutions/camboulive/run/WatchImportPlugin.kt`,
+  registered in `MainActivity.java`) that reads `ExerciseSessionRecord`s +
+  aggregated `Distance`/`ElevationGained`/`HeartRate`/`ExerciseDuration`. The two
+  HC plugins coexist deliberately — don't merge them. The app module gets
+  Kotlin + coroutines + `connect-client` (pinned to the pianissimo version).
+  **Gotcha — never put `kotlin-gradle-plugin` on the ROOT buildscript classpath:**
+  the root classpath is the parent classloader for every plugin subproject, so a
+  root KGP overrides the versions the Capacitor plugins resolve for themselves
+  (bluetooth-le needs 2.2.x for its `compilerOptions` DSL, pianissimo builds with
+  1.8.x — a root pin broke one or the other in CI). Instead the app module
+  declares its **own** `buildscript` KGP (**2.2.20**, matching bluetooth-le) in
+  `android/app/build.gradle` and targets **JVM 21** via
+  `kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_21 } }`, matching the
+  Java 21 the generated `capacitor.build.gradle` sets.
+  New `READ_EXERCISE`/`READ_DISTANCE`/`READ_ELEVATION_GAINED` manifest
+  scopes need a Play health-data declaration update before release. **Garmin →
+  HC is one-way, Android-14+, opt-in inside Garmin Connect, and carries NO GPS
+  route** — imported runs have no map (`routeId` stays absent, which the app
+  already tolerates).
+- **Everything interpretable is pure TS** (`src/watch/`): `plugin.ts` (lazy
+  `registerPlugin` bridge, raw `WatchSessionRaw`), `mapping.ts`
+  (`sessionRunType`/`sessionLocalDate`/`sessionToRun`/`newWatchSessions` — all
+  unit-tested), `import.ts` (`scanWatchSessions` + per-device auth/seen-id
+  helpers). The native side returns **raw** metres/seconds/exercise-type ints so
+  the mapping stays testable off-device. Per-session aggregates are filtered to
+  the session's own `dataOrigin` so two apps syncing the same run can't mix.
+- **ONE dedupe rule set** (`src/imports/dedupe.ts` `isDuplicateRun`, run-shaped —
+  watch scans map sessions first, then dedupe once; never add a parallel
+  session-shaped check, the two drifted before): (1) per-device seen-id list
+  (`rc_watch_seen_hc_ids`, survives run deletion), (2) `hcId`/`extId` id-spaces,
+  (3) `startedAt` time-overlap (GPS saves + timestamped CSV imports stamp
+  `startedAt` too), (4) fuzzy same-date-±10%-distance for runs without a time
+  window — auto-scans keep it (don't re-offer manually-logged runs), the file
+  path disables it (`{fuzzy:false}` — never silently drop a user-picked row).
+  **No sync cursor** — a rolling 7-day window rescanned each trigger handles a
+  late watch sync (5-min auto-scan cooldown); manual 30-day scan in Settings.
+- **Same two-key rule as HR:** `settings.watchImport` is a synced *preference*;
+  the real HC grant is per-install (`WATCH_HC_AUTH_KEY`, `rc_watch_hc_auth`) and
+  must be present before the native bridge is touched. `scanWatchSessions` copies
+  `flushPendingHr`'s guard structure (never throws, clears the marker on revoke).
+- **Wiring:** `RunningCoach.scanImports` (via a latest-ref, called from the
+  boot `[loading]` effect + the `visibilitychange` listener, throttled to one
+  auto-toast per session) drives `scanAllProviders` → **1 run** goes through
+  `goLog` prefill (LogView review + `findOpenPlanSession` auto-tick + race
+  auto-detect), **several** land as an `addRuns` batch. `markSeen` runs inside
+  `addRuns` for any run carrying `hcId`. `shared.scanImportsNow` drives the
+  manual 30-day scan. Run gains `hcId`/`startedAt`/`extId` (`src/types.ts`);
+  new provider enable-flags go in `settings.imports` (HC keeps `watchImport`).
+
 ## Races & badges (gamification)
 - **Catalogue (Race → Edition):** a "race" is the recurring event, an "edition" a
   dated running of it (the thing you wishlist / target / complete). Edition id =

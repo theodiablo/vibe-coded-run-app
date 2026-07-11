@@ -1,0 +1,32 @@
+import { isNative } from "../../native";
+import { scanWatchSessions, watchImportSource, hasWatchAuthorization, setWatchAuthorization, WATCH_SCAN_DAYS } from "../../watch/import";
+import type { ImportProvider } from "../types";
+import type { Run } from "../../types";
+
+// The one Health Connect integration. Deliberately brand-agnostic: every watch
+// app that writes exercise sessions into Health Connect (Garmin Connect, Zepp/
+// Amazfit, Samsung Health, Polar…) surfaces through this single provider; the
+// per-run note says which app it came from (dataOrigin → importedNote). The
+// native data source stays in src/watch/ (plugin bridge, mapping, guards) —
+// this is just its ImportProvider face.
+export const healthConnectProvider: ImportProvider = {
+  id: "healthconnect",
+  label: "Your watch (Health Connect)",
+  kind: "healthconnect",
+  platform: "native",
+  isAvailable: () => isNative,
+  isConnected: () => hasWatchAuthorization(),
+  connect: () => watchImportSource.requestPermissions(),
+  disconnect: () => setWatchAuthorization(false),
+  scan: (runs: Run[], opts?: { days?: number; now?: number }) =>
+    scanWatchSessions(runs, {
+      enabled: true, // the synced preference gate is applied by the caller (registry `enabled` predicate)
+      allowNativeRead: hasWatchAuthorization(),
+      days: opts?.days ?? WATCH_SCAN_DAYS,
+      ...(opts?.now ? { now: opts.now } : {}),
+    }),
+  help:
+    "Works with any watch whose app writes workouts to Health Connect (Android 14+): " +
+    "Garmin Connect (Settings → Health Connect) or Zepp/Amazfit (Profile → 3rd-party access → Health Connect). " +
+    "Runs appear a few minutes after your watch syncs; no route/map is included.",
+};

@@ -216,6 +216,9 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       if (res && res.hrAvg) { hr = res.hrAvg; hrMax = res.hrMax; }
       else hrPending = { start: startMs, end: endMs, source: hrSrc.id };
     }
+    // Stamp the run's real start instant so a later watch import of the same run
+    // (Health Connect) can dedupe by time overlap instead of double-logging it.
+    const startedAtMs = t.runWindow().startedAt || points.find(Boolean)?.[2] || null;
     t.finalize();
     setBusy(false);
     onFinish({
@@ -223,6 +226,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       durationSec: stats.movingSec,
       elevation: stats.elevation || undefined,
       source: "gps",
+      ...(startedAtMs ? { startedAt: new Date(startedAtMs).toISOString() } : {}),
       ...(routeId ? { routeId } : {}),
       ...(routeTmp ? { routeTmp, routePending: true } : {}),
       ...(hr != null ? { hr, hrMax } : {}),

@@ -21,6 +21,14 @@ export type SettingsState = Record<string, unknown> & {
   healthAck: HealthAck;
   hrMethod: HrMethod;
   hrOptOut: boolean;
+  // Opt-in preference (synced) for importing finished runs from a watch via
+  // Health Connect (Garmin, Zepp/Amazfit etc.). Like hrMethod it's a *preference
+  // only* — the per-device WATCH_HC_AUTH_KEY marker must also be present before
+  // the native Health Connect bridge is touched on a given install.
+  watchImport?: boolean;
+  // Enable-flags for any later import providers (see src/imports/registry.ts);
+  // Health Connect keeps its own watchImport key above.
+  imports?: Record<string, boolean>;
   planSessions: PlanSessionInput[];
   targetEditionId?: string | null;
 };
@@ -43,6 +51,15 @@ export type Run = Record<string, unknown> & {
   routeTmp?: string;
   routePending?: boolean;
   hrPending?: HrPending | null;
+  // Health Connect exercise-session id this run was imported from (source:"watch").
+  // Used to dedupe repeated scans idempotently.
+  hcId?: string;
+  // Generic external id for other import providers (cloud APIs etc.) — same
+  // dedupe role as hcId, one field per id-space so the two never collide.
+  extId?: string;
+  // ISO start instant of the run, when known (GPS-tracked or watch-imported).
+  // Powers time-overlap dedupe between phone-tracked and watch-imported runs.
+  startedAt?: string;
   wNum?: number;
   sId?: string;
 };
