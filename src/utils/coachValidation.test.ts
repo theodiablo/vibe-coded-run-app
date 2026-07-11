@@ -190,6 +190,39 @@ describe("buildPlan output passes the shared validator", () => {
     expect(r.errors).toEqual([]);
   });
 
+  // Every methodology style must produce validator-clean plans across the
+  // realistic envelope: race distances, day counts (incl. adversarial
+  // consecutive-day layouts) and fitness levels.
+  const dayLayouts: [string, { dayOffset: number; minutes: number }[]][] = [
+    ["2 days", [{ dayOffset: 2, minutes: 30 }, { dayOffset: 6, minutes: 60 }]],
+    ["3 days", [{ dayOffset: 1, minutes: 40 }, { dayOffset: 3, minutes: 45 }, { dayOffset: 6, minutes: 90 }]],
+    ["4 days", [{ dayOffset: 0, minutes: 40 }, { dayOffset: 2, minutes: 45 }, { dayOffset: 4, minutes: 40 }, { dayOffset: 6, minutes: 100 }]],
+    ["6 days", [{ dayOffset: 0, minutes: 40 }, { dayOffset: 1, minutes: 45 }, { dayOffset: 2, minutes: 60 }, { dayOffset: 3, minutes: 40 }, { dayOffset: 4, minutes: 45 }, { dayOffset: 6, minutes: 110 }]],
+    ["consecutive days", [{ dayOffset: 4, minutes: 45 }, { dayOffset: 5, minutes: 45 }, { dayOffset: 6, minutes: 90 }]],
+  ];
+  const raceCases: [string, string, number, number, object][] = [
+    ["5k, 10 weeks, unfit", weeksOut(10), 1500, 5, {}],
+    ["10k, 12 weeks", weeksOut(12), 3000, 10, {}],
+    ["half, 16 weeks, fit", weeksOut(16), 6600, 21.1, { recentRuns: seedRuns(14) }],
+    ["marathon, 20 weeks, fit", weeksOut(20), 14400, 42.2, { recentRuns: seedRuns(18) }],
+  ];
+  const styles = ["balanced", "polarized", "runwalk", "lowfreq", "hansons"];
+
+  describe.each(styles)("style %s is validator-clean", (style) => {
+    // Balanced with user-picked adjacent days has a PRE-EXISTING back-to-back
+    // exposure (frozen by the snapshot tests, waived via the validator's
+    // baseline mechanism); only the new styles guarantee clean output on
+    // dense/adversarial layouts, so balanced runs the sparse layouts only.
+    const layouts = style === "balanced" ? dayLayouts.slice(0, 2) : dayLayouts;
+    it.each(raceCases.flatMap(([rLabel, raceDate, goalSec, distanceKm, opts]) =>
+      layouts.map(([dLabel, layout]) =>
+        [`${rLabel}, ${dLabel}`, raceDate, goalSec, distanceKm, layout, opts] as const)))(
+      "%s", (_label, raceDate, goalSec, distanceKm, layout, opts) => {
+        const plan = buildPlan(raceDate, goalSec, layout, distanceKm, 0, { ...opts, style });
+        expect(validate(plan).errors).toEqual([]);
+      });
+  });
+
   it("flags an unsafe crash plan (marathon in 6 weeks from scratch) — by design", () => {
     // The generator will happily build this; the validator disagrees. Safety >
     // consistency: the agent can still operate on such a plan via the baseline

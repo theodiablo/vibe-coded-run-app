@@ -22,6 +22,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
   "raceDate": "2026-10-18",
   "raceElevation": 150,
   "racePace": 300,
+  "style": "balanced",
   "targetPace": 284,
   "weeks": [
     {
@@ -546,6 +547,7 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
   "raceDate": "2026-12-06",
   "raceElevation": 0,
   "racePace": 341,
+  "style": "balanced",
   "targetPace": 341,
   "weeks": [
     {

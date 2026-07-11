@@ -1,6 +1,10 @@
 // Training-plan builder.
 import { VERT_COST } from "../constants";
 import { fmt, ymd } from "./format";
+import {
+  DEFAULT_STYLE, STYLE_SHAPE, isStyleId, pickHardDays, stylePacing,
+  type StyleId,
+} from "./planStyles";
 
 export type PlanSessionInput = { dayOffset: number; minutes: number };
 type PlanSession = {
@@ -21,6 +25,7 @@ type BuildPlanOptions = {
   recentRuns?: RecentRun[];
   races?: OverlayRace[];
   mainEditionId?: string | null;
+  style?: string | null;
 };
 type BuiltPlan = {
   raceDate: unknown;
@@ -31,7 +36,26 @@ type BuiltPlan = {
   racePace: number;
   longRunPeakKm: number;
   planSessions: PlanSessionInput[];
+  style: StyleId;
   weeks: PlanWeek[];
+};
+
+// Everything a style's week composer needs from the buildPlan closure. One
+// composer call fills one week's sessions (long run included) via `addS`.
+type WeekCtx = {
+  w: number;
+  N: number;
+  phase: string;
+  isBase: boolean;
+  isTaper: boolean;
+  rampFrac: number; // 0→1 progress through the pre-taper ramp (long-run ramp)
+  longSess: PlanSessionInput;
+  qualSessions: PlanSessionInput[];
+  longKm: number;
+  addS: (dOff: number, type: string, km: number, desc: string, pace: number) => void;
+  paces: { easy: number; tmpo: number; intv: number; long: number };
+  tgt: number;
+  dist: number;
 };
 
 // `opts` is additive so the positional call sites keep working:
@@ -70,8 +94,17 @@ export function buildPlan(
   const tgt       = Math.round(goal / flatEqDist);
   // Real average ground pace on the course — what the race-day card should show.
   const racePace = Math.round(goal / dist);
-  const easy  = Math.round(tgt * 1.25);
-  const tmpo  = Math.round(tgt * 1.05);
+  // Methodology style: pace multipliers come from the shared table (also read
+  // by the coach agent) so plan and coach edits can never drift; plan shape
+  // comes from STYLE_SHAPE. Absent/unknown style = "balanced" = the pre-styles
+  // algorithm, byte-identical (its multipliers are the old hardcoded ratios).
+  const style: StyleId = isStyleId(planOpts.style) ? planOpts.style : DEFAULT_STYLE;
+  const pacing = stylePacing(style);
+  const shape = STYLE_SHAPE[style];
+  const easy  = Math.round(tgt * pacing.easy);
+  const tmpo  = Math.round(tgt * pacing.tempo);
+  const intv  = Math.round(tgt * pacing.intervals);
+  const longP = Math.round(tgt * pacing.long);
   const sorted = planSessions.slice().sort((a, b) => b.minutes - a.minutes);
   const longSess = sorted[0];
   const qualSessions = sorted.slice(1);
@@ -82,10 +115,10 @@ export function buildPlan(
   // so an ultra (UTMB 171 km) can't generate an absurd long run. The session
   // `minutes` no longer caps the long run (it still informs the shown duration and
   // the quality-session sizing) — see PlanView's long-run nudge.
-  const peakLong = Math.min(36,
-    dist <= 25 ? dist * 0.9
-    : dist <= 43 ? Math.min(32, dist * 0.78)
-    : 34);
+  // (Estimated weekly km at easy pace from the configured minutes — lets a
+  // style cap the long run as a share of weekly volume, e.g. Hansons.)
+  const estWeeklyKm = planSessions.reduce((s, q) => s + q.minutes * 60 / easy, 0);
+  const peakLong = shape.peakLong(dist, estWeeklyKm);
 
   // Fitness-aware floor (a generation-time snapshot). The longest run in the last
   // ~5 weeks sets a starting long run so a fit athlete isn't sent back to square
@@ -97,7 +130,7 @@ export function buildPlan(
     (m, r) => (r && r.date && r.date >= cutoff && (r.km ?? 0) > 0 ? Math.max(m, r.km ?? 0) : m), 0);
   const fitFloor = Math.min(longestRecent * 0.8, peakLong);
   // Long run ramps linearly from this start to the peak over the pre-taper weeks.
-  const startLong = Math.max(4.5, fitFloor);
+  const startLong = Math.max(shape.floorKm, fitFloor);
   const lastBuildW = N - 4; // 0-based index of the final pre-taper week (peak hits here)
 
   const weeks: PlanWeek[] = [];
@@ -122,47 +155,54 @@ export function buildPlan(
       });
     };
 
+    const rampFrac = lastBuildW > 0 ? Math.min(1, w / lastBuildW) : 1;
     let longKm;
     if (isTaper) {
       // Taper long runs scale off the peak — shed volume, keep some endurance.
       const taperIdx = w - (N - 3);
-      const taperMults = [0.85, 0.65, 0.45];
-      longKm = peakLong * (taperMults[taperIdx] !== undefined ? taperMults[taperIdx] : 0.45);
+      const taperMults = shape.taperMults;
+      longKm = peakLong * (taperMults[taperIdx] !== undefined ? taperMults[taperIdx] : taperMults[2]);
     } else {
       // Ramp from the fitness-aware start to the race-scaled peak across the
       // pre-taper weeks (peak reached at the last build/peak week).
-      const ramp = lastBuildW > 0 ? Math.min(1, w / lastBuildW) : 1;
-      longKm = startLong + (peakLong - startLong) * ramp;
+      longKm = startLong + (peakLong - startLong) * rampFrac;
+      // Galloway-style cutback: every 3rd ramp week sheds ~30% (never the peak
+      // week). Down-weeks are ramp-safe — the validator only limits increases.
+      if (shape.cutbackEvery3 && w % 3 === 2 && w !== lastBuildW) longKm *= 0.7;
     }
-    addS(longSess.dayOffset, "LONG", longKm,
-      "Long run — easy effort at " + fmt.pace(easy) + "/km", easy);
 
-    qualSessions.forEach(q => {
-      const maxQ = q.minutes * 60 / easy;
-      let type, desc, pace, km;
-      if (isBase || isTaper) {
-        const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
-        type = "EASY"; pace = easy;
-        km   = Math.min(maxQ, easyKm);
-        desc = "Easy run — relaxed aerobic effort";
-      } else {
-        const buildW = w - 4;
-        if (buildW % 2 === 0) {
-          type = "TEMPO"; pace = tmpo;
-          km   = Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8);
-          desc = "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard";
-        } else {
-          const reps = q.minutes <= 30 ? 3 : 5;
-          type = "INTERVALS"; pace = tgt;
-          km   = Math.min(maxQ * 0.85, reps * 0.8 + 1.5);
-          desc = "Intervals — " + reps + "x800m at " + fmt.pace(tgt) + "/km + 90s recovery";
-        }
-      }
-      addS(q.dayOffset, type, km, desc, pace);
+    COMPOSERS[style]({
+      w, N, phase, isBase, isTaper, rampFrac, longSess, qualSessions, longKm,
+      addS, paces: { easy, tmpo, intv, long: longP }, tgt, dist,
     });
 
     ss.sort((a, b) => a.date.localeCompare(b.date));
     weeks.push({weekNumber: w+1, startDate: ymd(wS), phase, sessions: ss});
+  }
+
+  // Belt-and-braces hard-day spacing for the styled composers: demote the
+  // lower-priority of any two hard-typed sessions on consecutive days to EASY
+  // (LONG > TEMPO > INTERVALS; on a tie the later one gives way). Catches
+  // whatever pickHardDays couldn't place cleanly, including the week wrap.
+  // Balanced is exempt on purpose — its output predates styles and a
+  // user-picked back-to-back day pair is a pre-existing, validator-waived
+  // condition we must not silently rewrite.
+  if (style !== DEFAULT_STYLE) {
+    const HARD_PRIO: Record<string, number> = { LONG: 3, TEMPO: 2, INTERVALS: 1 };
+    const all = weeks.flatMap(wk => wk.sessions)
+      .filter(s => HARD_PRIO[s.type])
+      .sort((a, b) => a.date.localeCompare(b.date));
+    for (let i = 1; i < all.length; i++) {
+      const prev = all[i - 1], cur = all[i];
+      if (!HARD_PRIO[prev.type] || !HARD_PRIO[cur.type]) continue;
+      const gapDays = (new Date(cur.date + "T00:00:00").getTime()
+        - new Date(prev.date + "T00:00:00").getTime()) / 86400000;
+      if (gapDays > 1) continue;
+      const demote = HARD_PRIO[cur.type] > HARD_PRIO[prev.type] ? prev : cur;
+      demote.type = "EASY";
+      demote.pace = easy;
+      demote.desc = "Easy run — relaxed aerobic effort";
+    }
   }
 
   // ── Secondary-race overlay ────────────────────────────────────────────────
@@ -228,8 +268,228 @@ export function buildPlan(
     }],
   });
   return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt, racePace,
-    longRunPeakKm: Math.round(peakLong * 10) / 10, planSessions, weeks};
+    longRunPeakKm: Math.round(peakLong * 10) / 10, planSessions, style, weeks};
 }
+
+// ── Style week composers ─────────────────────────────────────────────────────
+// One function per style fills a week's sessions (long run + the other days).
+// `balanced` is the pre-styles loop body moved verbatim (frozen by snapshot
+// tests); the others express their methodology while staying inside the shared
+// validator envelope: hard days spaced by pickHardDays (+ the sweep above),
+// gentle week-over-week growth, no tempo/intervals generated into the taper.
+
+function composeBalanced(c: WeekCtx) {
+  const { w, N, isBase, isTaper, addS, tgt } = c;
+  const { easy, tmpo } = c.paces;
+  addS(c.longSess.dayOffset, "LONG", c.longKm,
+    "Long run — easy effort at " + fmt.pace(easy) + "/km", easy);
+
+  c.qualSessions.forEach(q => {
+    const maxQ = q.minutes * 60 / easy;
+    let type, desc, pace, km;
+    if (isBase || isTaper) {
+      const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
+      type = "EASY"; pace = easy;
+      km   = Math.min(maxQ, easyKm);
+      desc = "Easy run — relaxed aerobic effort";
+    } else {
+      const buildW = w - 4;
+      if (buildW % 2 === 0) {
+        type = "TEMPO"; pace = tmpo;
+        km   = Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8);
+        desc = "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard";
+      } else {
+        const reps = q.minutes <= 30 ? 3 : 5;
+        type = "INTERVALS"; pace = tgt;
+        km   = Math.min(maxQ * 0.85, reps * 0.8 + 1.5);
+        desc = "Intervals — " + reps + "x800m at " + fmt.pace(tgt) + "/km + 90s recovery";
+      }
+    }
+    addS(q.dayOffset, type, km, desc, pace);
+  });
+}
+
+// 80/20: one genuinely hard session a week (alternating tempo/intervals, a
+// notch harder than balanced), everything else — long run included — slower
+// and truly easy. The hard slot goes to the quality day farthest from the
+// long run so the week breathes.
+function composePolarized(c: WeekCtx) {
+  const { w, N, isBase, isTaper, addS } = c;
+  const { easy, tmpo, intv, long } = c.paces;
+  addS(c.longSess.dayOffset, "LONG", c.longKm,
+    "Long run — easy effort at " + fmt.pace(long) + "/km", long);
+
+  const hardDay = pickHardDays(
+    c.qualSessions.map(q => q.dayOffset), c.longSess.dayOffset, 1)[0];
+
+  c.qualSessions.forEach(q => {
+    const maxQ = q.minutes * 60 / easy;
+    if (isBase || isTaper || q.dayOffset !== hardDay) {
+      // Build-phase easy days keep the base-phase growth line (+0.3/wk from
+      // the same 2.5 start) so the week-5 hard session lands on top of a
+      // smooth easy-volume curve instead of a step — the ramp rule's margin
+      // is thinnest exactly at that transition.
+      const easyKm = isBase ? 2.5 + w * 0.2
+        : isTaper ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
+        : 2.5 + w * 0.3;
+      addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
+        "Easy run — relaxed, conversational pace", easy);
+      return;
+    }
+    const buildW = w - 4;
+    if (buildW % 2 === 0) {
+      addS(q.dayOffset, "TEMPO",
+        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
+        "Tempo run — " + fmt.pace(tmpo) + "/km, your one hard session this week", tmpo);
+    } else {
+      const reps = q.minutes <= 30 ? 3 : 5;
+      addS(q.dayOffset, "INTERVALS",
+        Math.min(maxQ * 0.85, reps * 0.8 + 1.5),
+        "Intervals — " + reps + "x800m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
+    }
+  });
+}
+
+// Galloway run/walk: scheduled walk breaks from day one, no speedwork, gentle
+// ramp with regular cutback weeks. Non-long days are WALK-typed (not "hard")
+// so any day layout is valid.
+function composeRunwalk(c: WeekCtx) {
+  const { w, N, phase, isTaper, addS, tgt } = c;
+  const { long } = c.paces;
+  const runMin = phase === "BASE" ? 1 : phase === "BUILD" ? 2 : 3;
+  addS(c.longSess.dayOffset, "LONG", c.longKm,
+    "Long run/walk — run " + runMin + " min / walk 1 min, conversational", long);
+
+  const walkPace = Math.round(tgt * 1.45);
+  c.qualSessions.forEach(q => {
+    const km = isTaper
+      ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
+      : Math.min(q.minutes * 60 / walkPace, 2.5 + w * 0.25);
+    addS(q.dayOffset, "WALK", km,
+      "Run/walk — run " + runMin + " min / walk 1 min, "
+        + (isTaper ? "short and relaxed" : "conversational"), walkPace);
+  });
+}
+
+// FIRST-style "3 quality runs": long + intervals + tempo, all pace-prescribed
+// and a notch faster; any further configured days become optional low-impact
+// cross-training (OTHER — deliberately constant volume, so it never drives
+// the weekly ramp). With <3 days it degrades: 2 days = long + alternating
+// quality; 1 day = long only.
+function composeLowfreq(c: WeekCtx) {
+  const { w, N, isBase, isTaper, addS } = c;
+  const { easy, tmpo, intv, long } = c.paces;
+  addS(c.longSess.dayOffset, "LONG", c.longKm,
+    "Long run — steady effort at " + fmt.pace(long) + "/km", long);
+
+  const hardDays = pickHardDays(
+    c.qualSessions.map(q => q.dayOffset), c.longSess.dayOffset, 2);
+
+  c.qualSessions.forEach(q => {
+    const maxQ = q.minutes * 60 / easy;
+    const slot = hardDays.indexOf(q.dayOffset);
+    if (slot === -1) {
+      // Extra day beyond the three key runs: optional cross-training. The km
+      // figure is an easy-run-equivalent effort, kept flat week to week (only
+      // the taper shrinks it, so TAPER_VOLUME still sees a real drop).
+      const baseKm = Math.max(1.5, maxQ * 0.5);
+      const km = isTaper ? baseKm * [0.85, 0.65, 0.45][Math.min(w - (N - 3), 2)] : baseKm;
+      addS(q.dayOffset, "OTHER", km,
+        "Optional cross-training — " + fmt.mins(q.minutes)
+          + " easy bike, swim or elliptical (skip if tired)", easy);
+      return;
+    }
+    if (isBase || isTaper) {
+      const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
+      addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
+        "Easy run — relaxed aerobic effort", easy);
+      return;
+    }
+    const buildW = w - 4;
+    // Two placed quality days: first = intervals, second = tempo. If only one
+    // could be placed, it alternates so both stimuli still appear.
+    const doIntervals = hardDays.length >= 2 ? slot === 0 : buildW % 2 === 1;
+    if (doIntervals) {
+      const reps  = q.minutes <= 30 ? 6 : q.minutes <= 45 ? 5 : 6;
+      const repKm = q.minutes <= 30 ? 0.4 : q.minutes <= 45 ? 0.8 : 1;
+      addS(q.dayOffset, "INTERVALS",
+        Math.min(maxQ * 0.85, reps * repKm + 1.5),
+        "Intervals — " + reps + "x" + (repKm < 1 ? repKm * 1000 + "m" : "1km")
+          + " at " + fmt.pace(intv) + "/km + recovery jogs", intv);
+    } else {
+      addS(q.dayOffset, "TEMPO",
+        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
+        "Tempo run — " + fmt.pace(tmpo) + "/km, strong and controlled", tmpo);
+    }
+  });
+}
+
+// Hansons-style cumulative fatigue: a capped, steady long run; two spaced
+// "something of substance" days (speed/strength intervals + a goal-pace tempo
+// that grows with the ramp); every other day moderate easy volume that fills
+// most of its time budget — frequency over single-session heroics.
+function composeHansons(c: WeekCtx) {
+  const { w, N, phase, isBase, isTaper, rampFrac, addS, dist } = c;
+  const { easy, tmpo, intv, long } = c.paces;
+  addS(c.longSess.dayOffset, "LONG", c.longKm,
+    "Long run — steady, moderate effort at " + fmt.pace(long) + "/km", long);
+
+  const sosDays = pickHardDays(
+    c.qualSessions.map(q => q.dayOffset), c.longSess.dayOffset, 2);
+
+  c.qualSessions.forEach(q => {
+    const maxQ = q.minutes * 60 / easy;
+    const slot = sosDays.indexOf(q.dayOffset);
+    // Easy volume ramps from a gentle start toward ~90% of the day's budget,
+    // in step with the long-run ramp so weekly growth stays inside the 1.3x
+    // ramp rule.
+    const easyFill = Math.min(maxQ * 0.9, 3 + Math.max(0, maxQ * 0.9 - 3) * rampFrac);
+
+    if (isTaper) {
+      // First taper week keeps one short goal-pace tempo (its dates are ≥15
+      // days out — clear of the validator's 7-day no-tempo window); the final
+      // two weeks are all easy.
+      if (slot === 1 && w === N - 3) {
+        addS(q.dayOffset, "TEMPO", Math.min(maxQ * 0.85, 5),
+          "Tempo — short, at goal race pace " + fmt.pace(tmpo) + "/km", tmpo);
+      } else {
+        addS(q.dayOffset, "EASY", Math.min(maxQ, Math.max(2, 4 - (w - (N - 3)) * 0.5)),
+          "Easy run — relaxed aerobic effort", easy);
+      }
+      return;
+    }
+    if (isBase || slot === -1) {
+      addS(q.dayOffset, "EASY", easyFill, "Easy run — relaxed aerobic effort", easy);
+      return;
+    }
+    if (slot === 0) {
+      // Speed early, strength (near goal pace) once the peak phase starts.
+      if (phase === "PEAK") {
+        addS(q.dayOffset, "INTERVALS", Math.min(maxQ * 0.85, 10),
+          "Strength — 3x3km at goal pace minus 10s (" + fmt.pace(Math.max(1, tmpo - 10))
+            + "/km) + 1km jog recovery", Math.max(1, tmpo - 10));
+      } else {
+        addS(q.dayOffset, "INTERVALS", Math.min(maxQ * 0.85, 8 * 0.6 + 1.5),
+          "Speed — 8x600m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
+      }
+    } else {
+      // The signature Hansons tempo: goal race pace, growing with the ramp,
+      // capped at ~30% of race distance and the day's time budget.
+      const tempoTarget = Math.min(q.minutes * 60 / tmpo * 0.85, 0.3 * dist);
+      const km = Math.min(tempoTarget, 6 + Math.max(0, tempoTarget - 6) * rampFrac);
+      addS(q.dayOffset, "TEMPO", km,
+        "Tempo — at goal race pace " + fmt.pace(tmpo) + "/km, steady", tmpo);
+    }
+  });
+}
+
+const COMPOSERS: Record<StyleId, (c: WeekCtx) => void> = {
+  balanced: composeBalanced,
+  polarized: composePolarized,
+  runwalk: composeRunwalk,
+  lowfreq: composeLowfreq,
+  hansons: composeHansons,
+};
 
 type OpenSessionPlan = {
   weeks?: { weekNumber: number; sessions?: { id: string; date: string; type?: string; done?: boolean; skipped?: boolean }[] }[];
