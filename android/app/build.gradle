@@ -1,3 +1,22 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+// Kotlin for this module's local WatchImportPlugin (Health Connect reads are
+// suspend APIs). Declared HERE, not in the root buildscript: a module-level
+// classpath stays in this module's classloader, so the Capacitor plugin
+// subprojects keep resolving their own KGP versions (see the root build.gradle
+// note). 2.2.20 matches @capacitor-community/bluetooth-le, so no new Kotlin
+// version enters the build, and it targets JVM 21 like the Capacitor-generated
+// Java config.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20"
+    }
+}
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
@@ -67,24 +86,18 @@ dependencies {
     // WatchImportPlugin (local, in this module): read finished exercise sessions
     // from Health Connect. connect-client is pinned to the same version the
     // health-connect plugin resolves; coroutines back its suspend read APIs.
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.20"
+    // (No explicit kotlin-stdlib — KGP 2.x adds its own matching stdlib.)
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
     implementation "androidx.health.connect:connect-client:1.1.0-alpha02"
 }
 
 apply from: 'capacitor.build.gradle'
 
-// Applied AFTER capacitor.build.gradle so it wins: pin this module to Java/Kotlin
-// 17. Capacitor generates Java 21, but the app module's Kotlin runs on 1.8.20
-// (matching the health-connect plugin) whose max JVM target is below 21 — an
-// inconsistent Java-21/Kotlin-17 pair fails the build, so lower Java to 17 too.
-android {
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
+// Kotlin targets JVM 21, matching the Java 21 that capacitor.build.gradle sets —
+// same DSL the bluetooth-le plugin uses on KGP 2.2.
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_21
     }
 }
 

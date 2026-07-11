@@ -9,10 +9,12 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
         classpath 'com.google.gms:google-services:4.4.4'
-        // Kotlin, for the app module's local WatchImportPlugin (Health Connect
-        // reads are suspend APIs). Pinned to the version the health-connect plugin
-        // already resolves, so the two agree on the Kotlin runtime.
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20"
+        // NOTE: no kotlin-gradle-plugin here. The root buildscript classpath is
+        // the PARENT classloader for every plugin subproject, so a root KGP would
+        // override the versions the Capacitor plugins pick for themselves
+        // (bluetooth-le needs 2.2.x for its compilerOptions DSL, the pinned
+        // health-connect plugin builds with 1.8.x) and break one of them. The app
+        // module declares its own KGP in android/app/build.gradle instead.
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files

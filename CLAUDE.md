@@ -361,10 +361,17 @@ and delete anything that becomes stale.
   registered in `MainActivity.java`) that reads `ExerciseSessionRecord`s +
   aggregated `Distance`/`ElevationGained`/`HeartRate`/`ExerciseDuration`. The two
   HC plugins coexist deliberately — don't merge them. The app module gets
-  Kotlin + coroutines + `connect-client` (pinned to the pianissimo version) and
-  is forced to **Java/Kotlin 17** in `android/app/build.gradle` *after* the
-  generated `capacitor.build.gradle` (Kotlin 1.8.20 can't target Capacitor's
-  Java 21). New `READ_EXERCISE`/`READ_DISTANCE`/`READ_ELEVATION_GAINED` manifest
+  Kotlin + coroutines + `connect-client` (pinned to the pianissimo version).
+  **Gotcha — never put `kotlin-gradle-plugin` on the ROOT buildscript classpath:**
+  the root classpath is the parent classloader for every plugin subproject, so a
+  root KGP overrides the versions the Capacitor plugins resolve for themselves
+  (bluetooth-le needs 2.2.x for its `compilerOptions` DSL, pianissimo builds with
+  1.8.x — a root pin broke one or the other in CI). Instead the app module
+  declares its **own** `buildscript` KGP (**2.2.20**, matching bluetooth-le) in
+  `android/app/build.gradle` and targets **JVM 21** via
+  `kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_21 } }`, matching the
+  Java 21 the generated `capacitor.build.gradle` sets.
+  New `READ_EXERCISE`/`READ_DISTANCE`/`READ_ELEVATION_GAINED` manifest
   scopes need a Play health-data declaration update before release. **Garmin →
   HC is one-way, Android-14+, opt-in inside Garmin Connect, and carries NO GPS
   route** — imported runs have no map (`routeId` stays absent, which the app
