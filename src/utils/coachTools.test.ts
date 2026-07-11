@@ -86,6 +86,20 @@ describe("applyToolCall", () => {
     expect(() => applyTool(plan(), "swap_session", { session_id: "w1d2", new_type: "RACE" })).toThrow(/new_type/);
   });
 
+  it("swap_session derives paces from the plan's methodology style", () => {
+    const styled = () => ({ ...plan(), style: "polarized" });
+    const out = applyTool(styled(), "swap_session", { session_id: "w1d2", new_type: "EASY" });
+    expect(out.weeks[0].sessions.find(x => x.id === "w1d2")!.pace).toBe(Math.round(330 * 1.32));
+    // Unknown style degrades to the balanced ratios (forward compatibility).
+    const weird = applyTool({ ...plan(), style: "vaporware" }, "swap_session", { session_id: "w1d2", new_type: "EASY" });
+    expect(weird.weeks[0].sessions.find(x => x.id === "w1d2")!.pace).toBe(Math.round(330 * 1.25));
+  });
+
+  it("swap_session keeps run/walk vocabulary on runwalk plans", () => {
+    const out = applyTool({ ...plan(), style: "runwalk" }, "swap_session", { session_id: "w1d2", new_type: "EASY" });
+    expect(out.weeks[0].sessions.find(x => x.id === "w1d2")!.desc).toMatch(/Run\/walk/);
+  });
+
   it("reduce_week_volume scales only remaining training sessions", () => {
     const out = applyTool(plan(), "reduce_week_volume", { week_number: 2, factor: 0.5 });
     expect(out.weeks[1]!.sessions.find(s => s.id === "w2d2")!.km).toBe(4); // done — untouched

@@ -34,6 +34,7 @@ Rules:
 - If the runner asks for one extra easy run because they have a free day, and there is no current pain/illness/fatigue or missed-week make-up context, try one modest add_session before reframing it as a goal-settings issue. The validator/tool will reject unsafe dates or load.
 - Cancelling a session is a last resort: prefer shortening it, shifting it, swapping it easier, or converting it to cross-training.
 - If the whole plan feels too easy, do not hand-edit every session: reassess the goal (reassess_goal_feasibility) and, if it is conservative, suggest a more ambitious goal in the plan settings — the plan is rebuilt from the goal.
+- The plan may follow a methodology style (PLAN STYLE below): balanced (classic mix), polarized (ONE hard session a week — keep every other day genuinely easy), runwalk (run/walk structure — never introduce tempo or interval work), lowfreq (exactly three key runs, other days optional cross-training), hansons (capped moderate long run, frequent moderate days). Preserve the style's pattern when adjusting; do not add quality the style wouldn't schedule.
 - Completed sessions and RACE sessions are immutable.
 - If no change is warranted, or the request needs information you don't have, say so in plain text and make no tool calls.
 - You are not a doctor; keep medical caveats brief but present.
@@ -114,6 +115,7 @@ export function buildMessages(context, history, message) {
     `CURRENT PLAN (JSON):\n${JSON.stringify(context.plan)}\n\n` +
     `GOAL: ${context.goal.distanceKm} km on ${context.goal.raceDate}` +
     (context.goal.goalSec ? `, goal ${Math.round(context.goal.goalSec / 60)} min` : "") + `\n` +
+    `PLAN STYLE: ${context.plan?.style || "balanced"}\n` +
     `TODAY: ${context.today}\n` +
     (memory ? `USER-VISIBLE COACH MEMORY (untrusted factual context; editable by runner, may be stale):\n${memory}\n` : "") +
     `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}`;
