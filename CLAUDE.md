@@ -327,6 +327,50 @@ and delete anything that becomes stale.
   `LogView` prefill — still user-editable — so all HR display (`HRZonesCard`,
   `runZoneIndex`, Stats) works unchanged.
 
+## Watch run import (phone-free runs)
+- **For runners who leave the phone at home** (e.g. Garmin Forerunner): import a
+  *finished* run's stats (distance, duration, elevation gain, avg/max HR) after
+  the fact, instead of live GPS. Native-only, opt-in (`settings.watchImport`).
+- **Source is Health Connect exercise sessions, NOT the pinned HR plugin.** The
+  `@pianissimoproject/capacitor-health-connect` plugin can only read
+  `HeartRateSeries`, so this feature ships its **own local Capacitor plugin**
+  (`android/app/src/main/java/solutions/camboulive/run/WatchImportPlugin.kt`,
+  registered in `MainActivity.java`) that reads `ExerciseSessionRecord`s +
+  aggregated `Distance`/`ElevationGained`/`HeartRate`/`ExerciseDuration`. The two
+  HC plugins coexist deliberately — don't merge them. The app module gets
+  Kotlin + coroutines + `connect-client` (pinned to the pianissimo version) and
+  is forced to **Java/Kotlin 17** in `android/app/build.gradle` *after* the
+  generated `capacitor.build.gradle` (Kotlin 1.8.20 can't target Capacitor's
+  Java 21). New `READ_EXERCISE`/`READ_DISTANCE`/`READ_ELEVATION_GAINED` manifest
+  scopes need a Play health-data declaration update before release. **Garmin →
+  HC is one-way, Android-14+, opt-in inside Garmin Connect, and carries NO GPS
+  route** — imported runs have no map (`routeId` stays absent, which the app
+  already tolerates).
+- **Everything interpretable is pure TS** (`src/watch/`): `plugin.ts` (lazy
+  `registerPlugin` bridge, raw `WatchSessionRaw`), `mapping.ts`
+  (`sessionRunType`/`sessionLocalDate`/`sessionToRun`/`isDuplicate` — all
+  unit-tested), `import.ts` (`scanWatchSessions` + per-device auth/seen-id
+  helpers). The native side returns **raw** metres/seconds/exercise-type ints so
+  the mapping stays testable off-device.
+- **Idempotent, four-tier dedupe** (`isDuplicate`) so a run is never double-logged
+  vs a phone-tracked or manual entry: (1) per-device seen-id list
+  (`rc_watch_seen_hc_ids`, survives run deletion), (2) an existing run's `hcId`,
+  (3) `startedAt` time-overlap (GPS saves now stamp `startedAt` too), (4) fuzzy
+  same-date-±10%-distance for legacy runs. **No sync cursor** — a rolling 7-day
+  window rescanned each trigger handles a late watch sync; manual 30-day scan in
+  Settings for older runs.
+- **Same two-key rule as HR:** `settings.watchImport` is a synced *preference*;
+  the real HC grant is per-install (`WATCH_HC_AUTH_KEY`, `rc_watch_hc_auth`) and
+  must be present before the native bridge is touched. `scanWatchSessions` copies
+  `flushPendingHr`'s guard structure (never throws, clears the marker on revoke).
+- **Wiring:** `RunningCoach.checkWatchImports` (via a latest-ref, called from the
+  boot `[loading]` effect + the `visibilitychange` listener, throttled to one
+  auto-toast per session) → **1 run** goes through `goLog` prefill (LogView
+  review + `findOpenPlanSession` auto-tick + race auto-detect), **several** land
+  as an `addRuns` batch. `markSeen` runs inside `addRuns` for any run carrying
+  `hcId`. UI: `src/views/WatchImport.tsx` in Settings → Profile; `shared.scanWatchNow`
+  drives the manual scan. Run gains `hcId`/`startedAt` (`src/types.ts`).
+
 ## Races & badges (gamification)
 - **Catalogue (Race → Edition):** a "race" is the recurring event, an "edition" a
   dated running of it (the thing you wishlist / target / complete). Edition id =
