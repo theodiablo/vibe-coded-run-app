@@ -7,6 +7,8 @@ import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
+import { StylePicker } from "../components/StylePicker";
+import { STYLE_META, isStyleId, recommendStyle, stylePacing, type StyleId } from "../utils/planStyles";
 import type { Plan, PlanPrefill, PlanSession, RacesState, Run, RunType, SettingsState } from "../types";
 import type { PlanSessionInput } from "../utils/plan";
 
@@ -16,6 +18,7 @@ type GeneratePlanOptions = {
   goalSec?: number | string;
   distanceKm?: number | string;
   raceElevation?: number | string;
+  planStyle?: StyleId;
 };
 
 type PlanViewProps = {
@@ -79,7 +82,15 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   const [draftGoal,    setDraftGoal]   = useState<PlanDraftValue>(planPrefill ? "" : settings.goalSec);
   const [draftDist,    setDraftDist]   = useState<PlanDraftValue>(planPrefill?.distanceKm ?? (settings.distanceKm || ""));
   const [draftElev,    setDraftElev]   = useState<PlanDraftValue>(planPrefill?.raceElevation ?? (settings.raceElevation || 0));
+  // Methodology style: null = untouched, so the shown selection keeps tracking
+  // the live recommendation as the user edits days/distance; a tap pins it.
+  const [draftStyle,   setDraftStyle]  = useState<StyleId | null>(isStyleId(settings.planStyle) ? settings.planStyle : null);
   const [confirmRegen, setConfirmRegen] = useState(false);
+
+  const recommendedStyle = recommendStyle({
+    intent: settings.intent, planSessions: draft, distanceKm: draftDist, recentRuns: runs,
+  });
+  const effectiveStyle = draftStyle ?? recommendedStyle;
 
   // Re-expand the current week whenever the plan changes (e.g. regenerate),
   // adjusting state during render rather than in an effect.
@@ -117,7 +128,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     const sameAsPrefill = planPrefill && date === planPrefill.raceDate && Number(dist) === Number(planPrefill.distanceKm);
     const sameAsTarget  = date === settings.raceDate && Number(dist) === Number(settings.distanceKm);
     const targetEditionId = sameAsPrefill ? planPrefill.editionId : (sameAsTarget ? (settings.targetEditionId ?? null) : null);
-    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: Number(elev) || 0, targetEditionId});
+    const style = o.planStyle || effectiveStyle;
+    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: Number(elev) || 0, targetEditionId, planStyle: style});
     // Secondary races the user has added to the plan (not the main target). buildPlan
     // does the window filtering; we just hand it the flagged wishlist races, enriched
     // with the catalogue elevation when available.
@@ -125,7 +137,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
       .filter(p => p.status === "wishlist" && p.inPlan && p.editionId !== targetEditionId)
       .map(p => ({ editionId: p.editionId, date: p.raceDate, distanceKm: p.distanceKm,
         elevation: p.editionId ? findEdition(p.editionId)?.edition?.elevation || 0 : 0 }));
-    savePlan(buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId}));
+    savePlan(buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId, style}));
     setEdit(false); setConfirmRegen(false);
     clearPlanPrefill?.();
   };
@@ -169,6 +181,10 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
         </div>
+        <div>
+          <label className="text-xs text-slate-400 block mb-2">Training style</label>
+          <StylePicker value={effectiveStyle} onChange={setDraftStyle} recommended={recommendedStyle}/>
+        </div>
         {!settings.maxHR && (
           <button type="button" onClick={openSettings}
             className="w-full bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 rounded-xl p-3 text-xs text-amber-200 flex gap-2 items-start text-left transition-colors">
@@ -199,10 +215,11 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     .sort((a, b) => a.dayOffset - b.dayOffset)
     .map(s => DAYS[s.dayOffset] + " (" + fmt.mins(s.minutes) + ")")
     .join(" · ");
+  const planStyle: StyleId = isStyleId(plan.style) ? plan.style : "balanced";
   // The peak long run is driven by race distance, so on a short long-session
   // setting it runs longer than configured. Surface that honestly (rather than
   // silently capping the long run) so the user can lengthen their long day.
-  const easyPace = Math.round((plan.targetPace || 0) * 1.25);
+  const easyPace = Math.round((plan.targetPace || 0) * stylePacing(planStyle).long);
   const peakLongMin = plan.longRunPeakKm && easyPace ? Math.round(plan.longRunPeakKm * easyPace / 60) : 0;
   const longestSessMin = ps.reduce((m, s) => Math.max(m, s.minutes || 0), 0);
   const longRunNudge = peakLongMin > longestSessMin + 20;
@@ -264,7 +281,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <span>{(plan.distanceKm || 20) + "km" + ((plan.raceElevation || 0) > 0 ? " · +" + Math.round(plan.raceElevation || 0) + "m" : "") + " · sub " + fmt.dur(Number(plan.goalSec) || 0)}</span>
           <span>{"Race: " + fmt.sht(String(plan.raceDate || ""))}</span>
         </div>
-        <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-end">
+        <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">{STYLE_META[planStyle].label}</span>
           <PlanInfo/>
         </div>
       </div>
@@ -282,6 +300,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           setDraftGoal(settings.goalSec);
           setDraftDist(settings.distanceKm || "");
           setDraftElev(settings.raceElevation || 0);
+          setDraftStyle(isStyleId(settings.planStyle) ? settings.planStyle : null);
           setEdit(v => !v);
         }}
         className={"w-full mb-3 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs transition-colors border " + (editSessions ? "bg-orange-500/10 border-orange-500/40" : "bg-slate-800 border-slate-700 hover:border-slate-500")}>
@@ -328,6 +347,10 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <div>
             <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
             <SessionConfigurator sessions={draft} onChange={setDraft}/>
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-2">Training style</label>
+            <StylePicker value={effectiveStyle} onChange={setDraftStyle} recommended={recommendedStyle}/>
           </div>
           <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
             disabled={!draftDate || !draftDist}

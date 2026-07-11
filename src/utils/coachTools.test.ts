@@ -14,7 +14,7 @@ type TestSession = {
   skipped?: boolean;
 };
 type TestWeek = { weekNumber: number; startDate: string; phase: string; sessions: TestSession[] };
-type TestPlan = { raceDate: string; distanceKm: number; goalSec: number; targetPace: number; planSessions: unknown[]; weeks: TestWeek[] };
+type TestPlan = { raceDate: string; distanceKm: number; goalSec: number; targetPace: number; planSessions: unknown[]; style?: string; weeks: TestWeek[] };
 type ToolInput = Record<string, string | number>;
 type ToolName =
   | "shift_workout"

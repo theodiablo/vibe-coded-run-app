@@ -31,6 +31,8 @@ export type SettingsState = Record<string, unknown> & {
   imports?: Record<string, boolean>;
   planSessions: PlanSessionInput[];
   targetEditionId?: string | null;
+  // Training methodology style (see src/utils/planStyles.ts); absent = balanced.
+  planStyle?: string;
 };
 
 export type HrPending = { start: string | number; end: string | number; source: string };
@@ -93,6 +95,8 @@ export type Plan = Record<string, unknown> & {
   racePace?: number;
   longRunPeakKm?: number;
   planSessions?: PlanSessionInput[];
+  // Methodology style the plan was built with; absent on pre-styles plans.
+  style?: string;
   weeks: PlanWeek[];
 };
 

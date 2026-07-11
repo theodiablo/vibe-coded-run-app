@@ -3,6 +3,8 @@ import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Targe
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
+import { StylePicker } from "../components/StylePicker";
+import { isStyleId, recommendStyle, type StyleId } from "../utils/planStyles";
 import { RaceFormModal } from "./RaceFormModal";
 import { AddRaceCard } from "../components/AddRaceCard";
 import { onboardingSteps } from "../utils/onboarding";
@@ -24,6 +26,7 @@ type OnboardingCompletePayload = {
     raceElevation: number;
     planSessions: PlanSessionInput[];
     targetEditionId: string | null;
+    planStyle: StyleId;
   };
   hr: Pick<SettingsState, "age" | "maxHR" | "restHR"> | null;
   healthAck: NonNullable<HealthAck>;
@@ -66,6 +69,10 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const [raceElevation, setElev] = useState<string | number>(settings.raceElevation || 0);
   const [goalSec,       setGoal] = useState<string | number>(settings.goalSec || "");
   const [planSessions,  setSess] = useState<PlanSessionInput[]>(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
+  // Methodology style: null = untouched, so the pre-selection tracks the live
+  // recommendation while the user edits days/distance; a tap pins the choice.
+  // Onboarding is a first run, so the recommendation sees no run history.
+  const [planStyle,     setPlanStyle] = useState<StyleId | null>(isStyleId(settings.planStyle) ? settings.planStyle : null);
   const [targetEditionId, setTargetEditionId] = useState<string | null | undefined>(settings.targetEditionId);
   const [pickedLabel,   setPickedLabel] = useState(() => {
     const e = findEdition(settings.targetEditionId);
@@ -99,6 +106,13 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const flagged  = screenApplies === true;
   const answered = screenApplies !== null;
   const canPassHealth = answered && ackChecked && (!flagged || medConfirm);
+
+  const recommendedStyle = recommendStyle({
+    intent, planSessions,
+    distanceKm: intent === "fitness" ? fitDist : distanceKm,
+    recentRuns: [],
+  });
+  const effectiveStyle = planStyle ?? recommendedStyle;
 
   const trimmedName = name.trim();
   const ageN = parseInt(age) || 0;
@@ -162,7 +176,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     const g = suggestedGoalSec(fitDist) || "";
     const rd = addWeeks(horizon);
     setRaceDate(rd); setDist(fitDist); setGoal(g); setElev(0); setTargetEditionId(undefined); setPickedLabel("");
-    go("hr", {raceDate: rd, distanceKm: fitDist, goalSec: g, raceElevation: 0, targetEditionId: null, planSessions});
+    go("hr", {raceDate: rd, distanceKm: fitDist, goalSec: g, raceElevation: 0, targetEditionId: null, planSessions, planStyle: effectiveStyle});
   };
 
   // Complete from the summary. HR is included only if the user entered any.
@@ -170,7 +184,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     const mhrN = parseInt(maxHR) || 0;
     const hasHR = ageN > 0 || mhrN > 0;
     const hr = hasHR ? {age: ageN, maxHR: mhrN || tanakaMax || 0, restHR: parseInt(restHR) || 60} : null;
-    const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null};
+    const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null, planStyle: effectiveStyle};
     onComplete({name: trimmedName, plan, hr, healthAck: {v: DISCLAIMER_VERSION, at: new Date().toISOString()}});
   };
 
@@ -376,7 +390,11 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
               </div>
-              <button onClick={() => go("hr", {goalSec, planSessions})}
+              <div>
+                <label className="text-xs text-slate-400 block mb-2">Training style</label>
+                <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
+              </div>
+              <button onClick={() => go("hr", {goalSec, planSessions, planStyle: effectiveStyle})}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 Continue
               </button>
@@ -423,6 +441,10 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
               <div>
                 <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-2">Training style</label>
+                <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
               </div>
               <button onClick={finishTraining}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
@@ -549,7 +571,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           )}
 
           {cur === "summary" && (() => {
-            const preview = buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation);
+            const preview = buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation, {style: effectiveStyle});
             const weeks = preview?.weeks?.length || 0;
             const label = pickedLabel || (intent === "fitness" ? "Build your base" : "Your race");
             return (
