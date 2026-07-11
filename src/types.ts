@@ -33,6 +33,9 @@ export type SettingsState = Record<string, unknown> & {
   targetEditionId?: string | null;
   // Training methodology style (see src/utils/planStyles.ts); absent = balanced.
   planStyle?: string;
+  // Self-reported running volume from onboarding ("none" | "occasional" |
+  // "regular" | "frequent") — the fitness signal before any runs are logged.
+  trainingLevel?: string | null;
 };
 
 export type HrPending = { start: string | number; end: string | number; source: string };

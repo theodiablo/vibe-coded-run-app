@@ -205,6 +205,8 @@ describe("buildPlan output passes the shared validator", () => {
     ["10k, 12 weeks", weeksOut(12), 3000, 10, {}],
     ["half, 16 weeks, fit", weeksOut(16), 6600, 21.1, { recentRuns: seedRuns(14) }],
     ["marathon, 20 weeks, fit", weeksOut(20), 14400, 42.2, { recentRuns: seedRuns(18) }],
+    // Self-reported level, no history: the onboarding path's higher week-1 start.
+    ["marathon, 20 weeks, frequent (self-reported)", weeksOut(20), 14400, 42.2, { level: "frequent" }],
   ];
   const styles = ["balanced", "polarized", "runwalk", "lowfreq", "hansons"];
 

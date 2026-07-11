@@ -386,7 +386,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       const np = buildPlan(settings.raceDate, settings.goalSec, settings.planSessions,
         settings.distanceKm, settings.raceElevation,
         { recentRuns: runs, races: secRaces, mainEditionId: settings.targetEditionId ?? null,
-          style: settings.planStyle });
+          style: settings.planStyle, level: settings.trainingLevel });
       savePlan(carryProgress(plan, np));
     }
   };
@@ -615,7 +615,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
           // Only build a plan if the race was actually set up (the user may have
           // skipped straight to the health gate) — buildPlan needs date+distance.
           if (next.raceDate && next.distanceKm)
-            savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation, {recentRuns: runs, style: next.planStyle}));
+            savePlan(buildPlan(next.raceDate, next.goalSec, next.planSessions, next.distanceKm, next.raceElevation, {recentRuns: runs, style: next.planStyle, level: next.trainingLevel}));
           // A catalogue race picked in onboarding is the training target — also
           // surface it in the Races tab as a wishlist participation (the tab lists
           // participations, not the settings target). Skip if already present.

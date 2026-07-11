@@ -224,6 +224,19 @@ and delete anything that becomes stale.
   recommendation"; a tap pins it. All buildPlan call sites must pass
   `style: settings.planStyle` (or the draft) — a missed site silently rebuilds
   as balanced.
+- **Fitness signal & suggested days:** `settings.trainingLevel`
+  (`"none"|"occasional"|"regular"|"frequent"`, synced) is onboarding's
+  one-question self-report ("How much do you run right now?", `LevelTiles` in
+  both branches, optional). It substitutes for run history ONLY when none
+  exists: `recommendStyle` maps it to a synthetic weekly-km band (real logged
+  runs always win) and `buildPlan`'s `opts.level` floors the starting long run
+  (`levelStartLongKm`, capped at the race peak). `suggestPlanSessions(distance,
+  level)` (`planStyles.ts`) provides default training days — minutes must come
+  from `SessionConfigurator`'s fixed option set, the Sunday session strictly
+  longest, quality days ≥2 from Sunday so `pickHardDays` places without
+  demotions. Onboarding uses the same null-=-tracking pattern as the style
+  (the stock Wed30/Sun60 default counts as untouched); PlanView offers it as a
+  "Use suggested days" one-tap fill, never overriding a configured draft.
 - **Multi-race plans (no user-facing priority):** the plan peaks/tapers for the
   **main** race (`settings.targetEditionId`, the "Training target"); other races the
   user flags with `participation.inPlan` are folded in as RACE sessions (id

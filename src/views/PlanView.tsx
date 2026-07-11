@@ -8,7 +8,7 @@ import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
 import { StylePicker } from "../components/StylePicker";
-import { STYLE_META, isStyleId, recommendStyle, stylePacing, type StyleId } from "../utils/planStyles";
+import { STYLE_META, isStyleId, recommendStyle, stylePacing, suggestPlanSessions, type StyleId } from "../utils/planStyles";
 import type { Plan, PlanPrefill, PlanSession, RacesState, Run, RunType, SettingsState } from "../types";
 import type { PlanSessionInput } from "../utils/plan";
 
@@ -89,8 +89,13 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
 
   const recommendedStyle = recommendStyle({
     intent: settings.intent, planSessions: draft, distanceKm: draftDist, recentRuns: runs,
+    level: settings.trainingLevel,
   });
   const effectiveStyle = draftStyle ?? recommendedStyle;
+  // Suggested days/durations for the drafted race — offered as a one-tap fill,
+  // never forced over what the user configured.
+  const suggestedSessions = suggestPlanSessions(draftDist || settings.distanceKm || 10, settings.trainingLevel);
+  const draftIsSuggested = JSON.stringify(draft) === JSON.stringify(suggestedSessions);
 
   // Re-expand the current week whenever the plan changes (e.g. regenerate),
   // adjusting state during render rather than in an effect.
@@ -137,7 +142,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
       .filter(p => p.status === "wishlist" && p.inPlan && p.editionId !== targetEditionId)
       .map(p => ({ editionId: p.editionId, date: p.raceDate, distanceKm: p.distanceKm,
         elevation: p.editionId ? findEdition(p.editionId)?.edition?.elevation || 0 : 0 }));
-    savePlan(buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId, style}));
+    savePlan(buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId, style, level: settings.trainingLevel}));
     setEdit(false); setConfirmRegen(false);
     clearPlanPrefill?.();
   };
@@ -180,6 +185,12 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
         <div>
           <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
+          {draftIsSuggested
+            ? <p className="text-xs text-slate-500 mt-1.5">Suggested for your race — adjust freely.</p>
+            : <button type="button" onClick={() => setDraft(suggestedSessions)}
+                className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
+                Use suggested days for this race
+              </button>}
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-2">Training style</label>
@@ -347,6 +358,12 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <div>
             <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
             <SessionConfigurator sessions={draft} onChange={setDraft}/>
+            {draftIsSuggested
+              ? <p className="text-xs text-slate-500 mt-1.5">Suggested for your race — adjust freely.</p>
+              : <button type="button" onClick={() => setDraft(suggestedSessions)}
+                  className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
+                  Use suggested days for this race
+                </button>}
           </div>
           <div>
             <label className="text-xs text-slate-400 block mb-2">Training style</label>

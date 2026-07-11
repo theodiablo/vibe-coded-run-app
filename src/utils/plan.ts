@@ -2,7 +2,7 @@
 import { VERT_COST } from "../constants";
 import { fmt, ymd } from "./format";
 import {
-  DEFAULT_STYLE, STYLE_SHAPE, isStyleId, pickHardDays, stylePacing,
+  DEFAULT_STYLE, STYLE_SHAPE, isStyleId, levelStartLongKm, pickHardDays, stylePacing,
   type StyleId,
 } from "./planStyles";
 
@@ -26,6 +26,9 @@ type BuildPlanOptions = {
   races?: OverlayRace[];
   mainEditionId?: string | null;
   style?: string | null;
+  // Self-reported training level — a fitness floor for the starting long run
+  // when there's no recent run history (typically the very first plan).
+  level?: string | null;
 };
 type BuiltPlan = {
   raceDate: unknown;
@@ -132,8 +135,11 @@ export function buildPlan(
   const longestRecent = recentRuns.reduce(
     (m, r) => (r && r.date && r.date >= cutoff && (r.km ?? 0) > 0 ? Math.max(m, r.km ?? 0) : m), 0);
   const fitFloor = Math.min(longestRecent * 0.8, peakLong);
+  // Self-reported level (onboarding) plays the same role as a recent long run
+  // when there's no history yet; real logged runs dominate via fitFloor.
+  const levelFloor = Math.min(levelStartLongKm(planOpts.level), peakLong);
   // Long run ramps linearly from this start to the peak over the pre-taper weeks.
-  const startLong = Math.max(shape.floorKm, fitFloor);
+  const startLong = Math.max(shape.floorKm, fitFloor, levelFloor);
   const lastBuildW = N - 4; // 0-based index of the final pre-taper week (peak hits here)
 
   const weeks: PlanWeek[] = [];

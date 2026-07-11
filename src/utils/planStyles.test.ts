@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { buildPlan } from "./plan";
-import { pickHardDays, recommendStyle, STYLE_PACING, STYLE_IDS, stylePacing } from "./planStyles";
+import {
+  pickHardDays, recommendStyle, suggestPlanSessions, levelStartLongKm,
+  STYLE_PACING, STYLE_IDS, stylePacing,
+} from "./planStyles";
 import { ymd } from "./format";
 
 const raceDateInDays = (days: number) => {
@@ -106,6 +109,78 @@ describe("recommendStyle", () => {
       { date: "2026-06-28", km: 30 }, { date: "2026-07-01", km: 35 }];
     expect(recommendStyle({ intent: "race", planSessions: DAYS3, distanceKm: 21.1, recentRuns: runs, today }))
       .toBe("lowfreq");
+  });
+});
+
+describe("recommendStyle with a self-reported level (no run history)", () => {
+  it("unlocks hansons for a frequent marathoner at onboarding", () => {
+    expect(recommendStyle({ intent: "race", planSessions: DAYS5, distanceKm: 42.2, level: "frequent" }))
+      .toBe("hansons");
+  });
+
+  it("unlocks lowfreq for a regular 3-day runner at onboarding", () => {
+    expect(recommendStyle({ intent: "race", planSessions: DAYS3, distanceKm: 21.1, level: "regular" }))
+      .toBe("lowfreq");
+  });
+
+  it("keeps runwalk for beginners regardless of stated level 'none'", () => {
+    expect(recommendStyle({ intent: "fitness", planSessions: DAYS3, distanceKm: 5, level: "none" }))
+      .toBe("runwalk");
+  });
+
+  it("real logged runs override the stated level", () => {
+    // Claims frequent, but the logged history says ~6 km/week: volume gates fail.
+    const runs = [{ date: raceDateInDays(-3), km: 3 }, { date: raceDateInDays(-10), km: 3 },
+      { date: raceDateInDays(-17), km: 3 }, { date: raceDateInDays(-24), km: 3 }];
+    expect(recommendStyle({ intent: "race", planSessions: DAYS5, distanceKm: 42.2, level: "frequent", recentRuns: runs }))
+      .toBe("balanced");
+  });
+});
+
+describe("suggestPlanSessions", () => {
+  const ALLOWED = [20, 30, 45, 60, 75, 90, 120, 150, 180];
+  const cases: [number, string | undefined][] = [
+    [5, "none"], [5, "frequent"], [10, "occasional"], [21.1, "regular"],
+    [42.2, "regular"], [42.2, "frequent"], [42.2, undefined],
+  ];
+
+  it.each(cases)("distance %s km, level %s: valid, Sunday-long, style-composable", (dist, level) => {
+    const s = suggestPlanSessions(dist, level);
+    expect(s.length).toBeGreaterThanOrEqual(3);
+    // Minutes come from SessionConfigurator's fixed option set; unique days.
+    s.forEach(x => expect(ALLOWED).toContain(x.minutes));
+    expect(new Set(s.map(x => x.dayOffset)).size).toBe(s.length);
+    // The Sunday session is strictly the longest (it becomes the long run).
+    const sun = s.find(x => x.dayOffset === 6)!;
+    s.filter(x => x.dayOffset !== 6).forEach(x => expect(x.minutes).toBeLessThan(sun.minutes));
+    // Quality placement works without demotions: two spaced hard days exist
+    // whenever there are ≥2 non-long days.
+    const quality = s.filter(x => x.dayOffset !== 6).map(x => x.dayOffset);
+    expect(pickHardDays(quality, 6, 2).length).toBe(Math.min(2, quality.length));
+  });
+
+  it("scales days with level and distance", () => {
+    expect(suggestPlanSessions(42.2, "frequent")).toHaveLength(5);
+    expect(suggestPlanSessions(42.2, "regular")).toHaveLength(4);
+    expect(suggestPlanSessions(42.2, "none")).toHaveLength(3);
+    expect(suggestPlanSessions(5, "frequent")).toHaveLength(4);
+    expect(suggestPlanSessions(5, "occasional")).toHaveLength(3);
+  });
+});
+
+describe("buildPlan level floor", () => {
+  it("starts a self-reported frequent runner's long run high, capped at the peak", () => {
+    const plan = buildPlan(raceDateInDays(140), 14400, DAYS5, 42.2, 0, { level: "frequent" });
+    const firstLong = plan.weeks[0].sessions.find(s => s.type === "LONG")!;
+    expect(Number(firstLong.km)).toBeGreaterThanOrEqual(10);
+    const short = buildPlan(raceDateInDays(120), 2700, DAYS5, 10, 0, { level: "frequent" });
+    expect(Number(short.weeks[0].sessions.find(s => s.type === "LONG")!.km))
+      .toBeLessThanOrEqual(short.longRunPeakKm);
+  });
+
+  it("unknown levels contribute nothing", () => {
+    expect(levelStartLongKm("elite")).toBe(0);
+    expect(levelStartLongKm(null)).toBe(0);
   });
 });
 

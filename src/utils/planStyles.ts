@@ -135,6 +135,67 @@ export function pickHardDays(qualityDays: number[], longDay: number, count: numb
   return picked;
 }
 
+// ── Self-reported training level ────────────────────────────────────────────
+// Onboarding's one-question fitness signal ("How much do you run right now?").
+// It substitutes for run history where none exists yet: recommendStyle uses it
+// to unlock the volume-gated styles for experienced runners new to the APP,
+// and buildPlan uses startLongKm as a fitness-aware starting long run the same
+// way a recent logged long run would be. Real logged runs always win over it.
+export type TrainingLevel = "none" | "occasional" | "regular" | "frequent";
+
+export const TRAINING_LEVELS: { id: TrainingLevel; label: string; sub: string }[] = [
+  { id: "none", label: "Not yet", sub: "Starting from scratch" },
+  { id: "occasional", label: "Now and then", sub: "A run every week or two" },
+  { id: "regular", label: "2–3× a week", sub: "Regular runner" },
+  { id: "frequent", label: "4+× a week", sub: "Training consistently" },
+];
+
+export const isTrainingLevel = (v: unknown): v is TrainingLevel =>
+  typeof v === "string" && TRAINING_LEVELS.some((l) => l.id === v);
+
+// Synthetic history equivalents per level — deliberately conservative bands.
+const LEVEL_PROFILE: Record<TrainingLevel, { weeklyKm: number; runCount: number; startLongKm: number }> = {
+  none: { weeklyKm: 0, runCount: 0, startLongKm: 0 },
+  occasional: { weeklyKm: 8, runCount: 2, startLongKm: 4 },
+  regular: { weeklyKm: 25, runCount: 3, startLongKm: 8 },
+  frequent: { weeklyKm: 40, runCount: 5, startLongKm: 12 },
+};
+
+// Starting-long-run hint for buildPlan; 0 for unknown/absent levels.
+export const levelStartLongKm = (level: unknown): number =>
+  isTrainingLevel(level) ? LEVEL_PROFILE[level].startLongKm : 0;
+
+// ── Suggested training days/durations ───────────────────────────────────────
+// A sensible days-and-minutes layout for the race distance and self-reported
+// level, so a user with no preference never has to assemble the week by hand.
+// Invariants: minutes come from SessionConfigurator's fixed option set; the
+// Sunday session is strictly the longest (buildPlan makes the longest day the
+// long run); quality candidates sit ≥2 days from Sunday so every style's
+// pickHardDays placement works without demotions.
+export function suggestPlanSessions(distanceKm: number | string, level?: unknown): PlanSessionInput[] {
+  const d = Number(distanceKm) || 5;
+  const lvl: TrainingLevel = isTrainingLevel(level) ? level : "occasional";
+  const experienced = lvl === "regular" || lvl === "frequent";
+  const days = lvl === "frequent" ? (d > 12 ? 5 : 4) : lvl === "regular" && d > 12 ? 4 : 3;
+  // ≥4-day layouts carry 45-60 min weekday sessions, so their long day floors
+  // at 75 min to stay strictly the longest (buildPlan keys the long run on it).
+  const longMin = Math.max(days >= 4 ? 75 : 0,
+    d > 25 ? (experienced ? 120 : 90) : d > 12 ? 90 : d > 7.5 ? 60 : 45);
+  if (days === 5) return [
+    { dayOffset: 0, minutes: 45 }, { dayOffset: 2, minutes: 60 },
+    { dayOffset: 4, minutes: 45 }, { dayOffset: 5, minutes: 30 },
+    { dayOffset: 6, minutes: longMin },
+  ];
+  if (days === 4) return [
+    { dayOffset: 0, minutes: 30 }, { dayOffset: 2, minutes: 45 },
+    { dayOffset: 4, minutes: 45 }, { dayOffset: 6, minutes: longMin },
+  ];
+  return [
+    { dayOffset: 1, minutes: d > 7.5 ? 45 : 30 }, { dayOffset: 3, minutes: d > 7.5 ? 45 : 30 },
+    { dayOffset: 6, minutes: longMin },
+  ];
+}
+
 // ── Profile-based recommendation ────────────────────────────────────────────
 // Pure: derives a suggested style from what the app already knows. Mirrors
 // buildPlan's 35-day recent window. First match wins; `balanced` is the
@@ -146,6 +207,7 @@ export function recommendStyle(input: {
   planSessions?: PlanSessionInput[];
   distanceKm?: number | string;
   recentRuns?: RecentRunLike[];
+  level?: unknown; // self-reported TrainingLevel; used only when no recent runs
   today?: Date; // injectable for deterministic tests
 }): StyleId {
   const today = input.today ?? new Date();
@@ -153,14 +215,19 @@ export function recommendStyle(input: {
   const recent = (input.recentRuns || []).filter(
     (r) => r && r.date && r.date >= cutoff && (r.km ?? 0) > 0,
   );
-  const runCount = recent.length;
+  let runCount = recent.length;
   // Weekly volume over the weeks that actually have data — a fixed /5 would
   // halve the real load of a runner with only 2 weeks of history and steer
   // them to a gentler style than they train for.
   const earliest = recent.reduce((m, r) => (r.date && r.date < m ? r.date : m), ymd(today));
   const spanWeeks = Math.min(5, Math.max(1,
     (today.getTime() - new Date(earliest + "T00:00:00").getTime()) / (7 * 86400000)));
-  const weeklyKm = recent.reduce((s, r) => s + (r.km ?? 0), 0) / spanWeeks;
+  let weeklyKm = recent.reduce((s, r) => s + (r.km ?? 0), 0) / spanWeeks;
+  // No logged history (typically onboarding): fall back to the self-reported
+  // level so an experienced runner new to the app isn't funnelled to balanced.
+  if (!runCount && isTrainingLevel(input.level)) {
+    ({ weeklyKm, runCount } = LEVEL_PROFILE[input.level]);
+  }
   const days = input.planSessions?.length ?? 0;
   const dist = Number(input.distanceKm) || 0;
 
