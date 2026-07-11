@@ -20,10 +20,94 @@
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Running Coach</title>
+
+    <!--
+      SEO / social metadata. The app is a static SPA on S3/CloudFront (no SSR),
+      so search snippets and social-share cards are driven entirely by these
+      build-time <head> tags plus the <noscript> fallback below. JS-capable
+      crawlers (Googlebot) additionally render the client-side marketing landing
+      (src/marketing/). Absolute URLs use the production origin; keep them in
+      sync with run.camboulive.solutions. These tags are harmless in the native
+      WebView and for signed-in users (never indexed there).
+    -->
+    <title>Running Coach — Adaptive training plans, GPS tracking &amp; an AI coach</title>
+    <meta
+      name="description"
+      content="Running Coach builds an adaptive week-by-week training plan around your race and goal time, tracks every run with GPS, and adjusts your schedule with an AI coach when life gets in the way."
+    />
+    <link rel="canonical" href="https://run.camboulive.solutions/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0f172a" />
+
+    <!-- Open Graph (Facebook, LinkedIn, Slack, WhatsApp, …) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Running Coach" />
+    <meta property="og:url" content="https://run.camboulive.solutions/" />
+    <meta property="og:title" content="Running Coach — train for your race, one honest week at a time" />
+    <meta
+      property="og:description"
+      content="Adaptive training plans, GPS run tracking, and an AI coach that keeps you on track. Free to start."
+    />
+    <meta property="og:image" content="https://run.camboulive.solutions/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Running Coach — train for your race, one honest week at a time" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Running Coach — train for your race, one honest week at a time" />
+    <meta
+      name="twitter:description"
+      content="Adaptive training plans, GPS run tracking, and an AI coach that keeps you on track. Free to start."
+    />
+    <meta name="twitter:image" content="https://run.camboulive.solutions/og-image.png" />
+
+    <!--
+      Structured data (schema.org). type=application/ld+json is a non-executable
+      data block, so it is NOT subject to the script-src CSP above (no nonce
+      needed). Helps Google understand the product.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Running Coach",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "Web, Android",
+        "url": "https://run.camboulive.solutions/",
+        "description": "Adaptive week-by-week running training plans built around your race and goal time, with GPS run tracking and an AI coach that adapts your plan when life gets in the way.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      Crawlable, flash-free content fallback for non-JS crawlers and social
+      scrapers. JS-capable visitors never see it (removed when scripts run), so
+      the live UX is unchanged — #root stays empty until React mounts, exactly
+      as before.
+    -->
+    <noscript>
+      <main style="max-width: 720px; margin: 0 auto; padding: 40px 20px; font-family: system-ui, sans-serif; color: #0f172a;">
+        <h1>Running Coach — train for your race, one honest week at a time</h1>
+        <p>
+          Running Coach is a running-training app that builds an adaptive,
+          week-by-week plan around your race and goal time, tracks every run with
+          GPS, and adjusts your schedule with an AI coach when life gets in the way.
+        </p>
+        <h2>What you get</h2>
+        <ul>
+          <li><strong>Adaptive training plans</strong> that peak and taper for your race day and rebuild themselves when you miss a session.</li>
+          <li><strong>GPS run tracking</strong> with live pace, distance, elevation, and your route saved to every run.</li>
+          <li><strong>An AI running coach</strong> that safely adjusts your plan around injury, illness, or missed weeks.</li>
+          <li><strong>Heart-rate zones</strong> from a chest strap or your watch, so you know if you ran too hard.</li>
+          <li><strong>Races &amp; badges</strong> to discover events near you and stay motivated.</li>
+          <li><strong>Progress tracking</strong> with history and stats that sync securely across your devices.</li>
+        </ul>
+        <p>Enable JavaScript to sign in and start training. It's free to get started.</p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

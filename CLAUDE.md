@@ -46,6 +46,22 @@ and delete anything that becomes stale.
   marketing bytes in a native build). Keep anything web-only-and-heavy behind
   this same flag rather than a bare `isNative` runtime check, which still ships
   the code inside the APK.
+- **Marketing SEO is build-time only** (static S3/CloudFront, no SSR; CSP
+  `script-src 'self'` forbids the inline-script pre-paint trick, so body content
+  can't be prerendered into `#root` without a flash for signed-in users). The
+  strategy lives in `index.html`: rich `<head>` (title, description, canonical,
+  Open Graph + Twitter, JSON-LD — `application/ld+json` is a non-executable data
+  block so it's exempt from the script-src CSP) for search snippets + social
+  cards, plus a `<noscript>` marketing fallback for non-JS crawlers (flash-free —
+  JS visitors never see it, `#root` stays empty until React mounts). Googlebot
+  additionally renders the client marketing (`src/marketing/`). `robots.txt` +
+  `sitemap.xml` + `og-image.png` are in `public/`; the OG image is a static
+  1200×630 PNG (regenerate by screenshotting an HTML template with headless
+  Chromium if the hero copy changes). All three web-only SEO assets are `rm`'d in
+  `android.yml` before `cap sync` so they don't bloat the APK. If robust non-Google
+  crawling or LCP from static content is ever needed, the next step is bot dynamic
+  rendering (CloudFront function) or splitting marketing to its own path — not
+  prerendering into the shared `#root`.
 - **No router.** `src/RunningCoach.tsx` is the **single state hub**: it owns
   `runs`, `plan`, `settings`, modal flags, and the active `tab`, and passes a
   `shared` props bag down to every view. The five views switch on `tab`
