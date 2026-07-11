@@ -55,7 +55,9 @@ export function sessionToRun(s: WatchSessionRaw): Partial<Run> {
     date: sessionLocalDate(s.startTime, s.startZoneOffsetSec),
     type: sessionRunType(s.exerciseType) || "EASY",
     km: s.distanceM != null ? round2(s.distanceM / 1000) : 0,
-    durationSec: s.activeSec != null ? Math.round(s.activeSec) : elapsedSec,
+    // Active (unpaused) time when the aggregate has it; a 0/absent aggregate
+    // falls back to elapsed so a run never lands with durationSec:0 (∞ pace).
+    durationSec: s.activeSec != null && s.activeSec > 0 ? Math.round(s.activeSec) : elapsedSec,
     hr: s.hrAvg != null ? Math.round(s.hrAvg) : null,
     hrMax: s.hrMax != null ? Math.round(s.hrMax) : null,
     effort: 5,
@@ -75,8 +77,12 @@ export function sessionToRun(s: WatchSessionRaw): Partial<Run> {
 //  2. an existing run carries this hcId — repeated scans are idempotent.
 //  3. time-window overlap with a run that knows its own start (phone-tracked or
 //     previously imported) — catches the same run tracked two ways.
-//  4. fuzzy fallback for legacy runs with no startedAt: same local date and
-//     distance within 10%.
+//  4. fuzzy fallback for runs with no startedAt: same local date and distance
+//     within 10%. Deliberate trade-off: its job is to not re-offer a run the
+//     user already logged BY HAND (the common case — manual logs carry no
+//     startedAt), accepting that a genuinely distinct same-day similar-distance
+//     run is occasionally not auto-offered; that rare run can still be file-
+//     imported (the file path disables fuzzy) or logged manually.
 export function isDuplicate(s: WatchSessionRaw, runs: Run[], seenIds: string[]): boolean {
   if (seenIds.includes(s.id)) return true;
   const sStart = +new Date(s.startTime);

@@ -12,8 +12,9 @@ import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
-import { markSeen, WATCH_MANUAL_SCAN_DAYS } from "./watch/import";
+import { markSeen, WATCH_MANUAL_SCAN_DAYS, WATCH_AUTO_SCAN_COOLDOWN_MS } from "./watch/import";
 import { scanAllProviders } from "./imports/registry";
+import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -131,6 +132,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // user chooses to ignore doesn't nag on every foreground (it re-surfaces on the
   // next launch, and the manual Settings scan is always available).
   const watchAutoShownRef = useRef(false);
+  // And rate-limit empty auto-scans: without this, every background/foreground
+  // flip re-runs the whole Health Connect round-trip (availability + permission
+  // + readRecords + per-session aggregates) until something is found. A watch
+  // takes minutes to sync anyway, so a cooldown loses nothing.
+  const watchLastScanRef = useRef(0);
   const userContextRef = useRef(userContext);
   useEffect(() => { userContextRef.current = userContext; }, [userContext]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
@@ -556,14 +562,18 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // and the user can fix its type); several land as a batch. Returns how many new
   // runs were found (for the Settings UI's feedback).
   const scanImports = async ({ days, manual = false }: { days?: number; manual?: boolean } = {}) => {
-    if (!manual && watchAutoShownRef.current) return 0;
-    const found = (await scanAllProviders(runsRef.current, {
+    if (!manual && (watchAutoShownRef.current || Date.now() - watchLastScanRef.current < WATCH_AUTO_SCAN_COOLDOWN_MS)) return 0;
+    watchLastScanRef.current = Date.now();
+    const scanned = await scanAllProviders(runsRef.current, {
       ...(days ? { days } : {}),
       // The synced preference gates the Health Connect provider; providers only
       // check device-local state (grant markers) themselves.
       enabled: p => p.id !== "healthconnect" || !!settingsRef.current.watchImport,
-      // Transient route points never belong in the stored run (blob bloat).
-    })).map(({ points, ...r }) => r); // eslint-disable-line @typescript-eslint/no-unused-vars
+    });
+    // Persist any route traces a provider returned and swap them for routeId —
+    // transient `points` never belong in the stored run (blob bloat). HC has no
+    // routes today; this is for file-like/cloud providers that do.
+    const found = scanned.length ? await persistImportedRoutes(scanned) : [];
     if (!found.length) return 0;
     if (!manual) watchAutoShownRef.current = true;
     if (found.length === 1) {

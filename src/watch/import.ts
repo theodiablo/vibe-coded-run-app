@@ -11,6 +11,10 @@ export const WATCH_SCAN_DAYS = 7;
 // Wider window for the explicit "scan older runs" button in Settings. Health
 // Connect refuses reads older than 30 days before the first grant anyway.
 export const WATCH_MANUAL_SCAN_DAYS = 30;
+// Minimum gap between empty AUTO scans (boot/foreground) — every scan is a full
+// native Health Connect round-trip, and a watch takes minutes to sync anyway.
+// Manual scans from Settings bypass this.
+export const WATCH_AUTO_SCAN_COOLDOWN_MS = 5 * 60 * 1000;
 // Ignore anything shorter than this — accidental start/stops, same threshold as
 // the CSV import sanity filter.
 export const WATCH_MIN_KM = 0.5;

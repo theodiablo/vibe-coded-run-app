@@ -48,9 +48,10 @@ describe("sessionToRun", () => {
       hcId: "s1", startedAt: "2026-07-10T08:00:00Z",
     });
   });
-  it("falls back to elapsed time when active duration is absent", () => {
-    const r = sessionToRun(session({ activeSec: null }));
-    expect(r.durationSec).toBe(45 * 60); // 08:00 → 08:45
+  it("falls back to elapsed time when active duration is absent or zero", () => {
+    expect(sessionToRun(session({ activeSec: null })).durationSec).toBe(45 * 60); // 08:00 → 08:45
+    // A 0 aggregate must not produce a zero-second run (infinite pace).
+    expect(sessionToRun(session({ activeSec: 0 })).durationSec).toBe(45 * 60);
   });
   it("omits elevation and nulls HR when the watch didn't record them", () => {
     const r = sessionToRun(session({ elevationGainM: null, hrAvg: null, hrMax: null }));

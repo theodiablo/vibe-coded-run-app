@@ -3,10 +3,9 @@ import { Loader, Plus, Upload, MapPin, HeartPulse } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
 import { MAX_GPX_BYTES } from "../utils/gpx";
-import { simplify } from "../utils/geo";
-import { saveRoute, queuePendingRoute } from "../routes";
 import { fileProvider } from "../imports/providers/file";
 import { isDuplicateRun } from "../imports/dedupe";
+import { persistImportedRoutes } from "../imports/persistRoutes";
 import { getSeenIds } from "../watch/import";
 import type { ImportedRun } from "../imports/types";
 import type { HrPending, Run } from "../types";
@@ -91,23 +90,6 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
     setBusy(false); onSaved?.(); onDone();
   };
 
-  // Persist a GPX/TCX trace and swap the transient points for a route reference
-  // (same save-or-queue fallback as LiveRunTracker.handleSave).
-  const withRoute = async (r: ImportedRun): Promise<Partial<Run>> => {
-    const { points, ...run } = r;
-    if (!points?.length) return run;
-    const pts = simplify(points, 5);
-    const stats = { km: run.km || 0, durationSec: run.durationSec || 0, elevation: run.elevation || 0,
-      avgPace: run.km ? Math.round((run.durationSec || 0) / run.km) : 0 };
-    try {
-      return { ...run, routeId: await saveRoute({ points: pts, stats }) };
-    } catch {
-      const routeTmp = "rt" + Date.now();
-      queuePendingRoute({ tmpId: routeTmp, points: pts, stats });
-      return { ...run, routeTmp, routePending: true };
-    }
-  };
-
   // One handler for every supported activity file (CSV / GPX / TCX), routed
   // through the file import provider. Imports are deduped against the existing
   // log so re-importing an export can't double-log runs.
@@ -129,13 +111,17 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
       const seen = getSeenIds();
       const fresh: ImportedRun[] = [];
       for (const r of parsed) {
-        if (!isDuplicateRun(r, (runs || []).concat(fresh as Run[]), seen)) fresh.push(r);
+        // fuzzy:false — a user-picked file must never silently drop a genuine
+        // run (e.g. an AM/PM double of similar distance). Re-imports still
+        // dedupe via ids and startedAt time overlap; anything else imports and
+        // stays visible/deletable.
+        if (!isDuplicateRun(r, (runs || []).concat(fresh as Run[]), seen, { fuzzy: false })) fresh.push(r);
       }
       if (!fresh.length) {
         showMsg("Already imported — " + (parsed.length > 1 ? "those runs are" : "that run is") + " in your log.");
         return;
       }
-      addRuns(await Promise.all(fresh.map(withRoute)));
+      addRuns(await persistImportedRoutes(fresh));
       const skipped = parsed.length - fresh.length;
       showMsg("Imported " + fresh.length + " run" + (fresh.length > 1 ? "s" : "") +
         (skipped ? " (" + skipped + " already logged)" : "") + ".");

@@ -57,6 +57,12 @@ describe("isDuplicateRun", () => {
     expect(isDuplicateRun(cand, [{ date: "2026-07-10", km: 12 }], [])).toBe(false);
     expect(isDuplicateRun(cand, [{ date: "2026-07-09", km: 8 }], [])).toBe(false);
   });
+  it("skips the fuzzy fallback with {fuzzy:false} (file imports must not drop same-day doubles)", () => {
+    expect(isDuplicateRun(cand, [{ date: "2026-07-10", km: 8.4 }], [], { fuzzy: false })).toBe(false);
+    // Strong signals still dedupe: same id, and real time overlap.
+    expect(isDuplicateRun(cand, [{ hcId: "a" }], [], { fuzzy: false })).toBe(true);
+    expect(isDuplicateRun(cand, [{ startedAt: "2026-07-10T08:20:00Z", durationSec: 1800 }], [], { fuzzy: false })).toBe(true);
+  });
 });
 
 describe("scanAllProviders", () => {

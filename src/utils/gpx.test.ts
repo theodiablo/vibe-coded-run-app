@@ -63,6 +63,24 @@ describe("parseActivityFile — GPX", () => {
 });
 
 describe("parseActivityFile — TCX", () => {
+  it("imports an indoor/treadmill TCX (Time + DistanceMeters, no Position)", () => {
+    const treadmill = `<?xml version="1.0"?>
+<TrainingCenterDatabase><Activities><Activity Sport="Running"><Lap><Track>
+  <Trackpoint><Time>2026-07-10T08:00:00Z</Time><DistanceMeters>0</DistanceMeters>
+    <HeartRateBpm><Value>140</Value></HeartRateBpm></Trackpoint>
+  <Trackpoint><Time>2026-07-10T08:30:00Z</Time><DistanceMeters>5000</DistanceMeters>
+    <HeartRateBpm><Value>160</Value></HeartRateBpm></Trackpoint>
+</Track></Lap></Activity></Activities></TrainingCenterDatabase>`;
+    const res = parseActivityFile(treadmill, "tcx");
+    expect(res.error).toBeUndefined();
+    const run = res.run!;
+    expect(run.km).toBe(5);
+    expect(run.durationSec).toBe(1800);
+    expect(run.hr).toBe(150);
+    expect(run.points).toBeUndefined(); // no GPS → no route/map
+    expect(run.elevation).toBeUndefined();
+  });
+
   it("parses trackpoints with position, altitude and HR", () => {
     const res = parseActivityFile(TCX, "tcx");
     expect(res.error).toBeUndefined();

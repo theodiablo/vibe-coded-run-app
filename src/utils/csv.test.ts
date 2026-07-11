@@ -16,6 +16,15 @@ describe("parseRunsCsv — Zepp", () => {
     });
   });
 
+  it("stamps startedAt from the Zepp start time so imports dedupe by time overlap", () => {
+    const csv = [
+      "Start Time,Distance (m),Duration (s)",
+      "2026-05-01 08:00:00,5000,1500",
+    ].join("\n");
+    const {runs} = parseRunsCsv(csv);
+    expect(runs[0].startedAt).toBe(new Date("2026-05-01T08:00:00").toISOString());
+  });
+
   it("skips rows below the distance/duration thresholds", () => {
     const csv = [
       "Start Time,Distance (m),Duration (s)",
@@ -51,6 +60,7 @@ describe("parseRunsCsv — Strava", () => {
       km: 12.5, durationSec: 3600, hr: 145, hrMax: 165, elevation: 120, notes: "Strava import",
     });
     expect(runs[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(runs[0].startedAt).toBe(new Date("2026-05-02").toISOString());
   });
 
   it("ignores non-run activity types", () => {

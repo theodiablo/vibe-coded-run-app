@@ -50,16 +50,31 @@ function ymdLocal(ms: number) {
   return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
 }
 
+// GPS-less fallback (indoor/treadmill exports): the file's own time range and
+// declared distance, used when there are no positioned trackpoints to derive
+// them from. TCX carries per-point <Time> and cumulative <DistanceMeters> even
+// without <Position>.
+type NoGpsFallback = { startMs: number; endMs: number; km: number };
+
 // Reduce collected trackpoints + HR samples to an ImportedRun (with the trace
-// attached as transient `points` for the caller to saveRoute).
-function toRun(points: TrackPointOrGap[], hr: { bpm: number; t: number }[], label: string): ActivityParseResult {
+// attached as transient `points` for the caller to saveRoute). A file without
+// GPS positions still imports via `fallback` — it just has no route/map.
+function toRun(
+  points: TrackPointOrGap[],
+  hr: { bpm: number; t: number }[],
+  label: string,
+  fallback?: NoGpsFallback | null,
+): ActivityParseResult {
   const times = points.filter((p): p is TrackPointOrGap & readonly number[] => !!p && p[2] != null).map(p => p![2] as number);
-  if (!times.length) return { error: "No usable trackpoints found in that file." };
-  const startMs = times[0], endMs = times[times.length - 1];
-  const km = Math.round(distanceKm(points) * 100) / 100;
+  const gps = times.length > 0;
+  if (!gps && !fallback) return { error: "No usable trackpoints found in that file." };
+  const startMs = gps ? times[0] : fallback!.startMs;
+  const endMs = gps ? times[times.length - 1] : fallback!.endMs;
+  // With GPS, derive distance from the trace (same geo math as live runs, so an
+  // imported map and its stats agree); otherwise trust the file's distance.
+  const km = gps ? Math.round(distanceKm(points) * 100) / 100 : Math.round(fallback!.km * 100) / 100;
   if (km < 0.05) return { error: "That file has no distance — check it's a recorded activity." };
   const s = hrSummary(hr);
-  const elevation = elevGainM(points);
   const run: ImportedRun = {
     date: ymdLocal(startMs),
     type: "EASY",
@@ -71,9 +86,12 @@ function toRun(points: TrackPointOrGap[], hr: { bpm: number; t: number }[], labe
     notes: label,
     source: "file",
     startedAt: new Date(startMs).toISOString(),
-    points,
   };
-  if (elevation > 0) run.elevation = Math.round(elevation);
+  if (gps) {
+    run.points = points;
+    const elevation = elevGainM(points);
+    if (elevation > 0) run.elevation = Math.round(elevation);
+  }
   return { run };
 }
 
@@ -96,9 +114,15 @@ function parseGpx(doc: Document): ActivityParseResult {
 function parseTcx(doc: Document): ActivityParseResult {
   const pts: TrackPointOrGap[] = [];
   const hr: { bpm: number; t: number }[] = [];
+  const times: number[] = [];
+  let lastDistM = 0;
   for (const el of Array.from(doc.getElementsByTagName("Trackpoint"))) {
     const t = Date.parse(text(el, "Time") || "");
     if (!Number.isFinite(t)) continue;
+    times.push(t);
+    // Cumulative distance — present even on indoor/treadmill sessions with no GPS.
+    const dM = num(text(el, "DistanceMeters"));
+    if (dM != null && dM > lastDistM) lastDistM = dM;
     const pos = el.getElementsByTagName("Position")[0];
     const lat = pos ? num(text(pos, "LatitudeDegrees")) : null;
     const lng = pos ? num(text(pos, "LongitudeDegrees")) : null;
@@ -107,7 +131,10 @@ function parseTcx(doc: Document): ActivityParseResult {
     const bpm = bpmEl ? num(text(bpmEl, "Value")) : null;
     if (bpm) hr.push({ bpm, t });
   }
-  return toRun(pts, hr, "TCX import");
+  const fallback = times.length >= 2 && lastDistM > 0
+    ? { startMs: times[0], endMs: times[times.length - 1], km: lastDistM / 1000 }
+    : null;
+  return toRun(pts, hr, "TCX import", fallback);
 }
 
 // Parse a single GPX or TCX activity export. Returns { run } (with transient
