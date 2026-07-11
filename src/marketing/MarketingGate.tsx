@@ -72,7 +72,16 @@ const STATS = [
 
 export default function MarketingGate() {
   const [showLogin, setShowLogin] = useState(false);
-  const login = () => setShowLogin(true);
+  const [loginMode, setLoginMode] = useState<"signin" | "signup">("signup");
+  // "Get started" CTAs open the sign-up tab; "Log in" / "already have an
+  // account" open sign-in. The modal unmounts on close, so reopening always
+  // re-seeds LoginScreen from the mode passed here.
+  const openLogin = (mode: "signin" | "signup") => {
+    setLoginMode(mode);
+    setShowLogin(true);
+  };
+  const signup = () => openLogin("signup");
+  const signin = () => openLogin("signin");
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-[#F1F5F9]" style={{ fontFamily: FONT_STACK }}>
@@ -90,12 +99,12 @@ export default function MarketingGate() {
             <a href="#races" className="hidden md:inline text-[#8B98AC] hover:text-[#FDBA74] transition-colors">
               Races
             </a>
-            <button type="button" onClick={login} className="text-[#8B98AC] hover:text-[#F1F5F9] transition-colors">
+            <button type="button" onClick={signin} className="text-[#8B98AC] hover:text-[#F1F5F9] transition-colors">
               Log in
             </button>
             <button
               type="button"
-              onClick={login}
+              onClick={signup}
               className="bg-[#F97316] text-[#0B1220] px-5 py-2.5 rounded-full font-bold hover:bg-[#FDBA74] transition-colors"
             >
               Get started
@@ -121,14 +130,14 @@ export default function MarketingGate() {
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center mt-2">
               <button
                 type="button"
-                onClick={login}
+                onClick={signup}
                 className="bg-[#F97316] text-[#0B1220] px-8 py-4 rounded-full font-extrabold text-[17px] hover:bg-[#FDBA74] transition-colors"
               >
                 Get started — it's free
               </button>
               <button
                 type="button"
-                onClick={login}
+                onClick={signin}
                 className="border border-[#2A3A55] text-[#F1F5F9] px-6 py-[15px] rounded-full font-bold text-[15px] hover:border-[#3B4E6B] hover:bg-[#0F1826] transition-colors"
               >
                 I already have an account
@@ -226,7 +235,7 @@ export default function MarketingGate() {
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
             <button
               type="button"
-              onClick={login}
+              onClick={signup}
               className="bg-[#0B1220] text-[#F1F5F9] px-8 py-4 rounded-full font-extrabold text-[17px] hover:bg-[#131c2b] transition-colors"
             >
               Get started — it's free
@@ -273,7 +282,7 @@ export default function MarketingGate() {
             >
               <X size={22} />
             </button>
-            <LoginScreen />
+            <LoginScreen initialMode={loginMode} />
           </div>
         </div>
       )}

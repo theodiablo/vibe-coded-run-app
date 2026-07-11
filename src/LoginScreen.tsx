@@ -5,14 +5,20 @@ import { supabase, authRedirectTo } from "./supabase";
 import { isNative } from "./native";
 import { PRIVACY_URL } from "./constants";
 
-type LoginMode = "signin" | "signup" | "magic";
+type LoginMode = "signin" | "signup";
 type LoginMessage = { type: "err" | "ok"; text: string };
-type LoginScreenProps = { authError?: string | null; onClearAuthError?: () => void };
+type LoginScreenProps = {
+  authError?: string | null;
+  onClearAuthError?: () => void;
+  // Which tab to open on. Defaults to "signin"; the marketing "Get started"
+  // CTAs pass "signup" so they land on account creation.
+  initialMode?: LoginMode;
+};
 
 // `authError` is a native deep-link sign-in failure surfaced by App.jsx (e.g. the
 // user cancels Google consent); shown until the user takes another action.
-export default function LoginScreen({ authError, onClearAuthError }: LoginScreenProps) {
-  const [mode, setMode] = useState<LoginMode>("signin"); // signin | signup | magic
+export default function LoginScreen({ authError, onClearAuthError, initialMode = "signin" }: LoginScreenProps) {
+  const [mode, setMode] = useState<LoginMode>(initialMode); // signin | signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,14 +60,7 @@ export default function LoginScreen({ authError, onClearAuthError }: LoginScreen
     setBusy(true);
     setMsg(null);
     try {
-      if (mode === "magic") {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: authRedirectTo() },
-        });
-        if (error) throw error;
-        note("ok", "Check your inbox for a magic sign-in link.");
-      } else if (mode === "signup") {
+      if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -106,7 +105,6 @@ export default function LoginScreen({ authError, onClearAuthError }: LoginScreen
           <div className="flex gap-1 mb-4 bg-slate-900/60 p-1 rounded-xl">
             {tab("signin", "Sign in")}
             {tab("signup", "Sign up")}
-            {tab("magic", "Magic link")}
           </div>
 
           <form onSubmit={onSubmit} className="space-y-3">
@@ -125,25 +123,23 @@ export default function LoginScreen({ authError, onClearAuthError }: LoginScreen
               </div>
             </label>
 
-            {mode !== "magic" && (
-              <label className="block">
-                <span className="text-xs text-slate-400">Password</span>
-                <div className="mt-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3">
-                  <Lock size={16} className="text-slate-500" />
-                  <input
-                    type="password"
-                    required
-                    // Enforce the stronger policy on sign-up only; sign-in must
-                    // still accept existing accounts created under the old rule.
-                    minLength={mode === "signup" ? 8 : 6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="flex-1 bg-transparent py-2 text-sm text-white outline-none"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </label>
-            )}
+            <label className="block">
+              <span className="text-xs text-slate-400">Password</span>
+              <div className="mt-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3">
+                <Lock size={16} className="text-slate-500" />
+                <input
+                  type="password"
+                  required
+                  // Enforce the stronger policy on sign-up only; sign-in must
+                  // still accept existing accounts created under the old rule.
+                  minLength={mode === "signup" ? 8 : 6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="flex-1 bg-transparent py-2 text-sm text-white outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+            </label>
 
             <button
               type="submit"
@@ -151,7 +147,7 @@ export default function LoginScreen({ authError, onClearAuthError }: LoginScreen
               className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition"
             >
               {busy && <Loader size={16} className="animate-spin" />}
-              {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send magic link"}
+              {mode === "signin" ? "Sign in" : "Create account"}
             </button>
           </form>
 
