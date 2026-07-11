@@ -15,18 +15,22 @@
 export const STYLE_IDS = ["balanced", "polarized", "runwalk", "lowfreq", "hansons"];
 export const DEFAULT_STYLE = "balanced";
 
+// `walk` paces WALK-typed sessions: null = WALK is unpaced cross-training
+// (the pre-styles meaning); a number = WALK is a real run/walk interval
+// session with a prescribed pace (runwalk style). Generator and coach must
+// read it from here so a coached WALK never disagrees with a generated one.
 export const STYLE_PACING = {
   // The original plan: moderate easy days, threshold-ish tempo, race-pace reps.
-  balanced: { easy: 1.25, tempo: 1.05, intervals: 1.0, long: 1.25 },
+  balanced: { easy: 1.25, tempo: 1.05, intervals: 1.0, long: 1.25, walk: null },
   // 80/20: easy genuinely easy, the one weekly hard session slightly harder.
-  polarized: { easy: 1.32, tempo: 1.03, intervals: 0.97, long: 1.32 },
+  polarized: { easy: 1.32, tempo: 1.03, intervals: 0.97, long: 1.32, walk: null },
   // Galloway run/walk: everything conversational. The generator never emits
   // TEMPO/INTERVALS for this style — those values only pace a coach swap.
-  runwalk: { easy: 1.35, tempo: 1.05, intervals: 1.0, long: 1.4 },
+  runwalk: { easy: 1.35, tempo: 1.05, intervals: 1.0, long: 1.4, walk: 1.45 },
   // FIRST "3 quality runs": every run pace-prescribed and a notch faster.
-  lowfreq: { easy: 1.25, tempo: 1.0, intervals: 0.95, long: 1.15 },
+  lowfreq: { easy: 1.25, tempo: 1.0, intervals: 0.95, long: 1.15, walk: null },
   // Hansons: moderate everything — capped steady long run, goal-pace tempo.
-  hansons: { easy: 1.2, tempo: 1.0, intervals: 0.94, long: 1.15 },
+  hansons: { easy: 1.2, tempo: 1.0, intervals: 0.94, long: 1.15, walk: null },
 };
 
 // Absent/unknown style degrades to balanced — old plans without a `style`

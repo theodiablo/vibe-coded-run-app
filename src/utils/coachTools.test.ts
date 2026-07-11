@@ -100,6 +100,22 @@ describe("applyToolCall", () => {
     expect(out.weeks[0].sessions.find(x => x.id === "w1d2")!.desc).toMatch(/Run\/walk/);
   });
 
+  it("WALK pace comes from the shared table: paced run/walk on runwalk swaps, unpaced elsewhere", () => {
+    // Swap → a real run/walk session at the generator's walk pace.
+    const rw = applyTool({ ...plan(), style: "runwalk" }, "swap_session", { session_id: "w1d2", new_type: "WALK" });
+    const rwSess = rw.weeks[0].sessions.find(x => x.id === "w1d2")!;
+    expect(rwSess.pace).toBe(Math.round(330 * 1.45));
+    expect(rwSess.desc).toMatch(/Run\/walk/);
+    // Style-less plans keep the pre-styles unpaced cross-training WALK.
+    const plain = applyTool(plan(), "swap_session", { session_id: "w1d2", new_type: "WALK" });
+    expect(plain.weeks[0].sessions.find(x => x.id === "w1d2")!.pace).toBe(null);
+    // A pain-relief conversion stays no-impact and unpaced even on runwalk.
+    const conv = applyTool({ ...plan(), style: "runwalk" }, "convert_to_cross_training", { session_id: "w1d2" });
+    const convSess = conv.weeks[0].sessions.find(x => x.id === "w1d2")!;
+    expect(convSess.pace).toBe(null);
+    expect(convSess.desc).toMatch(/no impact/);
+  });
+
   it("reduce_week_volume scales only remaining training sessions", () => {
     const out = applyTool(plan(), "reduce_week_volume", { week_number: 2, factor: 0.5 });
     expect(out.weeks[1]!.sessions.find(s => s.id === "w2d2")!.km).toBe(4); // done — untouched

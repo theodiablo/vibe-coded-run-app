@@ -88,6 +88,18 @@ describe("recommendStyle", () => {
       .toBe("balanced");
   });
 
+  it("divides volume by weeks with data, not a fixed 5", () => {
+    // 2 weeks of 30 km/week: a /5 divisor would read this as 12 km/week and
+    // fall back to balanced; the real load qualifies for polarized.
+    const today = new Date("2026-07-08T00:00:00");
+    const runs = [
+      { date: "2026-06-25", km: 15 }, { date: "2026-06-27", km: 15 },
+      { date: "2026-07-01", km: 15 }, { date: "2026-07-04", km: 15 },
+    ];
+    expect(recommendStyle({ intent: "race", planSessions: DAYS5, distanceKm: 10, recentRuns: runs, today }))
+      .toBe("polarized");
+  });
+
   it("is deterministic via an injectable today", () => {
     const today = new Date("2026-07-08T00:00:00");
     const runs = [{ date: "2026-06-20", km: 30 }, { date: "2026-06-25", km: 30 },
@@ -99,7 +111,7 @@ describe("recommendStyle", () => {
 
 describe("style pacing table", () => {
   it("balanced keeps the pre-styles ratios", () => {
-    expect(STYLE_PACING.balanced).toEqual({ easy: 1.25, tempo: 1.05, intervals: 1, long: 1.25 });
+    expect(STYLE_PACING.balanced).toEqual({ easy: 1.25, tempo: 1.05, intervals: 1, long: 1.25, walk: null });
   });
 
   it("unknown styles degrade to balanced", () => {
@@ -170,6 +182,17 @@ describe("buildPlan styles", () => {
       const dips = longs.filter((km, i) => i > 0 && i < longs.length - 1 && km < longs[i - 1]);
       expect(dips.length).toBeGreaterThan(0);
     });
+
+    it("prescribes WALK days at the shared walk pace and backs the ratio off in taper", () => {
+      const tgt = plan.targetPace;
+      allSessions(plan).filter(s => s.type === "WALK")
+        .forEach(s => expect(s.pace).toBe(Math.round(tgt * 1.45)));
+      const byPhase = (phase: string) => trainingWeeks(plan)
+        .filter(w => w.phase === phase).flatMap(w => w.sessions);
+      // Taper never carries the plan's most aggressive run/walk ratio.
+      byPhase("PEAK").forEach(s => expect(s.desc).toMatch(/run 3 min/));
+      byPhase("TAPER").forEach(s => expect(s.desc).toMatch(/run 2 min/));
+    });
   });
 
   describe("lowfreq", () => {
@@ -225,6 +248,15 @@ describe("buildPlan styles", () => {
         expect(s.pace).toBe(plan.targetPace);
         expect(s.desc).toMatch(/goal race pace/);
       });
+    });
+
+    it("keeps the long run volume-bounded even on tiny configs (no 12 km floor)", () => {
+      // 2 short days for a half: ~13 km/week of budget. A hard 12 km floor
+      // would make the long run nearly the whole week; the volume-bounded
+      // floor keeps it a moderate share.
+      const tiny = buildPlan(raceDateInDays(120), 6600,
+        [{ dayOffset: 2, minutes: 40 }, { dayOffset: 6, minutes: 40 }], 21.1, 0, { style: "hansons" });
+      expect(tiny.longRunPeakKm).toBeLessThan(8);
     });
 
     it("never places two hard sessions on consecutive days", () => {

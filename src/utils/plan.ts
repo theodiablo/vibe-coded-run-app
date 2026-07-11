@@ -53,7 +53,7 @@ type WeekCtx = {
   qualSessions: PlanSessionInput[];
   longKm: number;
   addS: (dOff: number, type: string, km: number, desc: string, pace: number) => void;
-  paces: { easy: number; tmpo: number; intv: number; long: number };
+  paces: { easy: number; tmpo: number; intv: number; long: number; walk: number };
   tgt: number;
   dist: number;
 };
@@ -105,6 +105,9 @@ export function buildPlan(
   const tmpo  = Math.round(tgt * pacing.tempo);
   const intv  = Math.round(tgt * pacing.intervals);
   const longP = Math.round(tgt * pacing.long);
+  // Only styles that treat WALK as a real run/walk session carry a walk
+  // multiplier; the easy fallback is never used by composers of other styles.
+  const walkP = Math.round(tgt * (pacing.walk ?? pacing.easy));
   const sorted = planSessions.slice().sort((a, b) => b.minutes - a.minutes);
   const longSess = sorted[0];
   const qualSessions = sorted.slice(1);
@@ -173,7 +176,7 @@ export function buildPlan(
 
     COMPOSERS[style]({
       w, N, phase, isBase, isTaper, rampFrac, longSess, qualSessions, longKm,
-      addS, paces: { easy, tmpo, intv, long: longP }, tgt, dist,
+      addS, paces: { easy, tmpo, intv, long: longP, walk: walkP }, tgt, dist,
     });
 
     ss.sort((a, b) => a.date.localeCompare(b.date));
@@ -354,20 +357,21 @@ function composePolarized(c: WeekCtx) {
 // ramp with regular cutback weeks. Non-long days are WALK-typed (not "hard")
 // so any day layout is valid.
 function composeRunwalk(c: WeekCtx) {
-  const { w, N, phase, isTaper, addS, tgt } = c;
-  const { long } = c.paces;
-  const runMin = phase === "BASE" ? 1 : phase === "BUILD" ? 2 : 3;
+  const { w, N, phase, isTaper, addS } = c;
+  const { long, walk } = c.paces;
+  // Ratio progresses with fitness, then BACKS OFF for the taper — its job is
+  // shedding fatigue, so it must never be the plan's hardest ratio.
+  const runMin = phase === "BASE" ? 1 : phase === "TAPER" ? 2 : phase === "BUILD" ? 2 : 3;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
     "Long run/walk — run " + runMin + " min / walk 1 min, conversational", long);
 
-  const walkPace = Math.round(tgt * 1.45);
   c.qualSessions.forEach(q => {
     const km = isTaper
       ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
-      : Math.min(q.minutes * 60 / walkPace, 2.5 + w * 0.25);
+      : Math.min(q.minutes * 60 / walk, 2.5 + w * 0.25);
     addS(q.dayOffset, "WALK", km,
       "Run/walk — run " + runMin + " min / walk 1 min, "
-        + (isTaper ? "short and relaxed" : "conversational"), walkPace);
+        + (isTaper ? "short and relaxed" : "conversational"), walk);
   });
 }
 

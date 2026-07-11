@@ -185,6 +185,10 @@ const paceFor = (plan, type) => {
   if (type === "LONG") return Math.round(tgt * pacing.long);
   if (type === "TEMPO") return Math.round(tgt * pacing.tempo);
   if (type === "INTERVALS") return Math.round(tgt * pacing.intervals);
+  // WALK is paced only for styles where it's a real run/walk session
+  // (pacing.walk set); elsewhere it stays unpaced cross-training (null),
+  // preserving pre-styles behaviour byte-for-byte.
+  if (type === "WALK") return pacing.walk ? Math.round(tgt * pacing.walk) : null;
   return null;
 };
 const fmtPace = (sec) => {
@@ -195,7 +199,10 @@ const fmtPace = (sec) => {
 const descFor = (type, pace, style) => {
   if (style === "runwalk") {
     // Run/walk plans phrase everything as run/walk — no speedwork vocabulary.
+    // A paced WALK is a real run/walk session (swap/add); an unpaced one is a
+    // no-impact conversion and keeps the cross-training wording.
     if (type === "LONG") return "Long run/walk — gentle run/walk intervals, conversational";
+    if (type === "WALK" && pace) return "Run/walk — gentle intervals, conversational";
     if (type === "WALK") return "Cross-training / brisk walk — no impact, easy effort";
     if (type === "EASY") return "Run/walk — gentle intervals, conversational";
   }
@@ -324,6 +331,9 @@ export function applyToolCall(plan, name, input = {}) {
       const { session_id } = input;
       const { session } = findSession(p, session_id);
       guardEditable(session, "convert");
+      // Deliberately unpaced regardless of style: a conversion is the coach's
+      // pain/illness relief valve, and "no impact" must stay true even on a
+      // runwalk plan whose ordinary WALK sessions are paced run/walk work.
       session.type = "WALK";
       session.pace = null;
       session.desc = descFor("WALK", null, p.style);

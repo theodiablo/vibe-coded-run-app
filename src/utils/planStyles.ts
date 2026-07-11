@@ -12,10 +12,9 @@ import { ymd } from "./format";
 import type { PlanSessionInput } from "./plan";
 
 export type StyleId = "balanced" | "polarized" | "runwalk" | "lowfreq" | "hansons";
-export type StylePacing = { easy: number; tempo: number; intervals: number; long: number };
+export type StylePacing = { easy: number; tempo: number; intervals: number; long: number; walk: number | null };
 
 type StylesExports = {
-  STYLE_IDS: readonly string[];
   DEFAULT_STYLE: StyleId;
   STYLE_PACING: Record<StyleId, StylePacing>;
   stylePacing: (style: unknown) => StylePacing;
@@ -23,10 +22,19 @@ type StylesExports = {
 };
 const styles = sharedStyles as StylesExports;
 
-export const { STYLE_IDS, DEFAULT_STYLE, STYLE_PACING, stylePacing, styleNotes } = styles;
+export const { DEFAULT_STYLE, STYLE_PACING, stylePacing, styleNotes } = styles;
+
+// The APP-side list of usable styles, deliberately NOT re-exported from
+// styles.mjs: buildPlan and StylePicker index STYLE_SHAPE / STYLE_META /
+// COMPOSERS, which are all Record<StyleId, …> — complete by type. Keying off
+// the shared list instead would let a style added server-side first pass
+// isStyleId and then crash the app-side lookups; this way such a style simply
+// isn't offered/built until the app maps ship, and unknown ids keep degrading
+// to balanced everywhere.
+export const STYLE_IDS: StyleId[] = ["balanced", "polarized", "runwalk", "lowfreq", "hansons"];
 
 export const isStyleId = (v: unknown): v is StyleId =>
-  typeof v === "string" && STYLE_IDS.includes(v);
+  typeof v === "string" && (STYLE_IDS as string[]).includes(v);
 
 // Picker metadata — label + one-line blurb per style, in display order.
 export const STYLE_META: Record<StyleId, { label: string; blurb: string }> = {
@@ -82,10 +90,13 @@ export const STYLE_SHAPE: Record<StyleId, StyleShape> = {
   },
   lowfreq: { peakLong: balancedPeak, taperMults: CLASSIC_TAPER, floorKm: 4.5, cutbackEvery3: false },
   hansons: {
-    // Capped long run: ≤26 km, never above the classic peak, and ~28% of the
-    // configured weekly volume (floored at 12 km so tiny configs still ramp).
+    // Capped long run: ≤26 km, never above the classic peak, ~28% of the
+    // configured weekly volume. The floor is itself volume-bounded (≤40% of
+    // weekly km, up to 12) — a bare 12 km floor would hand a 2-short-days
+    // config a long run that IS the whole week, the opposite of the style.
     peakLong: (dist, estWeeklyKm) =>
-      Math.min(26, balancedPeak(dist), Math.max(12, 0.28 * estWeeklyKm)),
+      Math.min(26, balancedPeak(dist),
+        Math.max(0.28 * estWeeklyKm, Math.min(12, 0.4 * estWeeklyKm))),
     taperMults: CLASSIC_TAPER,
     floorKm: 4.5,
     cutbackEvery3: false,
@@ -143,7 +154,13 @@ export function recommendStyle(input: {
     (r) => r && r.date && r.date >= cutoff && (r.km ?? 0) > 0,
   );
   const runCount = recent.length;
-  const weeklyKm = recent.reduce((s, r) => s + (r.km ?? 0), 0) / 5;
+  // Weekly volume over the weeks that actually have data — a fixed /5 would
+  // halve the real load of a runner with only 2 weeks of history and steer
+  // them to a gentler style than they train for.
+  const earliest = recent.reduce((m, r) => (r.date && r.date < m ? r.date : m), ymd(today));
+  const spanWeeks = Math.min(5, Math.max(1,
+    (today.getTime() - new Date(earliest + "T00:00:00").getTime()) / (7 * 86400000)));
+  const weeklyKm = recent.reduce((s, r) => s + (r.km ?? 0), 0) / spanWeeks;
   const days = input.planSessions?.length ?? 0;
   const dist = Number(input.distanceKm) || 0;
 
