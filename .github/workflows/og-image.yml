@@ -1,0 +1,61 @@
+name: Regenerate OG image
+
+# Keeps public/og-image.png (the social-share card) in sync with the marketing
+# hero copy. Triggers only when the copy or the card template changes, renders a
+# fresh 1200x630 PNG with headless Chrome, and commits it back to the branch.
+#
+# It runs on feature branches (not main), so by the time a copy change reaches
+# main the refreshed image is already committed and the normal S3/CloudFront
+# deploy uploads it. The commit it pushes only touches public/og-image.png, which
+# is NOT in the paths filter below, so it can never retrigger this workflow.
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - src/marketing/copy.json
+      - scripts/og-image/**
+
+# Only the latest run per branch needs to win.
+concurrency:
+  group: og-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+
+      # ubuntu-latest ships Google Chrome; install it only if that ever changes.
+      - name: Ensure Chrome
+        run: |
+          if ! command -v google-chrome >/dev/null 2>&1; then
+            wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get update && sudo apt-get install -y /tmp/chrome.deb
+          fi
+          echo "CHROME_BIN=$(command -v google-chrome)" >> "$GITHUB_ENV"
+
+      - name: Regenerate og-image.png
+        run: node scripts/og-image/generate.mjs
+
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain public/og-image.png)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/og-image.png
+            git commit -m "chore: regenerate og-image from marketing copy"
+            git push
+            echo "og-image.png updated and pushed."
+          else
+            echo "og-image.png already up to date."
+          fi

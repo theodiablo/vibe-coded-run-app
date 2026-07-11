@@ -55,6 +55,16 @@ jobs:
           VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           # Released Android app — production telemetry (PR APKs tag "preview").
           VITE_APP_ENV: production
+          # Native build: drop the web-only marketing landing chunk entirely so
+          # the APK ships zero marketing bytes (see MarketingGate in src/App.tsx).
+          VITE_NATIVE_BUILD: "1"
+
+      # Web-only SEO assets are useless inside the APK (the native WebView is
+      # never crawled) and would just bloat the download — strip them before the
+      # Capacitor sync copies dist/ into the app. The marketing chunk itself is
+      # already excluded at build time via VITE_NATIVE_BUILD.
+      - name: Drop web-only SEO assets from the native bundle
+        run: rm -f dist/og-image.png dist/robots.txt dist/sitemap.xml
 
       - name: Sync Capacitor
         run: npx cap sync android

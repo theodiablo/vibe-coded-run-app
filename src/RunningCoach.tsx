@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { isNative } from "./native";
-import { Activity, Calendar, TrendingUp, Plus, Loader, Trophy, Settings } from "lucide-react";
+import { Loader, Settings } from "lucide-react";
+import { BrandLogo } from "./components/BrandLogo";
 import { db, currentUserId } from "./db";
 import { STORAGE_KEYS, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_NOTICE_CHARS } from "./constants";
 import { track } from "./telemetry";
@@ -24,6 +25,7 @@ import { PlanView } from "./views/PlanView";
 import { LogView } from "./views/LogView";
 import { RacesView } from "./views/RacesView";
 import { ProgressView } from "./views/ProgressView";
+import { BottomNav } from "./components/BottomNav";
 import type {
   CatalogueRace,
   JoinedEdition,
@@ -524,13 +526,6 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
-  const TABS   = [
-    {id:"dash",    label:"Home",     Icon:Activity},
-    {id:"plan",    label:"Plan",     Icon:Calendar},
-    {id:"races",   label:"Races",    Icon:Trophy},
-    {id:"progress",label:"Progress", Icon:TrendingUp},
-  ];
-
   return (
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
       {toast       && <Toast {...toast}/>}
@@ -597,7 +592,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
         <div className="flex items-center gap-1.5">
-          <Activity size={15} className="text-orange-400"/>
+          <BrandLogo size={15} className="text-orange-400"/>
           <span className="text-sm font-semibold">Running Coach</span>
         </div>
         <button onClick={openSettings} aria-label="Settings"
@@ -616,31 +611,13 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         {tab === "progress" && <ProgressView {...shared} initialSub={progressSub} navKey={progressNonce}/>}
       </div>
 
-      <nav className="fixed bottom-0 inset-x-0 bg-slate-800 border-t border-slate-700 flex items-stretch z-20" style={{height:64}}>
-        {TABS.slice(0, 2).map(item => <NavBtn key={item.id} item={item} tab={tab} setTab={setTab}/>)}
-        {/* Center Record FAB — raised above the bar. */}
-        <div className="flex-1 flex items-center justify-center">
-          <button onClick={() => goLog()} aria-label="Record a run"
-            className="flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg transition-colors"
-            style={{width:54, height:54, marginTop:-18}}>
-            <Plus size={26}/>
-          </button>
-        </div>
-        {TABS.slice(2).map(item => (
-          <NavBtn key={item.id} item={item} tab={tab} setTab={setTab}
-            onSelect={item.id === "progress" ? () => goProgress("stats") : undefined}/>
-        ))}
-      </nav>
+      <BottomNav
+        active={tab}
+        className="fixed bottom-0 inset-x-0 z-20"
+        onTab={setTab}
+        onRecord={() => goLog()}
+        onProgress={() => goProgress("stats")}
+      />
     </div>
-  );
-}
-
-// One bottom-nav destination button (the center Record action is a separate FAB).
-function NavBtn({ item, tab, setTab, onSelect }: { item: { id: string; label: string; Icon: React.ComponentType<{ size?: number }> }; tab: string; setTab: (tab: string) => void; onSelect?: () => void }) {
-  return (
-    <button onClick={() => onSelect ? onSelect() : setTab(item.id)}
-      className={"flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors " + (tab === item.id ? "text-orange-400" : "text-slate-400 hover:text-slate-200")}>
-      <item.Icon size={20}/>{item.label}
-    </button>
   );
 }

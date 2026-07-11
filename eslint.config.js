@@ -8,8 +8,9 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist', 'android']),
   {
-    // The live-eval runner is a node script (process, fs) — not browser code.
-    files: ['evals/**/*.{js,mjs}'],
+    // The live-eval runner and build scripts are node scripts (process, fs) —
+    // not browser code.
+    files: ['evals/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
   },

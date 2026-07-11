@@ -1,0 +1,6 @@
+# Running Coach — https://run.camboulive.solutions
+# The app itself is behind sign-in; the public marketing landing is the root.
+User-agent: *
+Allow: /
+
+Sitemap: https://run.camboulive.solutions/sitemap.xml

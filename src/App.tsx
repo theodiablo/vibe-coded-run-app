@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { Loader } from "lucide-react";
 import { App as CapApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
@@ -12,6 +12,16 @@ import { identifyUser, resetUser } from "./telemetry";
 import { ConsentBanner } from "./components/ConsentBanner";
 import RunningCoach from "./RunningCoach";
 import LoginScreen from "./LoginScreen";
+
+// Web-only marketing landing shown to signed-out visitors at the root path.
+// VITE_NATIVE_BUILD is set only by the Android build (see .github/workflows/
+// android.yml), so this ternary constant-folds to `null` there and Rollup drops
+// the entire marketing chunk from the APK — the native shell ships zero
+// marketing bytes and goes straight to LoginScreen. On the web build the flag is
+// unset, leaving it a lazy chunk that logged-in users never fetch.
+const MarketingGate = import.meta.env.VITE_NATIVE_BUILD
+  ? null
+  : lazy(() => import("./marketing/MarketingGate"));
 
 // Defensive cap on the initial auth resolution. Supabase requests are already
 // bounded by the fetch timeout in supabase.js, so getSession() should always
@@ -188,6 +198,20 @@ export default function App() {
   // a visitor sees it at first visit; self-gates to nothing once decided (or if
   // telemetry isn't configured). Telemetry collects nothing until accepted here.
   if (!session) {
+    // Web visitors land on the marketing site (with an in-page login modal);
+    // the native shell skips it and shows LoginScreen directly. `isNative`
+    // covers the runtime split; `MarketingGate` is null in the native build so
+    // the chunk is never even shipped.
+    if (!isNative && MarketingGate) {
+      return (
+        <>
+          <Suspense fallback={<Splash />}>
+            <MarketingGate />
+          </Suspense>
+          <ConsentBanner onConsentChange={() => {}} />
+        </>
+      );
+    }
     return (
       <>
         <LoginScreen authError={authError} onClearAuthError={() => setAuthError(null)} />

@@ -41,6 +41,63 @@ and delete anything that becomes stale.
   browser ESLint config.
 
 ## Architecture
+- **Entry gate (`src/App.tsx`):** one branch on the auth session. Signed-out
+  **web** visitors get the marketing landing (`src/marketing/MarketingGate.tsx`,
+  a `lazy` chunk) which opens the existing `LoginScreen` in a full-screen modal;
+  signed-out **native** goes straight to `LoginScreen`. The runtime split is
+  `isNative`; the **build-time** exclusion is `import.meta.env.VITE_NATIVE_BUILD`
+  (set `"1"` only in `android.yml`) — it constant-folds `MarketingGate` to `null`
+  so Rollup drops the whole marketing chunk from the APK (verified: zero
+  marketing bytes in a native build). Keep anything web-only-and-heavy behind
+  this same flag rather than a bare `isNative` runtime check, which still ships
+  the code inside the APK. The landing's visual design is ported from the
+  committed reference in `Marketing Page Design/` (a design-tool `.dc.html`
+  export + screenshots — reference only, not built). It uses the **self-hosted
+  Archivo** font (`@fontsource/archivo`, imported inside `MarketingGate` so the
+  woff2s live in the web-only chunk and never hit the APK or need a Google-Fonts
+  CSP entry) and real app **screenshots** in `src/marketing/assets/`. The phone
+  mockup renders the **real** `BottomNav` (`src/components/BottomNav.tsx`,
+  extracted from `RunningCoach` and shared by both) as a decorative overlay, so
+  it always matches the current app nav instead of a hand-drawn copy — the
+  screenshot behind it is cropped above its own (older) nav. CTAs open
+  `LoginScreen`; a secondary CTA links to the Play Store closed test
+  (`PLAY_STORE_BETA_URL`).
+- **Marketing SEO is build-time only** (static S3/CloudFront, no SSR; CSP
+  `script-src 'self'` forbids the inline-script pre-paint trick, so body content
+  can't be prerendered into `#root` without a flash for signed-in users). The
+  strategy lives in `index.html`: rich `<head>` (title, description, canonical,
+  Open Graph + Twitter, JSON-LD — `application/ld+json` is a non-executable data
+  block so it's exempt from the script-src CSP) for search snippets + social
+  cards, plus a `<noscript>` marketing fallback for non-JS crawlers (flash-free —
+  JS visitors never see it, `#root` stays empty until React mounts). Googlebot
+  additionally renders the client marketing (`src/marketing/`). `robots.txt` +
+  `sitemap.xml` + `og-image.png` are in `public/`. The OG image is a static
+  1200×630 PNG generated from `scripts/og-image/template.html` filled with the
+  shared `src/marketing/copy.json` (the single source of truth for the brand +
+  hero headline — `MarketingGate.tsx` imports the same file, so the card can't
+  drift from the page). Regenerate locally with `npm run og:image` (needs a
+  Chrome/Chromium binary; found via `CHROME_BIN`, a Playwright chromium, or
+  system paths); CI does it automatically — `og-image.yml` re-renders and commits
+  the PNG on any change to `copy.json` or `scripts/og-image/**` on a feature
+  branch, so the refreshed card reaches `main` with the copy change. Never
+  hand-edit the committed PNG. All three web-only SEO assets are `rm`'d in
+  `android.yml` before `cap sync` so they don't bloat the APK. If robust non-Google
+  crawling or LCP from static content is ever needed, the next step is bot dynamic
+  rendering (CloudFront function) or splitting marketing to its own path — not
+  prerendering into the shared `#root`.
+- **Brand mark ("Pulse Stride"):** the logo is a heartbeat/pulse line rising
+  into a finish dot (`polyline` + end `circle`, viewBox `0 0 220 120`). The one
+  source for in-app/web usage is `src/components/BrandLogo.tsx` (inline SVG,
+  `currentColor` — set colour with a text class); used by the app header
+  (`RunningCoach`), `LoginScreen`, and `MarketingGate`. The **app-icon** variant
+  is the mark in dark navy (`#0B1220`) on an orange background: `public/favicon.svg`
+  (rounded square, browser tab), the Android **adaptive** launcher icon
+  (`drawable-v24/ic_launcher_foreground.xml` vector + `@color/ic_launcher_background`
+  = `#F97316`; the adaptive icon is all that's used since `minSdk 26`, so the
+  legacy `mipmap-*/ic_launcher*.png` rasters are dead fallbacks), and the Play
+  Store 512 icon (`store-assets/play-store-icon.svg` → full-bleed square PNG via
+  `npm run store:icon`; Play applies its own mask). Keep all these in sync if the
+  mark changes.
 - **No router.** `src/RunningCoach.tsx` is the **single state hub**: it owns
   `runs`, `plan`, `settings`, modal flags, and the active `tab`, and passes a
   `shared` props bag down to every view. The five views switch on `tab`
