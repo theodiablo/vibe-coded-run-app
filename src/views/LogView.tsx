@@ -76,6 +76,9 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}: LogVie
       ...(prefill?.routeTmp ? { routeTmp: prefill.routeTmp, routePending: true } : {}),
       // Health Connect HR wasn't ready at save — relink on next load (RunningCoach).
       ...(prefill?.hrPending ? { hrPending: prefill.hrPending } : {}),
+      // Carry the watch-import provenance through so repeated scans dedupe on it.
+      ...(prefill?.hcId ? { hcId: prefill.hcId } : {}),
+      ...(prefill?.startedAt ? { startedAt: prefill.startedAt } : {}),
     }]);
     setBusy(false); onSaved?.(); onDone();
   };
@@ -133,6 +136,13 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}: LogVie
       {prefill?.source === "gps" && (
         <div className="bg-emerald-500/15 text-emerald-300 text-sm rounded-xl px-4 py-2.5 mb-5">
           Tracked by GPS — distance, time and elevation are filled in. Add a type and notes, then save.
+        </div>
+      )}
+
+      {prefill?.source === "watch" && (
+        <div className="bg-sky-500/15 text-sky-300 text-sm rounded-xl px-4 py-2.5 mb-5">
+          Imported from your watch via Health Connect — check the details (there&apos;s no
+          route/map), pick a type, then save.
         </div>
       )}
 

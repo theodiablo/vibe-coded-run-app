@@ -230,3 +230,20 @@ export function buildPlan(
   return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt, racePace,
     longRunPeakKm: Math.round(peakLong * 10) / 10, planSessions, weeks};
 }
+
+type OpenSessionPlan = {
+  weeks?: { weekNumber: number; sessions?: { id: string; date: string; type?: string; done?: boolean; skipped?: boolean }[] }[];
+};
+
+// First not-done, not-skipped, non-RACE session on a given date, so a run logged
+// for that day (watch import, GPS save) can auto-tick the matching plan session
+// via LogView's onSaved. Returns {wNum, sId} or null. Pure.
+export function findOpenPlanSession(plan: OpenSessionPlan | null | undefined, date: string): { wNum: number; sId: string } | null {
+  if (!plan?.weeks || !date) return null;
+  for (const w of plan.weeks) {
+    for (const s of w.sessions || []) {
+      if (s.date === date && s.type !== "RACE" && !s.done && !s.skipped) return { wNum: w.weekNumber, sId: s.id };
+    }
+  }
+  return null;
+}

@@ -5,13 +5,14 @@ import { BrandLogo } from "./components/BrandLogo";
 import { db, currentUserId } from "./db";
 import { STORAGE_KEYS, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_NOTICE_CHARS } from "./constants";
 import { track } from "./telemetry";
-import { buildPlan } from "./utils/plan";
-import { ymd } from "./utils/format";
+import { buildPlan, findOpenPlanSession } from "./utils/plan";
+import { ymd, fmt } from "./utils/format";
 import { computeBadges, unlockedIds } from "./utils/badges";
 import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils/races";
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
+import { scanWatchSessions, markSeen, hasWatchAuthorization, WATCH_MANUAL_SCAN_DAYS } from "./watch/import";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -119,6 +120,16 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   useEffect(() => { runsRef.current = runs; }, [runs]);
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
+  const planRef = useRef(plan);
+  useEffect(() => { planRef.current = plan; }, [plan]);
+  // Latest watch-import scanner, refreshed each render so the long-lived boot /
+  // foreground listeners always call a closure with current runs, plan and
+  // addRuns/goLog (not a stale mount-time one).
+  const checkWatchRef = useRef<(opts?: { days?: number; manual?: boolean }) => Promise<number>>(async () => 0);
+  // Auto-surface the "found a run" toast at most once per app session so a run the
+  // user chooses to ignore doesn't nag on every foreground (it re-surfaces on the
+  // next launch, and the manual Settings scan is always available).
+  const watchAutoShownRef = useRef(false);
   const userContextRef = useRef(userContext);
   useEffect(() => { userContextRef.current = userContext; }, [userContext]);
   // Shared race catalogue (fetched, NOT in the blob). [] until it loads / on a
@@ -252,12 +263,23 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         enabled: settingsRef.current.hrMethod === "healthconnect",
         allowNativeRead: hasHealthConnectAuthorization(),
       }).catch(() => {});
+      // A watch run often lands in Health Connect minutes after the run (once the
+      // watch syncs to Garmin Connect), so re-scan on foreground too.
+      checkWatchRef.current().catch(() => {});
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
     // patchRunHr only closes over stable setters — see the boot effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // First watch-import scan once the initial data load has finished (runs are
+  // needed for dedupe). Runs after the loading→false render so checkWatchRef holds
+  // the committed scanner. Native + opt-in + local grant are all checked inside.
+  useEffect(() => {
+    if (loading) return;
+    checkWatchRef.current().catch(() => {});
+  }, [loading]);
 
   const savePlan     = (p: Plan) => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated", {}); };
   const saveSettings = (s: SettingsState) => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };
@@ -424,6 +446,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     const added: Run[] = rs.map((r, i) => ({...r, date: r.date || ymd(new Date()), km: Number(r.km) || 0, id: r.id || ("r" + Date.now() + i)} as Run));
     const nextRuns = added.concat(runs).sort((a, b) => b.date.localeCompare(a.date));
     setRuns(nextRuns); db.set(STORAGE_KEYS.RUNS, nextRuns);
+    // Watch imports: remember which Health Connect sessions have landed so a
+    // rescan never re-offers them (idempotent even if the run is later deleted).
+    markSeen(added.map(r => r.hcId).filter((id): id is string => !!id));
     // Telemetry-safe: how a run reached the log (GPS vs manual) and how many at once
     // (CSV import lands as a batch). No run contents are sent.
     track("run_logged", { count: rs.length, source: rs[0]?.source || "manual" });
@@ -521,9 +546,42 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   );
 
   const goLog = (prefill?: Partial<Run> & { wNum?: number; sId?: string }) => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
+
+  // Scan Health Connect for finished runs synced from the user's watch and offer
+  // to import them. Auto (boot/foreground) scans a 7-day window once per session;
+  // the Settings "scan older runs" button passes manual + a wider window and
+  // always runs. A single run goes through the LogView review (so it auto-ticks a
+  // matching plan session and the user can fix its type); several land as a batch.
+  // Returns how many new runs were found (for the Settings UI's feedback).
+  const scanWatchImports = async ({ days, manual = false }: { days?: number; manual?: boolean } = {}) => {
+    if (!manual && watchAutoShownRef.current) return 0;
+    const found = await scanWatchSessions(runsRef.current, {
+      enabled: !!settingsRef.current.watchImport,
+      allowNativeRead: hasWatchAuthorization(),
+      ...(days ? { days } : {}),
+    });
+    if (!found.length) return 0;
+    if (!manual) watchAutoShownRef.current = true;
+    if (found.length === 1) {
+      const r = found[0];
+      showToast(`Found a run from your watch — ${r.km} km on ${fmt.sht(r.date || "")}`, "ok",
+        { label: "Review", onClick: () => goLog({ ...r, ...(findOpenPlanSession(planRef.current, r.date || "") || {}) }) });
+    } else {
+      showToast(`Found ${found.length} runs from your watch`, "ok",
+        { label: "Import all", onClick: () => addRuns(found) });
+    }
+    return found.length;
+  };
+  // Latest-ref pattern: keep the ref pointing at this render's scanner so the
+  // long-lived boot/foreground listeners always call one with fresh runs/plan.
+  // eslint-disable-next-line react-hooks/refs
+  checkWatchRef.current = scanWatchImports;
   const goProgress = (sub?: string) => { setProgressSub(sub === "stats" || sub === "badges" ? sub : "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
-  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true)};
+  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true),
+    // Manual "scan older runs" for the Watch import settings panel — wider window,
+    // bypasses the once-per-session auto throttle.
+    scanWatchNow: () => checkWatchRef.current({ days: WATCH_MANUAL_SCAN_DAYS, manual: true })};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   return (
@@ -570,6 +628,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showSettings && <SettingsModal
         settings={settings} saveSettings={saveSettings} userContext={userContext} saveUserContext={saveUserContext} showToast={showToast}
+        scanWatchNow={shared.scanWatchNow}
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}

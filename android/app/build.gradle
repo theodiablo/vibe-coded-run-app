@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace = "solutions.camboulive.run"
@@ -62,9 +63,30 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // WatchImportPlugin (local, in this module): read finished exercise sessions
+    // from Health Connect. connect-client is pinned to the same version the
+    // health-connect plugin resolves; coroutines back its suspend read APIs.
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.20"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+    implementation "androidx.health.connect:connect-client:1.1.0-alpha02"
 }
 
 apply from: 'capacitor.build.gradle'
+
+// Applied AFTER capacitor.build.gradle so it wins: pin this module to Java/Kotlin
+// 17. Capacitor generates Java 21, but the app module's Kotlin runs on 1.8.20
+// (matching the health-connect plugin) whose max JVM target is below 21 — an
+// inconsistent Java-21/Kotlin-17 pair fails the build, so lower Java to 17 too.
+android {
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
 
 try {
     def servicesJSON = file('google-services.json')

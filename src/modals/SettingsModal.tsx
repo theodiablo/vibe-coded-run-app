@@ -3,6 +3,7 @@ import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
 import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_WARN_CHARS, USER_CONTEXT_NOTICE_CHARS } from "../constants";
 import { HRZones } from "../views/HRZones";
 import { HrSensor } from "../views/HrSensor";
+import { WatchImport } from "../views/WatchImport";
 import { isNative } from "../native";
 import { getConsent, setConsent } from "../telemetry";
 import type { SettingsState, UserContextState } from "../types";
@@ -19,12 +20,13 @@ type SettingsModalProps = {
   onOpenCoach?: () => void;
   onClose: () => void;
   showToast?: (msg: string, type?: string) => void;
+  scanWatchNow?: () => Promise<number>;
 };
 
 // Full-screen settings: editable profile name, heart-rate zones, and the
 // less-frequently-used data actions (Backup / Restore) tucked away here so
 // they don't clutter the header.
-export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast}: SettingsModalProps) {
+export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast, scanWatchNow}: SettingsModalProps) {
   const [name, setName] = useState(settings.name || "");
   const sourceMemory = userContext?.notes || "";
   const [memorySource, setMemorySource] = useState(sourceMemory);
@@ -75,6 +77,8 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
             <HRZones settings={settings} saveSettings={saveSettings}/>
             {/* Heart-rate sensor capture is native-only (BLE / Health Connect). */}
             {isNative && <HrSensor settings={settings} saveSettings={saveSettings} showToast={showToast}/>}
+            {/* Post-run import from a watch via Health Connect (native only). */}
+            {isNative && <WatchImport settings={settings} saveSettings={saveSettings} showToast={showToast} scanWatchNow={scanWatchNow}/>}
           </div>
 
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
