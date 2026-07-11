@@ -1,9 +1,0 @@
--- Compatibility marker for a migration version that reached the remote
--- Supabase migration history before the coach-agent schema was finalized as
--- 20260702120000_coach_agent.sql.
---
--- Supabase requires every remote migration version to exist locally, even when
--- the local schema is represented by a later migration. Keep this file so
--- preview/db-push checks can reconcile migration history. It intentionally does
--- not create schema; fresh databases get the finalized schema from the
--- following 20260702120000 migration.
