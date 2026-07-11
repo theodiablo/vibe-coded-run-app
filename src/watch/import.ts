@@ -22,7 +22,7 @@ export function hasWatchAuthorization(): boolean {
   catch { return false; }
 }
 
-function setWatchAuthorization(ok: boolean) {
+export function setWatchAuthorization(ok: boolean) {
   try {
     if (ok) localStorage.setItem(WATCH_HC_AUTH_KEY, "1");
     else localStorage.removeItem(WATCH_HC_AUTH_KEY);

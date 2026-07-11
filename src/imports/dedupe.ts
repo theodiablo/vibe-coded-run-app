@@ -1,0 +1,38 @@
+import type { Run } from "../types";
+import type { ImportedRun } from "./types";
+
+// Same rule set as the session-based isDuplicate (src/watch/mapping.ts), but
+// run-shaped, so the registry can dedupe candidates from *any* provider against
+// the stored log and against each other (the same run can arrive from two
+// sources, e.g. Health Connect and a future cloud API):
+//  1. external-id match — hcId/extId equal, each in its own id-space;
+//  2. time-window overlap when both sides know their start instant;
+//  3. fuzzy fallback: same date and distance within 10%.
+const FUZZY_KM_TOLERANCE = 0.1;
+
+type RunLike = Partial<Run>;
+
+function windowOf(r: RunLike): { start: number; end: number } | null {
+  if (!r.startedAt || !r.durationSec) return null;
+  const start = +new Date(r.startedAt);
+  if (!Number.isFinite(start)) return null;
+  return { start, end: start + r.durationSec * 1000 };
+}
+
+export function isDuplicateRun(cand: ImportedRun, existing: RunLike[], seenIds: string[] = []): boolean {
+  if (cand.hcId && seenIds.includes(cand.hcId)) return true;
+  const cw = windowOf(cand);
+  const cKm = Number(cand.km) || 0;
+  for (const r of existing) {
+    if (cand.hcId && r.hcId === cand.hcId) return true;
+    if (cand.extId && r.extId === cand.extId) return true;
+    const rw = windowOf(r);
+    if (cw && rw) {
+      if (rw.start < cw.end && cw.start < rw.end) return true;
+    } else if (cKm > 0 && r.date === cand.date) {
+      const rKm = Number(r.km) || 0;
+      if (Math.abs(rKm - cKm) <= FUZZY_KM_TOLERANCE * Math.max(rKm, cKm)) return true;
+    }
+  }
+  return false;
+}

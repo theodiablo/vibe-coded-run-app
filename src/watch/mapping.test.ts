@@ -61,6 +61,11 @@ describe("sessionToRun", () => {
   it("maps a walk type", () => {
     expect(sessionToRun(session({ exerciseType: 79 })).type).toBe("WALK");
   });
+  it("stamps the writing app's brand into the notes", () => {
+    expect(sessionToRun(session({ dataOrigin: "com.garmin.android.apps.connectmobile" })).notes).toBe("Imported from Garmin");
+    expect(sessionToRun(session({ dataOrigin: "com.huami.watch.hmwatchmanager" })).notes).toBe("Imported from Zepp");
+    expect(sessionToRun(session()).notes).toBe("Imported from your watch");
+  });
 });
 
 describe("isDuplicate", () => {

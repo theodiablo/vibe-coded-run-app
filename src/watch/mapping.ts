@@ -1,5 +1,6 @@
 import type { Run } from "../types";
 import type { WatchSessionRaw } from "./plugin";
+import { importedNote } from "../imports/dataOrigin";
 
 // Health Connect ExerciseSessionRecord exercise-type ids we treat as runs.
 // (androidx.health.connect.client.records.ExerciseSessionRecord constants.)
@@ -58,6 +59,9 @@ export function sessionToRun(s: WatchSessionRaw): Partial<Run> {
     hr: s.hrAvg != null ? Math.round(s.hrAvg) : null,
     hrMax: s.hrMax != null ? Math.round(s.hrMax) : null,
     effort: 5,
+    // Which app wrote the session ("Imported from Garmin" / "… Zepp") — several
+    // brands share the one Health Connect integration, so the run says which.
+    notes: importedNote(s.dataOrigin),
     source: "watch",
     hcId: s.id,
     startedAt: s.startTime,

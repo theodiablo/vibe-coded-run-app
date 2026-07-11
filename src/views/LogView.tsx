@@ -2,7 +2,13 @@ import { useState, useRef, type ChangeEvent } from "react";
 import { Loader, Plus, Upload, MapPin, HeartPulse } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
-import { parseRunsCsv, MAX_CSV_BYTES } from "../utils/csv";
+import { MAX_GPX_BYTES } from "../utils/gpx";
+import { simplify } from "../utils/geo";
+import { saveRoute, queuePendingRoute } from "../routes";
+import { fileProvider } from "../imports/providers/file";
+import { isDuplicateRun } from "../imports/dedupe";
+import { getSeenIds } from "../watch/import";
+import type { ImportedRun } from "../imports/types";
 import type { HrPending, Run } from "../types";
 
 type LogForm = {
@@ -32,9 +38,11 @@ type LogViewProps = {
   onSaved?: () => void;
   prefill?: LogPrefill | null;
   openTracker?: () => void;
+  // Existing log, used to dedupe file imports (comes in via the shared bag).
+  runs?: Run[];
 };
 
-export function LogView({addRuns, onDone, onSaved, prefill, openTracker}: LogViewProps) {
+export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: LogViewProps) {
   // A GPS-tracked run prefills its real measured duration; a plan session
   // prefills an estimate from km × prescribed pace.
   const estSec = prefill?.durationSec != null
@@ -83,24 +91,55 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}: LogVie
     setBusy(false); onSaved?.(); onDone();
   };
 
-  const handleCSV = (e: ChangeEvent<HTMLInputElement>) => {
+  // Persist a GPX/TCX trace and swap the transient points for a route reference
+  // (same save-or-queue fallback as LiveRunTracker.handleSave).
+  const withRoute = async (r: ImportedRun): Promise<Partial<Run>> => {
+    const { points, ...run } = r;
+    if (!points?.length) return run;
+    const pts = simplify(points, 5);
+    const stats = { km: run.km || 0, durationSec: run.durationSec || 0, elevation: run.elevation || 0,
+      avgPace: run.km ? Math.round((run.durationSec || 0) / run.km) : 0 };
+    try {
+      return { ...run, routeId: await saveRoute({ points: pts, stats }) };
+    } catch {
+      const routeTmp = "rt" + Date.now();
+      queuePendingRoute({ tmpId: routeTmp, points: pts, stats });
+      return { ...run, routeTmp, routePending: true };
+    }
+  };
+
+  // One handler for every supported activity file (CSV / GPX / TCX), routed
+  // through the file import provider. Imports are deduped against the existing
+  // log so re-importing an export can't double-log runs.
+  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     e.target.value = "";
-    if (file.size > MAX_CSV_BYTES) {
-      showMsg("File too large — max 5 MB.");
+    if (file.size > MAX_GPX_BYTES) {
+      showMsg("File too large — max 20 MB.");
       return;
     }
     const reader = new FileReader();
     reader.onerror = () => showMsg("Couldn't read that file.");
-    reader.onload = ev => {
-      const {runs, error} = parseRunsCsv(String(ev.target?.result || ""));
-      if (runs.length) {
-        addRuns(runs);
-        showMsg("Imported " + runs.length + " run" + (runs.length > 1 ? "s" : "") + ".");
-        setTimeout(() => onDone(), 1500);
-      } else {
-        showMsg(error || "No runs found. Check it's a Zepp or Strava CSV.");
+    reader.onload = async ev => {
+      const { runs: parsed, error } = fileProvider.parse!({ name: file.name, text: String(ev.target?.result || "") });
+      if (!parsed.length) {
+        showMsg(error || "No runs found in that file.");
+        return;
       }
+      const seen = getSeenIds();
+      const fresh: ImportedRun[] = [];
+      for (const r of parsed) {
+        if (!isDuplicateRun(r, (runs || []).concat(fresh as Run[]), seen)) fresh.push(r);
+      }
+      if (!fresh.length) {
+        showMsg("Already imported — " + (parsed.length > 1 ? "those runs are" : "that run is") + " in your log.");
+        return;
+      }
+      addRuns(await Promise.all(fresh.map(withRoute)));
+      const skipped = parsed.length - fresh.length;
+      showMsg("Imported " + fresh.length + " run" + (fresh.length > 1 ? "s" : "") +
+        (skipped ? " (" + skipped + " already logged)" : "") + ".");
+      setTimeout(() => onDone(), 1500);
     };
     reader.readAsText(file);
   };
@@ -115,7 +154,7 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}: LogVie
       <div className="flex justify-between items-center mt-4 mb-5">
         <h2 className="text-xl font-bold">Record a Run</h2>
         <button onClick={() => setImp(v => !v)} className={impBtnCls}>
-          <Upload size={14}/>Import CSV
+          <Upload size={14}/>Import file
         </button>
       </div>
 
@@ -148,15 +187,16 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker}: LogVie
 
       {showImp && (
         <div className="bg-slate-800 rounded-2xl p-4 mb-5 border border-slate-700 space-y-2.5">
-          <p className="text-sm font-semibold text-slate-200">Import from Zepp or Strava</p>
+          <p className="text-sm font-semibold text-slate-200">Import an activity file</p>
           <p className="text-xs text-slate-500">
-            <span className="text-slate-300">Zepp:</span> Profile → Privacy Center → Export Personal Data<br/>
-            <span className="text-slate-300">Strava:</span> Settings → My Account → Download or Delete → Request Archive
+            <span className="text-slate-300">GPX / TCX:</span> one activity with its route map — export from Garmin Connect, Strava and most platforms<br/>
+            <span className="text-slate-300">Zepp CSV:</span> Profile → Privacy Center → Export Personal Data<br/>
+            <span className="text-slate-300">Strava CSV:</span> Settings → My Account → Download or Delete → Request Archive
           </p>
-          <input ref={fRef} type="file" accept=".csv" onChange={handleCSV} className="hidden"/>
+          <input ref={fRef} type="file" accept={fileProvider.fileAccept} onChange={handleFile} className="hidden"/>
           <button onClick={() => fRef.current?.click()}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
-            Choose CSV file
+            Choose file
           </button>
         </div>
       )}

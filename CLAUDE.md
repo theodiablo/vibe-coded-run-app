@@ -328,9 +328,32 @@ and delete anything that becomes stale.
   `runZoneIndex`, Stats) works unchanged.
 
 ## Watch run import (phone-free runs)
-- **For runners who leave the phone at home** (e.g. Garmin Forerunner): import a
-  *finished* run's stats (distance, duration, elevation gain, avg/max HR) after
-  the fact, instead of live GPS. Native-only, opt-in (`settings.watchImport`).
+- **For runners who leave the phone at home** (e.g. Garmin Forerunner, Amazfit):
+  import a *finished* run's stats (distance, duration, elevation gain, avg/max HR)
+  after the fact, instead of live GPS. Native-only, opt-in (`settings.watchImport`).
+- **All import sources go through the provider registry** (`src/imports/`):
+  `types.ts` defines `ImportProvider` (+ `ImportedRun` = `Partial<Run>` with
+  transient route `points` the *caller* persists via `saveRoute` and strips before
+  `addRuns`); `registry.ts` lists providers and `scanAllProviders` merges scans
+  with **cross-provider dedupe** (`dedupe.ts` `isDuplicateRun`: hcId/extId
+  id-spaces, `startedAt` window overlap, fuzzy date+10%-km) so the same run from
+  two sources collapses. Adding an integration = implement the interface +
+  register it; the toast/goLog/addRuns pipeline needs no changes. Three providers:
+  **healthConnect** (wraps `src/watch/`, deliberately brand-agnostic — one
+  "Watch" entry for Garmin/Zepp/etc., brand stamped into run notes via
+  `dataOrigin.ts`), **file** (CSV via `parseRunsCsv` + GPX/TCX via
+  `src/utils/gpx.ts`, works on web, GPX/TCX return route `points` → LogView
+  saves them so imported files get maps), **cloud scaffold** (`providers/cloud.ts`
+  — interface only, `isAvailable()→false` so **never user-visible**; a real one
+  needs server-side OAuth/webhooks in an edge function. **Strava API is
+  deliberately excluded**: its agreement bans AI-model use of API data and the
+  coach reads runs — users' own CSV/GPX exports are fine, that's data
+  portability, not the API. There is **no usable Zepp cloud API**; password-based
+  scraping libs are ToS-violating — Amazfit rides Health Connect or files).
+  Settings UI is `src/views/Integrations.tsx` (registry-driven, connectable
+  providers only; file import lives in LogView's "Import file"). Whether Zepp
+  writes exercise *sessions with distance* to HC (vs wellness only) is
+  **unverified on-device**.
 - **Source is Health Connect exercise sessions, NOT the pinned HR plugin.** The
   `@pianissimoproject/capacitor-health-connect` plugin can only read
   `HeartRateSeries`, so this feature ships its **own local Capacitor plugin**
@@ -363,13 +386,14 @@ and delete anything that becomes stale.
   the real HC grant is per-install (`WATCH_HC_AUTH_KEY`, `rc_watch_hc_auth`) and
   must be present before the native bridge is touched. `scanWatchSessions` copies
   `flushPendingHr`'s guard structure (never throws, clears the marker on revoke).
-- **Wiring:** `RunningCoach.checkWatchImports` (via a latest-ref, called from the
+- **Wiring:** `RunningCoach.scanImports` (via a latest-ref, called from the
   boot `[loading]` effect + the `visibilitychange` listener, throttled to one
-  auto-toast per session) → **1 run** goes through `goLog` prefill (LogView
-  review + `findOpenPlanSession` auto-tick + race auto-detect), **several** land
-  as an `addRuns` batch. `markSeen` runs inside `addRuns` for any run carrying
-  `hcId`. UI: `src/views/WatchImport.tsx` in Settings → Profile; `shared.scanWatchNow`
-  drives the manual scan. Run gains `hcId`/`startedAt` (`src/types.ts`).
+  auto-toast per session) drives `scanAllProviders` → **1 run** goes through
+  `goLog` prefill (LogView review + `findOpenPlanSession` auto-tick + race
+  auto-detect), **several** land as an `addRuns` batch. `markSeen` runs inside
+  `addRuns` for any run carrying `hcId`. `shared.scanImportsNow` drives the
+  manual 30-day scan. Run gains `hcId`/`startedAt`/`extId` (`src/types.ts`);
+  new provider enable-flags go in `settings.imports` (HC keeps `watchImport`).
 
 ## Races & badges (gamification)
 - **Catalogue (Race → Edition):** a "race" is the recurring event, an "edition" a

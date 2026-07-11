@@ -12,7 +12,8 @@ import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
-import { scanWatchSessions, markSeen, hasWatchAuthorization, WATCH_MANUAL_SCAN_DAYS } from "./watch/import";
+import { markSeen, WATCH_MANUAL_SCAN_DAYS } from "./watch/import";
+import { scanAllProviders } from "./imports/registry";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -547,19 +548,22 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
   const goLog = (prefill?: Partial<Run> & { wNum?: number; sId?: string }) => { setLogPrefill(prefill || null); setTab("log"); if (prefill) setPrefillVer(v => v + 1); };
 
-  // Scan Health Connect for finished runs synced from the user's watch and offer
-  // to import them. Auto (boot/foreground) scans a 7-day window once per session;
-  // the Settings "scan older runs" button passes manual + a wider window and
-  // always runs. A single run goes through the LogView review (so it auto-ticks a
-  // matching plan session and the user can fix its type); several land as a batch.
-  // Returns how many new runs were found (for the Settings UI's feedback).
-  const scanWatchImports = async ({ days, manual = false }: { days?: number; manual?: boolean } = {}) => {
+  // Scan every registered import integration (src/imports/registry.ts — today
+  // effectively Health Connect) for finished runs and offer to import them. Auto
+  // (boot/foreground) scans a 7-day window once per session; the Settings "scan
+  // older runs" button passes manual + a wider window and always runs. A single
+  // run goes through the LogView review (so it auto-ticks a matching plan session
+  // and the user can fix its type); several land as a batch. Returns how many new
+  // runs were found (for the Settings UI's feedback).
+  const scanImports = async ({ days, manual = false }: { days?: number; manual?: boolean } = {}) => {
     if (!manual && watchAutoShownRef.current) return 0;
-    const found = await scanWatchSessions(runsRef.current, {
-      enabled: !!settingsRef.current.watchImport,
-      allowNativeRead: hasWatchAuthorization(),
+    const found = (await scanAllProviders(runsRef.current, {
       ...(days ? { days } : {}),
-    });
+      // The synced preference gates the Health Connect provider; providers only
+      // check device-local state (grant markers) themselves.
+      enabled: p => p.id !== "healthconnect" || !!settingsRef.current.watchImport,
+      // Transient route points never belong in the stored run (blob bloat).
+    })).map(({ points, ...r }) => r); // eslint-disable-line @typescript-eslint/no-unused-vars
     if (!found.length) return 0;
     if (!manual) watchAutoShownRef.current = true;
     if (found.length === 1) {
@@ -575,13 +579,13 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // Latest-ref pattern: keep the ref pointing at this render's scanner so the
   // long-lived boot/foreground listeners always call one with fresh runs/plan.
   // eslint-disable-next-line react-hooks/refs
-  checkWatchRef.current = scanWatchImports;
+  checkWatchRef.current = scanImports;
   const goProgress = (sub?: string) => { setProgressSub(sub === "stats" || sub === "badges" ? sub : "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
   const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true),
-    // Manual "scan older runs" for the Watch import settings panel — wider window,
+    // Manual "scan older runs" for the Integrations settings panel — wider window,
     // bypasses the once-per-session auto throttle.
-    scanWatchNow: () => checkWatchRef.current({ days: WATCH_MANUAL_SCAN_DAYS, manual: true })};
+    scanImportsNow: () => checkWatchRef.current({ days: WATCH_MANUAL_SCAN_DAYS, manual: true })};
   // Record is a center FAB (an action, not a destination), so the row holds the
   // four real destinations, split 2 / 2 around it.
   return (
@@ -628,7 +632,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       {showRestore && <RestoreModal onRestore={handleRestore}     onClose={() => setShowRestore(false)}/>}
       {showSettings && <SettingsModal
         settings={settings} saveSettings={saveSettings} userContext={userContext} saveUserContext={saveUserContext} showToast={showToast}
-        scanWatchNow={shared.scanWatchNow}
+        scanImportsNow={shared.scanImportsNow}
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
