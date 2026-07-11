@@ -7,3 +7,13 @@
 :root {
   color-scheme: dark;
 }
+
+/* Tailwind v4's preflight resets buttons to `cursor: default`; restore the
+   pointer on interactive controls (v3 behaviour) so buttons read as clickable
+   on the web. No-op on touch; disabled controls keep the default arrow. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
