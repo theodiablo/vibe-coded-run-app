@@ -36,6 +36,16 @@ and delete anything that becomes stale.
   browser ESLint config.
 
 ## Architecture
+- **Entry gate (`src/App.tsx`):** one branch on the auth session. Signed-out
+  **web** visitors get the marketing landing (`src/marketing/MarketingGate.tsx`,
+  a `lazy` chunk) which opens the existing `LoginScreen` in a full-screen modal;
+  signed-out **native** goes straight to `LoginScreen`. The runtime split is
+  `isNative`; the **build-time** exclusion is `import.meta.env.VITE_NATIVE_BUILD`
+  (set `"1"` only in `android.yml`) — it constant-folds `MarketingGate` to `null`
+  so Rollup drops the whole marketing chunk from the APK (verified: zero
+  marketing bytes in a native build). Keep anything web-only-and-heavy behind
+  this same flag rather than a bare `isNative` runtime check, which still ships
+  the code inside the APK.
 - **No router.** `src/RunningCoach.tsx` is the **single state hub**: it owns
   `runs`, `plan`, `settings`, modal flags, and the active `tab`, and passes a
   `shared` props bag down to every view. The five views switch on `tab`

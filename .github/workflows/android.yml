@@ -55,6 +55,9 @@ jobs:
           VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           # Released Android app — production telemetry (PR APKs tag "preview").
           VITE_APP_ENV: production
+          # Native build: drop the web-only marketing landing chunk entirely so
+          # the APK ships zero marketing bytes (see MarketingGate in src/App.tsx).
+          VITE_NATIVE_BUILD: "1"
 
       - name: Sync Capacitor
         run: npx cap sync android
