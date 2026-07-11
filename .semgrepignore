@@ -10,3 +10,7 @@ package-lock.json
 # needs it too), which trips the owasp exported-activity rule as a false positive.
 # The hand-written code that matters is the web app under src/, still fully scanned.
 android/
+# Design-tool export kept only as a visual reference for the marketing page (a
+# `.dc.html` export + its `support.js` viewer runtime, which uses new Function()
+# and innerHTML). Not part of the app build — the ported page lives in src/marketing/.
+Marketing Page Design/
