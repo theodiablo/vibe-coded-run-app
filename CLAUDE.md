@@ -80,6 +80,19 @@ and delete anything that becomes stale.
   crawling or LCP from static content is ever needed, the next step is bot dynamic
   rendering (CloudFront function) or splitting marketing to its own path — not
   prerendering into the shared `#root`.
+- **Brand mark ("Pulse Stride"):** the logo is a heartbeat/pulse line rising
+  into a finish dot (`polyline` + end `circle`, viewBox `0 0 220 120`). The one
+  source for in-app/web usage is `src/components/BrandLogo.tsx` (inline SVG,
+  `currentColor` — set colour with a text class); used by the app header
+  (`RunningCoach`), `LoginScreen`, and `MarketingGate`. The **app-icon** variant
+  is the mark in dark navy (`#0B1220`) on an orange background: `public/favicon.svg`
+  (rounded square, browser tab), the Android **adaptive** launcher icon
+  (`drawable-v24/ic_launcher_foreground.xml` vector + `@color/ic_launcher_background`
+  = `#F97316`; the adaptive icon is all that's used since `minSdk 26`, so the
+  legacy `mipmap-*/ic_launcher*.png` rasters are dead fallbacks), and the Play
+  Store 512 icon (`store-assets/play-store-icon.svg` → full-bleed square PNG via
+  `npm run store:icon`; Play applies its own mask). Keep all these in sync if the
+  mark changes.
 - **No router.** `src/RunningCoach.tsx` is the **single state hub**: it owns
   `runs`, `plan`, `settings`, modal flags, and the active `tab`, and passes a
   `shared` props bag down to every view. The five views switch on `tab`

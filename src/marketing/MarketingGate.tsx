@@ -10,6 +10,7 @@ import "@fontsource/archivo/800.css";
 import "@fontsource/archivo/900.css";
 import LoginScreen from "../LoginScreen";
 import { BottomNav } from "../components/BottomNav";
+import { BrandLogo } from "../components/BrandLogo";
 import { PRIVACY_URL, DISCLAIMER_URL, PLAY_STORE_BETA_URL } from "../constants";
 // Brand + hero headline are shared with the OG-image generator (scripts/og-image)
 // via this single source of truth, so the social card can't drift from the page.
@@ -29,21 +30,6 @@ import badgesShot from "./assets/08-progress-badges.png";
 // a full-screen modal, so all auth flows stay in one place.
 
 const FONT_STACK = "'Archivo', ui-sans-serif, system-ui, sans-serif";
-
-function Logo({ width = 38, height = 23 }: { width?: number; height?: number }) {
-  return (
-    <svg width={width} height={height} viewBox="0 0 220 120" fill="none" aria-hidden="true">
-      <polyline
-        points="10,80 60,80 78,44 96,96 114,60 132,80 160,80 200,28"
-        stroke="#F97316"
-        strokeWidth="16"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="200" cy="28" r="12" fill="#F97316" />
-    </svg>
-  );
-}
 
 // A phone frame showing a real app screenshot, with the *real* BottomNav
 // overlaid at the base (rendered decoratively). The screenshot is cropped above
@@ -89,7 +75,7 @@ export default function MarketingGate() {
         {/* Header */}
         <header className="flex items-center justify-between py-6">
           <div className="flex items-center gap-3">
-            <Logo />
+            <BrandLogo size={22} className="text-[#F97316]" />
             <span className="font-extrabold text-[20px] tracking-[-0.3px]">{copy.brand}</span>
           </div>
           <nav className="flex items-center gap-4 sm:gap-7 text-[15px] font-semibold">
@@ -256,7 +242,7 @@ export default function MarketingGate() {
         {/* Footer */}
         <footer className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-10 text-[14px] text-[#8B98AC]">
           <div className="flex items-center gap-2.5">
-            <Logo width={26} height={16} />
+            <BrandLogo size={16} className="text-[#F97316]" />
             <span className="font-bold text-[#B7C2D2]">{copy.brand}</span>
           </div>
           <div className="flex gap-6">

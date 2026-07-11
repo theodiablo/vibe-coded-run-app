@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Activity, Loader, Mail, Lock } from "lucide-react";
+import { Loader, Mail, Lock } from "lucide-react";
+import { BrandLogo } from "./components/BrandLogo";
 import { Browser } from "@capacitor/browser";
 import { supabase, authRedirectTo } from "./supabase";
 import { isNative } from "./native";
@@ -97,7 +98,7 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-6">
-          <Activity className="text-orange-400" size={28} />
+          <BrandLogo className="text-orange-400" size={26} />
           <h1 className="text-xl font-bold text-white">Running Coach</h1>
         </div>
 

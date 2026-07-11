@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { isNative } from "./native";
-import { Activity, Loader, Settings } from "lucide-react";
+import { Loader, Settings } from "lucide-react";
+import { BrandLogo } from "./components/BrandLogo";
 import { db, currentUserId } from "./db";
 import { STORAGE_KEYS, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_NOTICE_CHARS } from "./constants";
 import { track } from "./telemetry";
@@ -591,7 +592,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
         <div className="flex items-center gap-1.5">
-          <Activity size={15} className="text-orange-400"/>
+          <BrandLogo size={15} className="text-orange-400"/>
           <span className="text-sm font-semibold">Running Coach</span>
         </div>
         <button onClick={openSettings} aria-label="Settings"

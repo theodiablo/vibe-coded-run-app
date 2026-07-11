@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Google Play high-res icon (512x512). Full-bleed square with NO rounded
+       corners / transparency — Play Console applies its own mask + shadow.
+       Regenerate the PNG with `npm run store:icon`. The rounded browser favicon
+       lives in public/favicon.svg. -->
   <defs>
     <linearGradient id="rc" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#F97316"/>
@@ -6,7 +10,7 @@
       <stop offset="1" stop-color="#C2410C"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#rc)"/>
+  <rect width="512" height="512" fill="url(#rc)"/>
   <g transform="translate(76 158) scale(1.636)" fill="none" stroke="#0B1220" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="10,80 60,80 78,44 96,96 114,60 132,80 160,80 200,28"/>
     <circle cx="200" cy="28" r="12" fill="#0B1220" stroke="none"/>

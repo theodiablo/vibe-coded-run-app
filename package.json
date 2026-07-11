@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "og:image": "node scripts/og-image/generate.mjs",
+    "store:icon": "node scripts/store-icon/generate.mjs",
     "eval": "vitest run src/utils/coachAgent.eval.test.ts",
     "eval:live": "vitest run --config evals/coach/vitest.config.mjs"
   },
