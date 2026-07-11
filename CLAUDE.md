@@ -55,9 +55,16 @@ and delete anything that becomes stale.
   cards, plus a `<noscript>` marketing fallback for non-JS crawlers (flash-free —
   JS visitors never see it, `#root` stays empty until React mounts). Googlebot
   additionally renders the client marketing (`src/marketing/`). `robots.txt` +
-  `sitemap.xml` + `og-image.png` are in `public/`; the OG image is a static
-  1200×630 PNG (regenerate by screenshotting an HTML template with headless
-  Chromium if the hero copy changes). All three web-only SEO assets are `rm`'d in
+  `sitemap.xml` + `og-image.png` are in `public/`. The OG image is a static
+  1200×630 PNG generated from `scripts/og-image/template.html` filled with the
+  shared `src/marketing/copy.json` (the single source of truth for the brand +
+  hero headline — `MarketingGate.tsx` imports the same file, so the card can't
+  drift from the page). Regenerate locally with `npm run og:image` (needs a
+  Chrome/Chromium binary; found via `CHROME_BIN`, a Playwright chromium, or
+  system paths); CI does it automatically — `og-image.yml` re-renders and commits
+  the PNG on any change to `copy.json` or `scripts/og-image/**` on a feature
+  branch, so the refreshed card reaches `main` with the copy change. Never
+  hand-edit the committed PNG. All three web-only SEO assets are `rm`'d in
   `android.yml` before `cap sync` so they don't bloat the APK. If robust non-Google
   crawling or LCP from static content is ever needed, the next step is bot dynamic
   rendering (CloudFront function) or splitting marketing to its own path — not

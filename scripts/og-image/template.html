@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  /*
+    Source for public/og-image.png (1200x630 social share card). Rendered by
+    scripts/og-image/generate.mjs with headless Chromium; the {{PLACEHOLDERS}}
+    are filled from src/marketing/copy.json so this card never drifts from the
+    marketing page. Do not edit the committed PNG by hand — change copy.json (or
+    this template) and regenerate with `npm run og:image`.
+  */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  html { background: #0f172a; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 700px at 78% -10%, #1e293b 0%, #0f172a 55%), #0f172a;
+    color: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 84px 96px;
+    position: relative;
+    overflow: hidden;
+  }
+  .glow {
+    position: absolute;
+    top: -220px; right: -160px;
+    width: 640px; height: 640px;
+    background: radial-gradient(circle, rgba(249,115,22,0.28) 0%, rgba(249,115,22,0) 70%);
+  }
+  .brand { display: flex; align-items: center; gap: 16px; margin-bottom: 40px; }
+  .brand svg { width: 44px; height: 44px; }
+  .brand span { font-size: 30px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+  h1 { font-size: 68px; line-height: 1.08; font-weight: 800; letter-spacing: -1.5px; color: #fff; max-width: 940px; }
+  h1 .accent { color: #fb923c; }
+  p { margin-top: 30px; font-size: 30px; line-height: 1.4; color: #94a3b8; max-width: 860px; }
+  .pills { margin-top: 46px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .pill {
+    font-size: 22px; font-weight: 600; color: #e2e8f0;
+    background: #1e293b; border: 1px solid #334155;
+    padding: 12px 22px; border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    <span>{{BRAND}}</span>
+  </div>
+  <h1>{{HERO1}}<br /><span class="accent">{{HERO2}}</span></h1>
+  <p>{{TAGLINE}}</p>
+  <div class="pills">{{PILLS}}</div>
+</body>
+</html>

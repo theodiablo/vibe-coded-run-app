@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import LoginScreen from "../LoginScreen";
 import { PRIVACY_URL } from "../constants";
+// Brand + hero headline are shared with the OG-image generator (scripts/og-image)
+// via this single source of truth, so the social card can't drift from the page.
+import copy from "./copy.json";
 
 // Web-only marketing landing shown at the root path to signed-out visitors.
 // The native (Capacitor) shell never renders this — it goes straight to
@@ -65,7 +68,7 @@ export default function MarketingGate() {
       <header className="max-w-5xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center gap-2">
           <Activity className="text-orange-400" size={24} />
-          <span className="font-bold text-white">Running Coach</span>
+          <span className="font-bold text-white">{copy.brand}</span>
         </div>
         <button
           type="button"
@@ -79,9 +82,9 @@ export default function MarketingGate() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-12 pb-16 text-center">
         <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-          Train for your race,
+          {copy.heroLine1}
           <br className="hidden sm:block" />{" "}
-          <span className="text-orange-400">one honest week at a time.</span>
+          <span className="text-orange-400">{copy.heroLine2}</span>
         </h1>
         <p className="mt-5 max-w-2xl mx-auto text-lg text-slate-400">
           A running coach in your pocket: an adaptive plan built around your
