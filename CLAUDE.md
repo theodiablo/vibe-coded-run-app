@@ -45,7 +45,18 @@ and delete anything that becomes stale.
   so Rollup drops the whole marketing chunk from the APK (verified: zero
   marketing bytes in a native build). Keep anything web-only-and-heavy behind
   this same flag rather than a bare `isNative` runtime check, which still ships
-  the code inside the APK.
+  the code inside the APK. The landing's visual design is ported from the
+  committed reference in `Marketing Page Design/` (a design-tool `.dc.html`
+  export + screenshots — reference only, not built). It uses the **self-hosted
+  Archivo** font (`@fontsource/archivo`, imported inside `MarketingGate` so the
+  woff2s live in the web-only chunk and never hit the APK or need a Google-Fonts
+  CSP entry) and real app **screenshots** in `src/marketing/assets/`. The phone
+  mockup renders the **real** `BottomNav` (`src/components/BottomNav.tsx`,
+  extracted from `RunningCoach` and shared by both) as a decorative overlay, so
+  it always matches the current app nav instead of a hand-drawn copy — the
+  screenshot behind it is cropped above its own (older) nav. CTAs open
+  `LoginScreen`; a secondary CTA links to the Play Store closed test
+  (`PLAY_STORE_BETA_URL`).
 - **Marketing SEO is build-time only** (static S3/CloudFront, no SSR; CSP
   `script-src 'self'` forbids the inline-script pre-paint trick, so body content
   can't be prerendered into `#root` without a flash for signed-in users). The
