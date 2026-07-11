@@ -21,6 +21,7 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.time.Instant
 
@@ -46,6 +47,11 @@ class WatchImportPlugin : Plugin() {
     private val requestContract = PermissionController.createRequestPermissionResultContract()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    override fun handleOnDestroy() {
+        scope.cancel()
+        super.handleOnDestroy()
+    }
+
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)
 
     @PluginMethod
@@ -54,6 +60,10 @@ class WatchImportPlugin : Plugin() {
         catch (e: Exception) { HealthConnectClient.SDK_UNAVAILABLE }
         val availability = when (status) {
             HealthConnectClient.SDK_AVAILABLE -> "Available"
+            // Strictly "installed but needs an update"; mapped to NotInstalled
+            // because both resolve the same way for the user (Google Play shows
+            // Update instead of Install) and the TS contract only acts on
+            // "Available" vs not.
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> "NotInstalled"
             else -> "NotSupported"
         }
@@ -124,7 +134,10 @@ class WatchImportPlugin : Plugin() {
     }
 
     // Map one session + its aggregated metrics to a plain JSON object. Metrics are
-    // aggregated over the session's own window; a failure there leaves that
+    // aggregated over the session's own time window, restricted to the SAME data
+    // origin that wrote the session — without the origin filter a time-window
+    // aggregate mixes every app's records, so two apps both syncing the same run
+    // (e.g. Garmin Connect and Zepp) could double distance. A failure leaves that
     // session's numbers null rather than dropping the session.
     private suspend fun sessionJson(c: HealthConnectClient, rec: ExerciseSessionRecord): JSObject {
         val o = JSObject()
@@ -146,6 +159,7 @@ class WatchImportPlugin : Plugin() {
                         ExerciseSessionRecord.EXERCISE_DURATION_TOTAL,
                     ),
                     timeRangeFilter = TimeRangeFilter.between(rec.startTime, rec.endTime),
+                    dataOriginFilter = setOf(rec.metadata.dataOrigin),
                 ),
             )
             agg[DistanceRecord.DISTANCE_TOTAL]?.let { o.put("distanceM", it.inMeters) }

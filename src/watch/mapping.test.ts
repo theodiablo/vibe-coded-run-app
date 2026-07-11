@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sessionRunType, sessionLocalDate, sessionToRun, isDuplicate, newWatchSessions } from "./mapping";
+import { sessionRunType, sessionLocalDate, sessionToRun, newWatchSessions } from "./mapping";
 import type { WatchSessionRaw } from "./plugin";
 import type { Run } from "../types";
 
@@ -69,38 +69,12 @@ describe("sessionToRun", () => {
   });
 });
 
-describe("isDuplicate", () => {
+// Dedupe is the shared isDuplicateRun (src/imports/dedupe.ts — unit-tested in
+// src/imports/registry.test.ts); these cover its application at the watch level:
+// sessions are mapped first, then deduped once on the run shape.
+describe("newWatchSessions", () => {
   const runs = (over: Partial<Run>[] = []): Run[] => over.map((o, i) => ({ id: "r" + i, date: "2026-07-10", km: 8, ...o }));
 
-  it("matches a seen id", () => {
-    expect(isDuplicate(session(), [], ["s1"])).toBe(true);
-  });
-  it("matches an existing run carrying the same hcId", () => {
-    expect(isDuplicate(session(), runs([{ hcId: "s1" }]), [])).toBe(true);
-  });
-  it("matches a run whose time window overlaps", () => {
-    const existing = runs([{ startedAt: "2026-07-10T08:10:00Z", durationSec: 3000 }]);
-    expect(isDuplicate(session(), existing, [])).toBe(true);
-  });
-  it("does not match a non-overlapping tracked run", () => {
-    const existing = runs([{ startedAt: "2026-07-10T06:00:00Z", durationSec: 600 }]);
-    expect(isDuplicate(session(), existing, [])).toBe(false);
-  });
-  it("fuzzy-matches a legacy run on same date within 10% distance", () => {
-    const existing = runs([{ km: 8.5 }]); // no startedAt → fuzzy path; |8.5-8| <= 0.85
-    expect(isDuplicate(session(), existing, [])).toBe(true);
-  });
-  it("does not fuzzy-match when distance differs by more than 10%", () => {
-    const existing = runs([{ km: 12 }]);
-    expect(isDuplicate(session(), existing, [])).toBe(false);
-  });
-  it("does not fuzzy-match a different date", () => {
-    const existing = runs([{ date: "2026-07-09", km: 8 }]);
-    expect(isDuplicate(session(), existing, [])).toBe(false);
-  });
-});
-
-describe("newWatchSessions", () => {
   it("keeps only runnable, non-duplicate sessions and maps them", () => {
     const sessions = [
       session({ id: "run", exerciseType: 56 }),
@@ -110,5 +84,18 @@ describe("newWatchSessions", () => {
     const out = newWatchSessions(sessions, [], ["seen"]);
     expect(out).toHaveLength(1);
     expect(out[0].hcId).toBe("run");
+  });
+  it("drops a session already logged (hcId, time overlap, or fuzzy manual match)", () => {
+    expect(newWatchSessions([session()], runs([{ hcId: "s1" }]), [])).toHaveLength(0);
+    expect(newWatchSessions([session()], runs([{ startedAt: "2026-07-10T08:10:00Z", durationSec: 3000 }]), [])).toHaveLength(0);
+    expect(newWatchSessions([session()], runs([{ km: 8.5 }]), [])).toHaveLength(0); // manual log, no startedAt
+  });
+  it("keeps a session that overlaps nothing and fuzzy-matches nothing", () => {
+    const existing = runs([{ startedAt: "2026-07-10T06:00:00Z", durationSec: 600 }, { km: 12 }, { date: "2026-07-09", km: 8 }]);
+    expect(newWatchSessions([session()], existing, [])).toHaveLength(1);
+  });
+  it("dedupes within the batch itself (same run reported twice)", () => {
+    const out = newWatchSessions([session({ id: "a" }), session({ id: "b" })], [], []); // identical windows
+    expect(out).toHaveLength(1);
   });
 });

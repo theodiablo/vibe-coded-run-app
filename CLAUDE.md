@@ -378,17 +378,21 @@ and delete anything that becomes stale.
   already tolerates).
 - **Everything interpretable is pure TS** (`src/watch/`): `plugin.ts` (lazy
   `registerPlugin` bridge, raw `WatchSessionRaw`), `mapping.ts`
-  (`sessionRunType`/`sessionLocalDate`/`sessionToRun`/`isDuplicate` — all
+  (`sessionRunType`/`sessionLocalDate`/`sessionToRun`/`newWatchSessions` — all
   unit-tested), `import.ts` (`scanWatchSessions` + per-device auth/seen-id
   helpers). The native side returns **raw** metres/seconds/exercise-type ints so
-  the mapping stays testable off-device.
-- **Idempotent, four-tier dedupe** (`isDuplicate`) so a run is never double-logged
-  vs a phone-tracked or manual entry: (1) per-device seen-id list
-  (`rc_watch_seen_hc_ids`, survives run deletion), (2) an existing run's `hcId`,
-  (3) `startedAt` time-overlap (GPS saves now stamp `startedAt` too), (4) fuzzy
-  same-date-±10%-distance for legacy runs. **No sync cursor** — a rolling 7-day
-  window rescanned each trigger handles a late watch sync; manual 30-day scan in
-  Settings for older runs.
+  the mapping stays testable off-device. Per-session aggregates are filtered to
+  the session's own `dataOrigin` so two apps syncing the same run can't mix.
+- **ONE dedupe rule set** (`src/imports/dedupe.ts` `isDuplicateRun`, run-shaped —
+  watch scans map sessions first, then dedupe once; never add a parallel
+  session-shaped check, the two drifted before): (1) per-device seen-id list
+  (`rc_watch_seen_hc_ids`, survives run deletion), (2) `hcId`/`extId` id-spaces,
+  (3) `startedAt` time-overlap (GPS saves + timestamped CSV imports stamp
+  `startedAt` too), (4) fuzzy same-date-±10%-distance for runs without a time
+  window — auto-scans keep it (don't re-offer manually-logged runs), the file
+  path disables it (`{fuzzy:false}` — never silently drop a user-picked row).
+  **No sync cursor** — a rolling 7-day window rescanned each trigger handles a
+  late watch sync (5-min auto-scan cooldown); manual 30-day scan in Settings.
 - **Same two-key rule as HR:** `settings.watchImport` is a synced *preference*;
   the real HC grant is per-install (`WATCH_HC_AUTH_KEY`, `rc_watch_hc_auth`) and
   must be present before the native bridge is touched. `scanWatchSessions` copies

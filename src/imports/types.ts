@@ -18,7 +18,7 @@ export type ImportParseResult = { runs: ImportedRun[]; error?: string | null };
 //    only for now — see providers/cloud.ts.
 //
 // Adding an integration = implementing this interface and registering it in
-// registry.ts. The dedupe (src/watch/mapping.ts isDuplicate) and the save
+// registry.ts. The dedupe (src/imports/dedupe.ts isDuplicateRun) and the save
 // pipeline (toast → goLog review / addRuns batch, race detect, plan auto-tick)
 // are provider-agnostic and need no changes.
 export type ImportProvider = {

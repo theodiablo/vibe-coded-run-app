@@ -1,6 +1,7 @@
 import type { Run } from "../types";
 import type { WatchSessionRaw } from "./plugin";
 import { importedNote } from "../imports/dataOrigin";
+import { isDuplicateRun } from "../imports/dedupe";
 
 // Health Connect ExerciseSessionRecord exercise-type ids we treat as runs.
 // (androidx.health.connect.client.records.ExerciseSessionRecord constants.)
@@ -8,10 +9,6 @@ export const EXERCISE_TYPE_RUNNING = 56;
 export const EXERCISE_TYPE_RUNNING_TREADMILL = 57;
 export const EXERCISE_TYPE_WALKING = 79;
 export const EXERCISE_TYPE_HIKING = 37;
-
-// Distance within this fraction of each other counts as the same run for the
-// fuzzy (legacy-run) dedupe fallback.
-const FUZZY_KM_TOLERANCE = 0.1;
 
 // Map a Health Connect exercise type to one of our run types, or null when it's
 // not something we import (cycling, swimming, strength, …). Running/treadmill →
@@ -72,43 +69,19 @@ export function sessionToRun(s: WatchSessionRaw): Partial<Run> {
   return run;
 }
 
-// Is this session already represented in the log? Priority order:
-//  1. seen id — this device already handled it (survives the user deleting the run).
-//  2. an existing run carries this hcId — repeated scans are idempotent.
-//  3. time-window overlap with a run that knows its own start (phone-tracked or
-//     previously imported) — catches the same run tracked two ways.
-//  4. fuzzy fallback for runs with no startedAt: same local date and distance
-//     within 10%. Deliberate trade-off: its job is to not re-offer a run the
-//     user already logged BY HAND (the common case — manual logs carry no
-//     startedAt), accepting that a genuinely distinct same-day similar-distance
-//     run is occasionally not auto-offered; that rare run can still be file-
-//     imported (the file path disables fuzzy) or logged manually.
-export function isDuplicate(s: WatchSessionRaw, runs: Run[], seenIds: string[]): boolean {
-  if (seenIds.includes(s.id)) return true;
-  const sStart = +new Date(s.startTime);
-  const sEnd = +new Date(s.endTime);
-  const sKm = s.distanceM != null ? s.distanceM / 1000 : null;
-  const sDate = sessionLocalDate(s.startTime, s.startZoneOffsetSec);
-  for (const r of runs) {
-    if (r.hcId && r.hcId === s.id) return true;
-    // 3. Time overlap against a run with a known start instant.
-    if (r.startedAt && r.durationSec) {
-      const rStart = +new Date(r.startedAt);
-      const rEnd = rStart + r.durationSec * 1000;
-      if (Number.isFinite(rStart) && Number.isFinite(sStart) && Number.isFinite(sEnd) && rStart < sEnd && sStart < rEnd) return true;
-    } else if (!r.startedAt && sKm != null && r.date === sDate) {
-      // 4. Fuzzy: same day, similar distance.
-      const rKm = Number(r.km) || 0;
-      if (Math.abs(rKm - sKm) <= FUZZY_KM_TOLERANCE * Math.max(rKm, sKm)) return true;
-    }
-  }
-  return false;
-}
-
-// Sessions that are runnable (a run/walk type) and not already logged, mapped to
-// partial Runs. seenIds and existing runs both feed dedupe.
+// Sessions that are runnable (a run/walk type) and not already logged: map
+// first, then dedupe once through the ONE rule set (isDuplicateRun in
+// src/imports/dedupe.ts — ids, time overlap, fuzzy day+distance fallback).
+// There is deliberately no session-shaped duplicate check here: two parallel
+// implementations of the same four rules drifted on edge cases, so the mapped
+// run shape is the only thing ever deduped.
 export function newWatchSessions(sessions: WatchSessionRaw[], runs: Run[], seenIds: string[]): Partial<Run>[] {
-  return (sessions || [])
-    .filter(s => s && s.id && sessionRunType(s.exerciseType) != null && !isDuplicate(s, runs, seenIds))
-    .map(sessionToRun);
+  const out: Partial<Run>[] = [];
+  for (const s of sessions || []) {
+    if (!s || !s.id || sessionRunType(s.exerciseType) == null) continue;
+    const run = sessionToRun(s);
+    // Dedupe against the log AND earlier candidates in this same batch.
+    if (!isDuplicateRun(run, (runs || []).concat(out as Run[]), seenIds)) out.push(run);
+  }
+  return out;
 }

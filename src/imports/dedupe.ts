@@ -1,10 +1,9 @@
 import type { Run } from "../types";
 import type { ImportedRun } from "./types";
 
-// Same rule set as the session-based isDuplicate (src/watch/mapping.ts), but
-// run-shaped, so the registry can dedupe candidates from *any* provider against
-// the stored log and against each other (the same run can arrive from two
-// sources, e.g. Health Connect and a future cloud API):
+// THE one duplicate-run rule set. Everything dedupes on the mapped run shape —
+// watch scans (newWatchSessions), the registry's cross-provider pass, and file
+// imports — so the rules can't drift between implementations:
 //  1. external-id match — hcId/extId equal, each in its own id-space;
 //  2. time-window overlap when both sides know their start instant;
 //  3. fuzzy fallback: same date and distance within 10% (opt-out).
