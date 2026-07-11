@@ -126,13 +126,15 @@ and delete anything that becomes stale.
   `supabase/functions/_shared/coach/*.mjs`, go straight to
   `mcp__Supabase__deploy_edge_function` with that project id,
   `name: "coach-agent"`, `entrypoint_path: "source/index.ts"`, `verify_jwt:
-  true`, and a `files` array of **exactly these five**, read fresh off disk
+  true`, and a `files` array of **exactly these six**, read fresh off disk
   (content must match current `git` state, not a stale copy from earlier in
   the conversation):
   `source/index.ts` ← `supabase/functions/coach-agent/index.ts`,
   `_shared/coach/engine.mjs`, `_shared/coach/validation.mjs`,
-  `_shared/coach/tools.mjs`, `_shared/coach/mock.mjs` (same relative names,
-  read from `supabase/functions/_shared/coach/`). This naming is load-bearing:
+  `_shared/coach/tools.mjs`, `_shared/coach/mock.mjs`,
+  `_shared/coach/styles.mjs` (same relative names,
+  read from `supabase/functions/_shared/coach/`). Omitting `styles.mjs`
+  breaks the function at boot — `tools.mjs` imports it. This naming is load-bearing:
   the entrypoint's `../_shared/coach/*.mjs` imports only resolve because
   `_shared` sits as a sibling of `source/` in the upload, mirroring the real
   `supabase/functions/` layout. No `list_edge_functions` / `get_edge_function`
@@ -204,6 +206,24 @@ and delete anything that becomes stale.
   ≤36 km ceiling for ultras), NOT capped by the long-session minutes — so it can
   exceed the configured long-day duration; PlanView shows an honest nudge when it
   does. `plan.longRunPeakKm` exposes the peak for that nudge.
+- **Methodology styles (`opts.style` / `settings.planStyle` / `plan.style`):**
+  buildPlan composes weeks per style — `balanced` (default; the pre-styles
+  algorithm, frozen byte-identical by snapshot tests in `plan.test.ts` — absent/
+  unknown style resolves to it), `polarized`, `runwalk`, `lowfreq`, `hansons`.
+  **Pace multipliers live in `supabase/functions/_shared/coach/styles.mjs`**
+  (single source shared with the coach agent's `tools.mjs`; app re-export
+  `src/utils/planStyles.ts` — never hardcode the ratios elsewhere); plan shape
+  (long-run peak/taper/cutbacks), `STYLE_META` blurbs and the pure
+  `recommendStyle` profile heuristic are app-side in `planStyles.ts`. New styles
+  must stay validator-clean **by construction** (space hard days via
+  `pickHardDays`; buildPlan's adjacency sweep demotes stragglers to EASY —
+  balanced is exempt to preserve its output) — the matrix in
+  `coachValidation.test.ts` enforces this across distances/day layouts. The UI
+  seam is `StylePicker` (PlanView setup/edit + both onboarding branches):
+  selection state is `StyleId | null` where null = "untouched, track the live
+  recommendation"; a tap pins it. All buildPlan call sites must pass
+  `style: settings.planStyle` (or the draft) — a missed site silently rebuilds
+  as balanced.
 - **Multi-race plans (no user-facing priority):** the plan peaks/tapers for the
   **main** race (`settings.targetEditionId`, the "Training target"); other races the
   user flags with `participation.inPlan` are folded in as RACE sessions (id
