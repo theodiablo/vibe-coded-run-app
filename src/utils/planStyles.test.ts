@@ -184,6 +184,40 @@ describe("buildPlan level floor", () => {
   });
 });
 
+describe("interval prescriptions are internally coherent", () => {
+  // The desc's rep workout must always FIT the shown session total — reps
+  // derive from the day's time budget and the total is computed from them,
+  // never clipped afterwards (same "5x800m" with two different totals was a
+  // real user-reported confusion).
+  const parseWork = (desc: string) => {
+    const m = desc.match(/(\d+)x(\d+(?:\.\d+)?)(km|m)\b/);
+    if (!m) return null;
+    return Number(m[1]) * (m[3] === "km" ? Number(m[2]) : Number(m[2]) / 1000);
+  };
+  const layouts = [
+    [{ dayOffset: 2, minutes: 30 }, { dayOffset: 6, minutes: 60 }],
+    [{ dayOffset: 1, minutes: 45 }, { dayOffset: 3, minutes: 60 }, { dayOffset: 6, minutes: 90 }],
+    DAYS5,
+  ];
+
+  it.each(["balanced", "polarized", "lowfreq", "hansons"])("%s", (style) => {
+    layouts.forEach(layout => {
+      const plan = buildPlan(raceDateInDays(140), 6600, layout, 21.1, 0, { style });
+      let seen = 0;
+      allSessions(plan).filter(s => s.type === "INTERVALS").forEach(s => {
+        const work = parseWork(s.desc);
+        expect(work).not.toBeNull();
+        seen++;
+        // Total ≥ the promised rep work, and total = work + a warmup/recovery
+        // allowance of at most ~1.6 km (i.e. derived from the reps, not clipped).
+        expect(Number(s.km)).toBeGreaterThanOrEqual(work! - 0.05);
+        expect(Number(s.km) - work!).toBeLessThanOrEqual(1.6);
+      });
+      if (style !== "hansons" || layout.length > 2) expect(seen).toBeGreaterThan(0);
+    });
+  });
+});
+
 describe("style pacing table", () => {
   it("balanced keeps the pre-styles ratios", () => {
     expect(STYLE_PACING.balanced).toEqual({ easy: 1.25, tempo: 1.05, intervals: 1, long: 1.25, walk: null });

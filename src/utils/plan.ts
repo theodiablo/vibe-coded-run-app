@@ -308,9 +308,13 @@ function composeBalanced(c: WeekCtx) {
         km   = Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8);
         desc = "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard";
       } else {
-        const reps = q.minutes <= 30 ? 3 : 5;
+        // Reps derive from the day's time budget, and the total distance is
+        // computed FROM the reps (plus a 1.5 km warmup/recovery allowance) —
+        // never clipped after the fact, so the description and the shown km
+        // always agree. A short day honestly gets fewer reps.
+        const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - 1.5) / 0.8)));
         type = "INTERVALS"; pace = tgt;
-        km   = Math.min(maxQ * 0.85, reps * 0.8 + 1.5);
+        km   = reps * 0.8 + 1.5;
         desc = "Intervals — " + reps + "x800m at " + fmt.pace(tgt) + "/km + 90s recovery";
       }
     }
@@ -351,9 +355,9 @@ function composePolarized(c: WeekCtx) {
         Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
         "Tempo run — " + fmt.pace(tmpo) + "/km, your one hard session this week", tmpo);
     } else {
-      const reps = q.minutes <= 30 ? 3 : 5;
-      addS(q.dayOffset, "INTERVALS",
-        Math.min(maxQ * 0.85, reps * 0.8 + 1.5),
+      // Budget-derived reps; total = reps + allowance (see composeBalanced).
+      const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - 1.5) / 0.8)));
+      addS(q.dayOffset, "INTERVALS", reps * 0.8 + 1.5,
         "Intervals — " + reps + "x800m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
     }
   });
@@ -420,10 +424,11 @@ function composeLowfreq(c: WeekCtx) {
     // could be placed, it alternates so both stimuli still appear.
     const doIntervals = hardDays.length >= 2 ? slot === 0 : buildW % 2 === 1;
     if (doIntervals) {
-      const reps  = q.minutes <= 30 ? 6 : q.minutes <= 45 ? 5 : 6;
-      const repKm = q.minutes <= 30 ? 0.4 : q.minutes <= 45 ? 0.8 : 1;
-      addS(q.dayOffset, "INTERVALS",
-        Math.min(maxQ * 0.85, reps * repKm + 1.5),
+      // Budget-derived reps; total = reps + allowance (see composeBalanced).
+      const nominal = q.minutes <= 30 ? 6 : q.minutes <= 45 ? 5 : 6;
+      const repKm   = q.minutes <= 30 ? 0.4 : q.minutes <= 45 ? 0.8 : 1;
+      const reps = Math.max(3, Math.min(nominal, Math.floor((maxQ * 0.85 - 1.5) / repKm)));
+      addS(q.dayOffset, "INTERVALS", reps * repKm + 1.5,
         "Intervals — " + reps + "x" + (repKm < 1 ? repKm * 1000 + "m" : "1km")
           + " at " + fmt.pace(intv) + "/km + recovery jogs", intv);
     } else {
@@ -474,13 +479,16 @@ function composeHansons(c: WeekCtx) {
     }
     if (slot === 0) {
       // Speed early, strength (near goal pace) once the peak phase starts.
+      // Reps/sets derive from the day's budget so desc and km agree.
       if (phase === "PEAK") {
-        addS(q.dayOffset, "INTERVALS", Math.min(maxQ * 0.85, 10),
-          "Strength — 3x3km at goal pace minus 10s (" + fmt.pace(Math.max(1, tmpo - 10))
+        const sets = maxQ * 0.85 >= 10 ? 3 : 2;
+        addS(q.dayOffset, "INTERVALS", sets * 3 + 1,
+          "Strength — " + sets + "x3km at goal pace minus 10s (" + fmt.pace(Math.max(1, tmpo - 10))
             + "/km) + 1km jog recovery", Math.max(1, tmpo - 10));
       } else {
-        addS(q.dayOffset, "INTERVALS", Math.min(maxQ * 0.85, 8 * 0.6 + 1.5),
-          "Speed — 8x600m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
+        const reps = Math.max(4, Math.min(8, Math.floor((maxQ * 0.85 - 1.5) / 0.6)));
+        addS(q.dayOffset, "INTERVALS", reps * 0.6 + 1.5,
+          "Speed — " + reps + "x600m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
       }
     } else {
       // The signature Hansons tempo: goal race pace, growing with the ramp,
