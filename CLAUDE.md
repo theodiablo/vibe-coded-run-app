@@ -44,7 +44,15 @@ and delete anything that becomes stale.
 - **Entry gate (`src/App.tsx`):** one branch on the auth session. Signed-out
   **web** visitors get the marketing landing (`src/marketing/MarketingGate.tsx`,
   a `lazy` chunk) which opens the existing `LoginScreen` in a full-screen modal;
-  signed-out **native** goes straight to `LoginScreen`. The runtime split is
+  signed-out **native** goes straight to `LoginScreen`. The lazy `MarketingGate`
+  is wrapped in `ChunkLoadBoundary` (`src/components/ChunkLoadBoundary.tsx`)
+  whose fallback is the statically-imported `LoginScreen`: a signed-in session
+  never fetches the marketing chunk, so **sign-out** is the first time it loads,
+  and a stale chunk after a mid-session redeploy (or a network drop) would
+  otherwise reject the dynamic import straight into the app-wide `ErrorBoundary`
+  and white-screen the app. The boundary swallows only chunk-load errors and
+  re-throws genuine render bugs so they still reach `ErrorBoundary`. Keep any
+  future top-level `lazy()` gate behind this same pattern. The runtime split is
   `isNative`; the **build-time** exclusion is `import.meta.env.VITE_NATIVE_BUILD`
   (set `"1"` only in `android.yml`) — it constant-folds `MarketingGate` to `null`
   so Rollup drops the whole marketing chunk from the APK (verified: zero
