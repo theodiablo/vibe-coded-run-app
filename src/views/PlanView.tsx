@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowDown, Check, ChevronRight, MessageCircle, Plus, RotateCcw, X } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
+import { sessionSteps } from "../utils/sessionSteps";
 import { findEdition } from "../utils/races";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
@@ -63,6 +64,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   };
 
   const [exp,          setExp]         = useState<number | null>(currentWeekIndex);
+  // Session card expanded to its "how it unfolds" breakdown (one at a time).
+  const [openSess,     setOpenSess]    = useState<string | null>(null);
   // A promote ("Set as target") opens the setup pre-filled, so start in edit mode.
   const [editSessions, setEdit]        = useState(!!planPrefill);
   // The current-week card, so we can scroll the runner to "now" in a long plan.
@@ -412,19 +415,36 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                     const checkCls = "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
                     const descCls = "text-sm mt-0.5 leading-snug " + (s.done ? "line-through text-slate-600" : isSkipped ? "line-through text-slate-500" : "text-slate-300");
                     const typeCls = "text-xs font-bold uppercase " + planTypeClass(s.type);
+                    const sessOpen = openSess === s.id;
                     return (
                       <div key={s.id} className={rowCls}>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={typeCls}>{s.type}</span>
-                            <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
-                            {isSkipped && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">skipped</span>
-                            )}
+                          {/* Tapping the session text expands a step-by-step
+                              "how it unfolds" breakdown (warm-up → workout →
+                              cool-down → stretch). The action buttons and the
+                              HR line stay outside the tap target. */}
+                          <div className="cursor-pointer select-none" onClick={() => setOpenSess(sessOpen ? null : s.id)}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={typeCls}>{s.type}</span>
+                              <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
+                              {isSkipped && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">skipped</span>
+                              )}
+                              <ChevronRight size={12} className={"text-slate-600 transition-transform " + (sessOpen ? "rotate-90" : "")}/>
+                            </div>
+                            <p className={descCls}>{cleanDesc(s.desc)}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{s.km + " km · ~" + estMin(Number(s.km), s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           </div>
-                          <p className={descCls}>{cleanDesc(s.desc)}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{s.km + " km · ~" + estMin(Number(s.km), s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
+                          {sessOpen && (
+                            <div className="mt-2 space-y-1.5 border-l-2 border-slate-700 pl-3">
+                              {sessionSteps(s).map(st => (
+                                <p key={st.label} className="text-xs text-slate-400 leading-snug">
+                                  <span className="text-slate-300 font-semibold">{st.label}: </span>{st.detail}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 self-center">
                           {!s.done && !isSkipped && (

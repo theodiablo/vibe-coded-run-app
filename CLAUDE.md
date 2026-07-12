@@ -615,6 +615,12 @@ and delete anything that becomes stale.
   a pre-filled mid-pack suggestion), `INPUT_CLS` /
   `LABEL_CLS` (`src/constants.ts`) for input styling, type colors `TCLR`, day
   names `DAYS`, and the `fmt` helpers (`src/utils/format.ts`) for durations/paces.
+- Tapping a plan-session card in PlanView expands a "how it unfolds" breakdown
+  (warm-up → workout → cool-down → stretch) from the pure `sessionSteps`
+  helper (`src/utils/sessionSteps.ts`). It is parse-based over the session row
+  (type/desc/km/pace) so it works for coach-edited sessions too — when adding
+  a new desc format, extend its parsers (and tests) rather than special-casing
+  the UI.
 - A logged run renders as `RunRow` (`src/components/RunRow.tsx`) — the shared
   card used by both the dashboard's recent-runs list and the History view. Pass
   `dateFmt` (`fmt.sht` vs `fmt.date`), `showNotes`, and an `actions` slot rather
