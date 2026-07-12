@@ -10,6 +10,7 @@ import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
 import { identifyUser, resetUser } from "./telemetry";
 import { ConsentBanner } from "./components/ConsentBanner";
+import { ChunkLoadBoundary } from "./components/ChunkLoadBoundary";
 import RunningCoach from "./RunningCoach";
 import LoginScreen from "./LoginScreen";
 
@@ -205,9 +206,15 @@ export default function App() {
     if (!isNative && MarketingGate) {
       return (
         <>
-          <Suspense fallback={<Splash />}>
-            <MarketingGate />
-          </Suspense>
+          {/* If the marketing chunk can't be fetched (a stale chunk after a
+              mid-session redeploy, or a network drop) fall back to the plain,
+              statically-imported LoginScreen rather than crashing the app —
+              signing out must never throw into the error boundary. */}
+          <ChunkLoadBoundary fallback={<LoginScreen authError={authError} onClearAuthError={() => setAuthError(null)} />}>
+            <Suspense fallback={<Splash />}>
+              <MarketingGate />
+            </Suspense>
+          </ChunkLoadBoundary>
           <ConsentBanner onConsentChange={() => {}} />
         </>
       );
