@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Smartphone, ArrowRight } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { X, Smartphone, ArrowRight, MessageCircle, Download } from "lucide-react";
 // Self-hosted Archivo (the design's typeface). These live in this web-only lazy
 // chunk, so the font never ships in the native APK, and they're served from our
 // own origin — no Google Fonts request, so nothing to add to the CSP.
@@ -9,7 +9,6 @@ import "@fontsource/archivo/700.css";
 import "@fontsource/archivo/800.css";
 import "@fontsource/archivo/900.css";
 import LoginScreen from "../LoginScreen";
-import { BottomNav } from "../components/BottomNav";
 import { BrandLogo } from "../components/BrandLogo";
 import { PRIVACY_URL, DISCLAIMER_URL, PLAY_STORE_BETA_URL } from "../constants";
 // Brand + hero headline are shared with the OG-image generator (scripts/og-image)
@@ -17,7 +16,6 @@ import { PRIVACY_URL, DISCLAIMER_URL, PLAY_STORE_BETA_URL } from "../constants";
 import copy from "./copy.json";
 // Real app screenshots, imported so Vite bundles them into this web-only chunk
 // (dropped from the APK along with the rest of the marketing code).
-import homeShot from "./assets/01-home.png";
 import planShot from "./assets/02-plan.png";
 import coachShot from "./assets/03-coach-chat.png";
 import racesShot from "./assets/05b-races-find-a-race.png";
@@ -31,20 +29,14 @@ import badgesShot from "./assets/08-progress-badges.png";
 
 const FONT_STACK = "'Archivo', ui-sans-serif, system-ui, sans-serif";
 
-// A phone frame showing a real app screenshot, with the *real* BottomNav
-// overlaid at the base (rendered decoratively). The screenshot is cropped above
-// its own nav so the live nav component is the only one shown — always the
-// current design, no hand-drawn copy to keep in sync.
-function PhoneMock({ src, alt, active }: { src: string; alt: string; active: string }) {
+// A phone frame around arbitrary content. The hero renders the coach-chat
+// exchange mock inside it (the coach chat is a full-screen modal in the app, so
+// no bottom nav is shown — same as the real thing).
+function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div className="w-[288px] sm:w-[330px]">
       <div className="rounded-[36px] border-[10px] border-[#1B2740] bg-[#0B1220] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.55)]">
-        <div className="relative h-[520px] sm:h-[560px]">
-          <img src={src} alt={alt} className="absolute top-0 left-0 w-full" />
-          <div className="absolute bottom-0 inset-x-0 pointer-events-none" aria-hidden="true">
-            <BottomNav active={active} />
-          </div>
-        </div>
+        <div className="relative h-[520px] sm:h-[560px]">{children}</div>
       </div>
     </div>
   );
@@ -52,7 +44,7 @@ function PhoneMock({ src, alt, active }: { src: string; alt: string; active: str
 
 const STATS = [
   { value: "5K → Marathon", label: "plans built to your race date" },
-  { value: "Adapts to you", label: "the plan flexes when life happens" },
+  { value: "Adapts to you", label: "your coach reshapes the plan in seconds" },
   { value: "Web + Android", label: "your plan on every device" },
 ];
 
@@ -110,8 +102,9 @@ export default function MarketingGate() {
               <span className="text-[#F97316]">{copy.heroLine2}</span>
             </h1>
             <p className="text-[17px] sm:text-[19px] leading-relaxed text-[#B7C2D2] max-w-[52ch]">
-              Pick your race, set your goal time, and get a week-by-week training plan that adapts when life
-              happens — with a coach you can talk to whenever it doesn't go to plan.
+              Pick your race, set your goal time, and get a week-by-week training plan. When life gets in the
+              way, ask your coach — it proposes a safe adjustment in seconds, and nothing changes until you
+              approve it.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center mt-2">
               <button
@@ -129,6 +122,10 @@ export default function MarketingGate() {
                 I already have an account
               </button>
             </div>
+            <p className="text-[13px] text-[#8B98AC]">
+              Free includes everything — plans, GPS tracking, races, and the coach (with a daily fair-use
+              limit so it stays free).
+            </p>
             {/* Secondary CTA: private Android closed-beta opt-in. */}
             <a
               href={PLAY_STORE_BETA_URL}
@@ -150,7 +147,9 @@ export default function MarketingGate() {
             </div>
           </div>
           <div className="flex justify-center lg:justify-end">
-            <PhoneMock src={homeShot} alt="Running Coach home screen" active="dash" />
+            <PhoneFrame>
+              <CoachChatMock />
+            </PhoneFrame>
           </div>
         </section>
 
@@ -165,19 +164,19 @@ export default function MarketingGate() {
             </p>
           </div>
 
-          {/* Three primary feature cards */}
+          {/* Three primary feature cards — the coach leads. */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <FeatureCard
+              img={coachShot}
+              imgAlt="Coach chat"
+              title="An AI coach that adapts your plan"
+              body="Knee acting up? Missed a week? Ask, and your coach proposes a safe edit in seconds — it edits the schedule, it never hands you a risky one, and nothing changes until you approve it."
+            />
             <FeatureCard
               img={planShot}
               imgAlt="Training plan"
               title="A real training plan"
-              body="Base, build, peak, taper — structured around your race date, goal time, and the days you can actually train."
-            />
-            <FeatureCard
-              img={coachShot}
-              imgAlt="Coach chat"
-              title="An AI coach that adapts"
-              body="Missed a week? Knee acting up? Chat with a coach that adjusts your plan safely — it edits the schedule, it never hands you a risky one."
+              body="Base, build, peak, taper — around your race date, goal time, and the days you can actually train. Choose your method: Polarized 80/20, Hansons-style, 3-Day Quality, or Run/Walk. No black box — open any session to see exactly how it's built."
             />
             {/* Third card uses a purpose-built live-tracking mock instead of a screenshot. */}
             <div className="bg-[#0F1826] border border-[#1E2A3D] rounded-[20px] overflow-hidden flex flex-col gap-5 pb-6">
@@ -199,7 +198,7 @@ export default function MarketingGate() {
               img={racesShot}
               imgAlt="Race catalogue"
               title="Find your race"
-              body="A community race catalogue — from the Berlin Marathon to the Great North Run. Pick one, and your countdown and plan lock onto it. Don't see yours? Add it for everyone."
+              body="A community race catalogue — from the Berlin Marathon to local 10Ks. Pick one, and your countdown and plan lock onto it. It's still growing, so if yours isn't listed, add it in seconds — for everyone."
             />
             <WideCard
               img={badgesShot}
@@ -210,13 +209,29 @@ export default function MarketingGate() {
           </div>
         </section>
 
+        {/* Import strip — switching cost is the #1 reason runners don't try a
+            new app, so say out loud that their history comes with them. */}
+        <section className="border border-[#1E2A3D] bg-[#0F1826] rounded-[20px] px-6 py-6 sm:px-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 mb-14 sm:mb-16">
+          <div className="w-11 h-11 rounded-[14px] bg-[#131C2B] border border-[#2A3A55] flex items-center justify-center flex-shrink-0">
+            <Download size={20} className="text-[#F97316]" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-[18px] font-extrabold">Bring your running history with you</h3>
+            <p className="text-[#8B98AC] text-[15px] leading-relaxed">
+              Import your runs from Strava, Garmin, Zepp or anywhere else — GPX, TCX or CSV exports all work.
+              On Android, finished runs can also sync straight from your watch.
+            </p>
+          </div>
+        </section>
+
         {/* Closing CTA band */}
         <section className="bg-gradient-to-b from-[#F97316] to-[#EA580C] rounded-[24px] px-6 py-14 sm:px-16 sm:py-16 flex flex-col items-center gap-5 text-center mb-20 sm:mb-24">
           <h2 className="text-[#0B1220] text-3xl sm:text-[40px] font-black tracking-[-1px]">
             Ready to run your best race?
           </h2>
-          <p className="text-[#3B2107] text-[16px] sm:text-[18px] font-semibold max-w-[46ch]">
-            Create a free account and get your training plan in minutes. Android app in closed beta.
+          <p className="text-[#3B2107] text-[16px] sm:text-[18px] font-semibold max-w-[48ch]">
+            Create a free account and get your training plan in minutes — everything's included, with a daily
+            fair-use limit on the coach. Android app in closed beta.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
             <button
@@ -311,6 +326,70 @@ function WideCard({
       <div className="flex flex-col gap-2">
         <h3 className="text-[20px] font-extrabold">{title}</h3>
         <p className="text-[#8B98AC] text-[15px] leading-relaxed">{body}</p>
+      </div>
+    </div>
+  );
+}
+
+// Hero visual: a hand-built coach-chat exchange showing the real
+// propose-and-confirm flow ("my knee hurts" → a safe proposed edit the user
+// must approve). Purpose-built like LiveTrackerMock, not a screenshot, and
+// deliberately honest: the coach only ever *proposes* — the Apply step is the
+// user's, exactly as in CoachChat.
+function CoachChatMock() {
+  return (
+    <div className="absolute inset-0 flex flex-col bg-[#0B1220] text-left" aria-hidden="true">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1E2A3D]">
+        <MessageCircle size={16} className="text-[#F97316]" />
+        <span className="font-extrabold text-[15px]">Coach</span>
+      </div>
+      <div className="flex-1 flex flex-col gap-3 px-3.5 py-4 overflow-hidden">
+        <div className="self-end max-w-[85%] bg-[#F97316] text-[#0B1220] font-semibold text-[13px] leading-snug px-3.5 py-2.5 rounded-[16px] rounded-br-[4px]">
+          My knee's been sore since Sunday's long run.
+        </div>
+        <div className="self-start max-w-[90%] bg-[#131C2B] border border-[#1E2A3D] text-[#D7DFEA] text-[13px] leading-snug px-3.5 py-2.5 rounded-[16px] rounded-bl-[4px]">
+          Let's take the pressure off while it settles — no speed work until it's pain-free. Here's what I'd
+          change this week:
+        </div>
+        <div className="self-start w-[94%] bg-[#0F1826] border border-[#2A3A55] rounded-[14px] p-3 flex flex-col gap-2.5">
+          <span className="text-[10px] font-bold tracking-[1.5px] text-[#8B98AC] uppercase">
+            Proposed changes
+          </span>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-[#8B98AC]">Tue</span>
+            <span className="font-semibold">
+              <s className="text-[#64748B] font-normal">Intervals 6×400m</s>
+              <span className="text-[#34D399]"> → Rest</span>
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-[#8B98AC]">Sat</span>
+            <span className="font-semibold">
+              <s className="text-[#64748B] font-normal">Tempo 40 min</s>
+              <span className="text-[#34D399]"> → Easy 25 min</span>
+            </span>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <span className="flex-1 text-center bg-[#F97316] text-[#0B1220] text-[13px] font-extrabold px-3 py-2 rounded-[10px]">
+              Apply changes
+            </span>
+            <span className="text-center border border-[#2A3A55] text-[#B7C2D2] text-[13px] font-bold px-3 py-2 rounded-[10px]">
+              Not now
+            </span>
+          </div>
+        </div>
+        {/* Fits the 560px sm frame but clips in the 520px one — hide below sm. */}
+        <div className="hidden sm:block self-start max-w-[90%] bg-[#131C2B] border border-[#1E2A3D] text-[#D7DFEA] text-[13px] leading-snug px-3.5 py-2.5 rounded-[16px] rounded-bl-[4px]">
+          And if it lingers more than a few days, get it checked before we rebuild.
+        </div>
+      </div>
+      <div className="px-3.5 pb-4">
+        <div className="flex items-center justify-between border border-[#2A3A55] rounded-[12px] px-3.5 py-2.5">
+          <span className="text-[13px] text-[#64748B]">Message your coach…</span>
+          <span className="w-7 h-7 rounded-[9px] bg-[#F97316] flex items-center justify-center">
+            <ArrowRight size={14} className="text-[#0B1220]" />
+          </span>
+        </div>
       </div>
     </div>
   );
