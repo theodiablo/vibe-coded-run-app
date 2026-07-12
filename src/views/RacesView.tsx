@@ -300,9 +300,11 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
   // editions falls in it.
   const matchesBand = (race: CatalogueRace) => band == null || (race.editions || []).some(e => Math.abs(e.distanceKm - band) <= band * 0.12);
   const base = filterRaces(catalogue, query).filter(matchesBand);
+  const todayStr = ymd(new Date());
 
   // With Near me on, split into distance-sorted (within radius) + a
   // location-unknown bucket; races with coordinates beyond the radius drop out.
+  // Otherwise sort by soonest upcoming edition (races with only past dates last).
   let located: { race: CatalogueRace; distM: number | null }[];
   const unlocated: CatalogueRace[] = [];
   if (nearMe && loc) {
@@ -316,7 +318,9 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
     withCoord.sort((a, b) => a.distM - b.distM);
     located = withCoord;
   } else {
-    located = base.map(race => ({ race, distM: null }));
+    located = base
+      .map(race => ({ race, distM: null }))
+      .sort((a, b) => (nextEditionDate(a.race, todayStr) || "9999").localeCompare(nextEditionDate(b.race, todayStr) || "9999"));
   }
 
   const cardProps = { byId, addWishlist, logFor, setLogFor, saveResult, reportFor, setReportFor, showToast };
@@ -363,6 +367,9 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
           {nearMe && located.length === 0 && unlocated.length > 0 && (
             <p className="text-xs text-slate-500">No races within {radius} km. Races without a set location are listed below.</p>
           )}
+          {nearMe && located.length > 0 && (
+            <p className="text-[11px] text-slate-500 uppercase tracking-widest">Nearest first</p>
+          )}
           <div className="space-y-2">
             {located.map(({ race, distM }) => (
               <RaceCard key={race.id} race={race} distM={distM}
@@ -396,9 +403,10 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
   );
 }
 
-// A single catalogue race, grouped: collapsed header (name, place, distances,
-// optional "X km away", unverified flag) expanding to its editions, official
-// site link, and a report affordance.
+// A single catalogue race, grouped: collapsed header (name, place, distance
+// chips, next upcoming date, unverified flag) expanding to its editions,
+// official site link, distance from the user's location (when Near me gave us
+// a fix), and a report affordance.
 type RaceCardProps = Omit<FindPanelProps, "catalogue" | "openRaceForm"> & {
   race: CatalogueRace;
   distM: number | null;
@@ -409,19 +417,37 @@ type RaceCardProps = Omit<FindPanelProps, "catalogue" | "openRaceForm"> & {
 };
 
 function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setLogFor, saveResult, reportFor, setReportFor, showToast }: RaceCardProps) {
+  const todayStr = ymd(new Date());
+  const upcoming = (race.editions || []).filter(e => e.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date));
+  const next = upcoming[0];
+  const onList = (race.editions || []).some(e => byId[e.id]);
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
       <button onClick={onToggle} className="w-full px-4 py-3 flex items-center gap-2 text-left">
         <div className="flex-1 min-w-0">
           <p className="font-semibold leading-snug line-clamp-2">{race.name}</p>
-          <p className="text-slate-400 text-xs">{[race.city, race.country].filter(Boolean).join(", ") + " · " + (race.distances || []).join(" km & ") + " km"}</p>
-        </div>
-        {distM != null && (
-          <div className="text-right flex-shrink-0">
-            <p className="text-sm font-bold text-orange-400 leading-none">{fmtKm(distM)}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">away</p>
+          <p className="text-slate-400 text-xs mt-0.5">{[race.city, race.country].filter(Boolean).join(", ")}</p>
+          <div className="flex gap-1.5 flex-wrap items-center mt-1.5">
+            {(race.distances || []).map(d => (
+              <span key={d} className="text-[11px] font-semibold text-slate-200 bg-slate-700/70 px-2 py-0.5 rounded-md">{d} km</span>
+            ))}
+            {onList && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-400">
+                <Check size={11}/>On your list
+              </span>
+            )}
           </div>
-        )}
+        </div>
+        <div className="text-right flex-shrink-0">
+          {next ? (
+            <>
+              <p className="text-sm font-bold text-orange-400 leading-none whitespace-nowrap">{fmt.sht(next.date)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{next.date.slice(0, 4) + (upcoming.length > 1 ? " · +" + (upcoming.length - 1) : "")}</p>
+            </>
+          ) : (
+            <p className="text-[10px] text-slate-500">no upcoming<br/>date</p>
+          )}
+        </div>
         {!race.verified && (
           <span title="Unverified — details are user-submitted, check the official site" className="flex-shrink-0">
             <AlertTriangle size={13} className="text-amber-400"/>
@@ -432,12 +458,19 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
       {open && (
         <div className="border-t border-slate-700/50 px-4 py-3 space-y-3">
           {!race.verified && <UnverifiedTag/>}
-          {race.url && (
-            <a href={race.url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300">
-              Official site<ExternalLink size={11}/>
-            </a>
-          )}
+          {(race.url || distM != null) && <div className="flex items-center gap-4 flex-wrap">
+            {race.url && (
+              <a href={race.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300">
+                Official site<ExternalLink size={11}/>
+              </a>
+            )}
+            {distM != null && (
+              <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                <Navigation size={11}/>{fmtKm(distM)} away
+              </span>
+            )}
+          </div>}
           <p className="text-[11px] text-slate-500">Dates are user-submitted — always verify on the official site before planning.</p>
           {race.editions.map(e => {
             const raceBase = { ...race, editions: undefined };
@@ -446,8 +479,8 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
             return (
               <div key={e.id} className="flex items-center gap-2 border-t border-slate-700/30 pt-3 flex-wrap">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm">{fmt.date(e.date)}</p>
-                  <p className="text-xs text-slate-500">{e.distanceKm + " km" + (e.elevation ? " · +" + e.elevation + "m" : "")}</p>
+                  <p className="text-sm font-semibold">{fmt.date(e.date)}</p>
+                  <p className="text-xs text-slate-400">{e.distanceKm + " km" + (e.elevation ? " · +" + e.elevation + "m elevation" : "")}</p>
                 </div>
                 {part ? (
                   <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1 px-2">
@@ -593,6 +626,11 @@ function filterRaces(list: CatalogueRace[], query: string) {
   const q = query.trim().toLowerCase();
   if (!q) return list;
   return list.filter(r => (r.name + " " + (r.city || "") + " " + (r.country || "")).toLowerCase().includes(q));
+}
+// Earliest edition date on/after today, or null if the race only has past dates.
+function nextEditionDate(race: CatalogueRace, todayStr: string) {
+  const dates = (race.editions || []).map(e => e.date).filter(d => d >= todayStr).sort();
+  return dates[0] || null;
 }
 function fmtKm(distM: number) {
   const km = distM / 1000;
