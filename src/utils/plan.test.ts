@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { buildPlan } from "./plan";
 import { ymd } from "./format";
 
@@ -206,5 +206,38 @@ describe("buildPlan", () => {
     const nonRace = wk!.sessions.filter(s => s.type !== "RACE");
     // No mini-taper: the week's other session keeps its normal prescription.
     expect(nonRace.some(s => s.desc !== "Easy run — keep it light around your race")).toBe(true);
+  });
+});
+
+// Frozen-clock snapshots of the default ("balanced") output, committed BEFORE
+// the multi-style refactor: any later restructuring of buildPlan must reproduce
+// these byte-for-byte, so a snapshot diff here means the default plan changed
+// for existing users. Sanctioned (deliberate) changes so far: the additive
+// `style` field, and budget-derived interval reps (desc and km now always
+// agree — short days get fewer reps instead of a silently clipped total).
+describe("buildPlan balanced output freeze", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-08T10:00:00")); // a Wednesday
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("half marathon, 3 days, fit, secondary race — stable output", () => {
+    const plan = buildPlan(
+      "2026-10-18", 6340,
+      [{dayOffset: 1, minutes: 40}, {dayOffset: 3, minutes: 45}, {dayOffset: 6, minutes: 90}],
+      21.1, 150,
+      {
+        recentRuns: [{date: "2026-06-20", km: 14}],
+        races: [{editionId: "tuneup-10k", date: "2026-08-30", distanceKm: 10, elevation: 50}],
+        mainEditionId: "main-half",
+      },
+    );
+    expect(plan).toMatchSnapshot();
+  });
+
+  it("marathon, default 2 days, from scratch — stable output", () => {
+    const plan = buildPlan("2026-12-06", 14400, undefined, 42.2, 0);
+    expect(plan).toMatchSnapshot();
   });
 });

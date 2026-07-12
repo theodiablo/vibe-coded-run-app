@@ -80,6 +80,17 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
 - The server reads the plan/runs/Coach memory from `app_state` (source of
   truth), not from the request body; the client calls `flushNow()` first
   (`src/coach.ts`).
+- **Methodology styles**: `plan.style` (balanced | polarized | runwalk |
+  lowfreq | hansons; absent = balanced) selects the pace-multiplier row in
+  `_shared/coach/styles.mjs` — the SAME table `buildPlan` uses — so
+  `swap_session`/`add_session` prescribe the style's paces, and `descFor`
+  keeps style vocabulary (run/walk phrasing, Hansons goal-pace tempo).
+  `buildMessages` adds a `PLAN STYLE:` context line and the system prompt
+  tells the model to preserve the style's pattern (e.g. polarized = one hard
+  session/week; runwalk = never introduce tempo/intervals). A plan without a
+  style field gets byte-identical paces/descriptions to pre-styles behaviour.
+  Deploy note: `styles.mjs` is part of the six-file MCP deploy recipe in
+  CLAUDE.md — omitting it breaks the function at boot.
 - **A trajectory only closes (`no_valid_adjustment`) when there's nothing to
   fall back on** — round 0 failing (nothing was ever proposed). A failed
   *critique* on an otherwise-open trajectory leaves it `open`: the prior round

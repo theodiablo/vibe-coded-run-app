@@ -2,11 +2,14 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowDown, Check, ChevronRight, MessageCircle, Plus, RotateCcw, X } from "lucide-react";
 import { DAYS, TCLR } from "../constants";
 import { fmt, estMin, cleanDesc } from "../utils/format";
+import { sessionSteps } from "../utils/sessionSteps";
 import { findEdition } from "../utils/races";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
+import { StylePicker } from "../components/StylePicker";
+import { STYLE_META, isStyleId, recommendStyle, stylePacing, suggestPlanSessions, type StyleId } from "../utils/planStyles";
 import type { Plan, PlanPrefill, PlanSession, RacesState, Run, RunType, SettingsState } from "../types";
 import type { PlanSessionInput } from "../utils/plan";
 
@@ -16,6 +19,7 @@ type GeneratePlanOptions = {
   goalSec?: number | string;
   distanceKm?: number | string;
   raceElevation?: number | string;
+  planStyle?: StyleId;
 };
 
 type PlanViewProps = {
@@ -60,6 +64,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   };
 
   const [exp,          setExp]         = useState<number | null>(currentWeekIndex);
+  // Session card expanded to its "how it unfolds" breakdown (one at a time).
+  const [openSess,     setOpenSess]    = useState<string | null>(null);
   // A promote ("Set as target") opens the setup pre-filled, so start in edit mode.
   const [editSessions, setEdit]        = useState(!!planPrefill);
   // The current-week card, so we can scroll the runner to "now" in a long plan.
@@ -79,7 +85,20 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   const [draftGoal,    setDraftGoal]   = useState<PlanDraftValue>(planPrefill ? "" : settings.goalSec);
   const [draftDist,    setDraftDist]   = useState<PlanDraftValue>(planPrefill?.distanceKm ?? (settings.distanceKm || ""));
   const [draftElev,    setDraftElev]   = useState<PlanDraftValue>(planPrefill?.raceElevation ?? (settings.raceElevation || 0));
+  // Methodology style: null = untouched, so the shown selection keeps tracking
+  // the live recommendation as the user edits days/distance; a tap pins it.
+  const [draftStyle,   setDraftStyle]  = useState<StyleId | null>(isStyleId(settings.planStyle) ? settings.planStyle : null);
   const [confirmRegen, setConfirmRegen] = useState(false);
+
+  const recommendedStyle = recommendStyle({
+    intent: settings.intent, planSessions: draft, distanceKm: draftDist, recentRuns: runs,
+    level: settings.trainingLevel,
+  });
+  const effectiveStyle = draftStyle ?? recommendedStyle;
+  // Suggested days/durations for the drafted race — offered as a one-tap fill,
+  // never forced over what the user configured.
+  const suggestedSessions = suggestPlanSessions(draftDist || settings.distanceKm || 10, settings.trainingLevel);
+  const draftIsSuggested = JSON.stringify(draft) === JSON.stringify(suggestedSessions);
 
   // Re-expand the current week whenever the plan changes (e.g. regenerate),
   // adjusting state during render rather than in an effect.
@@ -117,7 +136,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     const sameAsPrefill = planPrefill && date === planPrefill.raceDate && Number(dist) === Number(planPrefill.distanceKm);
     const sameAsTarget  = date === settings.raceDate && Number(dist) === Number(settings.distanceKm);
     const targetEditionId = sameAsPrefill ? planPrefill.editionId : (sameAsTarget ? (settings.targetEditionId ?? null) : null);
-    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: Number(elev) || 0, targetEditionId});
+    const style = o.planStyle || effectiveStyle;
+    saveSettings({...settings, planSessions: ps, raceDate: date, goalSec: goal, distanceKm: dist, raceElevation: Number(elev) || 0, targetEditionId, planStyle: style});
     // Secondary races the user has added to the plan (not the main target). buildPlan
     // does the window filtering; we just hand it the flagged wishlist races, enriched
     // with the catalogue elevation when available.
@@ -125,7 +145,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
       .filter(p => p.status === "wishlist" && p.inPlan && p.editionId !== targetEditionId)
       .map(p => ({ editionId: p.editionId, date: p.raceDate, distanceKm: p.distanceKm,
         elevation: p.editionId ? findEdition(p.editionId)?.edition?.elevation || 0 : 0 }));
-    savePlan(buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId}));
+    savePlan(buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId, style, level: settings.trainingLevel}));
     setEdit(false); setConfirmRegen(false);
     clearPlanPrefill?.();
   };
@@ -168,6 +188,16 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
         <div>
           <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
+          {draftIsSuggested
+            ? <p className="text-xs text-slate-500 mt-1.5">Suggested for your race — adjust freely.</p>
+            : <button type="button" onClick={() => setDraft(suggestedSessions)}
+                className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
+                Use suggested days for this race
+              </button>}
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 block mb-2">Training style</label>
+          <StylePicker value={effectiveStyle} onChange={setDraftStyle} recommended={recommendedStyle}/>
         </div>
         {!settings.maxHR && (
           <button type="button" onClick={openSettings}
@@ -199,10 +229,11 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     .sort((a, b) => a.dayOffset - b.dayOffset)
     .map(s => DAYS[s.dayOffset] + " (" + fmt.mins(s.minutes) + ")")
     .join(" · ");
+  const planStyle: StyleId = isStyleId(plan.style) ? plan.style : "balanced";
   // The peak long run is driven by race distance, so on a short long-session
   // setting it runs longer than configured. Surface that honestly (rather than
   // silently capping the long run) so the user can lengthen their long day.
-  const easyPace = Math.round((plan.targetPace || 0) * 1.25);
+  const easyPace = Math.round((plan.targetPace || 0) * stylePacing(planStyle).long);
   const peakLongMin = plan.longRunPeakKm && easyPace ? Math.round(plan.longRunPeakKm * easyPace / 60) : 0;
   const longestSessMin = ps.reduce((m, s) => Math.max(m, s.minutes || 0), 0);
   const longRunNudge = peakLongMin > longestSessMin + 20;
@@ -264,7 +295,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <span>{(plan.distanceKm || 20) + "km" + ((plan.raceElevation || 0) > 0 ? " · +" + Math.round(plan.raceElevation || 0) + "m" : "") + " · sub " + fmt.dur(Number(plan.goalSec) || 0)}</span>
           <span>{"Race: " + fmt.sht(String(plan.raceDate || ""))}</span>
         </div>
-        <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-end">
+        <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">{STYLE_META[planStyle].label}</span>
           <PlanInfo/>
         </div>
       </div>
@@ -282,6 +314,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           setDraftGoal(settings.goalSec);
           setDraftDist(settings.distanceKm || "");
           setDraftElev(settings.raceElevation || 0);
+          setDraftStyle(isStyleId(settings.planStyle) ? settings.planStyle : null);
           setEdit(v => !v);
         }}
         className={"w-full mb-3 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs transition-colors border " + (editSessions ? "bg-orange-500/10 border-orange-500/40" : "bg-slate-800 border-slate-700 hover:border-slate-500")}>
@@ -328,6 +361,16 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <div>
             <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
             <SessionConfigurator sessions={draft} onChange={setDraft}/>
+            {draftIsSuggested
+              ? <p className="text-xs text-slate-500 mt-1.5">Suggested for your race — adjust freely.</p>
+              : <button type="button" onClick={() => setDraft(suggestedSessions)}
+                  className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
+                  Use suggested days for this race
+                </button>}
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-2">Training style</label>
+            <StylePicker value={effectiveStyle} onChange={setDraftStyle} recommended={recommendedStyle}/>
           </div>
           <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
             disabled={!draftDate || !draftDist}
@@ -372,19 +415,36 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                     const checkCls = "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
                     const descCls = "text-sm mt-0.5 leading-snug " + (s.done ? "line-through text-slate-600" : isSkipped ? "line-through text-slate-500" : "text-slate-300");
                     const typeCls = "text-xs font-bold uppercase " + planTypeClass(s.type);
+                    const sessOpen = openSess === s.id;
                     return (
                       <div key={s.id} className={rowCls}>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={typeCls}>{s.type}</span>
-                            <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
-                            {isSkipped && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">skipped</span>
-                            )}
+                          {/* Tapping the session text expands a step-by-step
+                              "how it unfolds" breakdown (warm-up → workout →
+                              cool-down → stretch). The action buttons and the
+                              HR line stay outside the tap target. */}
+                          <div className="cursor-pointer select-none" onClick={() => setOpenSess(sessOpen ? null : s.id)}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={typeCls}>{s.type}</span>
+                              <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
+                              {isSkipped && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">skipped</span>
+                              )}
+                              <ChevronRight size={12} className={"text-slate-600 transition-transform " + (sessOpen ? "rotate-90" : "")}/>
+                            </div>
+                            <p className={descCls}>{cleanDesc(s.desc)}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{s.km + " km · ~" + estMin(Number(s.km), s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           </div>
-                          <p className={descCls}>{cleanDesc(s.desc)}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{s.km + " km · ~" + estMin(Number(s.km), s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
+                          {sessOpen && (
+                            <div className="mt-2 space-y-1.5 border-l-2 border-slate-700 pl-3">
+                              {sessionSteps(s).map(st => (
+                                <p key={st.label} className="text-xs text-slate-400 leading-snug">
+                                  <span className="text-slate-300 font-semibold">{st.label}: </span>{st.detail}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 self-center">
                           {!s.done && !isSkipped && (

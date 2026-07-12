@@ -15,6 +15,7 @@
 // Plain ESM JS: imported by the Deno edge function and by Vitest.
 
 import { HARD_TYPES } from "./validation.mjs";
+import { stylePacing } from "./styles.mjs";
 
 const SWAP_TYPES = ["EASY", "TEMPO", "INTERVALS", "LONG", "WALK"];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -171,12 +172,23 @@ function guardEditable(session, verb) {
 }
 
 // Pace/description derivation mirrors buildPlan's ratios off plan.targetPace.
+// The multipliers come from the shared per-style table (styles.mjs) keyed by
+// plan.style — the SAME table buildPlan uses, so a coach edit on a styled plan
+// prescribes the style's paces, not stale balanced ones. A plan without a
+// style field (built before styles existed) resolves to balanced, which keeps
+// the original hardcoded 1.25/1.05/1.0 ratios byte-identical.
 const paceFor = (plan, type) => {
   const tgt = plan.targetPace || 0;
   if (!tgt) return null;
-  if (type === "EASY" || type === "LONG") return Math.round(tgt * 1.25);
-  if (type === "TEMPO") return Math.round(tgt * 1.05);
-  if (type === "INTERVALS") return tgt;
+  const pacing = stylePacing(plan.style);
+  if (type === "EASY") return Math.round(tgt * pacing.easy);
+  if (type === "LONG") return Math.round(tgt * pacing.long);
+  if (type === "TEMPO") return Math.round(tgt * pacing.tempo);
+  if (type === "INTERVALS") return Math.round(tgt * pacing.intervals);
+  // WALK is paced only for styles where it's a real run/walk session
+  // (pacing.walk set); elsewhere it stays unpaced cross-training (null),
+  // preserving pre-styles behaviour byte-for-byte.
+  if (type === "WALK") return pacing.walk ? Math.round(tgt * pacing.walk) : null;
   return null;
 };
 const fmtPace = (sec) => {
@@ -184,9 +196,21 @@ const fmtPace = (sec) => {
   const m = Math.floor(sec / 60), s = sec % 60;
   return m + ":" + String(s).padStart(2, "0");
 };
-const descFor = (type, pace) => {
+const descFor = (type, pace, style) => {
+  if (style === "runwalk") {
+    // Run/walk plans phrase everything as run/walk — no speedwork vocabulary.
+    // A paced WALK is a real run/walk session (swap/add); an unpaced one is a
+    // no-impact conversion and keeps the cross-training wording.
+    if (type === "LONG") return "Long run/walk — gentle run/walk intervals, conversational";
+    if (type === "WALK" && pace) return "Run/walk — gentle intervals, conversational";
+    if (type === "WALK") return "Cross-training / brisk walk — no impact, easy effort";
+    if (type === "EASY") return "Run/walk — gentle intervals, conversational";
+  }
   if (type === "LONG") return "Long run — easy effort" + (pace ? " at " + fmtPace(pace) + "/km" : "");
-  if (type === "TEMPO") return "Tempo run — " + (pace ? fmtPace(pace) + "/km, " : "") + "comfortably hard";
+  if (type === "TEMPO") {
+    if (style === "hansons") return "Tempo — at goal race pace" + (pace ? " " + fmtPace(pace) + "/km" : "") + ", steady";
+    return "Tempo run — " + (pace ? fmtPace(pace) + "/km, " : "") + "comfortably hard";
+  }
   if (type === "INTERVALS") return "Intervals — repeats" + (pace ? " at " + fmtPace(pace) + "/km" : "") + " with full recovery";
   if (type === "WALK") return "Cross-training / brisk walk — no impact, easy effort";
   return "Easy run — relaxed aerobic effort";
@@ -227,7 +251,7 @@ export function applyToolCall(plan, name, input = {}) {
       guardEditable(session, "swap");
       session.type = new_type;
       session.pace = paceFor(p, new_type);
-      session.desc = descFor(new_type, session.pace);
+      session.desc = descFor(new_type, session.pace, p.style);
       return p;
     }
     case "reduce_week_volume": {
@@ -299,7 +323,7 @@ export function applyToolCall(plan, name, input = {}) {
       let id = `coach-add-${date}`;
       for (let n = 2; ids.has(id); n++) id = `coach-add-${date}-${n}`;
       const pace = paceFor(p, type);
-      target.sessions.push({ id, date, type, km: Math.round(km * 10) / 10, pace, desc: descFor(type, pace), done: false });
+      target.sessions.push({ id, date, type, km: Math.round(km * 10) / 10, pace, desc: descFor(type, pace, p.style), done: false });
       target.sessions.sort((a, b) => a.date.localeCompare(b.date));
       return p;
     }
@@ -307,9 +331,12 @@ export function applyToolCall(plan, name, input = {}) {
       const { session_id } = input;
       const { session } = findSession(p, session_id);
       guardEditable(session, "convert");
+      // Deliberately unpaced regardless of style: a conversion is the coach's
+      // pain/illness relief valve, and "no impact" must stay true even on a
+      // runwalk plan whose ordinary WALK sessions are paced run/walk work.
       session.type = "WALK";
       session.pace = null;
-      session.desc = descFor("WALK", null);
+      session.desc = descFor("WALK", null, p.style);
       return p;
     }
     default:

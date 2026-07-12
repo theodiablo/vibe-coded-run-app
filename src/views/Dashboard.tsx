@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Activity, Award, Check, ChevronRight, MessageCircle, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
 import { computeBadges, nextBadge } from "../utils/badges";
+import { sessionSteps } from "../utils/sessionSteps";
 import { HRTarget } from "../components/HRTarget";
 import { RunRow } from "../components/RunRow";
 import type { Plan, PlanSession, RacesState, Run, RunType, SettingsState } from "../types";
@@ -24,6 +26,8 @@ type DashboardProps = {
 const sessionTypeClass = (type: PlanSession["type"], classes: Record<string, string>) => classes[(type as RunType) || "OTHER"] || classes.OTHER;
 
 export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach}: DashboardProps) {
+  // "How it unfolds" breakdown on the next-session card (collapsed by default).
+  const [showSteps, setShowSteps] = useState(false);
   const nb = nextBadge(computeBadges(runs, races?.participations || []));
   const today    = new Date(); today.setHours(0,0,0,0);
   const raceD    = new Date(settings.raceDate + "T00:00:00");
@@ -146,6 +150,20 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
               </p>
             </button>
             <HRTarget type={nextSess.type} settings={settings} openSettings={openSettings}/>
+            <button onClick={() => setShowSteps(v => !v)}
+              className="mt-2 flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors">
+              <ChevronRight size={12} className={"transition-transform " + (showSteps ? "rotate-90" : "")}/>
+              How it unfolds
+            </button>
+            {showSteps && (
+              <div className="mt-2 space-y-1.5 border-l-2 border-slate-700 pl-3">
+                {sessionSteps(nextSess).map(st => (
+                  <p key={st.label} className="text-xs text-slate-400 leading-snug">
+                    <span className="text-slate-300 font-semibold">{st.label}: </span>{st.detail}
+                  </p>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => goLog({date: nextSess.date, type: nextSess.type, km: Number(nextSess.km), pace: nextSess.pace, wNum: nextSess.wNum, sId: nextSess.id})}

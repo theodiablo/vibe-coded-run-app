@@ -3,6 +3,11 @@ import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Targe
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
+import { StylePicker } from "../components/StylePicker";
+import {
+  TRAINING_LEVELS, isStyleId, isTrainingLevel, recommendStyle, suggestPlanSessions,
+  type StyleId, type TrainingLevel,
+} from "../utils/planStyles";
 import { RaceFormModal } from "./RaceFormModal";
 import { AddRaceCard } from "../components/AddRaceCard";
 import { onboardingSteps } from "../utils/onboarding";
@@ -24,6 +29,8 @@ type OnboardingCompletePayload = {
     raceElevation: number;
     planSessions: PlanSessionInput[];
     targetEditionId: string | null;
+    planStyle: StyleId;
+    trainingLevel: TrainingLevel | null;
   };
   hr: Pick<SettingsState, "age" | "maxHR" | "restHR"> | null;
   healthAck: NonNullable<HealthAck>;
@@ -65,7 +72,21 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const [distanceKm,    setDist] = useState<string | number>(settings.distanceKm || "");
   const [raceElevation, setElev] = useState<string | number>(settings.raceElevation || 0);
   const [goalSec,       setGoal] = useState<string | number>(settings.goalSec || "");
-  const [planSessions,  setSess] = useState<PlanSessionInput[]>(settings.planSessions || [{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
+  // Training days: null = untouched, tracking the live suggestion for the
+  // picked distance and self-reported level; any SessionConfigurator edit pins
+  // it. The stock Wed/Sun default in fresh settings counts as "untouched" —
+  // only values that differ from it (a resumed mid-onboarding save) stick.
+  const DEFAULT_SESS = JSON.stringify([{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
+  const [sessDraft, setSess] = useState<PlanSessionInput[] | null>(
+    settings.planSessions?.length && JSON.stringify(settings.planSessions) !== DEFAULT_SESS
+      ? settings.planSessions : null);
+  // Methodology style: null = untouched, so the pre-selection tracks the live
+  // recommendation while the user edits days/distance; a tap pins the choice.
+  const [planStyle,     setPlanStyle] = useState<StyleId | null>(isStyleId(settings.planStyle) ? settings.planStyle : null);
+  // Self-reported current running volume — the one-question fitness signal
+  // that stands in for run history (there is none on a first run).
+  const [level, setLevel] = useState<TrainingLevel | null>(
+    isTrainingLevel(settings.trainingLevel) ? settings.trainingLevel : null);
   const [targetEditionId, setTargetEditionId] = useState<string | null | undefined>(settings.targetEditionId);
   const [pickedLabel,   setPickedLabel] = useState(() => {
     const e = findEdition(settings.targetEditionId);
@@ -99,6 +120,19 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const flagged  = screenApplies === true;
   const answered = screenApplies !== null;
   const canPassHealth = answered && ackChecked && (!flagged || medConfirm);
+
+  const effectiveDist = intent === "fitness" ? fitDist : distanceKm;
+  const suggestedSessions = suggestPlanSessions(effectiveDist || 10, level);
+  const planSessions = sessDraft ?? suggestedSessions;
+  const sessionsPinned = sessDraft != null && JSON.stringify(sessDraft) !== JSON.stringify(suggestedSessions);
+
+  const recommendedStyle = recommendStyle({
+    intent, planSessions,
+    distanceKm: effectiveDist,
+    recentRuns: [],
+    level,
+  });
+  const effectiveStyle = planStyle ?? recommendedStyle;
 
   const trimmedName = name.trim();
   const ageN = parseInt(age) || 0;
@@ -162,7 +196,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     const g = suggestedGoalSec(fitDist) || "";
     const rd = addWeeks(horizon);
     setRaceDate(rd); setDist(fitDist); setGoal(g); setElev(0); setTargetEditionId(undefined); setPickedLabel("");
-    go("hr", {raceDate: rd, distanceKm: fitDist, goalSec: g, raceElevation: 0, targetEditionId: null, planSessions});
+    go("hr", {raceDate: rd, distanceKm: fitDist, goalSec: g, raceElevation: 0, targetEditionId: null, planSessions, planStyle: effectiveStyle, trainingLevel: level});
   };
 
   // Complete from the summary. HR is included only if the user entered any.
@@ -170,7 +204,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     const mhrN = parseInt(maxHR) || 0;
     const hasHR = ageN > 0 || mhrN > 0;
     const hr = hasHR ? {age: ageN, maxHR: mhrN || tanakaMax || 0, restHR: parseInt(restHR) || 60} : null;
-    const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null};
+    const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null, planStyle: effectiveStyle, trainingLevel: level};
     onComplete({name: trimmedName, plan, hr, healthAck: {v: DISCLAIMER_VERSION, at: new Date().toISOString()}});
   };
 
@@ -371,12 +405,18 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 <p className="font-bold text-lg">Goal &amp; training days</p>
                 <p className="text-sm text-slate-400 mt-1">A realistic target is pre-filled — tweak it if you like.</p>
               </div>
+              <LevelTiles value={level} onChange={setLevel}/>
               <GoalConfigurator distanceKm={distanceKm} goalSec={goalSec} onChange={setGoal}/>
               <div>
                 <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
+                <SessionSuggestionHint pinned={sessionsPinned} onReset={() => setSess(null)}/>
               </div>
-              <button onClick={() => go("hr", {goalSec, planSessions})}
+              <div>
+                <label className="text-xs text-slate-400 block mb-2">Training style</label>
+                <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
+              </div>
+              <button onClick={() => go("hr", {goalSec, planSessions, planStyle: effectiveStyle, trainingLevel: level})}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 Continue
               </button>
@@ -389,6 +429,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 <p className="font-bold text-lg">Your training</p>
                 <p className="text-sm text-slate-400 mt-1">No race needed — pick a goal to build towards.</p>
               </div>
+              <LevelTiles value={level} onChange={setLevel}/>
               <div>
                 <label className="text-xs text-slate-400 block mb-2">What do you want to build up to?</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -423,6 +464,11 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
               <div>
                 <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
+                <SessionSuggestionHint pinned={sessionsPinned} onReset={() => setSess(null)}/>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-2">Training style</label>
+                <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
               </div>
               <button onClick={finishTraining}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
@@ -549,7 +595,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           )}
 
           {cur === "summary" && (() => {
-            const preview = buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation);
+            const preview = buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation, {style: effectiveStyle, level});
             const weeks = preview?.weeks?.length || 0;
             const label = pickedLabel || (intent === "fitness" ? "Build your base" : "Your race");
             return (
@@ -601,5 +647,39 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
         onCreated={onRaceCreated}
         onClose={() => setShowAddRace(false)}/>}
     </div>
+  );
+}
+
+// The one-question fitness signal ("How much do you run right now?"), shared
+// by both intent branches. Optional — the flow never blocks on it; unanswered
+// just means the style recommendation stays history-free conservative.
+function LevelTiles({ value, onChange }: { value: TrainingLevel | null; onChange: (l: TrainingLevel) => void }) {
+  return (
+    <div>
+      <label className="text-xs text-slate-400 block mb-2">How much do you run right now?</label>
+      <div className="grid grid-cols-2 gap-2">
+        {TRAINING_LEVELS.map(l => (
+          <button key={l.id} onClick={() => onChange(l.id)}
+            className={"text-left rounded-xl border p-3 transition-colors " + (value === l.id
+              ? "bg-orange-500/15 border-orange-500/60"
+              : "bg-slate-800 border-slate-700 hover:border-slate-600")}>
+            <p className="font-semibold text-sm">{l.label}</p>
+            <p className="text-xs text-slate-400">{l.sub}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Footer under SessionConfigurator: while untouched, says the days are a live
+// suggestion; once the user diverges, offers the way back.
+function SessionSuggestionHint({ pinned, onReset }: { pinned: boolean; onReset: () => void }) {
+  if (!pinned) return <p className="text-xs text-slate-500 mt-1.5">Suggested for your goal — adjust freely.</p>;
+  return (
+    <button type="button" onClick={onReset}
+      className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
+      Reset to suggested days
+    </button>
   );
 }
