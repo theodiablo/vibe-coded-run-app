@@ -209,12 +209,14 @@ describe("buildPlan", () => {
   });
 });
 
-// Frozen-clock snapshots of the default ("balanced") output, committed BEFORE
-// the multi-style refactor: any later restructuring of buildPlan must reproduce
-// these byte-for-byte, so a snapshot diff here means the default plan changed
-// for existing users. Sanctioned (deliberate) changes so far: the additive
-// `style` field, and budget-derived interval reps (desc and km now always
-// agree — short days get fewer reps instead of a silently clipped total).
+// Frozen-clock snapshots of the default ("balanced") output: a snapshot diff
+// here means the default plan changed for existing users, which must always be
+// a deliberate decision. Sanctioned (deliberate) changes so far: the additive
+// `style` field; budget-derived interval reps (desc and km now always agree —
+// short days get fewer reps instead of a silently clipped total); and the
+// 2026-07 intra-week restructure (UX review finding #1): quality capped at two
+// spaced days per week (one tempo + one intervals via pickHardDays), all other
+// days genuine easy runs, staggered so base weeks aren't identical rows.
 describe("buildPlan balanced output freeze", () => {
   beforeEach(() => {
     vi.useFakeTimers();

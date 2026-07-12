@@ -84,7 +84,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   const [draftDate,    setDraftDate]   = useState<string>(planPrefill?.raceDate ?? settings.raceDate);
   const [draftGoal,    setDraftGoal]   = useState<PlanDraftValue>(planPrefill ? "" : settings.goalSec);
   const [draftDist,    setDraftDist]   = useState<PlanDraftValue>(planPrefill?.distanceKm ?? (settings.distanceKm || ""));
-  const [draftElev,    setDraftElev]   = useState<PlanDraftValue>(planPrefill?.raceElevation ?? (settings.raceElevation || 0));
+  // Seed empty (not 0) so typing doesn't append to a pre-filled zero ("0200").
+  const [draftElev,    setDraftElev]   = useState<PlanDraftValue>(planPrefill?.raceElevation || settings.raceElevation || "");
   // Methodology style: null = untouched, so the shown selection keeps tracking
   // the live recommendation as the user edits days/distance; a tap pins it.
   const [draftStyle,   setDraftStyle]  = useState<StyleId | null>(isStyleId(settings.planStyle) ? settings.planStyle : null);
@@ -117,7 +118,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     if (planPrefill) {
       setDraftDate(planPrefill.raceDate);
       setDraftDist(planPrefill.distanceKm);
-      setDraftElev(planPrefill.raceElevation || 0);
+      setDraftElev(planPrefill.raceElevation || "");
       setDraftGoal(""); // blank → GoalConfigurator suggests a realistic goal
       setEdit(true);
     }
@@ -295,6 +296,16 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <span>{(plan.distanceKm || 20) + "km" + ((plan.raceElevation || 0) > 0 ? " · +" + Math.round(plan.raceElevation || 0) + "m" : "") + " · sub " + fmt.dur(Number(plan.goalSec) || 0)}</span>
           <span>{"Race: " + fmt.sht(String(plan.raceDate || ""))}</span>
         </div>
+        {/* On a hilly course, training paces derive from the flat-equivalent
+            effort — faster than the on-course average. Say so, or a tempo
+            prescribed faster than "goal pace" reads as a bug. */}
+        {(plan.raceElevation || 0) > 0 && !!plan.targetPace && !!plan.racePace && (
+          <p className="text-xs text-slate-500 mt-2">
+            {"Hilly course: training paces use your flat-equivalent effort ("
+              + fmt.pace(plan.targetPace) + "/km), a touch faster than your on-course race pace ("
+              + fmt.pace(plan.racePace) + "/km)."}
+          </p>
+        )}
         <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">{STYLE_META[planStyle].label}</span>
           <PlanInfo/>
@@ -313,7 +324,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           setDraftDate(settings.raceDate);
           setDraftGoal(settings.goalSec);
           setDraftDist(settings.distanceKm || "");
-          setDraftElev(settings.raceElevation || 0);
+          setDraftElev(settings.raceElevation || "");
           setDraftStyle(isStyleId(settings.planStyle) ? settings.planStyle : null);
           setEdit(v => !v);
         }}
@@ -391,6 +402,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           const isPast = wE < today;
           const isExp  = exp === i;
           const wDone  = wk.sessions.filter(s => s.done).length;
+          // Planned weekly volume — the number experienced runners scan for.
+          const wKm    = Math.round(wk.sessions.reduce((t, s) => t + (Number(s.km) || 0), 0));
           const wkNumCls = isCurr ? "text-orange-400" : isPast ? "text-slate-600" : "text-slate-300";
           const wkCardCls = isCurr ? "border-orange-500/50 bg-orange-500/5" : "border-slate-700 bg-slate-800";
           const chevronCls = "text-slate-600 transition-transform flex-shrink-0 " + (isExp ? "rotate-90" : "");
@@ -403,6 +416,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                 <span className={"text-xs px-2 py-0.5 rounded-full flex-shrink-0 " + phaseClass(wk.phase)}>{wk.phase}</span>
                 {isCurr && <span className="text-xs text-orange-400 flex-shrink-0">now</span>}
                 <span className="flex-1"/>
+                {wKm > 0 && <span className="text-xs text-slate-500 flex-shrink-0">{wKm + " km"}</span>}
                 <span className="text-xs text-slate-400">{wDone + "/" + wk.sessions.length}</span>
                 <ChevronRight size={14} className={chevronCls}/>
               </button>

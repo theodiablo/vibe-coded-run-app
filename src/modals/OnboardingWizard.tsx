@@ -70,7 +70,9 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const [name,          setName] = useState(settings.name || "");
   const [raceDate,      setRaceDate] = useState(settings.raceDate || "");
   const [distanceKm,    setDist] = useState<string | number>(settings.distanceKm || "");
-  const [raceElevation, setElev] = useState<string | number>(settings.raceElevation || 0);
+  // Seed empty (not 0) so typing doesn't append to a pre-filled zero ("0200");
+  // the placeholder shows 0 and Number("") coalesces to 0 at use time.
+  const [raceElevation, setElev] = useState<string | number>(settings.raceElevation || "");
   const [goalSec,       setGoal] = useState<string | number>(settings.goalSec || "");
   // Training days: null = untouched, tracking the live suggestion for the
   // picked distance and self-reported level; any SessionConfigurator edit pins

@@ -211,13 +211,8 @@ describe("buildPlan output passes the shared validator", () => {
   const styles = ["balanced", "polarized", "runwalk", "lowfreq", "hansons"];
 
   describe.each(styles)("style %s is validator-clean", (style) => {
-    // Balanced with user-picked adjacent days has a PRE-EXISTING back-to-back
-    // exposure (frozen by the snapshot tests, waived via the validator's
-    // baseline mechanism); only the new styles guarantee clean output on
-    // dense/adversarial layouts, so balanced runs the sparse layouts only.
-    const layouts = style === "balanced" ? dayLayouts.slice(0, 2) : dayLayouts;
     it.each(raceCases.flatMap(([rLabel, raceDate, goalSec, distanceKm, opts]) =>
-      layouts.map(([dLabel, layout]) =>
+      dayLayouts.map(([dLabel, layout]) =>
         [`${rLabel}, ${dLabel}`, raceDate, goalSec, distanceKm, layout, opts] as const)))(
       "%s", (_label, raceDate, goalSec, distanceKm, layout, opts) => {
         const plan = buildPlan(raceDate, goalSec, layout, distanceKm, 0, { ...opts, style });

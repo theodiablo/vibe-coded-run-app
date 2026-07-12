@@ -207,17 +207,19 @@ and delete anything that becomes stale.
   exceed the configured long-day duration; PlanView shows an honest nudge when it
   does. `plan.longRunPeakKm` exposes the peak for that nudge.
 - **Methodology styles (`opts.style` / `settings.planStyle` / `plan.style`):**
-  buildPlan composes weeks per style — `balanced` (default; the pre-styles
-  algorithm, frozen byte-identical by snapshot tests in `plan.test.ts` — absent/
-  unknown style resolves to it), `polarized`, `runwalk`, `lowfreq`, `hansons`.
+  buildPlan composes weeks per style — `balanced` (default; absent/unknown
+  style resolves to it; snapshot tests in `plan.test.ts` pin its output so any
+  change to the default plan is a deliberate, documented decision — restructured
+  2026-07 after a UX review: quality capped at two spaced days/week, other days
+  genuine easy runs), `polarized`, `runwalk`, `lowfreq`, `hansons`.
   **Pace multipliers live in `supabase/functions/_shared/coach/styles.mjs`**
   (single source shared with the coach agent's `tools.mjs`; app re-export
   `src/utils/planStyles.ts` — never hardcode the ratios elsewhere); plan shape
   (long-run peak/taper/cutbacks), `STYLE_META` blurbs and the pure
-  `recommendStyle` profile heuristic are app-side in `planStyles.ts`. New styles
-  must stay validator-clean **by construction** (space hard days via
-  `pickHardDays`; buildPlan's adjacency sweep demotes stragglers to EASY —
-  balanced is exempt to preserve its output) — the matrix in
+  `recommendStyle` profile heuristic are app-side in `planStyles.ts`. All
+  styles — balanced included — must stay validator-clean **by construction**
+  (space hard days via `pickHardDays`; buildPlan's adjacency sweep demotes
+  stragglers to EASY) — the matrix in
   `coachValidation.test.ts` enforces this across distances/day layouts. The UI
   seam is `StylePicker` (PlanView setup/edit + both onboarding branches):
   selection state is `StyleId | null` where null = "untouched, track the live

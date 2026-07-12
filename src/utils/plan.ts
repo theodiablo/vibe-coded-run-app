@@ -57,7 +57,6 @@ type WeekCtx = {
   longKm: number;
   addS: (dOff: number, type: string, km: number, desc: string, pace: number) => void;
   paces: { easy: number; tmpo: number; intv: number; long: number; walk: number };
-  tgt: number;
   dist: number;
 };
 
@@ -99,8 +98,7 @@ export function buildPlan(
   const racePace = Math.round(goal / dist);
   // Methodology style: pace multipliers come from the shared table (also read
   // by the coach agent) so plan and coach edits can never drift; plan shape
-  // comes from STYLE_SHAPE. Absent/unknown style = "balanced" = the pre-styles
-  // algorithm, byte-identical (its multipliers are the old hardcoded ratios).
+  // comes from STYLE_SHAPE. Absent/unknown style resolves to "balanced".
   const style: StyleId = isStyleId(planOpts.style) ? planOpts.style : DEFAULT_STYLE;
   const pacing = stylePacing(style);
   const shape = STYLE_SHAPE[style];
@@ -182,21 +180,18 @@ export function buildPlan(
 
     COMPOSERS[style]({
       w, N, phase, isBase, isTaper, rampFrac, longSess, qualSessions, longKm,
-      addS, paces: { easy, tmpo, intv, long: longP, walk: walkP }, tgt, dist,
+      addS, paces: { easy, tmpo, intv, long: longP, walk: walkP }, dist,
     });
 
     ss.sort((a, b) => a.date.localeCompare(b.date));
     weeks.push({weekNumber: w+1, startDate: ymd(wS), phase, sessions: ss});
   }
 
-  // Belt-and-braces hard-day spacing for the styled composers: demote the
+  // Belt-and-braces hard-day spacing for every composer: demote the
   // lower-priority of any two hard-typed sessions on consecutive days to EASY
   // (LONG > TEMPO > INTERVALS; on a tie the later one gives way). Catches
   // whatever pickHardDays couldn't place cleanly, including the week wrap.
-  // Balanced is exempt on purpose — its output predates styles and a
-  // user-picked back-to-back day pair is a pre-existing, validator-waived
-  // condition we must not silently rewrite.
-  if (style !== DEFAULT_STYLE) {
+  {
     const HARD_PRIO: Record<string, number> = { LONG: 3, TEMPO: 2, INTERVALS: 1 };
     const all = weeks.flatMap(wk => wk.sessions)
       .filter(s => HARD_PRIO[s.type])
@@ -282,43 +277,52 @@ export function buildPlan(
 
 // ── Style week composers ─────────────────────────────────────────────────────
 // One function per style fills a week's sessions (long run + the other days).
-// `balanced` is the pre-styles loop body moved verbatim (frozen by snapshot
-// tests); the others express their methodology while staying inside the shared
-// validator envelope: hard days spaced by pickHardDays (+ the sweep above),
-// gentle week-over-week growth, no tempo/intervals generated into the taper.
+// All styles — balanced included — stay inside the shared validator envelope:
+// hard days capped and spaced by pickHardDays (+ the sweep above), gentle
+// week-over-week growth, no tempo/intervals generated into the taper.
 
 function composeBalanced(c: WeekCtx) {
-  const { w, N, isBase, isTaper, addS, tgt } = c;
-  const { easy, tmpo } = c.paces;
+  const { w, N, isBase, isTaper, addS } = c;
+  const { easy, tmpo, intv } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
     "Long run — easy effort at " + fmt.pace(easy) + "/km", easy);
 
-  c.qualSessions.forEach(q => {
+  // At most two quality days a week (one tempo, one intervals), spaced clear
+  // of each other and the long run; every other configured day is a genuine
+  // easy run — extra availability adds easy volume, never more intensity.
+  const hardDays = pickHardDays(
+    c.qualSessions.map(q => q.dayOffset), c.longSess.dayOffset, 2);
+
+  c.qualSessions.forEach((q, i) => {
     const maxQ = q.minutes * 60 / easy;
-    let type, desc, pace, km;
-    if (isBase || isTaper) {
-      const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
-      type = "EASY"; pace = easy;
-      km   = Math.min(maxQ, easyKm);
-      desc = "Easy run — relaxed aerobic effort";
-    } else {
-      const buildW = w - 4;
-      if (buildW % 2 === 0) {
-        type = "TEMPO"; pace = tmpo;
-        km   = Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8);
-        desc = "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard";
-      } else {
-        // Reps derive from the day's time budget, and the total distance is
-        // computed FROM the reps (plus a 1.5 km warmup/recovery allowance) —
-        // never clipped after the fact, so the description and the shown km
-        // always agree. A short day honestly gets fewer reps.
-        const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - 1.5) / 0.8)));
-        type = "INTERVALS"; pace = tgt;
-        km   = reps * 0.8 + 1.5;
-        desc = "Intervals — " + reps + "x800m at " + fmt.pace(tgt) + "/km + 90s recovery";
-      }
+    const slot = hardDays.indexOf(q.dayOffset);
+    if (isBase || isTaper || slot === -1) {
+      // Easy day. The +i*0.4 staggers same-week easy runs so a base week
+      // isn't identical rows; being per-day-constant it never bends the
+      // week-over-week ramp.
+      const easyKm = isTaper ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
+        : (isBase ? 2.5 + w * 0.2 : 2.5 + w * 0.3) + i * 0.4;
+      addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
+        "Easy run — relaxed aerobic effort", easy);
+      return;
     }
-    addS(q.dayOffset, type, km, desc, pace);
+    const buildW = w - 4;
+    // Two placed quality days: first = intervals, second = tempo. If the
+    // layout only fits one, it alternates so both stimuli still appear.
+    const doIntervals = hardDays.length >= 2 ? slot === 0 : buildW % 2 === 1;
+    if (doIntervals) {
+      // Reps derive from the day's time budget, and the total distance is
+      // computed FROM the reps (plus a 1.5 km warmup/recovery allowance) —
+      // never clipped after the fact, so the description and the shown km
+      // always agree. A short day honestly gets fewer reps.
+      const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - 1.5) / 0.8)));
+      addS(q.dayOffset, "INTERVALS", reps * 0.8 + 1.5,
+        "Intervals — " + reps + "x800m at " + fmt.pace(intv) + "/km + 90s recovery", intv);
+    } else {
+      addS(q.dayOffset, "TEMPO",
+        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
+        "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard", tmpo);
+    }
   });
 }
 
