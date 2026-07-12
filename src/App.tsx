@@ -12,6 +12,7 @@ import { identifyUser, resetUser } from "./telemetry";
 import { ConsentBanner } from "./components/ConsentBanner";
 import RunningCoach from "./RunningCoach";
 import LoginScreen from "./LoginScreen";
+import ResetPasswordScreen from "./ResetPasswordScreen";
 
 // Web-only marketing landing shown to signed-out visitors at the root path.
 // VITE_NATIVE_BUILD is set only by the Android build (see .github/workflows/
@@ -42,6 +43,9 @@ export default function App() {
   const [storeReady, setStoreReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null); // native deep-link sign-in failure
   const [updateState, setUpdateState] = useState<"ok" | "update-available" | "must-update">("ok"); // version gate
+  // A password-recovery link landed: the session is real, but show the
+  // set-new-password screen before the app.
+  const [recovery, setRecovery] = useState(false);
   // Which user id the store is currently loaded for. Guards against reloading
   // (and clobbering the in-memory cache) on every auth event — Supabase fires
   // onAuthStateChange on token refresh, tab refocus, and repeat SIGNED_IN, each
@@ -66,7 +70,8 @@ export default function App() {
         settle(null);
       });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
       settle(s);
     });
 
@@ -219,6 +224,8 @@ export default function App() {
       </>
     );
   }
+  // Recovery-link arrival: let the user set the new password before the app.
+  if (recovery) return <ResetPasswordScreen onDone={() => setRecovery(false)} />;
   if (!storeReady) return <Splash />;
   return (
     <>

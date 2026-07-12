@@ -344,6 +344,19 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           distance — consider lengthening your long day in Edit plan.</span>
         </div>
       )}
+
+      {/* From-scratch plans open well below the configured minutes on purpose;
+          say so, or a 45-min commitment answered by a 12-min run reads as a
+          bug (UX review #3). Only relevant while the base phase is ahead. */}
+      {plan.gentleStart && !editSessions && nowIdx >= 0 && nowIdx < 4 && (
+        <div className="w-full mb-3 rounded-xl px-4 py-2.5 text-xs text-sky-200 bg-sky-500/10 border border-sky-500/25 flex gap-2 items-start">
+          <span className="flex-shrink-0 text-base leading-none">🌱</span>
+          <span>The first weeks start gentler than your configured minutes on
+          purpose — building a safe base. Runs grow toward your full training
+          days through the Build phase. Already running regularly? Log a few
+          recent runs and regenerate, and the plan will start you further along.</span>
+        </div>
+      )}
       </>)}
 
       {(editSessions || promoting) && (

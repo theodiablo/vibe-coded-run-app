@@ -40,6 +40,7 @@ type BuiltPlan = {
   longRunPeakKm: number;
   planSessions: PlanSessionInput[];
   style: StyleId;
+  gentleStart: boolean;
   weeks: PlanWeek[];
 };
 
@@ -58,7 +59,20 @@ type WeekCtx = {
   addS: (dOff: number, type: string, km: number, desc: string, pace: number) => void;
   paces: { easy: number; tmpo: number; intv: number; long: number; walk: number };
   dist: number;
+  // Minimum easy-day distance for a runner with demonstrated fitness (near
+  // their configured time budget); 0 for the from-scratch gentle ramp.
+  easyFloorKm: (maxQ: number) => number;
 };
+
+// Structured quality sessions: every generated tempo/interval outing carries
+// an explicit easy warm-up and cool-down, and the session km is the honest
+// total of all parts. sessionSteps parses this exact format — change them
+// together.
+const WU_KM = 1.5;
+const CD_KM = 1;
+const structured = (work: string) =>
+  WU_KM + "km warm-up + " + work + " + " + CD_KM + "km cool-down";
+const r1 = (x: number) => Math.round(x * 10) / 10;
 
 // `opts` is additive so the positional call sites keep working:
 //   { recentRuns: Run[] }  — recent logged runs, used to seed a fitness-aware
@@ -140,6 +154,15 @@ export function buildPlan(
   const startLong = Math.max(shape.floorKm, fitFloor, levelFloor);
   const lastBuildW = N - 4; // 0-based index of the final pre-taper week (peak hits here)
 
+  // Demonstrated fitness — a recent long run (fitFloor ≥6 km ⇒ a 7.5 km+ run
+  // in the last ~5 weeks) or a self-reported regular/frequent level — starts
+  // easy days near the configured time budget instead of the from-scratch
+  // 2.5 km ramp. Everyone else keeps the gentle start, and `gentleStart`
+  // lets PlanView say so ("starts gentle on purpose") instead of leaving a
+  // 45-min commitment answered by a 12-min run.
+  const experienced = Math.max(fitFloor, levelFloor) >= 6;
+  const easyFloorKm = (maxQ: number) => (experienced ? maxQ * 0.75 : 0);
+
   const weeks: PlanWeek[] = [];
 
   for (let w = 0; w < N; w++) {
@@ -180,7 +203,7 @@ export function buildPlan(
 
     COMPOSERS[style]({
       w, N, phase, isBase, isTaper, rampFrac, longSess, qualSessions, longKm,
-      addS, paces: { easy, tmpo, intv, long: longP, walk: walkP }, dist,
+      addS, paces: { easy, tmpo, intv, long: longP, walk: walkP }, dist, easyFloorKm,
     });
 
     ss.sort((a, b) => a.date.localeCompare(b.date));
@@ -272,7 +295,8 @@ export function buildPlan(
     }],
   });
   return {raceDate, goalSec, distanceKm, raceElevation: gain, targetPace: tgt, racePace,
-    longRunPeakKm: Math.round(peakLong * 10) / 10, planSessions, style, weeks};
+    longRunPeakKm: Math.round(peakLong * 10) / 10, planSessions, style,
+    gentleStart: !experienced, weeks};
 }
 
 // ── Style week composers ─────────────────────────────────────────────────────
@@ -282,7 +306,7 @@ export function buildPlan(
 // week-over-week growth, no tempo/intervals generated into the taper.
 
 function composeBalanced(c: WeekCtx) {
-  const { w, N, isBase, isTaper, addS } = c;
+  const { w, N, isBase, isTaper, addS, easyFloorKm } = c;
   const { easy, tmpo, intv } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
     "Long run — easy effort at " + fmt.pace(easy) + "/km", easy);
@@ -299,9 +323,9 @@ function composeBalanced(c: WeekCtx) {
     if (isBase || isTaper || slot === -1) {
       // Easy day. The +i*0.4 staggers same-week easy runs so a base week
       // isn't identical rows; being per-day-constant it never bends the
-      // week-over-week ramp.
+      // week-over-week ramp. A fit runner's floor sits near the day budget.
       const easyKm = isTaper ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
-        : (isBase ? 2.5 + w * 0.2 : 2.5 + w * 0.3) + i * 0.4;
+        : Math.max(isBase ? 2.5 + w * 0.2 : 2.5 + w * 0.3, easyFloorKm(maxQ)) + i * 0.4;
       addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
         "Easy run — relaxed aerobic effort", easy);
       return;
@@ -311,17 +335,18 @@ function composeBalanced(c: WeekCtx) {
     // layout only fits one, it alternates so both stimuli still appear.
     const doIntervals = hardDays.length >= 2 ? slot === 0 : buildW % 2 === 1;
     if (doIntervals) {
-      // Reps derive from the day's time budget, and the total distance is
-      // computed FROM the reps (plus a 1.5 km warmup/recovery allowance) —
-      // never clipped after the fact, so the description and the shown km
-      // always agree. A short day honestly gets fewer reps.
-      const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - 1.5) / 0.8)));
-      addS(q.dayOffset, "INTERVALS", reps * 0.8 + 1.5,
-        "Intervals — " + reps + "x800m at " + fmt.pace(intv) + "/km + 90s recovery", intv);
+      // Reps derive from the day's time budget (after warm-up/cool-down), and
+      // the total distance is computed FROM the parts — never clipped after
+      // the fact, so the description and the shown km always agree. A short
+      // day honestly gets fewer reps.
+      const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - WU_KM - CD_KM) / 0.8)));
+      addS(q.dayOffset, "INTERVALS", reps * 0.8 + WU_KM + CD_KM,
+        "Intervals — " + structured(reps + "x800m at " + fmt.pace(intv) + "/km + 90s recovery"), intv);
     } else {
-      addS(q.dayOffset, "TEMPO",
-        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
-        "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard", tmpo);
+      const work = r1(Math.max(1.5,
+        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8) - WU_KM - CD_KM));
+      addS(q.dayOffset, "TEMPO", work + WU_KM + CD_KM,
+        "Tempo — " + structured(work + "km at " + fmt.pace(tmpo) + "/km, comfortably hard"), tmpo);
     }
   });
 }
@@ -331,7 +356,7 @@ function composeBalanced(c: WeekCtx) {
 // and truly easy. The hard slot goes to the quality day farthest from the
 // long run so the week breathes.
 function composePolarized(c: WeekCtx) {
-  const { w, N, isBase, isTaper, addS } = c;
+  const { w, N, isBase, isTaper, addS, easyFloorKm } = c;
   const { easy, tmpo, intv, long } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
     "Long run — easy effort at " + fmt.pace(long) + "/km", long);
@@ -346,23 +371,24 @@ function composePolarized(c: WeekCtx) {
       // the same 2.5 start) so the week-5 hard session lands on top of a
       // smooth easy-volume curve instead of a step — the ramp rule's margin
       // is thinnest exactly at that transition.
-      const easyKm = isBase ? 2.5 + w * 0.2
-        : isTaper ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
-        : 2.5 + w * 0.3;
+      const easyKm = isTaper ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
+        : Math.max(isBase ? 2.5 + w * 0.2 : 2.5 + w * 0.3, easyFloorKm(maxQ));
       addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
         "Easy run — relaxed, conversational pace", easy);
       return;
     }
     const buildW = w - 4;
     if (buildW % 2 === 0) {
-      addS(q.dayOffset, "TEMPO",
-        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
-        "Tempo run — " + fmt.pace(tmpo) + "/km, your one hard session this week", tmpo);
+      const work = r1(Math.max(1.5,
+        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8) - WU_KM - CD_KM));
+      addS(q.dayOffset, "TEMPO", work + WU_KM + CD_KM,
+        "Tempo — " + structured(work + "km at " + fmt.pace(tmpo)
+          + "/km, your one hard session this week"), tmpo);
     } else {
-      // Budget-derived reps; total = reps + allowance (see composeBalanced).
-      const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - 1.5) / 0.8)));
-      addS(q.dayOffset, "INTERVALS", reps * 0.8 + 1.5,
-        "Intervals — " + reps + "x800m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
+      // Budget-derived reps; total = the sum of the parts (see composeBalanced).
+      const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - WU_KM - CD_KM) / 0.8)));
+      addS(q.dayOffset, "INTERVALS", reps * 0.8 + WU_KM + CD_KM,
+        "Intervals — " + structured(reps + "x800m at " + fmt.pace(intv) + "/km + 90s jog recovery"), intv);
     }
   });
 }
@@ -371,7 +397,7 @@ function composePolarized(c: WeekCtx) {
 // ramp with regular cutback weeks. Non-long days are WALK-typed (not "hard")
 // so any day layout is valid.
 function composeRunwalk(c: WeekCtx) {
-  const { w, N, phase, isTaper, addS } = c;
+  const { w, N, phase, isTaper, addS, easyFloorKm } = c;
   const { long, walk } = c.paces;
   // Ratio progresses with fitness, then BACKS OFF for the taper — its job is
   // shedding fatigue, so it must never be the plan's hardest ratio.
@@ -380,9 +406,10 @@ function composeRunwalk(c: WeekCtx) {
     "Long run/walk — run " + runMin + " min / walk 1 min, conversational", long);
 
   c.qualSessions.forEach(q => {
+    const maxQ = q.minutes * 60 / walk;
     const km = isTaper
       ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
-      : Math.min(q.minutes * 60 / walk, 2.5 + w * 0.25);
+      : Math.min(maxQ, Math.max(2.5 + w * 0.25, easyFloorKm(maxQ)));
     addS(q.dayOffset, "WALK", km,
       "Run/walk — run " + runMin + " min / walk 1 min, "
         + (isTaper ? "short and relaxed" : "conversational"), walk);
@@ -418,7 +445,8 @@ function composeLowfreq(c: WeekCtx) {
       return;
     }
     if (isBase || isTaper) {
-      const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
+      const easyKm = isBase ? Math.max(2.5 + w * 0.2, c.easyFloorKm(maxQ))
+        : Math.max(2, 4 - (w - (N - 3)) * 0.5);
       addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
         "Easy run — relaxed aerobic effort", easy);
       return;
@@ -428,17 +456,19 @@ function composeLowfreq(c: WeekCtx) {
     // could be placed, it alternates so both stimuli still appear.
     const doIntervals = hardDays.length >= 2 ? slot === 0 : buildW % 2 === 1;
     if (doIntervals) {
-      // Budget-derived reps; total = reps + allowance (see composeBalanced).
+      // Budget-derived reps; total = the sum of the parts (see composeBalanced).
       const nominal = q.minutes <= 30 ? 6 : q.minutes <= 45 ? 5 : 6;
       const repKm   = q.minutes <= 30 ? 0.4 : q.minutes <= 45 ? 0.8 : 1;
-      const reps = Math.max(3, Math.min(nominal, Math.floor((maxQ * 0.85 - 1.5) / repKm)));
-      addS(q.dayOffset, "INTERVALS", reps * repKm + 1.5,
-        "Intervals — " + reps + "x" + (repKm < 1 ? repKm * 1000 + "m" : "1km")
-          + " at " + fmt.pace(intv) + "/km + recovery jogs", intv);
+      const reps = Math.max(3, Math.min(nominal, Math.floor((maxQ * 0.85 - WU_KM - CD_KM) / repKm)));
+      addS(q.dayOffset, "INTERVALS", reps * repKm + WU_KM + CD_KM,
+        "Intervals — " + structured(reps + "x" + (repKm < 1 ? repKm * 1000 + "m" : "1km")
+          + " at " + fmt.pace(intv) + "/km + recovery jogs"), intv);
     } else {
-      addS(q.dayOffset, "TEMPO",
-        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
-        "Tempo run — " + fmt.pace(tmpo) + "/km, strong and controlled", tmpo);
+      const work = r1(Math.max(1.5,
+        Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8) - WU_KM - CD_KM));
+      addS(q.dayOffset, "TEMPO", work + WU_KM + CD_KM,
+        "Tempo — " + structured(work + "km at " + fmt.pace(tmpo)
+          + "/km, strong and controlled"), tmpo);
     }
   });
 }
@@ -448,7 +478,7 @@ function composeLowfreq(c: WeekCtx) {
 // that grows with the ramp); every other day moderate easy volume that fills
 // most of its time budget — frequency over single-session heroics.
 function composeHansons(c: WeekCtx) {
-  const { w, N, phase, isBase, isTaper, rampFrac, addS, dist } = c;
+  const { w, N, phase, isBase, isTaper, rampFrac, addS, dist, easyFloorKm } = c;
   const { easy, tmpo, intv, long } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
     "Long run — steady, moderate effort at " + fmt.pace(long) + "/km", long);
@@ -461,16 +491,18 @@ function composeHansons(c: WeekCtx) {
     const slot = sosDays.indexOf(q.dayOffset);
     // Easy volume ramps from a gentle start toward ~90% of the day's budget,
     // in step with the long-run ramp so weekly growth stays inside the 1.3x
-    // ramp rule.
-    const easyFill = Math.min(maxQ * 0.9, 3 + Math.max(0, maxQ * 0.9 - 3) * rampFrac);
+    // ramp rule; a fit runner's floor starts it near the budget instead.
+    const easyFill = Math.min(maxQ * 0.9,
+      Math.max(3 + Math.max(0, maxQ * 0.9 - 3) * rampFrac, easyFloorKm(maxQ)));
 
     if (isTaper) {
       // First taper week keeps one short goal-pace tempo (its dates are ≥15
       // days out — clear of the validator's 7-day no-tempo window); the final
       // two weeks are all easy.
       if (slot === 1 && w === N - 3) {
-        addS(q.dayOffset, "TEMPO", Math.min(maxQ * 0.85, 5),
-          "Tempo — short, at goal race pace " + fmt.pace(tmpo) + "/km", tmpo);
+        const work = r1(Math.max(1.5, Math.min(maxQ * 0.85, 5) - WU_KM - CD_KM));
+        addS(q.dayOffset, "TEMPO", work + WU_KM + CD_KM,
+          "Tempo — " + structured(work + "km at goal race pace " + fmt.pace(tmpo) + "/km"), tmpo);
       } else {
         addS(q.dayOffset, "EASY", Math.min(maxQ, Math.max(2, 4 - (w - (N - 3)) * 0.5)),
           "Easy run — relaxed aerobic effort", easy);
@@ -482,25 +514,29 @@ function composeHansons(c: WeekCtx) {
       return;
     }
     if (slot === 0) {
-      // Speed early, strength (near goal pace) once the peak phase starts.
-      // Reps/sets derive from the day's budget so desc and km agree.
-      if (phase === "PEAK") {
-        const sets = maxQ * 0.85 >= 10 ? 3 : 2;
-        addS(q.dayOffset, "INTERVALS", sets * 3 + 1,
-          "Strength — " + sets + "x3km at goal pace minus 10s (" + fmt.pace(Math.max(1, tmpo - 10))
-            + "/km) + 1km jog recovery", Math.max(1, tmpo - 10));
+      // Speed early, strength (near goal pace) once the peak phase starts —
+      // but only when the day's budget actually fits the strength blocks
+      // (total = sets + the 1 km jog recoveries between them + WU/CD); a
+      // short day keeps budget-derived speed reps so km never overruns it.
+      const sets = maxQ * 0.85 >= 13.5 ? 3 : maxQ * 0.85 >= 9.5 ? 2 : 0;
+      if (phase === "PEAK" && sets > 0) {
+        addS(q.dayOffset, "INTERVALS", sets * 3 + (sets - 1) + WU_KM + CD_KM,
+          "Strength — " + structured(sets + "x3km at goal pace minus 10s ("
+            + fmt.pace(Math.max(1, tmpo - 10)) + "/km) + 1km jog recovery"),
+          Math.max(1, tmpo - 10));
       } else {
-        const reps = Math.max(4, Math.min(8, Math.floor((maxQ * 0.85 - 1.5) / 0.6)));
-        addS(q.dayOffset, "INTERVALS", reps * 0.6 + 1.5,
-          "Speed — " + reps + "x600m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
+        const reps = Math.max(3, Math.min(8, Math.floor((maxQ * 0.85 - WU_KM - CD_KM) / 0.6)));
+        addS(q.dayOffset, "INTERVALS", reps * 0.6 + WU_KM + CD_KM,
+          "Speed — " + structured(reps + "x600m at " + fmt.pace(intv) + "/km + 90s jog recovery"), intv);
       }
     } else {
       // The signature Hansons tempo: goal race pace, growing with the ramp,
-      // capped at ~30% of race distance and the day's time budget.
-      const tempoTarget = Math.min(q.minutes * 60 / tmpo * 0.85, 0.3 * dist);
-      const km = Math.min(tempoTarget, 6 + Math.max(0, tempoTarget - 6) * rampFrac);
-      addS(q.dayOffset, "TEMPO", km,
-        "Tempo — at goal race pace " + fmt.pace(tmpo) + "/km, steady", tmpo);
+      // capped at ~30% of race distance and the day's time budget (which now
+      // also carries the warm-up/cool-down).
+      const tempoTarget = Math.min(q.minutes * 60 / tmpo * 0.85 - WU_KM - CD_KM, 0.3 * dist);
+      const work = r1(Math.max(1.5, Math.min(tempoTarget, 6 + Math.max(0, tempoTarget - 6) * rampFrac)));
+      addS(q.dayOffset, "TEMPO", work + WU_KM + CD_KM,
+        "Tempo — " + structured(work + "km at goal race pace " + fmt.pace(tmpo) + "/km, steady"), tmpo);
     }
   });
 }

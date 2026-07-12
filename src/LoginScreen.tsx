@@ -6,7 +6,9 @@ import { supabase, authRedirectTo } from "./supabase";
 import { isNative } from "./native";
 import { PRIVACY_URL } from "./constants";
 
-type LoginMode = "signin" | "signup";
+// "reset" is the forgot-password sub-screen: email only, sends a recovery
+// link (completed by ResetPasswordScreen after the PASSWORD_RECOVERY event).
+type LoginMode = "signin" | "signup" | "reset";
 type LoginMessage = { type: "err" | "ok"; text: string };
 type LoginScreenProps = {
   authError?: string | null;
@@ -61,7 +63,13 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
     setBusy(true);
     setMsg(null);
     try {
-      if (mode === "signup") {
+      if (mode === "reset") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: authRedirectTo(),
+        });
+        if (error) throw error;
+        note("ok", "Check your email for a password reset link.");
+      } else if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -103,10 +111,17 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
         </div>
 
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
-          <div className="flex gap-1 mb-4 bg-slate-900/60 p-1 rounded-xl">
-            {tab("signin", "Sign in")}
-            {tab("signup", "Sign up")}
-          </div>
+          {mode !== "reset" && (
+            <div className="flex gap-1 mb-4 bg-slate-900/60 p-1 rounded-xl">
+              {tab("signin", "Sign in")}
+              {tab("signup", "Sign up")}
+            </div>
+          )}
+          {mode === "reset" && (
+            <p className="text-sm text-slate-300 mb-4">
+              Enter your account email and we&apos;ll send you a link to set a new password.
+            </p>
+          )}
 
           <form onSubmit={onSubmit} className="space-y-3">
             <label className="block">
@@ -124,23 +139,35 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
               </div>
             </label>
 
-            <label className="block">
-              <span className="text-xs text-slate-400">Password</span>
-              <div className="mt-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3">
-                <Lock size={16} className="text-slate-500" />
-                <input
-                  type="password"
-                  required
-                  // Enforce the stronger policy on sign-up only; sign-in must
-                  // still accept existing accounts created under the old rule.
-                  minLength={mode === "signup" ? 8 : 6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="flex-1 bg-transparent py-2 text-sm text-white outline-none"
-                  placeholder="••••••••"
-                />
+            {mode !== "reset" && (
+              <label className="block">
+                <span className="text-xs text-slate-400">Password</span>
+                <div className="mt-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3">
+                  <Lock size={16} className="text-slate-500" />
+                  <input
+                    type="password"
+                    required
+                    // Enforce the stronger policy on sign-up only; sign-in must
+                    // still accept existing accounts created under the old rule.
+                    minLength={mode === "signup" ? 8 : 6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="flex-1 bg-transparent py-2 text-sm text-white outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </label>
+            )}
+
+            {mode === "signin" && (
+              <div className="text-right">
+                <button type="button"
+                  onClick={() => { onClearAuthError?.(); setMode("reset"); setMsg(null); }}
+                  className="text-xs text-slate-400 hover:text-slate-200 transition">
+                  Forgot password?
+                </button>
               </div>
-            </label>
+            )}
 
             <button
               type="submit"
@@ -148,25 +175,37 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
               className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition"
             >
               {busy && <Loader size={16} className="animate-spin" />}
-              {mode === "signin" ? "Sign in" : "Create account"}
+              {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}
             </button>
+
+            {mode === "reset" && (
+              <button type="button"
+                onClick={() => { setMode("signin"); setMsg(null); }}
+                className="w-full text-xs text-slate-400 hover:text-slate-200 transition text-center">
+                Back to sign in
+              </button>
+            )}
           </form>
 
-          <div className="flex items-center gap-3 my-4">
-            <div className="h-px flex-1 bg-slate-700" />
-            <span className="text-xs text-slate-500">or</span>
-            <div className="h-px flex-1 bg-slate-700" />
-          </div>
+          {mode !== "reset" && (
+            <>
+              <div className="flex items-center gap-3 my-4">
+                <div className="h-px flex-1 bg-slate-700" />
+                <span className="text-xs text-slate-500">or</span>
+                <div className="h-px flex-1 bg-slate-700" />
+              </div>
 
-          <button
-            type="button"
-            onClick={withGoogle}
-            disabled={busy}
-            className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-800 font-medium py-2.5 rounded-lg transition"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
+              <button
+                type="button"
+                onClick={withGoogle}
+                disabled={busy}
+                className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-800 font-medium py-2.5 rounded-lg transition"
+              >
+                <GoogleIcon />
+                Continue with Google
+              </button>
+            </>
+          )}
 
           {shownMsg && (
             <p

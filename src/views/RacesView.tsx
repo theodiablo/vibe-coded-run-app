@@ -109,6 +109,15 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
   };
 
   // ── My Races ──────────────────────────────────────────────────────────────
+  // A hand-entered training target (no catalogue edition → no participation)
+  // still belongs here: the dashboard's "Race Day" card and this tab must not
+  // contradict each other. Synthesized from settings, read-only — it's managed
+  // from the Plan tab, not the wishlist.
+  const manualTarget = settings.raceDate && settings.distanceKm
+    && String(settings.raceDate) >= todayStr
+    && !(settings.targetEditionId && byId[settings.targetEditionId])
+    ? { raceDate: String(settings.raceDate), distanceKm: Number(settings.distanceKm) }
+    : null;
   const done = parts.filter(p => p.status === "done");
   const wishlist = parts.filter(p => p.status === "wishlist");
   const upcoming = wishlist.filter(p => p.raceDate && p.raceDate >= todayStr).sort((a, b) => String(a.raceDate).localeCompare(String(b.raceDate)));
@@ -130,7 +139,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
 
       {seg === "mine" && (
         <div className="space-y-6">
-          {!parts.length && (
+          {!parts.length && !manualTarget && (
             <div className="bg-slate-800 rounded-2xl p-6 text-center space-y-3">
               <Trophy size={32} className="mx-auto text-slate-700"/>
               <p className="text-sm text-slate-400">No races yet — pick a goal to chase.</p>
@@ -139,6 +148,26 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                 Add your first goal race
               </button>
             </div>
+          )}
+
+          {manualTarget && (
+            <Section title="Training target">
+              <div className="rounded-2xl p-4 border border-orange-500/30"
+                style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold leading-snug">Your goal race</p>
+                    <p className="text-slate-400 text-sm mt-0.5">{fmt.date(manualTarget.raceDate) + " · " + manualTarget.distanceKm + " km"}</p>
+                    <span className="inline-flex items-center gap-1 text-xs text-orange-300 mt-1.5 font-semibold"><Target size={12}/>Training target</span>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-3xl font-black text-orange-400 leading-none">{Math.max(0, daysUntil(manualTarget.raceDate, today))}</p>
+                    <p className="text-slate-400 text-xs mt-0.5">days to go</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 mt-3">Entered by hand — your plan builds toward it. Edit it in the Plan tab.</p>
+              </div>
+            </Section>
           )}
 
           {upcoming.length > 0 && (

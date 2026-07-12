@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { History, Pencil, Trash2, Map as MapIcon } from "lucide-react";
+import { History, Pencil, Trash2, Map as MapIcon, Download } from "lucide-react";
 import { fmt } from "../utils/format";
+import { buildGpx } from "../utils/gpx";
 import { RunRow } from "../components/RunRow";
 import { RouteMap } from "../components/RouteMap";
 import type { TrackPoint } from "../components/RouteMap";
 import { getRoute, getPendingRoute } from "../routes";
+import type { TrackPointOrGap } from "../utils/geo";
 import { EditRunModal } from "../modals/EditRunModal";
 import type { ReactNode } from "react";
 import type { Run, RunPatch } from "../types";
@@ -49,6 +51,20 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}: HistoryViewProp
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editRun,   setEditRun]   = useState<Run | null>(null);
   const [mapId,     setMapId]     = useState<string | null>(null);
+
+  // Export a GPS-tracked run's trace back out as GPX (data portability —
+  // mirrors the import path). Same blob-anchor pattern as BackupModal.
+  const exportGpx = async (r: Run) => {
+    const route = r.routeId
+      ? await getRoute(r.routeId).catch(() => null)
+      : getPendingRoute(r.routeTmp);
+    if (!route?.points?.length) return;
+    const gpx = buildGpx("Run " + r.date + " — " + (r.km || 0) + " km", route.points as TrackPointOrGap[]);
+    const url = URL.createObjectURL(new Blob([gpx], { type: "application/gpx+xml" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: "run-" + r.date + ".gpx" });
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!runs.length) return (
     <div className="max-w-lg mx-auto flex flex-col items-center justify-center pt-24 text-center gap-3 p-4">
@@ -98,10 +114,16 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}: HistoryViewProp
                     ) : (
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         {(r.routeId || r.routeTmp) && (
-                          <button onClick={() => setMapId(mapId === r.id ? null : r.id || null)} aria-label="View route"
-                            className={"flex items-center justify-center transition-colors " + (mapId === r.id ? "text-orange-400" : "text-slate-400 hover:text-orange-400")} style={{minWidth:40, minHeight:40}}>
-                            <MapIcon size={16}/>
-                          </button>
+                          <>
+                            <button onClick={() => setMapId(mapId === r.id ? null : r.id || null)} aria-label="View route"
+                              className={"flex items-center justify-center transition-colors " + (mapId === r.id ? "text-orange-400" : "text-slate-400 hover:text-orange-400")} style={{minWidth:40, minHeight:40}}>
+                              <MapIcon size={16}/>
+                            </button>
+                            <button onClick={() => exportGpx(r)} aria-label="Download GPX"
+                              className="flex items-center justify-center text-slate-400 hover:text-orange-400 transition-colors" style={{minWidth:40, minHeight:40}}>
+                              <Download size={16}/>
+                            </button>
+                          </>
                         )}
                         <button onClick={() => setEditRun(r)} aria-label="Edit run"
                           className="flex items-center justify-center text-slate-400 hover:text-orange-400 transition-colors" style={{minWidth:40, minHeight:40}}>

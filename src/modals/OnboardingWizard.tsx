@@ -4,6 +4,7 @@ import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { StylePicker } from "../components/StylePicker";
+import { HRZoneBar } from "../components/HRZoneBar";
 import {
   TRAINING_LEVELS, isStyleId, isTrainingLevel, recommendStyle, suggestPlanSessions,
   type StyleId, type TrainingLevel,
@@ -109,7 +110,9 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // Heart rate (optional).
   const [age,    setAge]    = useState(String(settings.age || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
-  const [restHR, setRestHR] = useState(String(settings.restHR || 60));
+  // Empty like the other HR fields (placeholder shows the typical 60);
+  // complete() coalesces to 60 — a pre-filled value read as "already answered".
+  const [restHR, setRestHR] = useState(settings.restHR ? String(settings.restHR) : "");
   const [maxHRHint, setMaxHRHint] = useState("");
 
   // Final step — health & safety screening + disclaimer. The screening answer is
@@ -268,7 +271,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
               </div>
               <div>
                 <p className="font-bold text-lg">Welcome to Running Coach</p>
-                <p className="text-sm text-slate-400 mt-1">A coach in your pocket — let&apos;s set you up in under a minute.</p>
+                <p className="text-sm text-slate-400 mt-1">A coach in your pocket — a few quick questions and you&apos;re ready to run.</p>
               </div>
               <ul className="text-left space-y-2.5 bg-slate-800 rounded-2xl p-4">
                 {[
@@ -489,20 +492,36 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 <div><label className="text-xs text-slate-400 block mb-1.5">Age</label>
                   <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} className={INPUT_CLS}/></div>
                 <div><label className="text-xs text-slate-400 block mb-1.5">Max HR</label>
-                  <input type="number" min="100" max="230" placeholder="auto" value={maxHR} onChange={e => setMaxHR(e.target.value)} className={INPUT_CLS}/></div>
+                  {/* "auto" resolves visibly: once age is entered the estimate
+                      appears as the placeholder + the note below, instead of an
+                      opaque "auto" that never seems to compute. */}
+                  <input type="number" min="100" max="230" placeholder={tanakaMax ? String(tanakaMax) : "auto"} value={maxHR} onChange={e => setMaxHR(e.target.value)} className={INPUT_CLS}/></div>
                 <div><label className="text-xs text-slate-400 block mb-1.5">Rest HR</label>
                   <input type="number" min="30" max="120" placeholder="60" value={restHR} onChange={e => setRestHR(e.target.value)} className={INPUT_CLS}/></div>
               </div>
 
               <div>
-                {!(parseInt(maxHR) || 0) && (
+                {!(parseInt(maxHR) || 0) && !tanakaMax && (
                   <button type="button" onClick={estimateHR}
                     className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
                     I don&apos;t know my heart rate
                   </button>
                 )}
+                {!(parseInt(maxHR) || 0) && tanakaMax && (
+                  <p className="text-xs text-slate-500">
+                    {"We'll use ~" + tanakaMax + " bpm max HR (estimated from your age) unless you enter your own."}
+                  </p>
+                )}
                 {maxHRHint && <p className="text-xs text-slate-500 mt-1.5">{maxHRHint}</p>}
               </div>
+
+              {(() => {
+                // Live zone preview with whatever we know so far — the same
+                // shared bar as Settings/Stats, so setup and app never differ.
+                const effMax = (parseInt(maxHR) || 0) || tanakaMax || 0;
+                const rest = parseInt(restHR) || 60;
+                return effMax > rest ? <HRZoneBar effMax={effMax} restHR={rest}/> : null;
+              })()}
 
               <button onClick={() => go("health")}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">

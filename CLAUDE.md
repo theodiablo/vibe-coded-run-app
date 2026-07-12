@@ -220,7 +220,16 @@ and delete anything that becomes stale.
   styles — balanced included — must stay validator-clean **by construction**
   (space hard days via `pickHardDays`; buildPlan's adjacency sweep demotes
   stragglers to EASY) — the matrix in
-  `coachValidation.test.ts` enforces this across distances/day layouts. The UI
+  `coachValidation.test.ts` enforces this across distances/day layouts.
+  Generated TEMPO/INTERVALS prescriptions are **structured**: descs read
+  "1.5km warm-up + <work> + 1km cool-down" (see `structured` in plan.ts) and
+  the session km is the honest sum of the parts — `sessionSteps` parses that
+  exact format (with generic fallbacks for coach-authored descs), so change
+  the two together. Easy-day sizing is **fitness-hybrid**: from-scratch keeps
+  the gentle 2.5 km ramp and sets `plan.gentleStart` (drives PlanView's
+  "starts gentle on purpose" note); demonstrated fitness (recent ≥7.5 km run
+  or self-reported regular/frequent level) floors easy days at ~75% of the
+  day's time budget (`easyFloorKm`). The UI
   seam is `StylePicker` (PlanView setup/edit + both onboarding branches):
   selection state is `StyleId | null` where null = "untouched, track the live
   recommendation"; a tap pins it. All buildPlan call sites must pass
@@ -418,6 +427,15 @@ and delete anything that becomes stale.
   helpers). The native side returns **raw** metres/seconds/exercise-type ints so
   the mapping stays testable off-device. Per-session aggregates are filtered to
   the session's own `dataOrigin` so two apps syncing the same run can't mix.
+- **Imported run types are inferred, conservatively.** Providers/parsers still
+  emit `type:"EASY"`; the pure `inferRunType` (`src/utils/inferRunType.ts`,
+  unit-tested) upgrades to LONG (distance/duration vs the runner's own recent
+  volume) or TEMPO/INTERVALS (clear pace-vs-goal or Karvonen HR-zone signals
+  only) at the two consumption points — `RunningCoach.scanImports` and
+  LogView's file import. It never overrides a non-EASY input type (e.g. WALK
+  from a watch category); ambiguous stays EASY and everything remains
+  user-editable. GPS runs can be exported back out as GPX (`buildGpx` in
+  `src/utils/gpx.ts`, download action in HistoryView) — import/export parity.
 - **ONE dedupe rule set** (`src/imports/dedupe.ts` `isDuplicateRun`, run-shaped —
   watch scans map sessions first, then dedupe once; never add a parallel
   session-shaped check, the two drifted before): (1) per-device seen-id list

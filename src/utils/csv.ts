@@ -83,7 +83,11 @@ export function parseRunsCsv(text: string): { runs: CsvRun[]; error: string | nu
           type: "EASY", km: Math.round(dM / 100) / 10, durationSec: Math.round(dur),
           hr:    num(row["average heart rate (bpm)"]),
           hrMax: num(row["max heart rate (bpm)"]),
-          elevation: null, effort: 5, notes: "Zepp import",
+          // Ascent header varies across Zepp export versions — try the known
+          // spellings; absent columns still import (without elevation).
+          elevation: num(row["elevation gain (m)"] ?? row["altitude ascend (m)"]
+            ?? row["altitude ascend"] ?? row["total ascent (m)"]),
+          effort: 5, notes: "Zepp import",
           ...(startedAt ? { startedAt } : {}),
         });
       }

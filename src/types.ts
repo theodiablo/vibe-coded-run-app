@@ -100,6 +100,9 @@ export type Plan = Record<string, unknown> & {
   planSessions?: PlanSessionInput[];
   // Methodology style the plan was built with; absent on pre-styles plans.
   style?: string;
+  // True when the plan starts from the from-scratch gentle ramp (no recent
+  // runs / self-reported fitness) — drives PlanView's "starts gentle" note.
+  gentleStart?: boolean;
   weeks: PlanWeek[];
 };
 

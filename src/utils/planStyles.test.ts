@@ -184,15 +184,20 @@ describe("buildPlan level floor", () => {
   });
 });
 
-describe("interval prescriptions are internally coherent", () => {
-  // The desc's rep workout must always FIT the shown session total — reps
-  // derive from the day's time budget and the total is computed from them,
-  // never clipped afterwards (same "5x800m" with two different totals was a
-  // real user-reported confusion).
+describe("quality prescriptions are internally coherent", () => {
+  // The desc's parts must always sum to the shown session total — reps derive
+  // from the day's time budget and the total is computed from the parts
+  // (warm-up + work + cool-down + any between-rep jogs), never clipped
+  // afterwards (same "5x800m" with two different totals was a real
+  // user-reported confusion).
   const parseWork = (desc: string) => {
     const m = desc.match(/(\d+)x(\d+(?:\.\d+)?)(km|m)\b/);
     if (!m) return null;
-    return Number(m[1]) * (m[3] === "km" ? Number(m[2]) : Number(m[2]) / 1000);
+    return { km: Number(m[1]) * (m[3] === "km" ? Number(m[2]) : Number(m[2]) / 1000), reps: Number(m[1]) };
+  };
+  const parsePart = (desc: string, part: string) => {
+    const m = desc.match(new RegExp("(\\d+(?:\\.\\d+)?)\\s*km " + part));
+    return m ? Number(m[1]) : 0;
   };
   const layouts = [
     [{ dayOffset: 2, minutes: 30 }, { dayOffset: 6, minutes: 60 }],
@@ -208,12 +213,35 @@ describe("interval prescriptions are internally coherent", () => {
         const work = parseWork(s.desc);
         expect(work).not.toBeNull();
         seen++;
-        // Total ≥ the promised rep work, and total = work + a warmup/recovery
-        // allowance of at most ~1.6 km (i.e. derived from the reps, not clipped).
-        expect(Number(s.km)).toBeGreaterThanOrEqual(work! - 0.05);
-        expect(Number(s.km) - work!).toBeLessThanOrEqual(1.6);
+        // Structured prescription: explicit warm-up and cool-down…
+        const wu = parsePart(s.desc, "warm-up");
+        const cd = parsePart(s.desc, "cool-down");
+        expect(wu).toBeGreaterThan(0);
+        expect(cd).toBeGreaterThan(0);
+        // …and the total is the sum of the parts, allowing up to 1 km of
+        // between-rep jog per gap (Hansons strength counts them in the total).
+        const parts = wu + work!.km + cd;
+        expect(Number(s.km)).toBeGreaterThanOrEqual(parts - 0.05);
+        expect(Number(s.km) - parts).toBeLessThanOrEqual((work!.reps - 1) * 1 + 0.05);
       });
       if (style !== "hansons" || layout.length > 2) expect(seen).toBeGreaterThan(0);
+    });
+  });
+
+  it("tempo sessions carry warm-up + work + cool-down that sum to the total", () => {
+    ["balanced", "polarized", "lowfreq", "hansons"].forEach(style => {
+      const plan = buildPlan(raceDateInDays(140), 6600, DAYS5, 21.1, 0, { style });
+      const tempos = allSessions(plan).filter(s => s.type === "TEMPO");
+      expect(tempos.length).toBeGreaterThan(0);
+      tempos.forEach(s => {
+        const wu = parsePart(s.desc, "warm-up");
+        const cd = parsePart(s.desc, "cool-down");
+        const workM = s.desc.match(/(\d+(?:\.\d+)?)\s*km at /);
+        expect(wu).toBeGreaterThan(0);
+        expect(cd).toBeGreaterThan(0);
+        expect(workM).not.toBeNull();
+        expect(Number(s.km)).toBeCloseTo(wu + Number(workM![1]) + cd, 1);
+      });
     });
   });
 });

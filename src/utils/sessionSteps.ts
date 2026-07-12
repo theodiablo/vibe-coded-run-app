@@ -23,9 +23,25 @@ const parseReps = (desc: string) => {
 };
 
 // "+ 90s recovery", "+ 90s jog recovery", "+ 1km jog recovery", "+ recovery jogs".
+// Stops at the next "+" so a trailing "+ 1km cool-down" part is never swallowed.
 const parseRecovery = (desc: string) => {
-  const m = desc.match(/\+\s*([^.]*recover[^.,]*)/i);
+  const m = desc.match(/\+\s*([^.+]*recover[^.,+]*)/i);
   return m ? m[1].trim() : "an easy jog";
+};
+
+// Structured prescriptions carry explicit "1.5km warm-up" / "1km cool-down"
+// parts (see `structured` in plan.ts); fall back to generic advice for
+// legacy and coach-authored descriptions that don't.
+const parsePart = (desc: string, part: "warm-up" | "cool-down") => {
+  const m = desc.match(new RegExp("(\\d+(?:\\.\\d+)?)\\s*km " + part, "i"));
+  return m ? m[1] + " km" : null;
+};
+
+// The tempo work block: "5.7km at 4:58/km" (never matches the warm-up or
+// cool-down parts — those aren't followed by "at").
+const parseTempoWork = (desc: string) => {
+  const m = desc.match(/(\d+(?:\.\d+)?)\s*km at /i);
+  return m ? m[1] + " km" : null;
 };
 
 // "run 2 min / walk 1 min" — the Galloway ratio carried in runwalk descs.
@@ -41,6 +57,9 @@ export function sessionSteps(s: SessionLike): SessionStep[] {
   const pace = Number(s.pace) || 0;
   const paceTxt = pace ? fmt.pace(pace) + "/km" : null;
 
+  const wu = parsePart(desc, "warm-up");
+  const cd = parsePart(desc, "cool-down");
+
   if (type === "INTERVALS") {
     const reps = parseReps(desc);
     const workout = reps
@@ -48,20 +67,21 @@ export function sessionSteps(s: SessionLike): SessionStep[] {
         + ", with " + parseRecovery(desc) + " between reps."
       : "Repeats" + (paceTxt ? " at " + paceTxt : "") + " with easy jog recoveries between them.";
     return [
-      { label: "Warm-up", detail: "10–15 min easy jogging, finishing with a few relaxed strides." },
+      { label: "Warm-up", detail: (wu ? wu + " of" : "10–15 min") + " easy jogging, finishing with a few relaxed strides." },
       { label: "Workout", detail: workout },
-      { label: "Cool-down", detail: "5–10 min very easy jog to bring the heart rate down." },
+      { label: "Cool-down", detail: (cd ? cd + " of" : "5–10 min") + " very easy jogging to bring the heart rate down." },
       STRETCH,
     ];
   }
 
   if (type === "TEMPO") {
+    const work = parseTempoWork(desc);
     return [
-      { label: "Warm-up", detail: "10–15 min easy jogging." },
-      { label: "Workout", detail: (km ? "~" + km + " km" : "The main block")
+      { label: "Warm-up", detail: (wu ? wu + " of" : "10–15 min") + " easy jogging." },
+      { label: "Workout", detail: (work || (km ? "~" + km + " km" : "The main block"))
         + (paceTxt ? " at " + paceTxt : "")
         + " — comfortably hard: controlled, but you couldn't hold a chat." },
-      { label: "Cool-down", detail: "5–10 min very easy jog." },
+      { label: "Cool-down", detail: (cd ? cd + " of" : "5–10 min") + " very easy jogging." },
       STRETCH,
     ];
   }

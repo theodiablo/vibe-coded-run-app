@@ -8,6 +8,16 @@
   color-scheme: dark;
 }
 
+/* The app shell paints bg-slate-900 on its own root div only; with
+   color-scheme dark the canvas BEHIND it is black, so brisk scrolling /
+   overscroll on desktop exposed large black voids (and rubber-banding let
+   the fixed header/bottom nav drift mid-viewport). Paint the canvas the app
+   colour and contain vertical overscroll. */
+html, body {
+  background-color: #0f172a; /* Tailwind slate-900, same as the app shell */
+  overscroll-behavior-y: none;
+}
+
 /* Tailwind v4's preflight resets buttons to `cursor: default`; restore the
    pointer on interactive controls (v3 behaviour) so buttons read as clickable
    on the web. No-op on touch; disabled controls keep the default arrow. */

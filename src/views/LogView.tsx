@@ -7,8 +7,9 @@ import { fileProvider } from "../imports/providers/file";
 import { isDuplicateRun } from "../imports/dedupe";
 import { persistImportedRoutes } from "../imports/persistRoutes";
 import { getSeenIds } from "../watch/import";
+import { inferRunType } from "../utils/inferRunType";
 import type { ImportedRun } from "../imports/types";
-import type { HrPending, Run } from "../types";
+import type { HrPending, Run, SettingsState } from "../types";
 
 type LogForm = {
   date: string;
@@ -39,9 +40,11 @@ type LogViewProps = {
   openTracker?: () => void;
   // Existing log, used to dedupe file imports (comes in via the shared bag).
   runs?: Run[];
+  // HR profile + goal, used to infer imported run types (shared bag too).
+  settings?: SettingsState;
 };
 
-export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: LogViewProps) {
+export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs, settings}: LogViewProps) {
   // A GPS-tracked run prefills its real measured duration; a plan session
   // prefills an estimate from km × prescribed pace.
   const estSec = prefill?.durationSec != null
@@ -121,7 +124,11 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
         showMsg("Already imported — " + (parsed.length > 1 ? "those runs are" : "that run is") + " in your log.");
         return;
       }
-      addRuns(await persistImportedRoutes(fresh));
+      // File parsers type everything EASY; upgrade to LONG/TEMPO/INTERVALS
+      // only on clear distance/pace/HR signals so imported history keeps its
+      // type-based stats honest. Always correctable per-run afterwards.
+      const typed = fresh.map(r => ({ ...r, type: inferRunType(r, { runs, settings }) }));
+      addRuns(await persistImportedRoutes(typed));
       const skipped = parsed.length - fresh.length;
       showMsg("Imported " + fresh.length + " run" + (fresh.length > 1 ? "s" : "") +
         (skipped ? " (" + skipped + " already logged)" : "") + ".");

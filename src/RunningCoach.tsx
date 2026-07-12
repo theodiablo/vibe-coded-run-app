@@ -14,6 +14,7 @@ import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPend
 import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
 import { markSeen, WATCH_MANUAL_SCAN_DAYS, WATCH_AUTO_SCAN_COOLDOWN_MS } from "./watch/import";
 import { scanAllProviders } from "./imports/registry";
+import { inferRunType } from "./utils/inferRunType";
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
@@ -574,7 +575,12 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     // Persist any route traces a provider returned and swap them for routeId —
     // transient `points` never belong in the stored run (blob bloat). HC has no
     // routes today; this is for file-like/cloud providers that do.
-    const found = scanned.length ? await persistImportedRoutes(scanned) : [];
+    // Providers type everything EASY; infer LONG/TEMPO/INTERVALS from clear
+    // distance/pace/HR signals (user-correctable in the review/log).
+    const found = scanned.length
+      ? (await persistImportedRoutes(scanned)).map(r => ({
+          ...r, type: inferRunType(r, { runs: runsRef.current, settings: settingsRef.current }) }))
+      : [];
     if (!found.length) return 0;
     if (!manual) watchAutoShownRef.current = true;
     if (found.length === 1) {

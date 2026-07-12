@@ -32,6 +32,22 @@ describe("sessionSteps", () => {
     expect(step(s, "Workout")).toContain("~7 km");
   });
 
+  it("uses the explicit warm-up/work/cool-down parts of a structured tempo", () => {
+    const s = { type: "TEMPO", desc: "Tempo — 1.5km warm-up + 5.7km at 4:58/km, comfortably hard + 1km cool-down", km: 8.2, pace: 298 };
+    expect(step(s, "Warm-up")).toContain("1.5 km");
+    expect(step(s, "Workout")).toContain("5.7 km");
+    expect(step(s, "Cool-down")).toContain("1 km");
+  });
+
+  it("keeps a structured interval's recovery separate from its cool-down", () => {
+    const s = { type: "INTERVALS", desc: "Intervals — 1.5km warm-up + 5x800m at 4:44/km + 90s recovery + 1km cool-down", km: 6.5, pace: 284 };
+    expect(step(s, "Warm-up")).toContain("1.5 km");
+    expect(step(s, "Workout")).toContain("5 × 800 m");
+    expect(step(s, "Workout")).toContain("90s recovery");
+    expect(step(s, "Workout")).not.toContain("cool-down");
+    expect(step(s, "Cool-down")).toContain("1 km");
+  });
+
   it("adds a fuelling step only to genuinely long runs", () => {
     const long = { type: "LONG", desc: "Long run — easy effort at 6:00/km", km: 24, pace: 360 };
     expect(labels(long)).toContain("Fuel");

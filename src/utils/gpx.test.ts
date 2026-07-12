@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseActivityFile } from "./gpx";
+import { buildGpx, parseActivityFile } from "./gpx";
+import type { TrackPointOrGap } from "./geo";
 
 // ~1.11 km of due-north track (0.01° lat ≈ 1.11 km), 3 points, 10 min, with
 // Garmin-style hr extensions and rising elevation.
@@ -90,5 +91,25 @@ describe("parseActivityFile — TCX", () => {
     expect(run.hr).toBe(150);           // avg of 142/158
     expect(run.hrMax).toBe(158);
     expect(run.points).toHaveLength(2);
+  });
+});
+
+describe("buildGpx", () => {
+  it("round-trips through the GPX parser and splits segments at gaps", () => {
+    const t0 = Date.parse("2026-07-01T08:00:00Z");
+    const pts: TrackPointOrGap[] = [
+      [48.85, 2.35, t0, 35],
+      [48.86, 2.35, t0 + 60000, 36],
+      null, // signal gap → new <trkseg>
+      [48.87, 2.35, t0 + 300000, 40],
+    ];
+    const gpx = buildGpx('Run 2026-07-01 — 2.2 km & "hills"', pts);
+    expect(gpx.match(/<trkseg>/g)).toHaveLength(2);
+    expect(gpx).toContain("&amp;");
+    expect(gpx).toContain("&quot;");
+    const res = parseActivityFile(gpx, "gpx");
+    expect(res.error).toBeUndefined();
+    expect(res.run!.points).toHaveLength(3);
+    expect(res.run!.km).toBeGreaterThan(2);
   });
 });

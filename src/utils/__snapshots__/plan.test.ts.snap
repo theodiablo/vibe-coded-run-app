@@ -3,6 +3,7 @@
 exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondary race — stable output 1`] = `
 {
   "distanceKm": 21.1,
+  "gentleStart": false,
   "goalSec": 6340,
   "longRunPeakKm": 19,
   "planSessions": [
@@ -33,7 +34,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w1d1",
-          "km": 2.9,
+          "km": 5.5,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -43,7 +44,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w1d3",
-          "km": 2.5,
+          "km": 5.7,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -70,7 +71,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w2d1",
-          "km": 3.1,
+          "km": 5.5,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -80,7 +81,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w2d3",
-          "km": 2.7,
+          "km": 5.7,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -107,7 +108,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w3d1",
-          "km": 3.3,
+          "km": 5.5,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -117,7 +118,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w3d3",
-          "km": 2.9,
+          "km": 5.7,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -144,7 +145,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w4d1",
-          "km": 3.5,
+          "km": 5.5,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -154,7 +155,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "desc": "Easy run — relaxed aerobic effort",
           "done": false,
           "id": "w4d3",
-          "km": 3.1,
+          "km": 5.7,
           "pace": 355,
           "runId": null,
           "type": "EASY",
@@ -178,7 +179,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
       "sessions": [
         {
           "date": "2026-08-11",
-          "desc": "Tempo run — 4:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 3.2km at 4:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w5d1",
           "km": 5.7,
@@ -188,10 +189,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
         },
         {
           "date": "2026-08-13",
-          "desc": "Intervals — 5x800m at 4:44/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 4x800m at 4:44/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w5d3",
-          "km": 5.5,
+          "km": 5.7,
           "pace": 284,
           "runId": null,
           "type": "INTERVALS",
@@ -215,7 +216,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
       "sessions": [
         {
           "date": "2026-08-18",
-          "desc": "Tempo run — 4:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 3.2km at 4:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w6d1",
           "km": 5.7,
@@ -225,10 +226,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
         },
         {
           "date": "2026-08-20",
-          "desc": "Intervals — 5x800m at 4:44/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 4x800m at 4:44/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w6d3",
-          "km": 5.5,
+          "km": 5.7,
           "pace": 284,
           "runId": null,
           "type": "INTERVALS",
@@ -252,7 +253,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
       "sessions": [
         {
           "date": "2026-08-25",
-          "desc": "Tempo run — 4:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 3.2km at 4:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w7d1",
           "km": 5.7,
@@ -262,10 +263,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
         },
         {
           "date": "2026-08-27",
-          "desc": "Intervals — 5x800m at 4:44/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 4x800m at 4:44/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w7d3",
-          "km": 5.5,
+          "km": 5.7,
           "pace": 284,
           "runId": null,
           "type": "INTERVALS",
@@ -290,7 +291,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
       "sessions": [
         {
           "date": "2026-09-01",
-          "desc": "Tempo run — 4:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 3.2km at 4:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w8d1",
           "km": 5.7,
@@ -300,10 +301,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
         },
         {
           "date": "2026-09-03",
-          "desc": "Intervals — 5x800m at 4:44/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 4x800m at 4:44/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w8d3",
-          "km": 5.5,
+          "km": 5.7,
           "pace": 284,
           "runId": null,
           "type": "INTERVALS",
@@ -327,7 +328,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
       "sessions": [
         {
           "date": "2026-09-08",
-          "desc": "Tempo run — 4:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 3.2km at 4:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w9d1",
           "km": 5.7,
@@ -337,10 +338,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
         },
         {
           "date": "2026-09-10",
-          "desc": "Intervals — 5x800m at 4:44/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 4x800m at 4:44/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w9d3",
-          "km": 5.5,
+          "km": 5.7,
           "pace": 284,
           "runId": null,
           "type": "INTERVALS",
@@ -364,7 +365,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
       "sessions": [
         {
           "date": "2026-09-15",
-          "desc": "Tempo run — 4:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 3.2km at 4:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w10d1",
           "km": 5.7,
@@ -374,10 +375,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
         },
         {
           "date": "2026-09-17",
-          "desc": "Intervals — 5x800m at 4:44/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 4x800m at 4:44/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w10d3",
-          "km": 5.5,
+          "km": 5.7,
           "pace": 284,
           "runId": null,
           "type": "INTERVALS",
@@ -532,6 +533,7 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
 exports[`buildPlan balanced output freeze > marathon, default 2 days, from scratch — stable output 1`] = `
 {
   "distanceKm": 42.2,
+  "gentleStart": true,
   "goalSec": 14400,
   "longRunPeakKm": 32,
   "planSessions": [
@@ -663,10 +665,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-08-12",
-          "desc": "Tempo run — 5:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 1.5km at 5:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w5d2",
-          "km": 3.6,
+          "km": 4,
           "pace": 358,
           "runId": null,
           "type": "TEMPO",
@@ -690,10 +692,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-08-19",
-          "desc": "Intervals — 3x800m at 5:41/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 3x800m at 5:41/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w6d2",
-          "km": 3.9,
+          "km": 4.9,
           "pace": 341,
           "runId": null,
           "type": "INTERVALS",
@@ -717,10 +719,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-08-26",
-          "desc": "Tempo run — 5:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 1.5km at 5:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w7d2",
-          "km": 3.6,
+          "km": 4,
           "pace": 358,
           "runId": null,
           "type": "TEMPO",
@@ -744,10 +746,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-09-02",
-          "desc": "Intervals — 3x800m at 5:41/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 3x800m at 5:41/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w8d2",
-          "km": 3.9,
+          "km": 4.9,
           "pace": 341,
           "runId": null,
           "type": "INTERVALS",
@@ -771,10 +773,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-09-09",
-          "desc": "Tempo run — 5:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 1.5km at 5:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w9d2",
-          "km": 3.6,
+          "km": 4,
           "pace": 358,
           "runId": null,
           "type": "TEMPO",
@@ -798,10 +800,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-09-16",
-          "desc": "Intervals — 3x800m at 5:41/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 3x800m at 5:41/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w10d2",
-          "km": 3.9,
+          "km": 4.9,
           "pace": 341,
           "runId": null,
           "type": "INTERVALS",
@@ -825,10 +827,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-09-23",
-          "desc": "Tempo run — 5:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 1.5km at 5:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w11d2",
-          "km": 3.6,
+          "km": 4,
           "pace": 358,
           "runId": null,
           "type": "TEMPO",
@@ -852,10 +854,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-09-30",
-          "desc": "Intervals — 3x800m at 5:41/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 3x800m at 5:41/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w12d2",
-          "km": 3.9,
+          "km": 4.9,
           "pace": 341,
           "runId": null,
           "type": "INTERVALS",
@@ -879,10 +881,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-10-07",
-          "desc": "Tempo run — 5:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 1.5km at 5:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w13d2",
-          "km": 3.6,
+          "km": 4,
           "pace": 358,
           "runId": null,
           "type": "TEMPO",
@@ -906,10 +908,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-10-14",
-          "desc": "Intervals — 3x800m at 5:41/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 3x800m at 5:41/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w14d2",
-          "km": 3.9,
+          "km": 4.9,
           "pace": 341,
           "runId": null,
           "type": "INTERVALS",
@@ -933,10 +935,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-10-21",
-          "desc": "Tempo run — 5:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 1.5km at 5:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w15d2",
-          "km": 3.6,
+          "km": 4,
           "pace": 358,
           "runId": null,
           "type": "TEMPO",
@@ -960,10 +962,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-10-28",
-          "desc": "Intervals — 3x800m at 5:41/km + 90s recovery",
+          "desc": "Intervals — 1.5km warm-up + 3x800m at 5:41/km + 90s recovery + 1km cool-down",
           "done": false,
           "id": "w16d2",
-          "km": 3.9,
+          "km": 4.9,
           "pace": 341,
           "runId": null,
           "type": "INTERVALS",
@@ -987,10 +989,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
       "sessions": [
         {
           "date": "2026-11-04",
-          "desc": "Tempo run — 5:58/km, comfortably hard",
+          "desc": "Tempo — 1.5km warm-up + 1.5km at 5:58/km, comfortably hard + 1km cool-down",
           "done": false,
           "id": "w17d2",
-          "km": 3.6,
+          "km": 4,
           "pace": 358,
           "runId": null,
           "type": "TEMPO",

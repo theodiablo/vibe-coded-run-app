@@ -137,6 +137,33 @@ function parseTcx(doc: Document): ActivityParseResult {
   return toRun(pts, hr, "TCX import", fallback);
 }
 
+// ── GPX export ───────────────────────────────────────────────────────────────
+// Build a GPX 1.1 document from a stored route trace — data portability back
+// out (you can import from anywhere, so you can export back out). Gap markers
+// (null points) split the track into separate <trkseg>s, mirroring how the
+// recorder marks signal losses.
+const xmlEscape = (s: string) => s.replace(/[<>&"]/g, c =>
+  c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : "&quot;");
+
+export function buildGpx(name: string, points: TrackPointOrGap[]): string {
+  const segs: string[][] = [[]];
+  for (const p of points || []) {
+    if (!p) { if (segs[segs.length - 1].length) segs.push([]); continue; }
+    const [lat, lng, t, alt] = p;
+    if (lat == null || lng == null) continue;
+    segs[segs.length - 1].push(
+      '      <trkpt lat="' + lat + '" lon="' + lng + '">'
+      + (alt != null ? "<ele>" + alt + "</ele>" : "")
+      + (t != null && Number.isFinite(t) ? "<time>" + new Date(t).toISOString() + "</time>" : "")
+      + "</trkpt>");
+  }
+  const body = segs.filter(s => s.length)
+    .map(s => "    <trkseg>\n" + s.join("\n") + "\n    </trkseg>").join("\n");
+  return '<?xml version="1.0" encoding="UTF-8"?>\n'
+    + '<gpx version="1.1" creator="Running Coach" xmlns="http://www.topografix.com/GPX/1/1">\n'
+    + "  <trk>\n    <name>" + xmlEscape(name) + "</name>\n" + body + "\n  </trk>\n</gpx>\n";
+}
+
 // Parse a single GPX or TCX activity export. Returns { run } (with transient
 // route `points`) or { error } — never throws.
 export function parseActivityFile(input: string, kind: "gpx" | "tcx"): ActivityParseResult {
