@@ -122,6 +122,9 @@ jobs:
           releaseFiles: android/app/build/outputs/bundle/release/*.aab
           track: internal
           status: completed
+          # Release notes shown to testers on the track. Files are named
+          # whatsnew-<locale> (e.g. whatsnew-en-US); add more locales alongside.
+          whatsNewDirectory: distribution/whatsnew
 
       # On a real release (android-v* tag), tell the app the new latest version so
       # outdated clients can be nudged to update. Uses the Supabase CLI with a

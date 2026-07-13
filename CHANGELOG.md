@@ -4,6 +4,29 @@ All notable Android releases are documented here.
 
 ---
 
+## [1.2.0] — 2026-07-13
+
+### Health Connect integration
+- **Watch run import** — connect Health Connect and import runs recorded on a
+  Garmin, Amazfit or other watch, even when you left your phone at home. Distance,
+  elevation and duration come across automatically, with cross-source dedupe so the
+  same run is never logged twice.
+- **Heart rate from your watch** — average and max heart rate for a run flow in
+  from Health Connect (or a paired BLE sensor) and land in the run's HR fields,
+  still fully editable.
+
+### Training
+- **Methodology styles** — pick balanced, polarized, run/walk, low-frequency or
+  Hansons; your plan rebuilds around the chosen style while preserving progress.
+
+### Other
+- Refreshed race discovery card (date-first, visible distances).
+- Fixed a crash on sign-out when the marketing chunk failed to load.
+
+**Full changelog:** #60, #62, #63, #64
+
+---
+
 ## [1.1.0] — 2026-06-28
 
 ### Races & Badges (Gamification Phase 1)
