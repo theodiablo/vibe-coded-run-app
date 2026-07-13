@@ -63,11 +63,19 @@ and delete anything that becomes stale.
   export + screenshots — reference only, not built). It uses the **self-hosted
   Archivo** font (`@fontsource/archivo`, imported inside `MarketingGate` so the
   woff2s live in the web-only chunk and never hit the APK or need a Google-Fonts
-  CSP entry) and real app **screenshots** in `src/marketing/assets/`. The phone
-  mockup renders the **real** `BottomNav` (`src/components/BottomNav.tsx`,
-  extracted from `RunningCoach` and shared by both) as a decorative overlay, so
-  it always matches the current app nav instead of a hand-drawn copy — the
-  screenshot behind it is cropped above its own (older) nav. CTAs open
+  CSP entry) and real app **screenshots** in `src/marketing/assets/`. The hero
+  phone frame shows `CoachChatMock`, a hand-built propose-and-confirm chat
+  exchange (kept honest: the coach only *proposes*; Apply is the user's) — the
+  AI coach leads the page per user feedback, and the mock avoids the beginner
+  skew of the old home-screenshot hero (First-5K badge, "walk breaks welcome").
+  Purpose-built mocks like it and `LiveTrackerMock` are the pattern when no
+  suitable screenshot exists — screenshots are captured manually on-device, no
+  retake tooling. (`BottomNav` is no longer overlaid in the marketing mock but
+  stays an extracted shared component.) Copy commitments to keep true:
+  methodology names on the plan card, the "no black box" session-breakdown
+  line, the import strip (Strava/Garmin/Zepp via GPX/TCX/CSV *files* — never
+  the Strava API), and the free-tier "daily fair-use limit" phrasing
+  (deliberately non-numeric; `RATE_LIMIT_PER_DAY` is env-configurable). CTAs open
   `LoginScreen`; a secondary CTA links to the Play Store closed test
   (`PLAY_STORE_BETA_URL`).
 - **Marketing SEO is build-time only** (static S3/CloudFront, no SSR; CSP
