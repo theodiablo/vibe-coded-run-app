@@ -68,7 +68,7 @@ export const PLAY_STORE_URL =
 // Closed (internal) test track for the Android app — a private opt-in link,
 // surfaced as a secondary CTA on the marketing landing while the app is in beta.
 export const PLAY_STORE_BETA_URL =
-  "https://play.google.com/apps/internaltest/4701659968208220443";
+  "https://play.google.com/apps/testing/solutions.camboulive.run";
 
 // Map basemap. A keyed free-tier provider (MapTiler) — raw OSM tiles aren't
 // allowed for a multi-user app under the OSMF tile policy. Set VITE_MAPTILER_KEY
