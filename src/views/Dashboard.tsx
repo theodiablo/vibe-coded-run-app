@@ -78,33 +78,33 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
         <>
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>
+            <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">{t("dashboard.race.title")}</p>
             <p className="font-semibold">{fmt.date(settings.raceDate)}</p>
             <p className="text-slate-400 text-sm mt-1">
-              {settings.distanceKm + "km · target sub " + fmt.dur(Number(settings.goalSec) || 0) + " · " + fmt.pace(Math.round(Number(settings.goalSec)/Number(settings.distanceKm))) + "/km"}
+              {t("dashboard.race.summary", {distance: settings.distanceKm, goal: fmt.dur(Number(settings.goalSec) || 0), pace: fmt.pace(Math.round(Number(settings.goalSec)/Number(settings.distanceKm)))})}
             </p>
           </div>
           <div className="text-right">
             <p className="text-5xl font-black text-orange-400 leading-none">{daysLeft}</p>
-            <p className="text-slate-400 text-xs mt-1">days to go</p>
+            <p className="text-slate-400 text-xs mt-1">{t("dashboard.race.daysToGo")}</p>
           </div>
         </div>
         {nextRace && (
           <button onClick={() => goTab("races")}
             className="w-full text-left mt-3 pt-3 border-t border-orange-500/20 flex justify-between items-center gap-2">
             <span className="text-xs text-slate-300 truncate">
-              <span className="text-orange-300/80 font-semibold">Next up: </span>
+              <span className="text-orange-300/80 font-semibold">{t("dashboard.race.nextUp")}</span>
               {nextRace.label + " · " + nextRace.distanceKm + "km"}
             </span>
-            <span className="text-xs text-slate-400 flex-shrink-0">{Math.max(0, Math.ceil((new Date(nextRace.raceDate + "T00:00:00").getTime() - today.getTime()) / 86400000)) + "d"}</span>
+            <span className="text-xs text-slate-400 flex-shrink-0">{t("dashboard.race.daysShort", {days: Math.max(0, Math.ceil((new Date(nextRace.raceDate + "T00:00:00").getTime() - today.getTime()) / 86400000))})}</span>
           </button>
         )}
         </>
         ) : (
           <button onClick={() => goTab("plan")} className="w-full text-left">
-            <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">Race Day</p>
-            <p className="font-semibold">Set up your race</p>
-            <p className="text-slate-400 text-sm mt-1">Pick a date and distance to build your training plan →</p>
+            <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">{t("dashboard.race.title")}</p>
+            <p className="font-semibold">{t("dashboard.race.setupTitle")}</p>
+            <p className="text-slate-400 text-sm mt-1">{t("dashboard.race.setupHint")}</p>
           </button>
         )}
       </div>
@@ -124,7 +124,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
           className="w-full bg-slate-800 rounded-xl p-3 flex items-center gap-3 text-left hover:bg-slate-700/70 transition-colors">
           <Award size={20} className="text-orange-400 flex-shrink-0"/>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-slate-400">Next badge</p>
+            <p className="text-xs text-slate-400">{t("dashboard.nextBadge")}</p>
             <p className="text-sm font-semibold truncate">{nb.label + (nb.hint ? " · " + nb.hint : "")}</p>
             <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mt-1.5">
               <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full" style={{width: Math.round(nb.progress * 100) + "%"}}/>
@@ -137,13 +137,13 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
       {nextSess ? (
         <div>
           <p className="text-orange-300 text-xs font-bold uppercase tracking-widest mb-2">
-            {nextIsToday ? "Today's session" : "Up next"}
+            {nextIsToday ? t("dashboard.session.today") : t("dashboard.session.upNext")}
           </p>
           <div className={"border-2 rounded-2xl p-4 " + sessionTypeClass(nextSess.type, TBG)}>
-            <button onClick={() => goTab("plan")} className="w-full text-left group" title="View in your plan">
+            <button onClick={() => goTab("plan")} className="w-full text-left group" title={t("dashboard.session.viewInPlan")}>
               <div className="flex items-start justify-between gap-2">
                 <span className={"text-xs font-bold uppercase tracking-wide " + sessionTypeClass(nextSess.type, TCLR)}>
-                  {nextSess.type}
+                  {t("common.types." + nextSess.type, {defaultValue: nextSess.type})}
                 </span>
                 <ChevronRight size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0 mt-0.5"/>
               </div>
@@ -156,7 +156,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
             <button onClick={() => setShowSteps(v => !v)}
               className="mt-2 flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors">
               <ChevronRight size={12} className={"transition-transform " + (showSteps ? "rotate-90" : "")}/>
-              How it unfolds
+              {t("dashboard.session.howItUnfolds")}
             </button>
             {showSteps && (
               <div className="mt-2 space-y-1.5 border-l-2 border-slate-700 pl-3">
@@ -171,33 +171,33 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
               <button
                 onClick={() => goLog({date: nextSess.date, type: nextSess.type, km: Number(nextSess.km), pace: nextSess.pace, wNum: nextSess.wNum, sId: nextSess.id})}
                 className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                <Plus size={15}/>Record
+                <Plus size={15}/>{t("dashboard.session.record")}
               </button>
               <button
                 onClick={() => toggleSess(nextSess.wNum, nextSess.id)}
                 className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                <Check size={15}/>Done
+                <Check size={15}/>{t("common.done")}
               </button>
               <button
                 onClick={() => skipSess(nextSess.wNum, nextSess.id)}
                 className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
-                title="Skip this session">
-                <X size={15}/>Skip
+                title={t("dashboard.session.skipTitle")}>
+                <X size={15}/>{t("common.skip")}
               </button>
             </div>
           </div>
         </div>
       ) : !plan ? (
         <div className="bg-slate-800 rounded-xl p-5 text-center space-y-3">
-          <p className="text-slate-400 text-sm">No training plan yet. Ready to get started?</p>
+          <p className="text-slate-400 text-sm">{t("dashboard.noPlan")}</p>
           <button
             onClick={() => goTab("plan")}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-colors">
-            Set Up My Plan
+            {t("dashboard.setUpPlan")}
           </button>
         </div>
       ) : (
-        <div className="bg-slate-800 rounded-xl p-4 text-center text-slate-400 text-sm">All upcoming sessions done!</div>
+        <div className="bg-slate-800 rounded-xl p-4 text-center text-slate-400 text-sm">{t("dashboard.allSessionsDone")}</div>
       )}
 
       {plan && (
@@ -207,8 +207,8 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
             <MessageCircle size={18} className="text-orange-400"/>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">Adjust your plan with your coach</p>
-            <p className="text-xs text-slate-400">Niggle, missed week, or a schedule clash? Ask for a tweak.</p>
+            <p className="text-sm font-semibold">{t("dashboard.coach.title")}</p>
+            <p className="text-xs text-slate-400">{t("dashboard.coach.subtitle")}</p>
           </div>
           <ChevronRight size={16} className="text-slate-600 flex-shrink-0"/>
         </button>
@@ -217,11 +217,11 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
       {runs.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-slate-500 text-xs uppercase tracking-widest">Recent runs</p>
+            <p className="text-slate-500 text-xs uppercase tracking-widest">{t("dashboard.recentRuns")}</p>
             {runs.length > 3 && (
               <button onClick={() => goProgress("log")}
                 className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-0.5 transition-colors">
-                View all<ChevronRight size={13}/>
+                {t("dashboard.viewAll")}<ChevronRight size={13}/>
               </button>
             )}
           </div>
@@ -234,11 +234,11 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
       {!runs.length && (
         <div className="bg-slate-800 rounded-xl p-6 text-center space-y-2">
           <Activity size={32} className="mx-auto text-slate-700"/>
-          <p className="text-sm text-slate-400">No runs yet.</p>
-          <p className="text-xs text-slate-400">Tap Record below to add your first one.</p>
+          <p className="text-sm text-slate-400">{t("dashboard.empty.noRuns")}</p>
+          <p className="text-xs text-slate-400">{t("dashboard.empty.hint")}</p>
           {!plan && (
             <p className="text-xs text-slate-400 pt-2 border-t border-slate-700/50">
-              Had data from a previous version? Open Settings (gear, top right) → Restore.
+              {t("dashboard.empty.restore")}
             </p>
           )}
         </div>

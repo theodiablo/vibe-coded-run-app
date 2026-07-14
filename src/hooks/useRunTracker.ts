@@ -237,15 +237,15 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     if (err.code === err.PERMISSION_DENIED)
       setError(permissionDeniedMsg());
     else if (err.code === err.POSITION_UNAVAILABLE)
-      setError("Couldn't get a GPS fix. Make sure location is on and you're outdoors.");
+      setError(t("tracker.errors.noFix"));
     else if (err.code === err.TIMEOUT)
-      setError("GPS is taking too long to respond. Trying again…");
-    else setError("Location error: " + err.message);
+      setError(t("tracker.errors.timeout"));
+    else setError(t("tracker.errors.location", { message: err.message }));
   }, []);
 
   const startWatch = useCallback(() => {
     if (!trackerGeoSource.isAvailable()) {
-      setError("This browser/device doesn't support GPS (geolocation). Geolocation also needs a secure (https) connection.");
+      setError(t("tracker.errors.unsupported"));
       return false;
     }
     // background:true → the native source runs a foreground service so recording
@@ -273,7 +273,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
       setPermGranted(true); // unlocks the idle position preview on native
       return true;
     } catch {
-      setError("Couldn't request location permission. Please try again.");
+      setError(t("tracker.errors.requestFailed"));
       return false;
     }
   }, []);

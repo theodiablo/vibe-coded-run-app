@@ -65,23 +65,23 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
     const next = !analyticsOn;
     setConsent(next);
     setAnalyticsOn(next);
-    if (showToast) showToast(next ? "Sharing enabled." : "Sharing disabled.");
+    if (showToast) showToast(next ? t("settings.privacy.sharingOn") : t("settings.privacy.sharingOff"));
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
-        <span className="text-sm font-semibold">Settings</span>
-        <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+        <span className="text-sm font-semibold">{t("settings.title")}</span>
+        <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
       </header>
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-lg mx-auto p-4 space-y-5">
           {/* Profile — identity + physiology, all "about you" */}
           <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
-            <p className="text-sm font-semibold text-slate-200">Profile</p>
+            <p className="text-sm font-semibold text-slate-200">{t("settings.profile.title")}</p>
             <div>
-              <label className="text-xs text-slate-400 block mb-1.5">Your name</label>
-              <input type="text" maxLength={40} value={name} placeholder="Your name"
+              <label className="text-xs text-slate-400 block mb-1.5">{t("settings.profile.name")}</label>
+              <input type="text" maxLength={40} value={name} placeholder={t("settings.profile.name")}
                 onChange={e => setName(e.target.value)} onBlur={commitName}
                 onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} className={INPUT_CLS}/>
             </div>
@@ -108,7 +108,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
 
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
             <div>
-              <p className="text-sm font-semibold text-slate-200">Coach memory</p>
+              <p className="text-sm font-semibold text-slate-200">{t("settings.memory.title")}</p>
               <p className="text-xs text-slate-400 mt-1">
                 Things your coach should remember for future chats, like recurring injuries,
                 training preferences, schedule constraints, or important corrections. Markdown
@@ -118,7 +118,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
             </div>
             <textarea value={memory} maxLength={USER_CONTEXT_MAX_CHARS} rows={6}
               onChange={e => setMemory(e.target.value)} onBlur={commitMemory}
-              placeholder="e.g. 2026-07-06: Prefers Sunday long runs."
+              placeholder={t("settings.memory.placeholder")}
               className={INPUT_CLS + " resize-none leading-relaxed"}/>
             <div className="flex items-center justify-between gap-3 text-xs">
               <p className="text-slate-500">
@@ -141,7 +141,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Shield size={15} className="text-orange-400"/>
-              <p className="text-sm font-semibold text-slate-200">Privacy</p>
+              <p className="text-sm font-semibold text-slate-200">{t("settings.privacy.title")}</p>
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -152,7 +152,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
                 </p>
               </div>
               <button onClick={toggleAnalytics} role="switch" aria-checked={analyticsOn}
-                aria-label="Share usage and crash reports"
+                aria-label={t("settings.privacy.shareAria")}
                 className={"relative shrink-0 w-11 h-6 rounded-full transition-colors " + (analyticsOn ? "bg-orange-500" : "bg-slate-600")}>
                 <span className={"absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform " + (analyticsOn ? "translate-x-5" : "translate-x-0")}/>
               </button>

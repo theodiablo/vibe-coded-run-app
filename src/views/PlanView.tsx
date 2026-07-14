@@ -432,7 +432,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                               HR line stay outside the tap target. */}
                           <div className="cursor-pointer select-none" onClick={() => setOpenSess(sessOpen ? null : s.id)}>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={typeCls}>{s.type}</span>
+                              <span className={typeCls}>{t("common.types." + s.type, {defaultValue: s.type})}</span>
                               <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
                               {isSkipped && (
                                 <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">skipped</span>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { TCLR, runBarColor } from "../constants";
 import { fmt } from "../utils/format";
 import type { ReactNode } from "react";
@@ -17,6 +18,7 @@ const typeClass = (type: Run["type"]) => TCLR[(type as RunType) || "OTHER"] || T
 // right-side `actions` slot. Shared by the dashboard's recent-runs list and the
 // full History view so the two never drift apart.
 export function RunRow({run, dateFmt = fmt.sht, showNotes = false, actions = null}: RunRowProps) {
+  const { t } = useTranslation();
   const pace = run.km && run.durationSec ? run.durationSec / run.km : 0;
   return (
     <div className="bg-slate-800 rounded-xl p-3 flex items-center gap-3">
@@ -30,7 +32,7 @@ export function RunRow({run, dateFmt = fmt.sht, showNotes = false, actions = nul
         </p>
         {showNotes && run.notes && <p className="text-slate-400 text-xs mt-0.5 truncate">{run.notes}</p>}
       </div>
-      <span className={"text-xs font-semibold flex-shrink-0 " + typeClass(run.type)}>{run.type}</span>
+      <span className={"text-xs font-semibold flex-shrink-0 " + typeClass(run.type)}>{t("common.types." + run.type, {defaultValue: run.type})}</span>
       {actions}
     </div>
   );
