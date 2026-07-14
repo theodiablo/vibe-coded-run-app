@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { LANGS, setLocale, currentLang } from "../i18n";
 import { X, Smartphone, ArrowRight, MessageCircle, Download } from "lucide-react";
 // Self-hosted Archivo (the design's typeface). These live in this web-only lazy
 // chunk, so the font never ships in the native APK, and they're served from our
@@ -82,6 +83,24 @@ export default function MarketingGate() {
             <a href="#races" className="hidden md:inline text-[#8B98AC] hover:text-[#FDBA74] transition-colors">
               {t("nav.races")}
             </a>
+            {/* Language selector: setLocale persists rc_lang so the choice sticks
+                into LoginScreen and the next visit. */}
+            <div className="flex items-center gap-0.5" role="group" aria-label={t("nav.language")}>
+              {LANGS.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => void setLocale(l.id)}
+                  aria-pressed={currentLang() === l.id}
+                  className={
+                    "px-1.5 py-1 rounded text-[13px] font-bold uppercase transition-colors " +
+                    (currentLang() === l.id ? "text-[#F97316]" : "text-[#8B98AC] hover:text-[#F1F5F9]")
+                  }
+                >
+                  {l.id}
+                </button>
+              ))}
+            </div>
             <button type="button" onClick={signin} className="text-[#8B98AC] hover:text-[#F1F5F9] transition-colors">
               {t("nav.login")}
             </button>

@@ -1,5 +1,11 @@
 {
-  "nav": { "features": "Features", "races": "Races", "login": "Log in", "getStarted": "Get started" },
+  "nav": {
+    "features": "Features",
+    "races": "Races",
+    "login": "Log in",
+    "getStarted": "Get started",
+    "language": "Language"
+  },
   "hero": {
     "eyebrow": "Train for the race, not just the run",
     "body": "Pick your race, set your goal time, and get a week-by-week training plan. When life gets in the way, ask your coach — it proposes a safe adjustment in seconds, and nothing changes until you approve it.",
@@ -9,18 +15,46 @@
     "androidBeta": "Also on Android — join the closed beta"
   },
   "stats": {
-    "plans": { "value": "5K → Marathon", "label": "plans built to your race date" },
-    "adapts": { "value": "Adapts to you", "label": "your coach reshapes the plan in seconds" },
-    "devices": { "value": "Web + Android", "label": "your plan on every device" }
+    "plans": {
+      "value": "5K → Marathon",
+      "label": "plans built to your race date"
+    },
+    "adapts": {
+      "value": "Adapts to you",
+      "label": "your coach reshapes the plan in seconds"
+    },
+    "devices": {
+      "value": "Web + Android",
+      "label": "your plan on every device"
+    }
   },
   "features": {
     "heading": "Everything between today and the start line.",
     "sub": "Not another feed of other people's runs — a plan, a coach, and the tools to follow through.",
-    "coach": { "title": "An AI coach that adapts your plan", "alt": "Coach chat", "body": "Knee acting up? Missed a week? Ask, and your coach proposes a safe edit in seconds — it edits the schedule, it never hands you a risky one, and nothing changes until you approve it." },
-    "plan": { "title": "A real training plan", "alt": "Training plan", "body": "Base, build, peak, taper — around your race date, goal time, and the days you can actually train. Choose your method: Polarized 80/20, Hansons-style, 3-Day Quality, or Run/Walk. No black box — open any session to see exactly how it's built." },
-    "track": { "title": "Track every run", "body": "Live GPS with pace, distance, and elevation on a map. Pair heart rate on Android and every run is classified into training zones — so you know if you went too hard." },
-    "races": { "title": "Find your race", "alt": "Race catalogue", "body": "A community race catalogue — from the Berlin Marathon to local 10Ks. Pick one, and your countdown and plan lock onto it. It's still growing, so if yours isn't listed, add it in seconds — for everyone." },
-    "progress": { "title": "Watch it add up", "alt": "Progress badges", "body": "History, stats, and trends in one place, with gentle badges as your training weeks add up — from your first 5K to the 1000 km club." }
+    "coach": {
+      "title": "An AI coach that adapts your plan",
+      "alt": "Coach chat",
+      "body": "Knee acting up? Missed a week? Ask, and your coach proposes a safe edit in seconds — it edits the schedule, it never hands you a risky one, and nothing changes until you approve it."
+    },
+    "plan": {
+      "title": "A real training plan",
+      "alt": "Training plan",
+      "body": "Base, build, peak, taper — around your race date, goal time, and the days you can actually train. Choose your method: Polarized 80/20, Hansons-style, 3-Day Quality, or Run/Walk. No black box — open any session to see exactly how it's built."
+    },
+    "track": {
+      "title": "Track every run",
+      "body": "Live GPS with pace, distance, and elevation on a map. Pair heart rate on Android and every run is classified into training zones — so you know if you went too hard."
+    },
+    "races": {
+      "title": "Find your race",
+      "alt": "Race catalogue",
+      "body": "A community race catalogue — from the Berlin Marathon to local 10Ks. Pick one, and your countdown and plan lock onto it. It's still growing, so if yours isn't listed, add it in seconds — for everyone."
+    },
+    "progress": {
+      "title": "Watch it add up",
+      "alt": "Progress badges",
+      "body": "History, stats, and trends in one place, with gentle badges as your training weeks add up — from your first 5K to the 1000 km club."
+    }
   },
   "import": {
     "title": "Bring your running history with you",
@@ -32,7 +66,10 @@
     "primary": "Get started — it's free",
     "androidBeta": "Join the Android beta"
   },
-  "footer": { "privacy": "Privacy policy", "safety": "Safety note" },
+  "footer": {
+    "privacy": "Privacy policy",
+    "safety": "Safety note"
+  },
   "closeLogin": "Close sign in",
   "mock": {
     "coach": "Coach",
@@ -49,7 +86,12 @@
     "notNow": "Not now",
     "reply2": "And if it lingers more than a few days, get it checked before we rebuild.",
     "inputPlaceholder": "Message your coach…",
-    "tiles": { "km": "KM", "time": "TIME", "pace": "PACE", "bpm": "BPM · Z2" },
+    "tiles": {
+      "km": "KM",
+      "time": "TIME",
+      "pace": "PACE",
+      "bpm": "BPM · Z2"
+    },
     "live": "LIVE"
   }
 }
