@@ -43,6 +43,26 @@ export type SettingsState = Record<string, unknown> & {
 
 export type HrPending = { start: string | number; end: string | number; source: string };
 
+// Structured session descriptor. `desc` (English, canonical — what old clients
+// render and the coach model reads) stays alongside; `sd` is what the UI
+// renders per-locale via renderSd (src/utils/sessionDesc.ts). Pace is
+// deliberately NOT here: sentences read it from session.pace at render time so
+// a coach pace edit or a locale switch can never desync sentence and field.
+// Mirrored as JSDoc in supabase/functions/_shared/coach/tools.mjs (sdFor).
+export type SessionSd = {
+  kind: "long" | "easy" | "recovery" | "tempo" | "intervals" | "runwalk" | "cross" | "crosswalk" | "race" | "raceday";
+  variant?: string;      // sentence flavor within a kind (1:1 with the English templates)
+  reps?: number;         // rep/set count
+  repM?: number;         // rep length in metres (400 | 600 | 800 | 1000 | 3000)
+  recover?: "90s" | "90sJog" | "1kmJog" | "jogs";
+  offsetSec?: number;    // Hansons strength: "goal pace minus 10s"
+  runMin?: number;       // Galloway ratio
+  walkMin?: number;
+  minutes?: number;      // lowfreq cross-training day budget
+  km?: number;           // race / raceday sentence figures
+  elevM?: number;
+};
+
 export type Run = Record<string, unknown> & {
   id?: string;
   date: string;
@@ -77,6 +97,7 @@ export type PlanSession = Record<string, unknown> & {
   date: string;
   type: RunType | string;
   desc: string;
+  sd?: SessionSd;
   km: number | string;
   pace: number;
   done?: boolean;

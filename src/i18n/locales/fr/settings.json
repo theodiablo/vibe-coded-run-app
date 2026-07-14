@@ -1,5 +1,129 @@
 {
+  "title": "Réglages",
   "language": {
     "label": "Langue"
+  },
+  "newBeta": "Nouvelle bêta",
+  "profile": {
+    "title": "Profil",
+    "name": "Votre nom"
+  },
+  "memory": {
+    "title": "Mémoire du coach",
+    "desc": "Ce que votre coach devrait retenir pour les prochaines discussions : blessures récurrentes, préférences d'entraînement, contraintes d'emploi du temps ou corrections importantes. Les titres Markdown comme « ## Emploi du temps » ou « ## Historique des blessures » sont les bienvenus. Ceci est enregistré sur votre compte, utilisé dans les requêtes au coach IA et modifiable à tout moment.",
+    "placeholder": "p. ex. 2026-07-06 : Préfère les sorties longues le dimanche.",
+    "footer": "Nous n'enregistrons que les suggestions de l'IA que vous choisissez de conserver dans vos <link>conversations avec le Coach IA</link>."
+  },
+  "privacy": {
+    "title": "Confidentialité",
+    "shareLabel": "Partager les rapports d'usage et de plantage",
+    "shareAria": "Partager les rapports d'usage et de plantage",
+    "shareDesc": "Statistiques d'utilisation limitées et diagnostics de plantage. Aucune donnée de course, itinéraire, mesure de fréquence cardiaque ou message du coach n'est jamais envoyé.",
+    "crashNote": "Si l'application plante, on vous demandera toujours votre accord avant d'envoyer un rapport de plantage.",
+    "policyLink": "Politique de confidentialité",
+    "disclaimerLink": "Avertissement santé et sécurité",
+    "sharingOn": "Partage activé.",
+    "sharingOff": "Partage désactivé."
+  },
+  "backup": {
+    "title": "Sauvegarde et restauration",
+    "desc": "Enregistrez une copie de vos courses et de votre plan, ou rechargez-les depuis une sauvegarde précédente.",
+    "backupBtn": "Sauvegarder",
+    "restoreBtn": "Restaurer",
+    "modalTitle": "Sauvegarde des données",
+    "runsCount": "{{n}} course(s)",
+    "planSaved": "plan enregistré",
+    "noPlan": "aucun plan",
+    "coachMemory": "mémoire du coach",
+    "routesCount": "{{n}} itinéraire(s)",
+    "hint": "Copiez ou téléchargez — enregistrez-le dans Notes, un e-mail, etc. Utilisez Restaurer pour le recharger après une mise à jour.",
+    "download": "Télécharger",
+    "copied": "Copié !",
+    "copyJson": "Copier le JSON"
+  },
+  "restore": {
+    "title": "Restaurer depuis une sauvegarde",
+    "desc": "Collez votre JSON de sauvegarde ci-dessous.",
+    "placeholder": "Collez ici votre JSON de sauvegarde...",
+    "invalidBackup": "Cela ne ressemble pas à une sauvegarde valide.",
+    "invalidJson": "JSON non valide — assurez-vous d'avoir copié la sauvegarde entière.",
+    "submit": "Restaurer les données"
+  },
+  "account": {
+    "signOut": "Se déconnecter"
+  },
+  "deleteAccount": {
+    "title": "Supprimer le compte",
+    "body": "Ceci supprime définitivement votre compte et toutes les données associées — courses, itinéraires GPS, plan d'entraînement et réglages. <bold>Cette action est irréversible.</bold>",
+    "error": "Une erreur s'est produite. Réessayez ou écrivez à theo.camboulive.dev@gmail.com."
+  },
+  "hr": {
+    "title": "Fréquence cardiaque",
+    "age": "Âge",
+    "maxHr": "FC max",
+    "restHr": "FC au repos",
+    "autoPlaceholder": "auto",
+    "dontKnow": "Je ne connais pas ma fréquence cardiaque",
+    "enterAge": "Saisissez votre âge ci-dessus pour l'estimer.",
+    "estimated": "Estimée d'après l'âge (Tanaka, 208 − 0,7×âge) : {{max}} bpm de FC max, avec une FC au repos typique de 60 bpm.",
+    "fullBreakdown": "Le détail complet des zones se trouve dans Progrès → Statistiques."
+  },
+  "hrSensor": {
+    "title": "Capteur de fréquence cardiaque",
+    "subtitle": "Capturez la fréquence cardiaque automatiquement pendant une course au lieu de la saisir.",
+    "betaWarning": "Cette fonction est nouvelle et peu testée. L'appairage du capteur, les lectures en direct ou les imports Health Connect peuvent échouer ou arriver en retard, alors vérifiez la fréquence cardiaque enregistrée avant de vous y fier.",
+    "methods": {
+      "off": "Désactivé",
+      "bluetooth": "Capteur Bluetooth",
+      "healthconnect": "Health Connect"
+    },
+    "newTag": "nouveau",
+    "forgetAria": "Oublier le capteur",
+    "scanning": "Recherche…",
+    "pairAnother": "Appairer un autre capteur",
+    "pair": "Appairer un capteur",
+    "pairHelp": "Mettez votre capteur en mode d'appairage (ou activez la diffusion de la fréquence cardiaque sur votre montre), puis lancez la recherche. Certaines montres ne diffusent que pendant un entraînement actif.",
+    "scanFailed": "Impossible de rechercher des capteurs — assurez-vous que le Bluetooth est activé.",
+    "permissionNeeded": "L'autorisation Bluetooth est nécessaire pour appairer un capteur.",
+    "paired": "{{name}} appairé.",
+    "hcConnected": "Connecté — la fréquence cardiaque est ajoutée à vos courses automatiquement.",
+    "hcReconnect": "Reconnecter Health Connect",
+    "hcConnect": "Connecter Health Connect",
+    "hcHelp": "Lit votre fréquence cardiaque depuis Android Health Connect après une course — utile si votre montre y synchronise mais ne diffuse pas en direct. Elle peut mettre quelques minutes à apparaître après la fin.",
+    "hcNotSupported": "Health Connect n'est pas pris en charge sur cet appareil (nécessite Android 8+).",
+    "hcSuccess": "Health Connect connecté — la fréquence cardiaque sera lue après vos courses.",
+    "hcInstall": "Installez Health Connect depuis Google Play, puis touchez à nouveau Connecter.",
+    "hcDenied": "L'accès n'a pas été accordé. Dans Health Connect, autorisez Running Coach à lire la fréquence cardiaque.",
+    "hcOpenFailed": "Impossible d'ouvrir Health Connect. Assurez-vous qu'il est installé et à jour."
+  },
+  "hrDisclosure": {
+    "title": "Connecter un capteur de fréquence cardiaque",
+    "warning": "La capture de la fréquence cardiaque est récente et pas encore parfaitement éprouvée. Les lectures peuvent être retardées, manquantes ou erronées si votre capteur ou votre montre décroche.",
+    "intro": "Pour lire votre fréquence cardiaque pendant une course, Running Coach se connecte à un <bold>capteur de fréquence cardiaque Bluetooth</bold> à proximité — une ceinture pectorale, un brassard ou une montre qui diffuse sa fréquence cardiaque.",
+    "bullet1": "Le Bluetooth sert <bold>uniquement à trouver et lire votre capteur</bold> — jamais pour la localisation.",
+    "bullet2": "Votre fréquence cardiaque est enregistrée sur votre course, dans votre propre compte.",
+    "bullet3": "Rien n'est vendu ni partagé avec des tiers.",
+    "policy": "Consultez notre <link>Politique de confidentialité</link>. Lorsque vous touchez Autoriser, Android demandera l'accès aux appareils Bluetooth à proximité.",
+    "accept": "Autoriser et continuer"
+  },
+  "integrations": {
+    "title": "Courses depuis votre montre",
+    "subtitle": "Importez des courses terminées — distance, temps, dénivelé et fréquence cardiaque — depuis une montre, pour ne pas avoir à emporter votre téléphone.",
+    "connectedRow": "{{label}} — les nouvelles courses sont proposées à l'import automatiquement.",
+    "scan30": "Analyser les 30 derniers jours",
+    "turnOff": "Désactiver",
+    "connect": "Connecter {{label}}",
+    "connectSuccess": "Connecté — vos courses de la montre apparaîtront ici après leur synchronisation.",
+    "noNewRuns": "Aucune nouvelle course à importer pour l'instant.",
+    "accessDenied": "L'accès n'a pas été accordé. Autorisez Running Coach à lire Exercice, Distance, Dénivelé et Fréquence cardiaque.",
+    "connectFailed": "Connexion impossible. Assurez-vous que Health Connect est installé et à jour.",
+    "noRuns30": "Aucune nouvelle course trouvée dans les 30 derniers jours.",
+    "scanFailed": "Impossible de lire vos sources connectées.",
+    "providers": {
+      "healthconnect": {
+        "label": "Votre montre (Health Connect)",
+        "help": "Fonctionne avec toute montre dont l'application écrit les entraînements dans Health Connect (Android 14+) : Garmin Connect (Réglages → Health Connect) ou Zepp/Amazfit (Profil → Accès tiers → Health Connect). Les courses apparaissent quelques minutes après la synchronisation de votre montre ; aucun itinéraire ni carte n'est inclus."
+      }
+    }
   }
 }

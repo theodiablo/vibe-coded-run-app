@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Activity, Award, Check, ChevronRight, MessageCircle, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
 import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
@@ -26,6 +27,7 @@ type DashboardProps = {
 const sessionTypeClass = (type: PlanSession["type"], classes: Record<string, string>) => classes[(type as RunType) || "OTHER"] || classes.OTHER;
 
 export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach}: DashboardProps) {
+  const { t } = useTranslation();
   // "How it unfolds" breakdown on the next-session card (collapsed by default).
   const [showSteps, setShowSteps] = useState(false);
   const nb = nextBadge(computeBadges(runs, races?.participations || []));
@@ -51,9 +53,9 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
   const totKm = runs.reduce((s, r) => s + (r.km||0), 0);
 
   const statCards = [
-    {l:"This week",  v:wkKm.toFixed(1)+" km",  c:"text-orange-400",  I:Zap},
-    {l:"Runs recorded", v:String(runs.length),    c:"text-sky-400",     I:Activity},
-    {l:"Total",       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Route},
+    {l:t("dashboard.stats.thisWeek"),  v:wkKm.toFixed(1)+" km",  c:"text-orange-400",  I:Zap},
+    {l:t("dashboard.stats.runsRecorded"), v:String(runs.length),    c:"text-sky-400",     I:Activity},
+    {l:t("dashboard.stats.total"),       v:totKm.toFixed(0)+" km", c:"text-emerald-400", I:Route},
   ];
 
   return (
@@ -61,11 +63,11 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
       <div className="pt-4">
         {settings.name ? (
           <>
-            <p className="text-slate-400 text-sm">Good to see you,</p>
-            <h1 className="text-2xl font-bold">{settings.name + " 🏃‍♂️"}</h1>
+            <p className="text-slate-400 text-sm">{t("dashboard.greeting")}</p>
+            <h1 className="text-2xl font-bold">{t("dashboard.greetingName", {name: settings.name})}</h1>
           </>
         ) : (
-          <h1 className="text-2xl font-bold">Good to see you 🏃‍♂️</h1>
+          <h1 className="text-2xl font-bold">{t("dashboard.greetingAnon")}</h1>
         )}
       </div>
 

@@ -14,5 +14,21 @@
   "confirm": "Confirmar",
   "loading": "Cargando…",
   "notNow": "Ahora no",
-  "gotIt": "Entendido"
+  "gotIt": "Entendido",
+  "types": {
+    "EASY": "SUAVE",
+    "TEMPO": "TEMPO",
+    "INTERVALS": "SERIES",
+    "LONG": "LARGA",
+    "RACE": "CARRERA",
+    "WALK": "CAMINATA",
+    "OTHER": "OTRO"
+  },
+  "phases": {
+    "BASE": "BASE",
+    "BUILD": "CARGA",
+    "PEAK": "PICO",
+    "TAPER": "DESCARGA",
+    "RACE": "CARRERA"
+  }
 }

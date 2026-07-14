@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowDown, Check, ChevronRight, MessageCircle, Plus, RotateCcw, X } from "lucide-react";
-import { DAYS, TCLR } from "../constants";
+import { TCLR } from "../constants";
+import { dayName } from "../i18n";
 import { fmt, estMin, cleanDesc } from "../utils/format";
 import { sessionSteps } from "../utils/sessionSteps";
 import { findEdition } from "../utils/races";
@@ -51,6 +53,7 @@ type PlanDraftValue = string | number;
 const planTypeClass = (type: PlanSession["type"]) => TCLR[(type as RunType) || "OTHER"] || "text-violet-400";
 
 export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, openCoach, goLog, planPrefill, clearPlanPrefill}: PlanViewProps) {
+  const { t } = useTranslation();
   // Index of the week containing today — the one we auto-expand.
   const currentWeekIndex = () => {
     if (!plan) return null;
@@ -158,58 +161,58 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   if (!plan) return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mt-4 mb-5">
-        <h2 className="text-xl font-bold">Training Plan</h2>
+        <h2 className="text-xl font-bold">{t("plan.title")}</h2>
         <PlanInfo/>
       </div>
-      {promoting && planPrefill && <PromoteBanner prefill={planPrefill} onCancel={cancelPromote}/>} 
+      {promoting && planPrefill && <PromoteBanner prefill={planPrefill} onCancel={cancelPromote}/>}
       <div className="bg-slate-800 rounded-2xl p-5 space-y-5">
-        <p className="text-slate-400 text-sm">{promoting ? "Set your goal time, then build your plan." : "Configure your goal and available training days."}</p>
+        <p className="text-slate-400 text-sm">{promoting ? t("plan.setup.introPromote") : t("plan.setup.intro")}</p>
         <div>
-          <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
+          <label className="text-xs text-slate-400 block mb-1.5">{t("plan.setup.raceDate")}</label>
           <input type="date" value={draftDate || ""}
             onChange={e => setDraftDate(e.target.value)}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
         </div>
         <div>
-          <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-          <input type="number" min="1" max="200" step="0.1" value={draftDist} placeholder="e.g. 21.1"
+          <label className="text-xs text-slate-400 block mb-1.5">{t("plan.setup.raceDistance")}</label>
+          <input type="number" min="1" max="200" step="0.1" value={draftDist} placeholder={t("plan.setup.distancePlaceholder")}
             onChange={e => { const n = parseFloat(e.target.value); setDraftDist(isNaN(n) ? "" : n); }}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
         </div>
         <div>
-          <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+          <label className="text-xs text-slate-400 block mb-1.5">{t("plan.setup.raceElevation")}</label>
           <input type="number" min="0" max="10000" step="10" value={draftElev} placeholder="0"
             onChange={e => { const v = e.target.value; setDraftElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); }}
             className="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-          <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+          <p className="text-slate-500 text-xs mt-1">{t("plan.setup.elevationHelp")}</p>
         </div>
         <GoalConfigurator distanceKm={draftDist} goalSec={draftGoal}
           onChange={setDraftGoal}/>
         <div>
-          <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
+          <label className="text-xs text-slate-400 block mb-2">{t("plan.setup.trainingDays")}</label>
           <SessionConfigurator sessions={draft} onChange={setDraft}/>
           {draftIsSuggested
-            ? <p className="text-xs text-slate-500 mt-1.5">Suggested for your race — adjust freely.</p>
+            ? <p className="text-xs text-slate-500 mt-1.5">{t("plan.setup.suggestedNote")}</p>
             : <button type="button" onClick={() => setDraft(suggestedSessions)}
                 className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
-                Use suggested days for this race
+                {t("plan.setup.useSuggested")}
               </button>}
         </div>
         <div>
-          <label className="text-xs text-slate-400 block mb-2">Training style</label>
+          <label className="text-xs text-slate-400 block mb-2">{t("plan.setup.trainingStyle")}</label>
           <StylePicker value={effectiveStyle} onChange={setDraftStyle} recommended={recommendedStyle}/>
         </div>
         {!settings.maxHR && (
           <button type="button" onClick={openSettings}
             className="w-full bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 rounded-xl p-3 text-xs text-amber-200 flex gap-2 items-start text-left transition-colors">
             <span className="flex-shrink-0 text-base leading-none">💡</span>
-            <span>Add your HR profile in Settings to unlock heart rate targets on every session.</span>
+            <span>{t("plan.setup.hrNudge")}</span>
           </button>
         )}
         <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
           disabled={!draftDate || !draftDist}
           className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-3.5 rounded-xl font-semibold transition-colors">
-          {promoting ? "Build my plan" : "Generate My Training Plan"}
+          {promoting ? t("plan.setup.buildMyPlan") : t("plan.setup.generate")}
         </button>
       </div>
     </div>
@@ -227,7 +230,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   const ps   = plan.planSessions || settings.planSessions || [];
   const sessInfo = ps.slice()
     .sort((a, b) => a.dayOffset - b.dayOffset)
-    .map(s => DAYS[s.dayOffset] + " (" + fmt.mins(s.minutes) + ")")
+    .map(s => dayName(s.dayOffset) + " (" + fmt.mins(s.minutes) + ")")
     .join(" · ");
   const planStyle: StyleId = isStyleId(plan.style) ? plan.style : "balanced";
   // The peak long run is driven by race distance, so on a short long-session
@@ -248,30 +251,30 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mt-4 mb-4">
-        <h2 className="text-xl font-bold">Training Plan</h2>
+        <h2 className="text-xl font-bold">{t("plan.title")}</h2>
         {!promoting && (
           <div className="flex gap-1 items-center">
             {confirmRegen ? (
               <div className="flex gap-1">
                 <button onClick={() => setConfirmRegen(false)}
                   className="px-2 py-1.5 text-slate-400 hover:text-white text-xs rounded-lg hover:bg-slate-700 transition-colors">
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button onClick={() => genPlan()}
                   className="px-2 py-1.5 text-red-400 hover:text-white text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-colors">
-                  Reset ✓
+                  {t("plan.header.resetConfirm")}
                 </button>
               </div>
             ) : (
               <>
                 <button onClick={openCoach}
                   className="px-2.5 py-1.5 flex items-center gap-1.5 text-xs font-semibold text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg transition-colors"
-                  title="Adjust the plan with your coach">
-                  <MessageCircle size={13}/>Coach
+                  title={t("plan.header.coachTitle")}>
+                  <MessageCircle size={13}/>{t("plan.header.coach")}
                 </button>
                 <button onClick={() => setConfirmRegen(true)}
                   className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-                  title="Regenerate plan">
+                  title={t("plan.setup.regenerate")}>
                   <RotateCcw size={16}/>
                 </button>
               </>
@@ -285,15 +288,19 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
       {!promoting && (<>
       <div className="bg-slate-800 rounded-xl p-4 mb-3">
         <div className="flex justify-between text-sm mb-2">
-          <span className="text-slate-400">{done + " / " + all.length + " sessions"}</span>
+          <span className="text-slate-400">{t("plan.progress.sessions", {done, total: all.length})}</span>
           <span className="text-orange-400 font-bold">{pct + "%"}</span>
         </div>
         <div className="h-2.5 bg-slate-700 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-700" style={{width: pct + "%"}}/>
         </div>
         <div className="flex justify-between text-xs text-slate-400 mt-2">
-          <span>{(plan.distanceKm || 20) + "km" + ((plan.raceElevation || 0) > 0 ? " · +" + Math.round(plan.raceElevation || 0) + "m" : "") + " · sub " + fmt.dur(Number(plan.goalSec) || 0)}</span>
-          <span>{"Race: " + fmt.sht(String(plan.raceDate || ""))}</span>
+          <span>{t("plan.progress.goal", {
+            dist: plan.distanceKm || 20,
+            elev: (plan.raceElevation || 0) > 0 ? " · +" + Math.round(plan.raceElevation || 0) + "m" : "",
+            goal: fmt.dur(Number(plan.goalSec) || 0),
+          })}</span>
+          <span>{t("plan.progress.race", {date: fmt.sht(String(plan.raceDate || ""))})}</span>
         </div>
         <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">{styleMeta(planStyle).label}</span>
@@ -304,7 +311,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
       {nowIdx >= 0 && (
         <button onClick={jumpToWeek}
           className="w-full mb-3 rounded-xl px-4 py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 transition-colors">
-          Jump to this week<ArrowDown size={13}/>
+          {t("plan.jumpToWeek")}<ArrowDown size={13}/>
         </button>
       )}
 
@@ -319,18 +326,16 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
         }}
         className={"w-full mb-3 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs transition-colors border " + (editSessions ? "bg-orange-500/10 border-orange-500/40" : "bg-slate-800 border-slate-700 hover:border-slate-500")}>
         <span>
-          <span className="text-slate-400">Sessions: </span>
-          <span className="text-white font-medium">{sessInfo || "not configured"}</span>
+          <span className="text-slate-400">{t("plan.sessionsLabel")}</span>
+          <span className="text-white font-medium">{sessInfo || t("plan.notConfigured")}</span>
         </span>
-        <span className="text-orange-400 font-semibold ml-2 flex-shrink-0">{editSessions ? "Close" : "Edit plan"}</span>
+        <span className="text-orange-400 font-semibold ml-2 flex-shrink-0">{editSessions ? t("common.close") : t("plan.editPlan")}</span>
       </button>
 
       {longRunNudge && !editSessions && (
         <div className="w-full mb-3 rounded-xl px-4 py-2.5 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/25 flex gap-2 items-start">
           <span className="flex-shrink-0 text-base leading-none">💡</span>
-          <span>Your goal builds long runs up to ~{fmt.mins(peakLongMin)}, longer than your
-          longest training day ({fmt.mins(longestSessMin)}). That's expected for this
-          distance — consider lengthening your long day in Edit plan.</span>
+          <span>{t("plan.longRunNudge", {peak: fmt.mins(peakLongMin), longest: fmt.mins(longestSessMin)})}</span>
         </div>
       )}
       </>)}
@@ -339,46 +344,46 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
         <div className="bg-slate-800 rounded-xl p-4 mb-3 border border-orange-500/30 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
+              <label className="text-xs text-slate-400 block mb-1.5">{t("plan.setup.raceDate")}</label>
               <input type="date" value={draftDate} onChange={e => setDraftDate(e.target.value)}
                 className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400"/>
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1.5">Distance (km)</label>
-              <input type="number" min="1" max="200" step="0.1" value={draftDist} placeholder="e.g. 21.1"
+              <label className="text-xs text-slate-400 block mb-1.5">{t("plan.setup.distance")}</label>
+              <input type="number" min="1" max="200" step="0.1" value={draftDist} placeholder={t("plan.setup.distancePlaceholder")}
                 onChange={e => { const n = parseFloat(e.target.value); setDraftDist(isNaN(n) ? "" : n); }}
                 className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
             </div>
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+            <label className="text-xs text-slate-400 block mb-1.5">{t("plan.setup.raceElevation")}</label>
             <input type="number" min="0" max="10000" step="10" value={draftElev} placeholder="0"
               onChange={e => { const v = e.target.value; setDraftElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); }}
               className="w-full bg-slate-700 border border-slate-600 rounded-xl p-2.5 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-            <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+            <p className="text-slate-500 text-xs mt-1">{t("plan.setup.elevationHelp")}</p>
           </div>
           <GoalConfigurator distanceKm={draftDist} goalSec={draftGoal} onChange={setDraftGoal}/>
           <div>
-            <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
+            <label className="text-xs text-slate-400 block mb-2">{t("plan.setup.trainingDays")}</label>
             <SessionConfigurator sessions={draft} onChange={setDraft}/>
             {draftIsSuggested
-              ? <p className="text-xs text-slate-500 mt-1.5">Suggested for your race — adjust freely.</p>
+              ? <p className="text-xs text-slate-500 mt-1.5">{t("plan.setup.suggestedNote")}</p>
               : <button type="button" onClick={() => setDraft(suggestedSessions)}
                   className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
-                  Use suggested days for this race
+                  {t("plan.setup.useSuggested")}
                 </button>}
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-2">Training style</label>
+            <label className="text-xs text-slate-400 block mb-2">{t("plan.setup.trainingStyle")}</label>
             <StylePicker value={effectiveStyle} onChange={setDraftStyle} recommended={recommendedStyle}/>
           </div>
           <button onClick={() => genPlan({planSessions: draft, raceDate: draftDate, goalSec: draftGoal, distanceKm: draftDist || 20, raceElevation: draftElev})}
             disabled={!draftDate || !draftDist}
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-            {promoting ? "Build my plan" : "Regenerate plan"}
+            {promoting ? t("plan.setup.buildMyPlan") : t("plan.setup.regenerate")}
           </button>
           <p className="text-xs text-slate-500 text-center">
-            {promoting ? "Builds a fresh plan for this race — any existing plan is replaced." : "Regenerating rebuilds the schedule — completed sessions will reset."}
+            {promoting ? t("plan.setup.promoteNote") : t("plan.setup.regenNote")}
           </p>
         </div>
       )}

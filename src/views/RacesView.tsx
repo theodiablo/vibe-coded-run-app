@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, Star, Flag, Target, ExternalLink, X, Check, Plus, Trophy, ChevronRight, Navigation, AlertTriangle, Loader } from "lucide-react";
+import { t as tGlobal } from "../i18n";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
 import { fmt, ymd } from "../utils/format";
@@ -11,7 +13,7 @@ import { geoSource } from "../geo/source";
 import { reportRace } from "../races";
 import type { CatalogueEdition, CatalogueRace, JoinedEdition, Participation, RacesState, Run, SettingsState } from "../types";
 
-const SEGMENTS = [["mine", "My Races"], ["find", "Find a race"]];
+const SEGMENTS = [["mine", "races.segments.mine"], ["find", "races.segments.find"]];
 // Find-a-race filter chips: event distance bands (km) and "near me" radius (km).
 const BANDS = [5, 10, 21.1, 42.2];
 const RADII = [25, 50, 100, 500];
@@ -42,21 +44,23 @@ function resolveJoined(part: Participation): JoinedRace | JoinedEdition {
   const found = part.editionId ? findEdition(part.editionId) : null;
   if (found) return found as JoinedEdition;
   return {
-    name: part.label || "Race", raceId: part.raceId || "", url: null, orphan: true,
+    name: part.label || tGlobal("races.fallbackName"), raceId: part.raceId || "", url: null, orphan: true,
     edition: { id: part.editionId || "", date: part.raceDate || "", distanceKm: part.distanceKm || 0 },
   };
 }
 
 // Amber "this is user-submitted" tag for any unverified race/edition.
 function UnverifiedTag() {
+  const { t } = useTranslation();
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/25 px-1.5 py-0.5 rounded-md">
-      <AlertTriangle size={10}/>unverified — verify on official site
+      <AlertTriangle size={10}/>{t("races.unverifiedTag")}
     </span>
   );
 }
 
 export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceInPlan, addRuns, showToast, catalogue, openRaceForm }: RacesViewProps) {
+  const { t } = useTranslation();
   const [seg, setSeg] = useState<Segment>("mine");
   const [logFor, setLogFor] = useState<string | null>(null); // editionId being logged
 
@@ -86,7 +90,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
 
   const addWishlist = (joined: JoinedRace | JoinedEdition) => {
     upsertPart(joined, { status: "wishlist" });
-    showToast("Added to your races.");
+    showToast(t("races.toast.added"));
   };
 
   const setTarget = (joined: JoinedRace | JoinedEdition) => { promoteEdition(joined); };
@@ -99,13 +103,13 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
       addRuns([{
         id: runId, date: ed.date, type: "RACE", km: ed.distanceKm, durationSec: timeSec,
         hr: null, hrMax: null, elevation: ed.elevation || undefined, effort: 8,
-        notes: notes || (editionLabel({ name: joined.name }, ed) + " — race"),
+        notes: notes || t("races.result.defaultNote", { label: editionLabel({ name: joined.name }, ed) }),
       }], { skipDetect: true });
     }
     upsertPart(joined, { status: "done", timeSec, notes, source: "manual", runId });
     track("race_completed", { source: "manual" });
     setLogFor(null);
-    showToast("Race logged 🎉");
+    showToast(t("races.toast.logged"));
   };
 
   // ── My Races ──────────────────────────────────────────────────────────────
@@ -116,14 +120,14 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
 
   return (
     <div className="max-w-lg mx-auto p-4">
-      <h2 className="text-xl font-bold mt-4 mb-4">Races</h2>
+      <h2 className="text-xl font-bold mt-4 mb-4">{t("races.title")}</h2>
 
       <div className="flex bg-slate-800 rounded-xl p-1 gap-1 mb-5">
         {SEGMENTS.map(([id, label]) => (
           <button key={id} onClick={() => setSeg(id as Segment)}
             className={"flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors " +
               (seg === id ? "bg-orange-500 text-white" : "text-slate-400 hover:text-slate-200")}>
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
@@ -133,16 +137,16 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
           {!parts.length && (
             <div className="bg-slate-800 rounded-2xl p-6 text-center space-y-3">
               <Trophy size={32} className="mx-auto text-slate-700"/>
-              <p className="text-sm text-slate-400">No races yet — pick a goal to chase.</p>
+              <p className="text-sm text-slate-400">{t("races.empty.none")}</p>
               <button onClick={() => setSeg("find")}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                Add your first goal race
+                {t("races.empty.addFirst")}
               </button>
             </div>
           )}
 
           {upcoming.length > 0 && (
-            <Section title="Upcoming">
+            <Section title={t("races.sections.upcoming")}>
               {upcoming.map(p => {
                 const joined = resolveJoined(p);
                 const days = daysUntil(p.raceDate, today);
@@ -160,33 +164,33 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                       <div className="min-w-0">
                         <p className="font-semibold line-clamp-2 leading-snug">{p.label}</p>
                         <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate || "") + " · " + p.distanceKm + " km"}</p>
-                        {isTarget && <span className="inline-flex items-center gap-1 text-xs text-orange-300 mt-1.5 font-semibold"><Target size={12}/>Training target</span>}
-                        {inPlannable && p.inPlan && <span className="inline-flex items-center gap-1 text-xs text-orange-300/80 mt-1.5 font-semibold"><Check size={12}/>In your plan</span>}
+                        {isTarget && <span className="inline-flex items-center gap-1 text-xs text-orange-300 mt-1.5 font-semibold"><Target size={12}/>{t("races.upcoming.trainingTarget")}</span>}
+                        {inPlannable && p.inPlan && <span className="inline-flex items-center gap-1 text-xs text-orange-300/80 mt-1.5 font-semibold"><Check size={12}/>{t("races.upcoming.inYourPlan")}</span>}
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-3xl font-black text-orange-400 leading-none">{Math.max(0, days)}</p>
-                        <p className="text-slate-400 text-xs mt-0.5">days to go</p>
+                        <p className="text-slate-400 text-xs mt-0.5">{t("races.upcoming.daysToGo")}</p>
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3">
                       {!isTarget && (
                         <button onClick={() => setTarget(joined)}
                           className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
-                          <Target size={14}/>Set as target
+                          <Target size={14}/>{t("races.upcoming.setAsTarget")}
                         </button>
                       )}
                       {inPlannable && (
                         <button onClick={() => p.editionId && setRaceInPlan(p.editionId, !p.inPlan)}
-                          title={p.inPlan ? "Remove from plan" : "Add this race to your plan"}
+                          title={p.inPlan ? t("races.upcoming.removeFromPlan") : t("races.upcoming.addToPlanTitle")}
                           className={"flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors " + (p.inPlan ? "bg-orange-500/20 text-orange-300 hover:bg-orange-500/30" : "bg-slate-700 hover:bg-slate-600 text-slate-200")}>
-                          {p.inPlan ? <><Check size={14}/>In plan</> : <><Plus size={14}/>Add to plan</>}
+                          {p.inPlan ? <><Check size={14}/>{t("races.upcoming.inPlan")}</> : <><Plus size={14}/>{t("races.upcoming.addToPlan")}</>}
                         </button>
                       )}
                        <button onClick={() => setLogFor(p.editionId || null)}
                         className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold transition-colors">
-                        <Check size={14}/>Done
+                        <Check size={14}/>{t("common.done")}
                       </button>
-                      <button onClick={() => removePart(p.editionId)} aria-label="Remove"
+                      <button onClick={() => removePart(p.editionId)} aria-label={t("common.remove")}
                         className="flex items-center justify-center text-slate-400 hover:text-red-400 px-2 transition-colors">
                         <X size={16}/>
                       </button>
@@ -199,7 +203,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
           )}
 
           {past.length > 0 && (
-            <Section title="Did you run these?">
+            <Section title={t("races.sections.past")}>
               {past.map(p => {
                 const joined = resolveJoined(p);
                 return (

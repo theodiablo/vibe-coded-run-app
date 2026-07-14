@@ -1,1 +1,54 @@
-{}
+{
+  "signInFailed": "Sign-in failed. Please try again.",
+  "header": {
+    "settings": "Settings"
+  },
+  "beta": "Beta",
+  "toasts": {
+    "memoryFull": "Coach memory is getting full — review it in Settings.",
+    "hrAdded": "Heart rate added to a run from Health Connect ❤",
+    "contributionVerified_one": "Your race contribution was verified — thanks! 🎉",
+    "contributionVerified_other": "{{count}} of your race contributions were verified — thanks! 🎉",
+    "badgeUnlocked_one": "Badge unlocked: {{label}} 🏅",
+    "badgeUnlocked_other": "{{count}} new badges unlocked 🏅",
+    "newBadge": "New badge",
+    "loggedAsRace": "Logged as {{label}} 🎉",
+    "yourRace": "your race",
+    "runDeleted": "Run deleted.",
+    "runUpdated": "Run updated.",
+    "restored": "Restored — {{n}} run(s) imported.",
+    "foundRun": "Found a run from your watch — {{km}} km on {{date}}",
+    "foundRuns": "Found {{n}} runs from your watch",
+    "review": "Review",
+    "importAll": "Import all"
+  },
+  "consent": {
+    "title": "Help improve the app?",
+    "body": "We'd like to collect limited usage analytics and crash reports to fix bugs and see what's used. No run data, routes, notes, or heart rate, or coach messages are ever sent. You can change this any time in Settings → Privacy.",
+    "privacyPolicy": "Privacy policy",
+    "decline": "Decline",
+    "accept": "Accept"
+  },
+  "crash": {
+    "title": "Something went wrong",
+    "body": "The app hit an unexpected error. Reloading usually fixes it — your runs and plan are saved.",
+    "showTrace": "Show error trace",
+    "hideTrace": "Hide error trace",
+    "copyTrace": "Copy trace",
+    "copied": "Copied",
+    "emailTrace": "Email trace",
+    "askSend": "Send a limited crash report to help fix this?",
+    "dontSend": "Don't send",
+    "sendReport": "Send report",
+    "sent": "Crash report sent. Thank you.",
+    "reload": "Reload"
+  },
+  "update": {
+    "requiredTitle": "Update required",
+    "requiredBody": "This version of Running Coach is no longer supported. Please update to the latest version to keep using the app.",
+    "updateNow": "Update now",
+    "available": "A new version of Running Coach is available.",
+    "update": "Update",
+    "dismiss": "Dismiss"
+  }
+}

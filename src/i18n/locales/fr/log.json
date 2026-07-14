@@ -1,1 +1,57 @@
-{}
+{
+  "title": "Enregistrer une course",
+  "importFileBtn": "Importer un fichier",
+  "trackLive": "Suivre une course en direct (GPS)",
+  "orManual": "ou saisis-la manuellement",
+  "gpsBanner": "Suivie par GPS — la distance, le temps et le dénivelé sont déjà remplis. Ajoute un type et des notes, puis enregistre.",
+  "watchBanner": "Importée depuis ta montre via Health Connect — vérifie les détails (pas de tracé/carte), choisis un type, puis enregistre.",
+  "import": {
+    "title": "Importer un fichier d’activité",
+    "gpx": "<0>GPX / TCX :</0> une activité avec son tracé — exporte-la depuis Garmin Connect, Strava et la plupart des plateformes",
+    "zepp": "<0>CSV Zepp :</0> Profil → Centre de confidentialité → Exporter les données personnelles",
+    "strava": "<0>CSV Strava :</0> Paramètres → Mon compte → Télécharger ou supprimer → Demander une archive",
+    "chooseFile": "Choisir un fichier",
+    "tooLarge": "Fichier trop volumineux — 20 Mo max.",
+    "readError": "Impossible de lire ce fichier.",
+    "noRuns": "Aucune course trouvée dans ce fichier.",
+    "alreadyImported_one": "Déjà importée — cette course est dans ton journal.",
+    "alreadyImported_other": "Déjà importées — ces courses sont dans ton journal.",
+    "imported_one": "{{count}} course importée.",
+    "imported_other": "{{count}} courses importées.",
+    "importedSkipped_one": "{{count}} course importée ({{skipped}} déjà dans ton journal).",
+    "importedSkipped_other": "{{count}} courses importées ({{skipped}} déjà dans ton journal)."
+  },
+  "fields": {
+    "date": "Date",
+    "type": "Type",
+    "distanceKm": "Distance (km)",
+    "duration": "Durée",
+    "avgHr": "FC moy.",
+    "maxHr": "FC max.",
+    "elevM": "Dénivelé (m)",
+    "notes": "Notes",
+    "effort": "Effort perçu :",
+    "effortValue": "{{value}}/10",
+    "hoursPh": "h",
+    "minutesPh": "min",
+    "secondsPh": "s",
+    "kmPh": "ex. 8.5",
+    "avgHrPh": "ex. 145",
+    "maxHrPh": "ex. 170",
+    "elevPh": "ex. 80",
+    "notesPh": "C’était comment ? Des douleurs ?"
+  },
+  "validation": {
+    "required": "La distance et la durée sont obligatoires."
+  },
+  "hrPendingNote": "La fréquence cardiaque sera ajoutée automatiquement depuis Health Connect une fois ta montre synchronisée (généralement quelques minutes) — laisse ces champs vides, ou saisis-les toi-même.",
+  "saveRun": "Enregistrer la course",
+  "edit": {
+    "title": "Modifier la course",
+    "kmPh": "8.5",
+    "avgHrPh": "145",
+    "maxHrPh": "170",
+    "elevPh": "80",
+    "saveChanges": "Enregistrer les modifications"
+  }
+}

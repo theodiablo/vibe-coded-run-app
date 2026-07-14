@@ -14,5 +14,21 @@
   "confirm": "Confirmer",
   "loading": "Chargement…",
   "notNow": "Pas maintenant",
-  "gotIt": "Compris"
+  "gotIt": "Compris",
+  "types": {
+    "EASY": "FACILE",
+    "TEMPO": "TEMPO",
+    "INTERVALS": "FRACTIONNÉ",
+    "LONG": "LONGUE",
+    "RACE": "COURSE",
+    "WALK": "MARCHE",
+    "OTHER": "AUTRE"
+  },
+  "phases": {
+    "BASE": "BASE",
+    "BUILD": "CHARGE",
+    "PEAK": "PIC",
+    "TAPER": "AFFÛTAGE",
+    "RACE": "COURSE"
+  }
 }

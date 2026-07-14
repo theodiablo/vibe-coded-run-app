@@ -2,5 +2,53 @@
   "diff": {
     "new": "new {{type}} · {{km}} km on {{date}}",
     "moved": "moved {{from}} → {{to}}"
+  },
+  "title": "Coach",
+  "greeting": "Hi! Tell me what would help you train well this week — feeling fresher, fitting life around the plan, adding a little confidence, or handling a niggle — and I'll suggest a safe adjustment. You'll always see the change before anything is applied.",
+  "examples": {
+    "fresh": "Help me feel fresh for this weekend",
+    "extraDay": "I have an extra day to train",
+    "moveLongRun": "Move my long run to Sunday",
+    "confidence": "Build confidence for race day"
+  },
+  "fallback": {
+    "noValidAdjustment": "I couldn't find an adjustment that keeps your plan within the app's training rules — nothing was changed.",
+    "noChangeNeeded": "Nothing in the plan needs to change for that.",
+    "proposal": "Here's the adjustment I recommend.",
+    "applied": "Done — your plan is updated. Anything else?"
+  },
+  "errors": {
+    "noProposedPlan": "Coach response did not include a proposed plan.",
+    "noProposalReady": "No coach proposal is ready to apply.",
+    "confirmNoPlan": "Coach confirmation did not include a plan.",
+    "revalidateFailed": "The proposal no longer validates — nothing was applied.",
+    "noResponseToFlag": "No coach response to flag.",
+    "noConversation": "No coach conversation is open."
+  },
+  "toast": {
+    "planAdjusted": "Plan adjusted by your coach ✓",
+    "feedbackFailed": "Couldn't send feedback — try again in a moment",
+    "feedbackSent": "Thanks — your feedback was sent.",
+    "memoryDuplicate": "Already in coach memory."
+  },
+  "week": "Week {{num}}",
+  "apply": "Apply this adjustment",
+  "memory": {
+    "prompt": "Remember this for future coach chats?",
+    "saved": "Saved to coach memory.",
+    "save": "Save to memory"
+  },
+  "flag": {
+    "cta": "This isn't right",
+    "placeholder": "What did the coach get wrong?",
+    "thanks": "Thanks — noted."
+  },
+  "send": "Send",
+  "thinking": "Coach is thinking…",
+  "footer": "Your coach uses your message, plan, recent runs, and saved memory to answer. See our <1>privacy policy</1> and <3>safety note</3>.",
+  "input": {
+    "aria": "Message to coach",
+    "placeholder": "e.g. help me feel fresh for this weekend",
+    "placeholderFollowUp": "Suggest an edit…"
   }
 }

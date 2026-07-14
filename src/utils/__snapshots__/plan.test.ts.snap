@@ -36,6 +36,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 2.5,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -46,6 +50,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 2.5,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -56,6 +64,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 11.2,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -73,6 +85,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 2.7,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -83,6 +99,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 2.7,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -93,6 +113,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 12.1,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -110,6 +134,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 2.9,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -120,6 +148,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 2.9,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -130,6 +162,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 12.9,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -147,6 +183,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 3.1,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -157,6 +197,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 3.1,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -167,6 +211,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 13.8,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -184,6 +232,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.7,
           "pace": 298,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -194,6 +246,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 6.5,
           "pace": 298,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -204,6 +260,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 14.7,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -221,6 +281,13 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.5,
           "pace": 284,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 5,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -231,6 +298,13 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.5,
           "pace": 284,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 5,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -241,6 +315,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 15.5,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -258,6 +336,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.7,
           "pace": 298,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -268,6 +350,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 6.5,
           "pace": 298,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -279,6 +365,11 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 10,
           "pace": 287,
           "runId": null,
+          "sd": {
+            "elevM": 50,
+            "kind": "race",
+            "km": 10,
+          },
           "type": "RACE",
         },
       ],
@@ -296,6 +387,13 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.5,
           "pace": 284,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 5,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -306,6 +404,13 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.5,
           "pace": 284,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 5,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -316,6 +421,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 17.3,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -333,6 +442,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.7,
           "pace": 298,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -343,6 +456,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 6.5,
           "pace": 298,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -353,6 +470,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 18.1,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -370,6 +491,13 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.5,
           "pace": 284,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 5,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -380,6 +508,13 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 5.5,
           "pace": 284,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 5,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -390,6 +525,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 19,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -407,6 +546,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 4,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -417,6 +560,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 4,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -427,6 +574,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 16.1,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -444,6 +595,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 3.5,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -454,6 +609,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 3.5,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -464,6 +623,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 12.3,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -481,6 +644,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 3,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -491,6 +658,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 3,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -501,6 +672,10 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 8.5,
           "pace": 355,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -519,6 +694,11 @@ exports[`buildPlan balanced output freeze > half marathon, 3 days, fit, secondar
           "km": 21.1,
           "pace": 300,
           "runId": null,
+          "sd": {
+            "elevM": 150,
+            "kind": "raceday",
+            "km": 21.1,
+          },
           "type": "RACE",
         },
       ],
@@ -561,6 +741,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 2.5,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -571,6 +755,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 4.5,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -588,6 +776,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 2.7,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -598,6 +790,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 6.2,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -615,6 +811,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 2.9,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -625,6 +825,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 7.9,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -642,6 +846,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.1,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -652,6 +860,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 9.7,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -669,6 +881,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.6,
           "pace": 358,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -679,6 +895,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 11.4,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -696,6 +916,13 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.9,
           "pace": 341,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 3,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -706,6 +933,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 13.1,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -723,6 +954,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.6,
           "pace": 358,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -733,6 +968,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 14.8,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -750,6 +989,13 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.9,
           "pace": 341,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 3,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -760,6 +1006,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 16.5,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -777,6 +1027,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.6,
           "pace": 358,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -787,6 +1041,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 18.3,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -804,6 +1062,13 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.9,
           "pace": 341,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 3,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -814,6 +1079,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 20,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -831,6 +1100,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.6,
           "pace": 358,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -841,6 +1114,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 21.7,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -858,6 +1135,13 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.9,
           "pace": 341,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 3,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -868,6 +1152,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 23.4,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -885,6 +1173,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.6,
           "pace": 358,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -895,6 +1187,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 25.1,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -912,6 +1208,13 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.9,
           "pace": 341,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 3,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -922,6 +1225,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 26.8,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -939,6 +1246,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.6,
           "pace": 358,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -949,6 +1260,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 28.6,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -966,6 +1281,13 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.9,
           "pace": 341,
           "runId": null,
+          "sd": {
+            "kind": "intervals",
+            "recover": "90s",
+            "repM": 800,
+            "reps": 3,
+            "variant": "standard",
+          },
           "type": "INTERVALS",
         },
         {
@@ -976,6 +1298,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 30.3,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -993,6 +1319,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.6,
           "pace": 358,
           "runId": null,
+          "sd": {
+            "kind": "tempo",
+            "variant": "comfortablyHard",
+          },
           "type": "TEMPO",
         },
         {
@@ -1003,6 +1333,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 32,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -1020,6 +1354,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 4,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -1030,6 +1368,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 27.2,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -1047,6 +1389,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3.5,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -1057,6 +1403,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 20.8,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -1074,6 +1424,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 3,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "easy",
+            "variant": "relaxed",
+          },
           "type": "EASY",
         },
         {
@@ -1084,6 +1438,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 14.4,
           "pace": 426,
           "runId": null,
+          "sd": {
+            "kind": "long",
+            "variant": "easy",
+          },
           "type": "LONG",
         },
       ],
@@ -1102,6 +1460,10 @@ exports[`buildPlan balanced output freeze > marathon, default 2 days, from scrat
           "km": 42.2,
           "pace": 341,
           "runId": null,
+          "sd": {
+            "kind": "raceday",
+            "km": 42.2,
+          },
           "type": "RACE",
         },
       ],

@@ -1,1 +1,110 @@
-{}
+{
+  "tabs": {
+    "log": "Log",
+    "stats": "Stats",
+    "badges": "Badges"
+  },
+  "badges": {
+    "title": "Badges",
+    "earned": "{{unlocked}} of {{total}} earned",
+    "hint": "Keep running and racing to unlock more — walks count too."
+  },
+  "history": {
+    "title": "History",
+    "subtitle_one": "{{count}} run · {{km}} km total",
+    "subtitle_other": "{{count}} runs · {{km}} km total",
+    "empty": "No runs recorded yet.",
+    "recordFirst": "Record your first run",
+    "loadingRoute": "Loading route…",
+    "routeUnavailable": "Route unavailable.",
+    "pendingSync": "Saved on this device — will sync to the cloud when possible.",
+    "viewRoute": "View route",
+    "editRun": "Edit run",
+    "deleteRun": "Delete run"
+  },
+  "stats": {
+    "title": "Stats",
+    "empty": "Record some runs to see your stats!",
+    "totalsCaption": "Totals for the selected window",
+    "period": {
+      "4w": "4w",
+      "12w": "12w",
+      "all": "All"
+    },
+    "cards": {
+      "totalDistance": "Total distance",
+      "runsCount": "{{n}} runs",
+      "totalTime": "Total time",
+      "movingTime": "moving time",
+      "averagePace": "Average pace",
+      "minPerKm": "min/km",
+      "totalElevation": "Total elevation",
+      "climbed": "climbed",
+      "bestPace": "Best pace",
+      "bestPaceSub": "runs ≥3km",
+      "avgHeartRate": "Avg heart rate",
+      "bpm": "bpm"
+    },
+    "weeklyDistance": "Weekly distance (km)",
+    "weeklyElevation": "Weekly elevation gain (m)",
+    "paceTrend": "Pace trend",
+    "downFaster": "down = faster",
+    "goalLabel": "{{pace}} goal",
+    "tooltip": {
+      "distance": "Distance",
+      "elevation": "Elevation",
+      "pace": "Pace",
+      "km": "{{v}} km",
+      "m": "{{v}} m",
+      "perKm": "{{v}}/km"
+    }
+  },
+  "predictions": {
+    "title": "Race predictions",
+    "subtitle": "Projected from your strongest run in the selected window",
+    "needRun": "Log a run of 3 km or more to estimate your race times.",
+    "distanceKm": "{{d}} km",
+    "raceDay": "race day",
+    "inclClimb": "incl. {{m}} m climb",
+    "bestEffortEstimate": "Best-effort estimate",
+    "hrEstimate": "HR-modelled estimate",
+    "pacePerKm": "{{pace}}/km",
+    "runSummary": "({{km}} km in {{dur}})",
+    "runSummaryClimb": "({{km}} km in {{dur}}, {{climb}} m climb)",
+    "bestEffortExplainer": "<0>Best-effort</0> projects your strongest run {{run}} to each distance with Riegel's formula.",
+    "hrExplainer": "<0>HR-modelled</0> fits your pace against heart rate across {{n}} runs and extrapolates to threshold effort (~{{thr}} bpm) — so easy runs handled well count too, not just your fastest day.",
+    "hrLocked": "Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.",
+    "gradeNoteClimb": "Runs are grade-adjusted for elevation gain. Times are for a flat course; the race-day row includes its {{m}} m climb.",
+    "gradeNoteFlat": "Runs are grade-adjusted for elevation gain. Times are for a flat course, except the race-day row once you set its climb in the Plan settings."
+  },
+  "zones": {
+    "title": "Heart Rate Zones",
+    "zoneLabel": "Z{{n}} · {{name}}",
+    "names": {
+      "1": "Recovery",
+      "2": "Aerobic Base",
+      "3": "Aerobic Tempo",
+      "4": "Threshold",
+      "5": "VO2 Max"
+    },
+    "descs": {
+      "1": "Very easy — active recovery, warm-up/cool-down",
+      "2": "Easy runs, fat burning, building endurance base",
+      "3": "Moderate effort — marathon and long-run pace",
+      "4": "Comfortably hard — lactate threshold, tempo runs",
+      "5": "Maximum effort — short intervals, race pace"
+    },
+    "types": {
+      "Aerobic": "Aerobic",
+      "Anaerobic": "Anaerobic"
+    },
+    "karvonenTitle": "Karvonen method: ",
+    "karvonenBody": "Zone HR = ((MaxHR - RestHR) x intensity%) + RestHR. HRR = {{max}} - {{rest}} = {{hrr}} bpm. Accounts for your resting HR and fitness, so it's more accurate than plain % of Max HR.",
+    "recentTitle": "Recent runs — zone analysis",
+    "runLine": "{{date}} · {{km}} km",
+    "avgHrLabel": "Avg HR: ",
+    "bpmValue": "{{bpm}} bpm",
+    "restLabel": "{{bpm}} bpm (rest)",
+    "maxLabel": "{{bpm}} bpm (max)"
+  }
+}

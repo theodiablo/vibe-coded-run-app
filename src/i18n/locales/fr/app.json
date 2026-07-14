@@ -1,1 +1,54 @@
-{}
+{
+  "signInFailed": "La connexion a échoué. Réessaie.",
+  "header": {
+    "settings": "Réglages"
+  },
+  "beta": "Bêta",
+  "toasts": {
+    "memoryFull": "La mémoire du coach est presque pleine — passe-la en revue dans les Réglages.",
+    "hrAdded": "Fréquence cardiaque ajoutée à une course depuis Health Connect ❤",
+    "contributionVerified_one": "Ta contribution de course a été vérifiée — merci ! 🎉",
+    "contributionVerified_other": "{{count}} de tes contributions de courses ont été vérifiées — merci ! 🎉",
+    "badgeUnlocked_one": "Badge débloqué : {{label}} 🏅",
+    "badgeUnlocked_other": "{{count}} nouveaux badges débloqués 🏅",
+    "newBadge": "Nouveau badge",
+    "loggedAsRace": "Enregistrée comme {{label}} 🎉",
+    "yourRace": "ta course",
+    "runDeleted": "Course supprimée.",
+    "runUpdated": "Course mise à jour.",
+    "restored": "Restauration terminée — {{n}} course(s) importée(s).",
+    "foundRun": "Course trouvée depuis ta montre — {{km}} km le {{date}}",
+    "foundRuns": "{{n}} courses trouvées depuis ta montre",
+    "review": "Vérifier",
+    "importAll": "Tout importer"
+  },
+  "consent": {
+    "title": "Nous aider à améliorer l'app ?",
+    "body": "Nous aimerions collecter des statistiques d'utilisation limitées et des rapports de plantage pour corriger les bugs et voir ce qui est utilisé. Aucune donnée de course, aucun itinéraire, aucune note, aucune fréquence cardiaque ni aucun message du coach ne sont jamais envoyés. Tu peux changer d'avis à tout moment dans Réglages → Confidentialité.",
+    "privacyPolicy": "Politique de confidentialité",
+    "decline": "Refuser",
+    "accept": "Accepter"
+  },
+  "crash": {
+    "title": "Un problème est survenu",
+    "body": "L'app a rencontré une erreur inattendue. Recharger règle généralement le problème — tes courses et ton plan sont sauvegardés.",
+    "showTrace": "Afficher la trace d'erreur",
+    "hideTrace": "Masquer la trace d'erreur",
+    "copyTrace": "Copier la trace",
+    "copied": "Copié",
+    "emailTrace": "Envoyer la trace par e-mail",
+    "askSend": "Envoyer un rapport de plantage limité pour aider à corriger le problème ?",
+    "dontSend": "Ne pas envoyer",
+    "sendReport": "Envoyer le rapport",
+    "sent": "Rapport de plantage envoyé. Merci.",
+    "reload": "Recharger"
+  },
+  "update": {
+    "requiredTitle": "Mise à jour requise",
+    "requiredBody": "Cette version de Running Coach n'est plus prise en charge. Mets-la à jour vers la dernière version pour continuer à utiliser l'app.",
+    "updateNow": "Mettre à jour maintenant",
+    "available": "Une nouvelle version de Running Coach est disponible.",
+    "update": "Mettre à jour",
+    "dismiss": "Ignorer"
+  }
+}

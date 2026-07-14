@@ -1,1 +1,57 @@
-{}
+{
+  "title": "Record a Run",
+  "importFileBtn": "Import file",
+  "trackLive": "Track a run live (GPS)",
+  "orManual": "or enter manually",
+  "gpsBanner": "Tracked by GPS — distance, time and elevation are filled in. Add a type and notes, then save.",
+  "watchBanner": "Imported from your watch via Health Connect — check the details (there's no route/map), pick a type, then save.",
+  "import": {
+    "title": "Import an activity file",
+    "gpx": "<0>GPX / TCX:</0> one activity with its route map — export from Garmin Connect, Strava and most platforms",
+    "zepp": "<0>Zepp CSV:</0> Profile → Privacy Center → Export Personal Data",
+    "strava": "<0>Strava CSV:</0> Settings → My Account → Download or Delete → Request Archive",
+    "chooseFile": "Choose file",
+    "tooLarge": "File too large — max 20 MB.",
+    "readError": "Couldn't read that file.",
+    "noRuns": "No runs found in that file.",
+    "alreadyImported_one": "Already imported — that run is in your log.",
+    "alreadyImported_other": "Already imported — those runs are in your log.",
+    "imported_one": "Imported {{count}} run.",
+    "imported_other": "Imported {{count}} runs.",
+    "importedSkipped_one": "Imported {{count}} run ({{skipped}} already logged).",
+    "importedSkipped_other": "Imported {{count}} runs ({{skipped}} already logged)."
+  },
+  "fields": {
+    "date": "Date",
+    "type": "Type",
+    "distanceKm": "Distance (km)",
+    "duration": "Duration",
+    "avgHr": "Avg HR",
+    "maxHr": "Max HR",
+    "elevM": "Elev (m)",
+    "notes": "Notes",
+    "effort": "Perceived effort:",
+    "effortValue": "{{value}}/10",
+    "hoursPh": "h",
+    "minutesPh": "min",
+    "secondsPh": "sec",
+    "kmPh": "e.g. 8.5",
+    "avgHrPh": "e.g. 145",
+    "maxHrPh": "e.g. 170",
+    "elevPh": "e.g. 80",
+    "notesPh": "How did it feel? Any aches?"
+  },
+  "validation": {
+    "required": "Distance and duration are required."
+  },
+  "hrPendingNote": "Heart rate will be added automatically from Health Connect once your watch syncs (usually a few minutes) — leave these blank, or enter them yourself.",
+  "saveRun": "Save Run",
+  "edit": {
+    "title": "Edit Run",
+    "kmPh": "8.5",
+    "avgHrPh": "145",
+    "maxHrPh": "170",
+    "elevPh": "80",
+    "saveChanges": "Save changes"
+  }
+}

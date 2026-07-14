@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { fmt, parseDur } from "../utils/format";
 import { paceBand, suggestedGoalSec, clampGoalSec } from "../utils/goal";
 
@@ -16,6 +17,7 @@ type GoalConfiguratorProps = {
 };
 
 export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfiguratorProps) {
+  const { t } = useTranslation();
   const dist = parseFloat(String(distanceKm));
   const band = paceBand(dist);
   const suggested = suggestedGoalSec(dist);
@@ -48,9 +50,9 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfigurat
   if (!band) {
     return (
       <div>
-        <label className="text-xs text-slate-400 block mb-1.5">Goal time</label>
+        <label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.goal.label")}</label>
         <div className="bg-slate-800/60 border border-dashed border-slate-700 rounded-xl p-3 text-xs text-slate-400">
-          Enter a race distance first to set your goal.
+          {t("onboarding.goal.needDistance")}
         </div>
       </div>
     );
@@ -78,7 +80,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfigurat
 
   return (
     <div>
-      <label className="text-xs text-slate-400 block mb-1.5">Goal time</label>
+      <label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.goal.label")}</label>
       <input type="range" min={tMin} max={tMax} step={10} value={eff}
         onChange={e => onChange(parseInt(e.target.value, 10))}
         className="w-full accent-orange-500"/>
@@ -87,7 +89,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfigurat
       </div>
       <div className="flex gap-2 mt-3">
         <label className="flex-1">
-          <span className="text-[11px] text-slate-400 block mb-1">Time</span>
+          <span className="text-[11px] text-slate-400 block mb-1">{t("onboarding.goal.time")}</span>
           <input type="text" inputMode="numeric" className={fieldCls}
             value={timeText ?? fmt.dur(eff)}
             onChange={e => setTimeText(e.target.value)}
@@ -96,7 +98,7 @@ export function GoalConfigurator({distanceKm, goalSec, onChange}: GoalConfigurat
             onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}/>
         </label>
         <label className="flex-1">
-          <span className="text-[11px] text-slate-400 block mb-1">Pace /km</span>
+          <span className="text-[11px] text-slate-400 block mb-1">{t("onboarding.goal.pace")}</span>
           <input type="text" inputMode="numeric" className={fieldCls}
             value={paceText ?? fmt.pace(pace)}
             onChange={e => setPaceText(e.target.value)}

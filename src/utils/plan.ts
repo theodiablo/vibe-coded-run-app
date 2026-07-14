@@ -5,6 +5,7 @@ import {
   DEFAULT_STYLE, STYLE_SHAPE, isStyleId, levelStartLongKm, pickHardDays, stylePacing,
   type StyleId,
 } from "./planStyles";
+import type { SessionSd } from "../types";
 
 export type PlanSessionInput = { dayOffset: number; minutes: number };
 type PlanSession = {
@@ -12,6 +13,9 @@ type PlanSession = {
   date: string;
   type: string;
   desc: string;
+  // Structured descriptor rendered per-locale by the UI (sessionDesc.ts).
+  // `desc` stays the English canonical form for old clients and the coach model.
+  sd?: SessionSd;
   km: number;
   pace: number;
   done: boolean;
@@ -55,7 +59,7 @@ type WeekCtx = {
   longSess: PlanSessionInput;
   qualSessions: PlanSessionInput[];
   longKm: number;
-  addS: (dOff: number, type: string, km: number, desc: string, pace: number) => void;
+  addS: (dOff: number, type: string, km: number, desc: string, pace: number, sd: SessionSd) => void;
   paces: { easy: number; tmpo: number; intv: number; long: number; walk: number };
   tgt: number;
   dist: number;
@@ -152,13 +156,13 @@ export function buildPlan(
     const phase   = isTaper ? "TAPER" : isPeak ? "PEAK" : isBase ? "BASE" : "BUILD";
     const ss: PlanSession[] = [];
 
-    const addS = (dOff: number, type: string, km: number, desc: string, pace: number) => {
+    const addS = (dOff: number, type: string, km: number, desc: string, pace: number, sd: SessionSd) => {
       const d = new Date(wS); d.setDate(wS.getDate() + dOff);
       if (d >= race) return;
       ss.push({
         id: "w" + (w+1) + "d" + dOff,
         date: ymd(d),
-        type, desc,
+        type, desc, sd,
         km: Math.round(Math.max(1.5, km) * 10) / 10,
         pace, done: false, runId: null,
       });
@@ -211,6 +215,7 @@ export function buildPlan(
       demote.type = "EASY";
       demote.pace = easy;
       demote.desc = "Easy run — relaxed aerobic effort";
+      demote.sd = { kind: "easy", variant: "relaxed" };
     }
   }
 
@@ -234,9 +239,11 @@ export function buildPlan(
     const secKm = r.distanceKm;
     // Riegel projection of the main goal to this distance (t2 = t1·(d2/d1)^1.06).
     const secPace = Math.round(goal * Math.pow(secKm / dist, 1.06) / secKm);
+    const secElev = (r.elevation ?? 0) > 0 ? Math.round(r.elevation ?? 0) : 0;
     const session: PlanSession = {
       id: "race-" + (r.editionId || r.date), date: r.date, type: "RACE",
-      desc: "Race — " + secKm + "km" + ((r.elevation ?? 0) > 0 ? " · +" + Math.round(r.elevation ?? 0) + "m" : ""),
+      desc: "Race — " + secKm + "km" + (secElev > 0 ? " · +" + secElev + "m" : ""),
+      sd: { kind: "race", km: secKm, ...(secElev > 0 ? { elevM: secElev } : {}) },
       km: secKm, pace: secPace, done: false, runId: null, editionId: r.editionId || null,
     };
     const wk = weeks[wi];
@@ -254,6 +261,7 @@ export function buildPlan(
         ...s, type: "EASY", pace: easy,
         km: Math.round(Math.min(Number(s.km), 6) * 10) / 10,
         desc: "Easy run — keep it light around your race",
+        sd: { kind: "easy", variant: "aroundRace" } as SessionSd,
       });
     }
     wk.sessions.sort((a, b) => a.date.localeCompare(b.date));
@@ -269,6 +277,7 @@ export function buildPlan(
       desc: "Race Day — " + distanceKm + "km"
         + (gain > 0 ? " · +" + Math.round(gain) + "m climb" : "")
         + "! Everything you trained for.",
+      sd: { kind: "raceday", km: dist, ...(gain > 0 ? { elevM: Math.round(gain) } : {}) },
       km: dist, pace: racePace, done: false, runId: null,
       // Stamp the main race so multi-race detection reads all RACE sessions
       // uniformly off the plan. Null for a hand-entered (non-catalogue) target,
@@ -291,22 +300,25 @@ function composeBalanced(c: WeekCtx) {
   const { w, N, isBase, isTaper, addS, tgt } = c;
   const { easy, tmpo } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
-    "Long run — easy effort at " + fmt.pace(easy) + "/km", easy);
+    "Long run — easy effort at " + fmt.pace(easy) + "/km", easy,
+    { kind: "long", variant: "easy" });
 
   c.qualSessions.forEach(q => {
     const maxQ = q.minutes * 60 / easy;
-    let type, desc, pace, km;
+    let type, desc, pace, km, sd: SessionSd;
     if (isBase || isTaper) {
       const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
       type = "EASY"; pace = easy;
       km   = Math.min(maxQ, easyKm);
       desc = "Easy run — relaxed aerobic effort";
+      sd   = { kind: "easy", variant: "relaxed" };
     } else {
       const buildW = w - 4;
       if (buildW % 2 === 0) {
         type = "TEMPO"; pace = tmpo;
         km   = Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8);
         desc = "Tempo run — " + fmt.pace(tmpo) + "/km, comfortably hard";
+        sd   = { kind: "tempo", variant: "comfortablyHard" };
       } else {
         // Reps derive from the day's time budget, and the total distance is
         // computed FROM the reps (plus a 1.5 km warmup/recovery allowance) —
@@ -316,9 +328,10 @@ function composeBalanced(c: WeekCtx) {
         type = "INTERVALS"; pace = tgt;
         km   = reps * 0.8 + 1.5;
         desc = "Intervals — " + reps + "x800m at " + fmt.pace(tgt) + "/km + 90s recovery";
+        sd   = { kind: "intervals", variant: "standard", reps, repM: 800, recover: "90s" };
       }
     }
-    addS(q.dayOffset, type, km, desc, pace);
+    addS(q.dayOffset, type, km, desc, pace, sd);
   });
 }
 
@@ -330,7 +343,8 @@ function composePolarized(c: WeekCtx) {
   const { w, N, isBase, isTaper, addS } = c;
   const { easy, tmpo, intv, long } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
-    "Long run — easy effort at " + fmt.pace(long) + "/km", long);
+    "Long run — easy effort at " + fmt.pace(long) + "/km", long,
+    { kind: "long", variant: "easy" });
 
   const hardDay = pickHardDays(
     c.qualSessions.map(q => q.dayOffset), c.longSess.dayOffset, 1)[0];
@@ -346,19 +360,22 @@ function composePolarized(c: WeekCtx) {
         : isTaper ? Math.max(2, 4 - (w - (N - 3)) * 0.5)
         : 2.5 + w * 0.3;
       addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
-        "Easy run — relaxed, conversational pace", easy);
+        "Easy run — relaxed, conversational pace", easy,
+        { kind: "easy", variant: "conversational" });
       return;
     }
     const buildW = w - 4;
     if (buildW % 2 === 0) {
       addS(q.dayOffset, "TEMPO",
         Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
-        "Tempo run — " + fmt.pace(tmpo) + "/km, your one hard session this week", tmpo);
+        "Tempo run — " + fmt.pace(tmpo) + "/km, your one hard session this week", tmpo,
+        { kind: "tempo", variant: "oneHard" });
     } else {
       // Budget-derived reps; total = reps + allowance (see composeBalanced).
       const reps = Math.max(3, Math.min(5, Math.floor((maxQ * 0.85 - 1.5) / 0.8)));
       addS(q.dayOffset, "INTERVALS", reps * 0.8 + 1.5,
-        "Intervals — " + reps + "x800m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
+        "Intervals — " + reps + "x800m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv,
+        { kind: "intervals", variant: "standard", reps, repM: 800, recover: "90sJog" });
     }
   });
 }
@@ -373,7 +390,8 @@ function composeRunwalk(c: WeekCtx) {
   // shedding fatigue, so it must never be the plan's hardest ratio.
   const runMin = phase === "BASE" ? 1 : phase === "TAPER" ? 2 : phase === "BUILD" ? 2 : 3;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
-    "Long run/walk — run " + runMin + " min / walk 1 min, conversational", long);
+    "Long run/walk — run " + runMin + " min / walk 1 min, conversational", long,
+    { kind: "runwalk", variant: "long", runMin, walkMin: 1 });
 
   c.qualSessions.forEach(q => {
     const km = isTaper
@@ -381,7 +399,8 @@ function composeRunwalk(c: WeekCtx) {
       : Math.min(q.minutes * 60 / walk, 2.5 + w * 0.25);
     addS(q.dayOffset, "WALK", km,
       "Run/walk — run " + runMin + " min / walk 1 min, "
-        + (isTaper ? "short and relaxed" : "conversational"), walk);
+        + (isTaper ? "short and relaxed" : "conversational"), walk,
+      { kind: "runwalk", variant: isTaper ? "shortTaper" : "short", runMin, walkMin: 1 });
   });
 }
 
@@ -394,7 +413,8 @@ function composeLowfreq(c: WeekCtx) {
   const { w, N, isBase, isTaper, addS } = c;
   const { easy, tmpo, intv, long } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
-    "Long run — steady effort at " + fmt.pace(long) + "/km", long);
+    "Long run — steady effort at " + fmt.pace(long) + "/km", long,
+    { kind: "long", variant: "steady" });
 
   const hardDays = pickHardDays(
     c.qualSessions.map(q => q.dayOffset), c.longSess.dayOffset, 2);
@@ -410,13 +430,15 @@ function composeLowfreq(c: WeekCtx) {
       const km = isTaper ? baseKm * [0.85, 0.65, 0.45][Math.min(w - (N - 3), 2)] : baseKm;
       addS(q.dayOffset, "OTHER", km,
         "Optional cross-training — " + fmt.mins(q.minutes)
-          + " easy bike, swim or elliptical (skip if tired)", easy);
+          + " easy bike, swim or elliptical (skip if tired)", easy,
+        { kind: "cross", minutes: q.minutes });
       return;
     }
     if (isBase || isTaper) {
       const easyKm = isBase ? 2.5 + w * 0.2 : Math.max(2, 4 - (w - (N - 3)) * 0.5);
       addS(q.dayOffset, "EASY", Math.min(maxQ, easyKm),
-        "Easy run — relaxed aerobic effort", easy);
+        "Easy run — relaxed aerobic effort", easy,
+        { kind: "easy", variant: "relaxed" });
       return;
     }
     const buildW = w - 4;
@@ -430,11 +452,13 @@ function composeLowfreq(c: WeekCtx) {
       const reps = Math.max(3, Math.min(nominal, Math.floor((maxQ * 0.85 - 1.5) / repKm)));
       addS(q.dayOffset, "INTERVALS", reps * repKm + 1.5,
         "Intervals — " + reps + "x" + (repKm < 1 ? repKm * 1000 + "m" : "1km")
-          + " at " + fmt.pace(intv) + "/km + recovery jogs", intv);
+          + " at " + fmt.pace(intv) + "/km + recovery jogs", intv,
+        { kind: "intervals", variant: "standard", reps, repM: repKm * 1000, recover: "jogs" });
     } else {
       addS(q.dayOffset, "TEMPO",
         Math.min(maxQ * 0.85, q.minutes * 60 / tmpo * 0.8),
-        "Tempo run — " + fmt.pace(tmpo) + "/km, strong and controlled", tmpo);
+        "Tempo run — " + fmt.pace(tmpo) + "/km, strong and controlled", tmpo,
+        { kind: "tempo", variant: "strong" });
     }
   });
 }
@@ -447,7 +471,8 @@ function composeHansons(c: WeekCtx) {
   const { w, N, phase, isBase, isTaper, rampFrac, addS, dist } = c;
   const { easy, tmpo, intv, long } = c.paces;
   addS(c.longSess.dayOffset, "LONG", c.longKm,
-    "Long run — steady, moderate effort at " + fmt.pace(long) + "/km", long);
+    "Long run — steady, moderate effort at " + fmt.pace(long) + "/km", long,
+    { kind: "long", variant: "steadyModerate" });
 
   const sosDays = pickHardDays(
     c.qualSessions.map(q => q.dayOffset), c.longSess.dayOffset, 2);
@@ -466,15 +491,18 @@ function composeHansons(c: WeekCtx) {
       // two weeks are all easy.
       if (slot === 1 && w === N - 3) {
         addS(q.dayOffset, "TEMPO", Math.min(maxQ * 0.85, 5),
-          "Tempo — short, at goal race pace " + fmt.pace(tmpo) + "/km", tmpo);
+          "Tempo — short, at goal race pace " + fmt.pace(tmpo) + "/km", tmpo,
+          { kind: "tempo", variant: "goalPaceShort" });
       } else {
         addS(q.dayOffset, "EASY", Math.min(maxQ, Math.max(2, 4 - (w - (N - 3)) * 0.5)),
-          "Easy run — relaxed aerobic effort", easy);
+          "Easy run — relaxed aerobic effort", easy,
+          { kind: "easy", variant: "relaxed" });
       }
       return;
     }
     if (isBase || slot === -1) {
-      addS(q.dayOffset, "EASY", easyFill, "Easy run — relaxed aerobic effort", easy);
+      addS(q.dayOffset, "EASY", easyFill, "Easy run — relaxed aerobic effort", easy,
+        { kind: "easy", variant: "relaxed" });
       return;
     }
     if (slot === 0) {
@@ -484,11 +512,13 @@ function composeHansons(c: WeekCtx) {
         const sets = maxQ * 0.85 >= 10 ? 3 : 2;
         addS(q.dayOffset, "INTERVALS", sets * 3 + 1,
           "Strength — " + sets + "x3km at goal pace minus 10s (" + fmt.pace(Math.max(1, tmpo - 10))
-            + "/km) + 1km jog recovery", Math.max(1, tmpo - 10));
+            + "/km) + 1km jog recovery", Math.max(1, tmpo - 10),
+          { kind: "intervals", variant: "strength", reps: sets, repM: 3000, recover: "1kmJog", offsetSec: 10 });
       } else {
         const reps = Math.max(4, Math.min(8, Math.floor((maxQ * 0.85 - 1.5) / 0.6)));
         addS(q.dayOffset, "INTERVALS", reps * 0.6 + 1.5,
-          "Speed — " + reps + "x600m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv);
+          "Speed — " + reps + "x600m at " + fmt.pace(intv) + "/km + 90s jog recovery", intv,
+          { kind: "intervals", variant: "speed", reps, repM: 600, recover: "90sJog" });
       }
     } else {
       // The signature Hansons tempo: goal race pace, growing with the ramp,
@@ -496,7 +526,8 @@ function composeHansons(c: WeekCtx) {
       const tempoTarget = Math.min(q.minutes * 60 / tmpo * 0.85, 0.3 * dist);
       const km = Math.min(tempoTarget, 6 + Math.max(0, tempoTarget - 6) * rampFrac);
       addS(q.dayOffset, "TEMPO", km,
-        "Tempo — at goal race pace " + fmt.pace(tmpo) + "/km, steady", tmpo);
+        "Tempo — at goal race pace " + fmt.pace(tmpo) + "/km, steady", tmpo,
+        { kind: "tempo", variant: "goalPace" });
     }
   });
 }

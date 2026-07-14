@@ -1,1 +1,42 @@
-{}
+{
+  "greeting": "Qué bien verte,",
+  "greetingName": "{{name}} 🏃‍♂️",
+  "greetingAnon": "Qué bien verte 🏃‍♂️",
+  "race": {
+    "title": "Día de carrera",
+    "summary": "{{distance}}km · objetivo sub {{goal}} · {{pace}}/km",
+    "daysToGo": "días restantes",
+    "nextUp": "Próxima: ",
+    "daysShort": "{{days}} d",
+    "setupTitle": "Configura tu carrera",
+    "setupHint": "Elige fecha y distancia para crear tu plan de entrenamiento →"
+  },
+  "stats": {
+    "thisWeek": "Esta semana",
+    "runsRecorded": "Carreras registradas",
+    "total": "Total"
+  },
+  "nextBadge": "Próxima insignia",
+  "session": {
+    "today": "Sesión de hoy",
+    "upNext": "Próxima sesión",
+    "viewInPlan": "Ver en tu plan",
+    "howItUnfolds": "Cómo se desarrolla",
+    "record": "Registrar",
+    "skipTitle": "Omitir esta sesión"
+  },
+  "noPlan": "Aún no tienes plan de entrenamiento. ¿Empezamos?",
+  "setUpPlan": "Configurar mi plan",
+  "allSessionsDone": "¡Todas las próximas sesiones completadas!",
+  "coach": {
+    "title": "Ajusta tu plan con tu entrenador",
+    "subtitle": "¿Una molestia, una semana perdida o un lío de agenda? Pide un ajuste."
+  },
+  "recentRuns": "Carreras recientes",
+  "viewAll": "Ver todas",
+  "empty": {
+    "noRuns": "Aún no hay carreras.",
+    "hint": "Toca Registrar abajo para añadir la primera.",
+    "restore": "¿Tenías datos de una versión anterior? Abre Ajustes (engranaje, arriba a la derecha) → Restaurar."
+  }
+}

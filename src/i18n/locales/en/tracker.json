@@ -2,5 +2,73 @@
   "notif": {
     "title": "Recording run",
     "body": "Tap to return to Running Coach"
+  },
+  "header": {
+    "live": "Live run",
+    "complete": "Run complete"
+  },
+  "discardConfirm": "Discard this run? Your tracked route will be lost.",
+  "routeUploadFailed": "Couldn't upload the route — saved on this device, will retry syncing.",
+  "resume": {
+    "title": "Resume your previous run?",
+    "pointsSaved_one": "{{count}} point saved.",
+    "pointsSaved_other": "{{count}} points saved.",
+    "resume": "Resume",
+    "discard": "Discard"
+  },
+  "stats": {
+    "km": "km",
+    "time": "time",
+    "pace": "pace",
+    "elev": "elev"
+  },
+  "hr": {
+    "bpm": "bpm",
+    "avgMax": "avg {{avg}} · max {{max}}",
+    "connecting": "connecting…",
+    "postRun": "Heart rate is added from Health Connect after you finish."
+  },
+  "gps": {
+    "accuracyGood": "GPS accuracy ±{{acc}} m — good to go",
+    "accuracyWait": "GPS accuracy ±{{acc}} m — wait for it to settle for a cleaner start"
+  },
+  "controls": {
+    "start": "Start run",
+    "pause": "Pause",
+    "finish": "Finish",
+    "resume": "Resume",
+    "discard": "Discard",
+    "save": "Save run"
+  },
+  "keepScreenOn": "Keep this screen on while running — browsers can't track in the background, so it pauses if the screen locks. A native app version tracks with the screen off (less battery).",
+  "hrNudge": {
+    "authTitle": "Authorize Health Connect?",
+    "authBody": "Health Connect is selected, but this phone has not granted access yet. Authorize it in Settings to add heart rate after runs.",
+    "authAccept": "Open Settings",
+    "pairTitle": "Pair your heart-rate sensor?",
+    "pairBody": "Bluetooth heart-rate capture is selected, but no sensor is paired on this phone. Pair one in Settings to record live BPM.",
+    "pairAccept": "Pair sensor",
+    "setupTitle": "Track your heart rate?",
+    "setupBody": "Connect a Bluetooth sensor or Health Connect to capture heart rate automatically — no need to type it in. You can set this up later in Settings.",
+    "setupAccept": "Set up",
+    "newBeta": "New beta",
+    "betaWarning": "This capture feature is new and can break. Please check saved readings before using them for training decisions.",
+    "optOut": "Don't record heart rate"
+  },
+  "errors": {
+    "permissionDeniedNative": "Location is needed to record your run. Make sure Location is turned on for this device and allow access (“Allow all the time”) for this app, then try again.",
+    "permissionDeniedWeb": "Location permission denied. Enable it for this site in your browser settings, then try again.",
+    "noFix": "Couldn't get a GPS fix. Make sure location is on and you're outdoors.",
+    "timeout": "GPS is taking too long to respond. Trying again…",
+    "location": "Location error: {{message}}",
+    "unsupported": "This browser/device doesn't support GPS (geolocation). Geolocation also needs a secure (https) connection.",
+    "requestFailed": "Couldn't request location permission. Please try again."
+  },
+  "map": {
+    "noKey": "Map tiles need VITE_MAPTILER_KEY — route still records."
+  },
+  "hrTarget": {
+    "addProfile": "Add your HR profile in Settings to see a target zone",
+    "range": "❤️ {{lo}}–{{hi}} bpm"
   }
 }

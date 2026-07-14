@@ -14,5 +14,21 @@
   "confirm": "Confirm",
   "loading": "Loading…",
   "notNow": "Not now",
-  "gotIt": "Got it"
+  "gotIt": "Got it",
+  "types": {
+    "EASY": "EASY",
+    "TEMPO": "TEMPO",
+    "INTERVALS": "INTERVALS",
+    "LONG": "LONG",
+    "RACE": "RACE",
+    "WALK": "WALK",
+    "OTHER": "OTHER"
+  },
+  "phases": {
+    "BASE": "BASE",
+    "BUILD": "BUILD",
+    "PEAK": "PEAK",
+    "TAPER": "TAPER",
+    "RACE": "RACE"
+  }
 }

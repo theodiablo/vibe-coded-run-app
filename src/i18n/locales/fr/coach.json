@@ -2,5 +2,53 @@
   "diff": {
     "new": "nouvelle {{type}} · {{km}} km le {{date}}",
     "moved": "déplacée {{from}} → {{to}}"
+  },
+  "title": "Coach",
+  "greeting": "Salut ! Dis-moi ce qui t'aiderait à bien t'entraîner cette semaine — arriver plus frais, concilier le plan avec ta vie, gagner un peu de confiance ou gérer une petite gêne — et je te proposerai un ajustement sans risque. Tu verras toujours le changement avant que quoi que ce soit ne soit appliqué.",
+  "examples": {
+    "fresh": "Aide-moi à être frais pour ce week-end",
+    "extraDay": "J'ai un jour de plus pour m'entraîner",
+    "moveLongRun": "Déplace ma sortie longue au dimanche",
+    "confidence": "Prendre confiance pour le jour de la course"
+  },
+  "fallback": {
+    "noValidAdjustment": "Je n'ai pas trouvé d'ajustement qui garde ton plan dans les règles d'entraînement de l'app — rien n'a été modifié.",
+    "noChangeNeeded": "Rien n'a besoin de changer dans le plan pour ça.",
+    "proposal": "Voici l'ajustement que je te recommande.",
+    "applied": "C'est fait — ton plan est à jour. Autre chose ?"
+  },
+  "errors": {
+    "noProposedPlan": "La réponse du coach ne contenait pas de plan proposé.",
+    "noProposalReady": "Aucune proposition du coach n'est prête à être appliquée.",
+    "confirmNoPlan": "La confirmation du coach ne contenait pas de plan.",
+    "revalidateFailed": "La proposition n'est plus valide — rien n'a été appliqué.",
+    "noResponseToFlag": "Aucune réponse du coach à signaler.",
+    "noConversation": "Aucune conversation avec le coach n'est ouverte."
+  },
+  "toast": {
+    "planAdjusted": "Plan ajusté par ton coach ✓",
+    "feedbackFailed": "Impossible d'envoyer ton retour — réessaie dans un instant",
+    "feedbackSent": "Merci — ton retour a bien été envoyé.",
+    "memoryDuplicate": "Déjà dans la mémoire du coach."
+  },
+  "week": "Semaine {{num}}",
+  "apply": "Appliquer cet ajustement",
+  "memory": {
+    "prompt": "Retenir ça pour tes prochaines discussions avec le coach ?",
+    "saved": "Enregistré dans la mémoire du coach.",
+    "save": "Enregistrer en mémoire"
+  },
+  "flag": {
+    "cta": "Ce n'est pas correct",
+    "placeholder": "Qu'est-ce que le coach a mal compris ?",
+    "thanks": "Merci — c'est noté."
+  },
+  "send": "Envoyer",
+  "thinking": "Le coach réfléchit…",
+  "footer": "Ton coach s'appuie sur ton message, ton plan, tes courses récentes et la mémoire enregistrée pour répondre. Consulte notre <1>politique de confidentialité</1> et notre <3>note de sécurité</3>.",
+  "input": {
+    "aria": "Message au coach",
+    "placeholder": "ex. aide-moi à être frais pour ce week-end",
+    "placeholderFollowUp": "Suggère une modification…"
   }
 }

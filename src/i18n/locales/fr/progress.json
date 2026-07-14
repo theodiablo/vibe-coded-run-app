@@ -1,1 +1,110 @@
-{}
+{
+  "tabs": {
+    "log": "Journal",
+    "stats": "Statistiques",
+    "badges": "Badges"
+  },
+  "badges": {
+    "title": "Badges",
+    "earned": "{{unlocked}} sur {{total}} obtenus",
+    "hint": "Continuez à courir et à participer à des courses pour en débloquer d'autres — la marche compte aussi."
+  },
+  "history": {
+    "title": "Historique",
+    "subtitle_one": "{{count}} course · {{km}} km au total",
+    "subtitle_other": "{{count}} courses · {{km}} km au total",
+    "empty": "Aucune course enregistrée pour l'instant.",
+    "recordFirst": "Enregistrez votre première course",
+    "loadingRoute": "Chargement de l'itinéraire…",
+    "routeUnavailable": "Itinéraire indisponible.",
+    "pendingSync": "Enregistrée sur cet appareil — sera synchronisée avec le cloud dès que possible.",
+    "viewRoute": "Voir l'itinéraire",
+    "editRun": "Modifier la course",
+    "deleteRun": "Supprimer la course"
+  },
+  "stats": {
+    "title": "Statistiques",
+    "empty": "Enregistrez quelques courses pour voir vos statistiques !",
+    "totalsCaption": "Totaux pour la période sélectionnée",
+    "period": {
+      "4w": "4 sem",
+      "12w": "12 sem",
+      "all": "Tout"
+    },
+    "cards": {
+      "totalDistance": "Distance totale",
+      "runsCount": "{{n}} courses",
+      "totalTime": "Temps total",
+      "movingTime": "temps en mouvement",
+      "averagePace": "Allure moyenne",
+      "minPerKm": "min/km",
+      "totalElevation": "Dénivelé total",
+      "climbed": "grimpé",
+      "bestPace": "Meilleure allure",
+      "bestPaceSub": "courses ≥3 km",
+      "avgHeartRate": "FC moyenne",
+      "bpm": "bpm"
+    },
+    "weeklyDistance": "Distance hebdomadaire (km)",
+    "weeklyElevation": "Dénivelé positif hebdomadaire (m)",
+    "paceTrend": "Évolution de l'allure",
+    "downFaster": "vers le bas = plus rapide",
+    "goalLabel": "objectif {{pace}}",
+    "tooltip": {
+      "distance": "Distance",
+      "elevation": "Dénivelé",
+      "pace": "Allure",
+      "km": "{{v}} km",
+      "m": "{{v}} m",
+      "perKm": "{{v}}/km"
+    }
+  },
+  "predictions": {
+    "title": "Prévisions de course",
+    "subtitle": "Projetées à partir de votre meilleure course sur la période sélectionnée",
+    "needRun": "Enregistrez une course de 3 km ou plus pour estimer vos temps de course.",
+    "distanceKm": "{{d}} km",
+    "raceDay": "jour de course",
+    "inclClimb": "dont {{m}} m de dénivelé",
+    "bestEffortEstimate": "Estimation au meilleur effort",
+    "hrEstimate": "Estimation modélisée sur la FC",
+    "pacePerKm": "{{pace}}/km",
+    "runSummary": "({{km}} km en {{dur}})",
+    "runSummaryClimb": "({{km}} km en {{dur}}, {{climb}} m de dénivelé)",
+    "bestEffortExplainer": "<0>Le meilleur effort</0> projette votre meilleure course {{run}} sur chaque distance avec la formule de Riegel.",
+    "hrExplainer": "<0>La modélisation FC</0> ajuste votre allure à la fréquence cardiaque sur {{n}} courses et extrapole à l'effort au seuil (~{{thr}} bpm) — ainsi les courses faciles bien gérées comptent aussi, pas seulement votre jour le plus rapide.",
+    "hrLocked": "Ajoutez votre FC max dans les Réglages et enregistrez plus de courses, faciles et intenses, pour débloquer l'estimation basée sur la FC.",
+    "gradeNoteClimb": "Les courses sont ajustées à la pente pour le dénivelé positif. Les temps valent pour un parcours plat ; la ligne du jour de course inclut ses {{m}} m de dénivelé.",
+    "gradeNoteFlat": "Les courses sont ajustées à la pente pour le dénivelé positif. Les temps valent pour un parcours plat, sauf la ligne du jour de course une fois son dénivelé renseigné dans les réglages du Plan."
+  },
+  "zones": {
+    "title": "Zones de fréquence cardiaque",
+    "zoneLabel": "Z{{n}} · {{name}}",
+    "names": {
+      "1": "Récupération",
+      "2": "Base aérobie",
+      "3": "Tempo aérobie",
+      "4": "Seuil",
+      "5": "VO2 max"
+    },
+    "descs": {
+      "1": "Très facile — récupération active, échauffement/retour au calme",
+      "2": "Courses faciles, brûlage des graisses, développement de l'endurance de base",
+      "3": "Effort modéré — allure marathon et sortie longue",
+      "4": "Confortablement difficile — seuil lactique, séances de tempo",
+      "5": "Effort maximal — intervalles courts, allure de course"
+    },
+    "types": {
+      "Aerobic": "Aérobie",
+      "Anaerobic": "Anaérobie"
+    },
+    "karvonenTitle": "Méthode de Karvonen : ",
+    "karvonenBody": "FC de zone = ((FCmax - FCrepos) x intensité%) + FCrepos. FCR = {{max}} - {{rest}} = {{hrr}} bpm. Tient compte de votre FC au repos et de votre forme, donc plus précise qu'un simple % de FC max.",
+    "recentTitle": "Courses récentes — analyse par zone",
+    "runLine": "{{date}} · {{km}} km",
+    "avgHrLabel": "FC moy. : ",
+    "bpmValue": "{{bpm}} bpm",
+    "restLabel": "{{bpm}} bpm (repos)",
+    "maxLabel": "{{bpm}} bpm (max)"
+  }
+}

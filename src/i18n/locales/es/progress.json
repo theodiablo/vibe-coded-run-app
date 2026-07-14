@@ -1,1 +1,110 @@
-{}
+{
+  "tabs": {
+    "log": "Registro",
+    "stats": "Estadísticas",
+    "badges": "Insignias"
+  },
+  "badges": {
+    "title": "Insignias",
+    "earned": "{{unlocked}} de {{total}} conseguidas",
+    "hint": "Sigue corriendo y compitiendo para desbloquear más — las caminatas también cuentan."
+  },
+  "history": {
+    "title": "Historial",
+    "subtitle_one": "{{count}} carrera · {{km}} km en total",
+    "subtitle_other": "{{count}} carreras · {{km}} km en total",
+    "empty": "Aún no hay carreras registradas.",
+    "recordFirst": "Registra tu primera carrera",
+    "loadingRoute": "Cargando la ruta…",
+    "routeUnavailable": "Ruta no disponible.",
+    "pendingSync": "Guardada en este dispositivo — se sincronizará con la nube cuando sea posible.",
+    "viewRoute": "Ver la ruta",
+    "editRun": "Editar la carrera",
+    "deleteRun": "Eliminar la carrera"
+  },
+  "stats": {
+    "title": "Estadísticas",
+    "empty": "¡Registra algunas carreras para ver tus estadísticas!",
+    "totalsCaption": "Totales del periodo seleccionado",
+    "period": {
+      "4w": "4 sem",
+      "12w": "12 sem",
+      "all": "Todo"
+    },
+    "cards": {
+      "totalDistance": "Distancia total",
+      "runsCount": "{{n}} carreras",
+      "totalTime": "Tiempo total",
+      "movingTime": "tiempo en movimiento",
+      "averagePace": "Ritmo medio",
+      "minPerKm": "min/km",
+      "totalElevation": "Desnivel total",
+      "climbed": "ascendidos",
+      "bestPace": "Mejor ritmo",
+      "bestPaceSub": "carreras ≥3 km",
+      "avgHeartRate": "FC media",
+      "bpm": "ppm"
+    },
+    "weeklyDistance": "Distancia semanal (km)",
+    "weeklyElevation": "Desnivel positivo semanal (m)",
+    "paceTrend": "Tendencia del ritmo",
+    "downFaster": "abajo = más rápido",
+    "goalLabel": "objetivo {{pace}}",
+    "tooltip": {
+      "distance": "Distancia",
+      "elevation": "Desnivel",
+      "pace": "Ritmo",
+      "km": "{{v}} km",
+      "m": "{{v}} m",
+      "perKm": "{{v}}/km"
+    }
+  },
+  "predictions": {
+    "title": "Predicciones de carrera",
+    "subtitle": "Proyectado a partir de tu mejor carrera en el periodo seleccionado",
+    "needRun": "Registra una carrera de 3 km o más para estimar tus tiempos de carrera.",
+    "distanceKm": "{{d}} km",
+    "raceDay": "día de carrera",
+    "inclClimb": "incl. {{m}} m de desnivel",
+    "bestEffortEstimate": "Estimación por mejor esfuerzo",
+    "hrEstimate": "Estimación por modelo de FC",
+    "pacePerKm": "{{pace}}/km",
+    "runSummary": "({{km}} km en {{dur}})",
+    "runSummaryClimb": "({{km}} km en {{dur}}, {{climb}} m de desnivel)",
+    "bestEffortExplainer": "<0>Mejor esfuerzo</0> proyecta tu carrera más fuerte {{run}} a cada distancia con la fórmula de Riegel.",
+    "hrExplainer": "<0>Modelo de FC</0> ajusta tu ritmo frente a la frecuencia cardíaca en {{n}} carreras y extrapola al esfuerzo de umbral (~{{thr}} ppm) — así también cuentan las carreras suaves bien llevadas, no solo tu día más rápido.",
+    "hrLocked": "Añade tu FC máxima en Ajustes y registra más carreras con esfuerzos suaves y duros para desbloquear la estimación basada en FC.",
+    "gradeNoteClimb": "Las carreras se ajustan a la pendiente según el desnivel acumulado. Los tiempos son para un recorrido llano; la fila del día de carrera incluye sus {{m}} m de desnivel.",
+    "gradeNoteFlat": "Las carreras se ajustan a la pendiente según el desnivel acumulado. Los tiempos son para un recorrido llano, excepto la fila del día de carrera cuando configures su desnivel en los ajustes del Plan."
+  },
+  "zones": {
+    "title": "Zonas de frecuencia cardíaca",
+    "zoneLabel": "Z{{n}} · {{name}}",
+    "names": {
+      "1": "Recuperación",
+      "2": "Base aeróbica",
+      "3": "Tempo aeróbico",
+      "4": "Umbral",
+      "5": "VO2 máx"
+    },
+    "descs": {
+      "1": "Muy suave — recuperación activa, calentamiento/enfriamiento",
+      "2": "Carreras suaves, quema de grasa, construcción de la base aeróbica",
+      "3": "Esfuerzo moderado — ritmo de maratón y de tirada larga",
+      "4": "Cómodamente duro — umbral de lactato, carreras de tempo",
+      "5": "Esfuerzo máximo — intervalos cortos, ritmo de competición"
+    },
+    "types": {
+      "Aerobic": "Aeróbico",
+      "Anaerobic": "Anaeróbico"
+    },
+    "karvonenTitle": "Método de Karvonen: ",
+    "karvonenBody": "FC de zona = ((FC máx - FC reposo) x % de intensidad) + FC reposo. FCR = {{max}} - {{rest}} = {{hrr}} ppm. Tiene en cuenta tu FC en reposo y tu forma física, así que es más preciso que el simple % de la FC máxima.",
+    "recentTitle": "Carreras recientes — análisis por zonas",
+    "runLine": "{{date}} · {{km}} km",
+    "avgHrLabel": "FC media: ",
+    "bpmValue": "{{bpm}} ppm",
+    "restLabel": "{{bpm}} ppm (reposo)",
+    "maxLabel": "{{bpm}} ppm (máx)"
+  }
+}
