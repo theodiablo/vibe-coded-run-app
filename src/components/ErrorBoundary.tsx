@@ -2,6 +2,9 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 import { isNative } from "../native";
 import { getConsent, captureError } from "../telemetry";
+// Bound t (not the hook): ErrorBoundary is a class and renders only on crash,
+// by which point initI18n has run, so the active language is available.
+import { t } from "../i18n";
 
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || "";
 
@@ -143,17 +146,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <AlertTriangle className="text-orange-400" size={32} />
           </div>
           <div className="space-y-1">
-            <p className="text-base font-semibold">Something went wrong</p>
+            <p className="text-base font-semibold">{t("app.crash.title")}</p>
             <p className="text-sm text-slate-400">
-              The app hit an unexpected error. Reloading usually fixes it — your
-              runs and plan are saved.
+              {t("app.crash.body")}
             </p>
           </div>
 
           <div className="space-y-2 text-left">
             <button onClick={this.toggleDetails}
               className="w-full py-2 rounded-xl text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
-              {this.state.showDetails ? "Hide error trace" : "Show error trace"}
+              {this.state.showDetails ? t("app.crash.hideTrace") : t("app.crash.showTrace")}
             </button>
             {this.state.showDetails && (
               <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 border border-slate-700 p-3 text-[11px] text-slate-300 text-left">
@@ -163,12 +165,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <div className={"grid gap-2 " + (SUPPORT_EMAIL ? "grid-cols-2" : "grid-cols-1")}>
               <button onClick={this.copyTrace}
                 className="py-2 rounded-xl text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
-                {this.state.copied ? "Copied" : "Copy trace"}
+                {this.state.copied ? t("app.crash.copied") : t("app.crash.copyTrace")}
               </button>
               {SUPPORT_EMAIL ? (
                 <button onClick={this.emailTrace}
                   className="py-2 rounded-xl text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
-                  Email trace
+                  {t("app.crash.emailTrace")}
                 </button>
               ) : null}
             </div>
@@ -177,27 +179,27 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           {askToSend ? (
             <div className="space-y-2">
               <p className="text-xs text-slate-400">
-                Send a limited crash report to help fix this?
+                {t("app.crash.askSend")}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={this.decline}
                   className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
-                  Don&apos;t send
+                  {t("app.crash.dontSend")}
                 </button>
                 <button onClick={this.send}
                   className="py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                  Send report
+                  {t("app.crash.sendReport")}
                 </button>
               </div>
             </div>
           ) : (
             <>
               {this.state.decision === "sent" && (
-                <p className="text-xs text-emerald-400">Crash report sent. Thank you.</p>
+                <p className="text-xs text-emerald-400">{t("app.crash.sent")}</p>
               )}
               <button onClick={this.reload}
                 className="w-full py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                Reload
+                {t("app.crash.reload")}
               </button>
             </>
           )}
