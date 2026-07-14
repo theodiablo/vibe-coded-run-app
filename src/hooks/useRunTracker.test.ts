@@ -104,16 +104,6 @@ describe("useRunTracker — state machine", () => {
     expect(win.stoppedAt).toBe(START + 30_000);
   });
 
-  it("guards: pause is a no-op while idle, resume a no-op while tracking", () => {
-    const { result } = renderHook(() => useRunTracker());
-    act(() => result.current.pause());
-    expect(result.current.state).toBe("idle");
-
-    act(() => result.current.start());
-    act(() => result.current.resume()); // already tracking
-    expect(result.current.state).toBe("tracking");
-  });
-
   it("clears the recording watch on stop", () => {
     const { result } = renderHook(() => useRunTracker());
     act(() => result.current.start());

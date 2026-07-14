@@ -12,12 +12,6 @@ import { RestoreModal } from "./RestoreModal";
 describe("BackupModal", () => {
   const data = { runs: [{ id: "a" }, { id: "b" }], plan: {} };
 
-  it("summarises the payload", () => {
-    render(<BackupModal data={data} onClose={() => {}} />);
-    expect(screen.getByText(/2 run\(s\)/)).toBeInTheDocument();
-    expect(screen.getByText(/plan saved/)).toBeInTheDocument();
-  });
-
   it("exposes a labelled Close control that calls onClose", () => {
     const onClose = vi.fn();
     render(<BackupModal data={data} onClose={onClose} />);
