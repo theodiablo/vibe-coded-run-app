@@ -1,4 +1,40 @@
 {
+  "title": "Tu plan de entrenamiento",
+  "editPlan": "Editar plan",
+  "jumpToWeek": "Ir a esta semana",
+  "notConfigured": "sin configurar",
+  "sessionsLabel": "Sesiones: ",
+  "longRunNudge": "Tu objetivo desarrolla tiradas largas de hasta ~{{peak}}, más que tu día de entrenamiento más largo ({{longest}}). Es lo esperable para esta distancia — considera alargar tu día largo en Editar plan.",
+  "header": {
+    "coach": "Entrenador",
+    "coachTitle": "Ajusta el plan con tu entrenador",
+    "resetConfirm": "Restablecer ✓"
+  },
+  "progress": {
+    "sessions": "{{done}} / {{total}} sesiones",
+    "goal": "{{dist}}km{{elev}} · sub {{goal}}",
+    "race": "Carrera: {{date}}"
+  },
+  "setup": {
+    "intro": "Configura tu objetivo y los días que puedes entrenar.",
+    "introPromote": "Fija tu tiempo objetivo y luego crea tu plan.",
+    "raceDate": "Fecha de la carrera",
+    "raceDistance": "Distancia de la carrera (km)",
+    "distance": "Distancia de la carrera (km)",
+    "distancePlaceholder": "p. ej. 21.1",
+    "raceElevation": "Desnivel positivo de la carrera (m)",
+    "elevationHelp": "Desnivel total del recorrido — ajusta los ritmos de entrenamiento al esfuerzo equivalente en llano.",
+    "trainingDays": "Días y duraciones de entrenamiento",
+    "suggestedNote": "Sugerido para tu carrera — ajústalo libremente.",
+    "useSuggested": "Usar los días sugeridos para esta carrera",
+    "trainingStyle": "Estilo de entrenamiento",
+    "hrNudge": "Añade tu perfil de FC en Ajustes para desbloquear objetivos de frecuencia cardíaca en cada sesión.",
+    "generate": "Generar mi plan de entrenamiento",
+    "buildMyPlan": "Crear mi plan",
+    "regenerate": "Regenerar plan",
+    "regenNote": "Reconstruye cada semana a partir de tus ajustes actuales — las sesiones completadas y omitidas se conservan.",
+    "promoteNote": "Crea un plan nuevo para esta carrera."
+  },
   "long": {
     "easy": "Tirada larga — esfuerzo suave a {{pace}}/km",
     "steady": "Tirada larga — esfuerzo sostenido a {{pace}}/km",

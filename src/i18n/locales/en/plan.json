@@ -1,4 +1,40 @@
 {
+  "title": "Your training plan",
+  "editPlan": "Edit plan",
+  "jumpToWeek": "Jump to this week",
+  "notConfigured": "not configured",
+  "sessionsLabel": "Sessions: ",
+  "longRunNudge": "Your goal builds long runs up to ~{{peak}}, longer than your longest training day ({{longest}}). That's expected for this distance — consider lengthening your long day in Edit plan.",
+  "header": {
+    "coach": "Coach",
+    "coachTitle": "Adjust the plan with your coach",
+    "resetConfirm": "Reset ✓"
+  },
+  "progress": {
+    "sessions": "{{done}} / {{total}} sessions",
+    "goal": "{{dist}}km{{elev}} · sub {{goal}}",
+    "race": "Race: {{date}}"
+  },
+  "setup": {
+    "intro": "Configure your goal and available training days.",
+    "introPromote": "Set your goal time, then build your plan.",
+    "raceDate": "Race date",
+    "raceDistance": "Race distance (km)",
+    "distance": "Race distance (km)",
+    "distancePlaceholder": "e.g. 21.1",
+    "raceElevation": "Race elevation gain (m)",
+    "elevationHelp": "Total climb on the course — sets training paces to the flat-equivalent effort.",
+    "trainingDays": "Training days and durations",
+    "suggestedNote": "Suggested for your race — adjust freely.",
+    "useSuggested": "Use suggested days for this race",
+    "trainingStyle": "Training style",
+    "hrNudge": "Add your HR profile in Settings to unlock heart rate targets on every session.",
+    "generate": "Generate My Training Plan",
+    "buildMyPlan": "Build my plan",
+    "regenerate": "Regenerate plan",
+    "regenNote": "Rebuilds every week from your current settings — completed and skipped sessions are kept.",
+    "promoteNote": "Builds a fresh plan for this race."
+  },
   "long": {
     "easy": "Long run — easy effort at {{pace}}/km",
     "steady": "Long run — steady effort at {{pace}}/km",

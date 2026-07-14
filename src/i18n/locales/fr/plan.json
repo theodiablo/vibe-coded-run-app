@@ -1,4 +1,40 @@
 {
+  "title": "Votre plan d'entraînement",
+  "editPlan": "Modifier le plan",
+  "jumpToWeek": "Aller à cette semaine",
+  "notConfigured": "non configuré",
+  "sessionsLabel": "Séances : ",
+  "longRunNudge": "Votre objectif fait monter les sorties longues jusqu'à ~{{peak}}, plus que votre plus longue journée d'entraînement ({{longest}}). C'est normal pour cette distance — envisagez d'allonger votre jour long dans Modifier le plan.",
+  "header": {
+    "coach": "Coach",
+    "coachTitle": "Ajustez le plan avec votre coach",
+    "resetConfirm": "Réinitialiser ✓"
+  },
+  "progress": {
+    "sessions": "{{done}} / {{total}} séances",
+    "goal": "{{dist}}km{{elev}} · sous {{goal}}",
+    "race": "Course : {{date}}"
+  },
+  "setup": {
+    "intro": "Configurez votre objectif et les jours où vous pouvez vous entraîner.",
+    "introPromote": "Fixez votre temps cible, puis créez votre plan.",
+    "raceDate": "Date de la course",
+    "raceDistance": "Distance de la course (km)",
+    "distance": "Distance de la course (km)",
+    "distancePlaceholder": "p. ex. 21.1",
+    "raceElevation": "Dénivelé positif de la course (m)",
+    "elevationHelp": "Dénivelé total du parcours — cale les allures d'entraînement sur l'effort équivalent à plat.",
+    "trainingDays": "Jours et durées d'entraînement",
+    "suggestedNote": "Suggéré pour votre course — ajustez librement.",
+    "useSuggested": "Utiliser les jours suggérés pour cette course",
+    "trainingStyle": "Style d'entraînement",
+    "hrNudge": "Ajoutez votre profil de FC dans les Réglages pour débloquer des cibles de fréquence cardiaque à chaque séance.",
+    "generate": "Générer mon plan d'entraînement",
+    "buildMyPlan": "Créer mon plan",
+    "regenerate": "Régénérer le plan",
+    "regenNote": "Reconstruit chaque semaine à partir de vos réglages actuels — les séances terminées et ignorées sont conservées.",
+    "promoteNote": "Crée un nouveau plan pour cette course."
+  },
   "long": {
     "easy": "Sortie longue — effort facile à {{pace}}/km",
     "steady": "Sortie longue — effort régulier à {{pace}}/km",

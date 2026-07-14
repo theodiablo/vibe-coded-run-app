@@ -1,7 +1,10 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import en from "./locales/en";
 import es from "./locales/es";
 import fr from "./locales/fr";
+import marketingEn from "../marketing/marketing.en.json";
+import marketingCopy from "../marketing/copy.json";
 import { detectInitialLocale, isLangId, RC_LANG_KEY } from "./detect";
 import { dayName, setLocale } from "./index";
 
@@ -48,6 +51,61 @@ describe("locale dictionaries", () => {
     for (const [key, vars] of enSlots) {
       expect(langSlots.get(key), `interpolation vars for ${key}`).toBe(vars);
     }
+  });
+});
+
+// ---- no dangling t() keys ---------------------------------------------------
+// Every t("literal.key") referenced in source must resolve in the dictionary,
+// or it renders the raw key string at runtime. The parity test above does NOT
+// catch this (a key missing from ALL of en/es/fr is "in parity" yet broken),
+// so scan the source and check each referenced literal key exists — plural
+// suffixes (_one/_other) and dynamic-prefix keys ("a.b." + x) accounted for.
+
+const PLURAL_SUFFIXES = ["", "_zero", "_one", "_two", "_few", "_many", "_other"];
+
+function hasExact(root: Tree, path: string): boolean {
+  let o: unknown = root;
+  for (const k of path.split(".")) {
+    if (o && typeof o === "object" && k in (o as Tree)) o = (o as Tree)[k];
+    else return false;
+  }
+  return true;
+}
+const resolves = (root: Tree, key: string) => PLURAL_SUFFIXES.some(s => hasExact(root, key + s));
+
+function sourceFiles(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(dir)) {
+    const p = `${dir}/${e}`;
+    if (statSync(p).isDirectory()) sourceFiles(p, acc);
+    else if (/\.(tsx|ts)$/.test(e) && !/\.test\.tsx?$/.test(e)) acc.push(p);
+  }
+  return acc;
+}
+
+describe("no dangling t() keys", () => {
+  // `t(` not preceded by a word char (so `set("x"` / `get("x"` don't match).
+  const re = /(?<![A-Za-z0-9_])t\(\s*"([A-Za-z0-9_.]+)"/g;
+  const files = sourceFiles("src");
+  // Mirror ensureMarketingI18n: brand + hero come from copy.json at runtime.
+  const marketing: Tree = {
+    ...(marketingEn as Tree),
+    brand: marketingCopy.brand,
+    heroLine1: marketingCopy.heroLine1,
+    heroLine2: marketingCopy.heroLine2,
+  };
+
+  it("every referenced literal key resolves in en", () => {
+    const missing: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      const dict = f.includes("/marketing/") ? marketing : (en as Tree);
+      for (const m of src.matchAll(re)) {
+        const key = m[1];
+        if (key.endsWith(".")) continue; // dynamic prefix: t("a.b." + x)
+        if (!resolves(dict, key)) missing.push(`${key}  (${f})`);
+      }
+    }
+    expect(missing, `unresolved t() keys:\n${missing.join("\n")}`).toEqual([]);
   });
 });
 
