@@ -26,7 +26,7 @@ export function RestoreModal({onRestore, onClose}: RestoreModalProps) {
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
           <p className="font-semibold text-sm">Restore from Backup</p>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
         </div>
         <div className="p-4 space-y-3">
           <p className="text-xs text-slate-400">Paste your backup JSON below.</p>

@@ -110,7 +110,7 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700 shrink-0">
           <p className="font-semibold text-sm">Add a race</p>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
         </div>
 
         <div className="p-4 space-y-4 overflow-y-auto">
