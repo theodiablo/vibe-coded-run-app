@@ -75,7 +75,24 @@
     "hrExplainer": "<0>Modelo de FC</0> ajusta tu ritmo frente a la frecuencia cardíaca en {{n}} carreras y extrapola al esfuerzo de umbral (~{{thr}} ppm) — así también cuentan las carreras suaves bien llevadas, no solo tu día más rápido.",
     "hrLocked": "Añade tu FC máxima en Ajustes y registra más carreras con esfuerzos suaves y duros para desbloquear la estimación basada en FC.",
     "gradeNoteClimb": "Las carreras se ajustan a la pendiente según el desnivel acumulado. Los tiempos son para un recorrido llano; la fila del día de carrera incluye sus {{m}} m de desnivel.",
-    "gradeNoteFlat": "Las carreras se ajustan a la pendiente según el desnivel acumulado. Los tiempos son para un recorrido llano, excepto la fila del día de carrera cuando configures su desnivel en los ajustes del Plan."
+    "gradeNoteFlat": "Las carreras se ajustan a la pendiente según el desnivel acumulado. Los tiempos son para un recorrido llano, excepto la fila del día de carrera cuando configures su desnivel en los ajustes del Plan.",
+    "info": {
+      "title": "Cómo funcionan las predicciones",
+      "label": "¿Cómo funciona esto?",
+      "intro": "Las predicciones proyectan tu tiempo de meta en cada distancia a partir de las carreras que has registrado. Se muestran dos métodos independientes para que puedas contrastar uno con el otro.",
+      "riegelTitle": "La fórmula de Riegel — el motor",
+      "riegelP1": "Ambas estimaciones extrapolan un tiempo conocido a una nueva distancia con el modelo de resistencia de Peter Riegel:",
+      "riegelFormula": "t₂ = t₁ × (d₂ / d₁)<0>1.06</0>",
+      "riegelP2": "El exponente <0>1,06</0> es el factor de fatiga estándar: ir más lejos cuesta algo más que un tiempo lineal, porque no puedes mantener un ritmo de 5 km durante 20 km.",
+      "bestTitle": "Estimación por mejor esfuerzo",
+      "bestBody": "Elige tu única <0>carrera más fuerte</0> (≥ 3 km con tiempo) y la proyecta a cada distancia. No es simplemente tu ritmo más rápido — un breve pico de 1 km no debería superar unos sólidos 12 km — así que cada carrera se normaliza primero a su tiempo equivalente de 10 km según Riegel, y gana la mejor.",
+      "hrTitle": "Estimación por modelo de FC",
+      "hrP1": "Ajusta una recta a través de <0>ritmo frente a frecuencia cardíaca</0> en todas tus carreras que registraron FC, y luego lee el ritmo que podrías mantener al esfuerzo de umbral (~88–90 % de la FC máx, aproximadamente una carrera de una hora) y lo proyecta con Riegel.",
+      "hrP2": "Esto premia la eficiencia: un ritmo rápido mantenido a una FC baja acelera la estimación, así que tus carreras suaves también cuentan — no solo tu único mejor día. Solo aparece cuando los datos lo respaldan (≥ 8 carreras con FC, una variedad real de esfuerzos y un ajuste razonable).",
+      "elevTitle": "Ajuste por desnivel",
+      "elevBody": "Las cuestas hacen que una carrera sea más lenta que su equivalente en llano, así que cada metro ascendido se acredita como ~8 metros llanos adicionales antes de hacer los cálculos. Esto evita que las carreras con cuestas parezcan de peor forma. Los tiempos indicados son para un recorrido llano; la <0>fila del día de carrera</0> vuelve a sumar el desnivel de tu recorrido cuando lo configuras en el Plan.",
+      "footer": "Son proyecciones a partir de esfuerzos pasados, no promesas — tómalas como un indicador de forma que se afina a medida que registras más carreras."
+    }
   },
   "zones": {
     "title": "Zonas de frecuencia cardíaca",
@@ -106,5 +123,25 @@
     "bpmValue": "{{bpm}} ppm",
     "restLabel": "{{bpm}} ppm (reposo)",
     "maxLabel": "{{bpm}} ppm (máx)"
+  },
+  "planInfo": {
+    "title": "Cómo se construye tu plan",
+    "label": "¿Cómo se construye?",
+    "intro": "Tu plan se genera a partir de tres datos — tu <0>fecha de carrera</0>, tu <1>tiempo objetivo / distancia</1> y los <2>días que puedes entrenar</2>. Todo lo de abajo se deriva de eso; nada se elige a mano.",
+    "s1Title": "1 · Del objetivo al ritmo meta",
+    "s1P1": "Tu tiempo objetivo ÷ distancia da el ritmo que necesitas el día de carrera. Si el recorrido sube, cada metro de ascenso cuenta como ~8 metros llanos adicionales, así que un objetivo con cuestas exige la forma de un corredor más rápido en llano. Ese <0>ritmo meta equivalente en llano</0> ancla cada sesión.",
+    "s1P2": "A partir del ritmo meta derivamos los ritmos de entrenamiento:",
+    "s1Easy": "<0>Suave</0> ≈ meta × 1,25 — conversacional, desarrolla el motor aeróbico",
+    "s1Tempo": "<0>Tempo</0> ≈ meta × 1,05 — cómodamente duro, al umbral",
+    "s1Intervals": "<0>Intervalos</0> ≈ ritmo meta — esfuerzo de competición en repeticiones cortas",
+    "s2Title": "2 · Semanas y fases",
+    "s2P1": "El calendario entre el próximo lunes y tu carrera se divide en 4–24 semanas, agrupadas en cuatro fases que van desplazando el énfasis con el tiempo:",
+    "s2Base": "<0>Base</0> (primeras ~4 semanas) — solo volumen suave, sentando las bases",
+    "s2Build": "<0>Construcción</0> (bloque intermedio) — las sesiones de tempo e intervalos se alternan semana a semana",
+    "s2Peak": "<0>Pico</0> (últimas semanas antes del afinamiento) — mayor volumen y los entrenamientos más exigentes",
+    "s2Taper": "<0>Afinamiento</0> (últimas 3 semanas) — el volumen baja a ~85 / 65 / 45 % para que llegues fresco",
+    "s3Title": "3 · Dimensionar cada sesión",
+    "s3Body": "Tu día disponible más largo se convierte en la <0>tirada larga</0>; su distancia crece semana a semana y está limitada por los minutos que dijiste tener (tiempo ÷ ritmo suave). Tus otros días se convierten en las sesiones de <1>calidad</1> — suaves en base/afinamiento, tempo o intervalos en construcción. Cada distancia se limita para que una sesión nunca supere el tiempo al que te comprometiste.",
+    "footer": "Cambiar el objetivo, la fecha, el desnivel o los días de entrenamiento y regenerar reconstruye todo el calendario desde cero."
   }
 }

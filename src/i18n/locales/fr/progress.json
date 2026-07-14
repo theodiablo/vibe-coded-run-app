@@ -75,7 +75,24 @@
     "hrExplainer": "<0>La modélisation FC</0> ajuste votre allure à la fréquence cardiaque sur {{n}} courses et extrapole à l'effort au seuil (~{{thr}} bpm) — ainsi les courses faciles bien gérées comptent aussi, pas seulement votre jour le plus rapide.",
     "hrLocked": "Ajoutez votre FC max dans les Réglages et enregistrez plus de courses, faciles et intenses, pour débloquer l'estimation basée sur la FC.",
     "gradeNoteClimb": "Les courses sont ajustées à la pente pour le dénivelé positif. Les temps valent pour un parcours plat ; la ligne du jour de course inclut ses {{m}} m de dénivelé.",
-    "gradeNoteFlat": "Les courses sont ajustées à la pente pour le dénivelé positif. Les temps valent pour un parcours plat, sauf la ligne du jour de course une fois son dénivelé renseigné dans les réglages du Plan."
+    "gradeNoteFlat": "Les courses sont ajustées à la pente pour le dénivelé positif. Les temps valent pour un parcours plat, sauf la ligne du jour de course une fois son dénivelé renseigné dans les réglages du Plan.",
+    "info": {
+      "title": "Comment fonctionnent les prévisions",
+      "label": "Comment ça marche ?",
+      "intro": "Les prévisions projettent votre temps d'arrivée sur chaque distance à partir des courses que vous avez réellement enregistrées. Deux méthodes indépendantes sont affichées pour que vous puissiez vérifier l'une par rapport à l'autre.",
+      "riegelTitle": "La formule de Riegel — le moteur",
+      "riegelP1": "Les deux estimations extrapolent un temps connu vers une nouvelle distance avec le modèle d'endurance de Peter Riegel :",
+      "riegelFormula": "t₂ = t₁ × (d₂ / d₁)<0>1.06</0>",
+      "riegelP2": "L'exposant <0>1,06</0> est le facteur de fatigue standard : aller plus loin coûte un peu plus que le temps linéaire, car on ne peut pas tenir une allure de 5 km sur 20 km.",
+      "bestTitle": "Estimation au meilleur effort",
+      "bestBody": "Sélectionne votre unique <0>meilleure course</0> (≥ 3 km avec un temps) et la projette sur chaque distance. Ce n'est pas simplement votre allure la plus rapide — un bref pic sur 1 km ne devrait pas surpasser un solide 12 km — donc chaque course est d'abord ramenée à son temps équivalent 10 km selon Riegel, et la meilleure l'emporte.",
+      "hrTitle": "Estimation modélisée sur la FC",
+      "hrP1": "Ajuste une droite à travers l'<0>allure en fonction de la fréquence cardiaque</0> sur toutes vos courses ayant enregistré la FC, puis en déduit l'allure que vous pourriez tenir à l'effort au seuil (~88–90 % de la FC max, environ une course d'une heure) et la projette avec Riegel.",
+      "hrP2": "Cela récompense l'efficacité : une allure rapide tenue à une FC basse accélère l'estimation, donc vos courses faciles comptent aussi — pas seulement votre unique meilleur jour. Elle n'apparaît que lorsque les données le permettent (≥ 8 courses avec FC, une vraie diversité d'efforts et un ajustement cohérent).",
+      "elevTitle": "Ajustement du dénivelé",
+      "elevBody": "Les côtes rendent une course plus lente que son équivalent plat, donc chaque mètre grimpé est crédité comme ~8 mètres plats supplémentaires avant le calcul. Cela évite que les courses vallonnées paraissent en moins bonne forme. Les temps indiqués valent pour un parcours plat ; la <0>ligne du jour de course</0> rajoute le dénivelé de votre parcours une fois renseigné dans le Plan.",
+      "footer": "Ce sont des projections à partir d'efforts passés, pas des promesses — considérez-les comme un indicateur de forme qui s'affine à mesure que vous enregistrez des courses."
+    }
   },
   "zones": {
     "title": "Zones de fréquence cardiaque",
@@ -106,5 +123,25 @@
     "bpmValue": "{{bpm}} bpm",
     "restLabel": "{{bpm}} bpm (repos)",
     "maxLabel": "{{bpm}} bpm (max)"
+  },
+  "planInfo": {
+    "title": "Comment votre plan est construit",
+    "label": "Comment est-ce construit ?",
+    "intro": "Votre plan est généré à partir de trois éléments — votre <0>date de course</0>, votre <1>temps visé / distance</1> et les <2>jours où vous pouvez vous entraîner</2>. Tout ce qui suit en découle ; rien n'est choisi à la main.",
+    "s1Title": "1 · De l'objectif à l'allure cible",
+    "s1P1": "Votre temps visé ÷ distance donne l'allure nécessaire le jour de course. Si le parcours grimpe, chaque mètre de dénivelé compte comme ~8 mètres plats supplémentaires, si bien qu'un objectif vallonné exige la forme d'un coureur plus rapide sur le plat. Cette <0>allure cible équivalente à plat</0> ancre chaque séance.",
+    "s1P2": "À partir de l'allure cible, nous dérivons les allures d'entraînement :",
+    "s1Easy": "<0>Facile</0> ≈ cible × 1,25 — au dialogue, développe le moteur aérobie",
+    "s1Tempo": "<0>Tempo</0> ≈ cible × 1,05 — confortablement difficile, au seuil",
+    "s1Intervals": "<0>Intervalles</0> ≈ allure cible — effort de course en répétitions courtes",
+    "s2Title": "2 · Semaines et phases",
+    "s2P1": "Le calendrier entre lundi prochain et votre course est découpé en 4 à 24 semaines, regroupées en quatre phases qui déplacent l'accent au fil du temps :",
+    "s2Base": "<0>Base</0> (~4 premières semaines) — uniquement du volume facile, on pose les fondations",
+    "s2Build": "<0>Développement</0> (bloc central) — les séances de tempo et d'intervalles alternent d'une semaine à l'autre",
+    "s2Peak": "<0>Pic</0> (dernières semaines avant l'affûtage) — volume le plus élevé et séances les plus tranchantes",
+    "s2Taper": "<0>Affûtage</0> (3 dernières semaines) — le volume baisse à ~85 / 65 / 45 % pour arriver frais",
+    "s3Title": "3 · Dimensionner chaque séance",
+    "s3Body": "Votre journée disponible la plus longue devient la <0>sortie longue</0> ; sa distance augmente de semaine en semaine et est plafonnée par les minutes que vous avez indiquées (temps ÷ allure facile). Vos autres jours deviennent les séances de <1>qualité</1> — faciles en base/affûtage, tempo ou intervalles en développement. Chaque distance est bornée pour qu'une séance ne dépasse jamais le temps que vous vous êtes fixé.",
+    "footer": "Modifier l'objectif, la date, le dénivelé ou les jours d'entraînement puis régénérer reconstruit tout le calendrier de zéro."
   }
 }
