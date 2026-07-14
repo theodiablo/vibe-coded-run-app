@@ -2,6 +2,8 @@
   "stepOf": "Étape {{step}} sur {{total}}",
   "continue": "Continuer",
   "getStarted": "C'est parti",
+  "back": "Retour",
+  "skip": "Passer",
   "welcome": {
     "title": "Bienvenue sur Running Coach",
     "subtitle": "Un coach dans ta poche — on te met en route en moins d'une minute.",
@@ -50,10 +52,22 @@
     "title": "Ton entraînement",
     "subtitle": "Pas besoin de course — choisis un objectif à atteindre.",
     "buildLabel": "Jusqu'où veux-tu aller?",
-    "d5": { "label": "5 km", "sub": "idéal pour débuter" },
-    "d10": { "label": "10 km", "sub": "la suite logique" },
-    "dHalf": { "label": "Semi", "sub": "21,1 km" },
-    "dMore": { "label": "Juste courir plus", "sub": "installe l'habitude" },
+    "d5": {
+      "label": "5 km",
+      "sub": "idéal pour débuter"
+    },
+    "d10": {
+      "label": "10 km",
+      "sub": "la suite logique"
+    },
+    "dHalf": {
+      "label": "Semi",
+      "sub": "21,1 km"
+    },
+    "dMore": {
+      "label": "Juste courir plus",
+      "sub": "installe l'habitude"
+    },
     "horizonLabel": "Sur combien de temps?",
     "weeks_one": "{{count}} semaine",
     "weeks_other": "{{count}} semaines"

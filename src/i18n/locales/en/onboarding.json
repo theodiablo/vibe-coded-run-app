@@ -2,6 +2,8 @@
   "stepOf": "Step {{step}} of {{total}}",
   "continue": "Continue",
   "getStarted": "Get started",
+  "back": "Back",
+  "skip": "Skip",
   "welcome": {
     "title": "Welcome to Running Coach",
     "subtitle": "A coach in your pocket — let's set you up in under a minute.",
@@ -50,10 +52,22 @@
     "title": "Your training",
     "subtitle": "No race needed — pick a goal to build towards.",
     "buildLabel": "What do you want to build up to?",
-    "d5": { "label": "5K", "sub": "couch-to-5K friendly" },
-    "d10": { "label": "10K", "sub": "a solid next step" },
-    "dHalf": { "label": "Half", "sub": "21.1 km" },
-    "dMore": { "label": "Just run more", "sub": "build the habit" },
+    "d5": {
+      "label": "5K",
+      "sub": "couch-to-5K friendly"
+    },
+    "d10": {
+      "label": "10K",
+      "sub": "a solid next step"
+    },
+    "dHalf": {
+      "label": "Half",
+      "sub": "21.1 km"
+    },
+    "dMore": {
+      "label": "Just run more",
+      "sub": "build the habit"
+    },
     "horizonLabel": "Over how long?",
     "weeks_one": "{{count}} week",
     "weeks_other": "{{count}} weeks"

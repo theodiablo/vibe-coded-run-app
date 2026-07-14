@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, MessageCircle, Trophy } from "lucide-react";
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
+import { LANGS, setLocale, currentLang, isLangId, type LangId } from "../i18n";
 import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { StylePicker } from "../components/StylePicker";
@@ -55,6 +57,13 @@ type OnboardingWizardProps = {
 // TO it, never around it); `summary` is an in-memory-only celebration after the
 // gate. All input is held in local draft state and only committed via onComplete.
 export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogue, addRace, addEdition, refreshCatalogue, showToast}: OnboardingWizardProps) {
+  const { t } = useTranslation();
+  // Language: synced preference falling back to the live UI language; a tap
+  // switches immediately and persists rc_lang (per-device) so a resumed
+  // onboarding and the pre-login screens match. Included in the next progress
+  // save so the choice survives a mid-flow refresh.
+  const uiLang: LangId = isLangId(settings.language) ? settings.language : currentLang();
+  const pickLang = (id: LangId) => { void setLocale(id); onSaveProgress({ language: id }, Math.min(stepIdx, seq.indexOf("health"))); };
   const today = ymd(new Date());
 
   const [intent, setIntent] = useState<Intent>(settings.intent || null); // null | "race" | "fitness"
@@ -154,10 +163,10 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const skip = () => go("health");
 
   const estimateHR = () => {
-    if (!tanakaMax) { setMaxHRHint("Enter your age above to estimate it."); return; }
+    if (!tanakaMax) { setMaxHRHint(t("onboarding.hr.enterAge")); return; }
     setMaxHR(String(tanakaMax));
     setRestHR("60");
-    setMaxHRHint("Estimated from age (Tanaka, 208 − 0.7×age): " + tanakaMax + " bpm max HR, with a typical 60 bpm resting HR.");
+    setMaxHRHint(t("onboarding.hr.estimated", { max: tanakaMax }));
   };
 
   // Pick a catalogue edition → autofill the race fields + set it as the training
@@ -186,7 +195,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     if (j) pick(j);
     setManual(false);
     setShowAddRace(false);
-    showToast("Added to the catalogue — set as your race.");
+    showToast(t("onboarding.race.addedToast"));
   };
 
   // Leaving the no-race step: synthesize a race-shaped target so buildPlan has a
@@ -213,17 +222,17 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // Plain-language, highest-risk PAR-Q items (placeholder wording — have a
   // qualified professional review before launch).
   const healthItems = [
-    "A heart condition, or a doctor has told you to do physical activity only under medical supervision",
-    "Chest pain at rest, during daily activity, or during physical activity",
-    "Dizziness, loss of balance, or loss of consciousness during or after exercise",
-    "A bone or joint problem, or any other condition that running could make worse — or any other reason you should not do vigorous exercise",
+    t("onboarding.health.item1"),
+    t("onboarding.health.item2"),
+    t("onboarding.health.item3"),
+    t("onboarding.health.item4"),
   ];
 
   const distOptions = [
-    {km: 5,       label: "5K",   sub: "couch-to-5K friendly"},
-    {km: 10,      label: "10K",  sub: "a solid next step"},
-    {km: 21.0975, label: "Half", sub: "21.1 km"},
-    {km: 5,       label: "Just run more", sub: "build the habit", key: "more"},
+    {km: 5,       label: t("onboarding.training.d5.label"),    sub: t("onboarding.training.d5.sub")},
+    {km: 10,      label: t("onboarding.training.d10.label"),   sub: t("onboarding.training.d10.sub")},
+    {km: 21.0975, label: t("onboarding.training.dHalf.label"), sub: t("onboarding.training.dHalf.sub")},
+    {km: 5,       label: t("onboarding.training.dMore.label"), sub: t("onboarding.training.dMore.sub"), key: "more"},
   ];
 
   return (
@@ -233,7 +242,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           {stepIdx > 0 && (
             <button onClick={back}
               className="flex items-center gap-0.5 text-xs text-slate-400 hover:text-white transition-colors -ml-1 pr-1">
-              <ChevronLeft size={16}/>Back
+              <ChevronLeft size={16}/>{t("onboarding.back")}
             </button>
           )}
         </div>
@@ -250,14 +259,14 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           // rather than out of onboarding, so the gate can't be bypassed.
           <button onClick={skip}
             className="text-xs text-slate-400 hover:text-white transition-colors">
-            Skip
+            {t("onboarding.skip")}
           </button>
         )}
       </header>
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-sm mx-auto p-5">
-          <p className="text-xs text-slate-500 mb-4">{"Step " + (stepIdx + 1) + " of " + seq.length}</p>
+          <p className="text-xs text-slate-500 mb-4">{t("onboarding.stepOf", {step: stepIdx + 1, total: seq.length})}</p>
 
           {cur === "welcome" && (
             <div className="text-center space-y-5">
@@ -265,29 +274,39 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 <Activity size={22} className="text-orange-400"/>
               </div>
               <div>
-                <p className="font-bold text-lg">Welcome to Running Coach</p>
-                <p className="text-sm text-slate-400 mt-1">A coach in your pocket — let&apos;s set you up in under a minute.</p>
+                <p className="font-bold text-lg">{t("onboarding.welcome.title")}</p>
+                <p className="text-sm text-slate-400 mt-1">{t("onboarding.welcome.subtitle")}</p>
               </div>
               <ul className="text-left space-y-2.5 bg-slate-800 rounded-2xl p-4">
                 {[
-                  {Icon: Target, t: "A training plan that adapts to your goal and your week"},
-                  {Icon: MapPin, t: "Track every run live with GPS"},
-                  {Icon: Trophy, t: "Earn badges as you build the habit"},
-                ].map(({Icon, t}, i) => (
+                  {Icon: Target, text: t("onboarding.welcome.featurePlan")},
+                  {Icon: MapPin, text: t("onboarding.welcome.featureGps")},
+                  {Icon: Trophy, text: t("onboarding.welcome.featureBadges")},
+                ].map(({Icon, text}, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm text-slate-300">
-                    <Icon size={16} className="text-orange-400 shrink-0 mt-0.5"/>{t}
+                    <Icon size={16} className="text-orange-400 shrink-0 mt-0.5"/>{text}
                   </li>
                 ))}
               </ul>
+              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("settings.language.label")}>
+                {LANGS.map(l => (
+                  <button key={l.id} type="button" onClick={() => pickLang(l.id)}
+                    role="radio" aria-checked={uiLang === l.id}
+                    className={"py-2 rounded-xl text-sm font-semibold transition-colors " +
+                      (uiLang === l.id ? "bg-orange-500 text-white" : "bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200")}>
+                    {l.label}
+                  </button>
+                ))}
+              </div>
               <div className="space-y-2">
                 <input autoFocus type="text" value={name} maxLength={40}
                   onChange={e => setName(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") go("intent", {name: trimmedName}); }}
-                  placeholder="Your name (optional)"
+                  placeholder={t("onboarding.welcome.namePlaceholder")}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-white text-center focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
                 <button onClick={() => go("intent", {name: trimmedName})}
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                  Get started
+                  {t("onboarding.getStarted")}
                 </button>
               </div>
             </div>
@@ -296,8 +315,8 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           {cur === "intent" && (
             <div className="space-y-5">
               <div>
-                <p className="font-bold text-lg">{trimmedName ? "Hi " + trimmedName + "! " : ""}What brings you here?</p>
-                <p className="text-sm text-slate-400 mt-1">We&apos;ll tailor your plan to suit.</p>
+                <p className="font-bold text-lg">{trimmedName ? t("onboarding.intent.titleNamed", {name: trimmedName}) : t("onboarding.intent.title")}</p>
+                <p className="text-sm text-slate-400 mt-1">{t("onboarding.intent.subtitle")}</p>
               </div>
               <div className="space-y-3">
                 <button onClick={() => go("race", {}, "race")}
@@ -306,8 +325,8 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                     <Trophy size={20} className="text-orange-400"/>
                   </div>
                   <div>
-                    <p className="font-semibold">I&apos;m training for a race</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Pick your race and we&apos;ll build a plan that peaks on the day.</p>
+                    <p className="font-semibold">{t("onboarding.intent.race.title")}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{t("onboarding.intent.race.sub")}</p>
                   </div>
                 </button>
                 <button onClick={() => go("training", {}, "fitness")}
@@ -316,8 +335,8 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                     <Sparkles size={20} className="text-orange-400"/>
                   </div>
                   <div>
-                    <p className="font-semibold">I&apos;m just getting started</p>
-                    <p className="text-xs text-slate-400 mt-0.5">No race yet — build fitness and the running habit at your pace.</p>
+                    <p className="font-semibold">{t("onboarding.intent.fitness.title")}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{t("onboarding.intent.fitness.sub")}</p>
                   </div>
                 </button>
               </div>
@@ -327,8 +346,8 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           {cur === "race" && (
             <div className="space-y-5">
               <div>
-                <p className="font-bold text-lg">Your race</p>
-                <p className="text-sm text-slate-400 mt-1">Search the catalogue for your race.</p>
+                <p className="font-bold text-lg">{t("onboarding.race.title")}</p>
+                <p className="text-sm text-slate-400 mt-1">{t("onboarding.race.subtitle")}</p>
               </div>
 
               {pickedLabel ? (
@@ -340,13 +359,13 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                     <p className="font-semibold truncate">{pickedLabel}</p>
                     <p className="text-xs text-slate-400">{fmt.date(raceDate) + " · " + distanceKm + " km" + (raceElevation ? " · +" + raceElevation + "m" : "")}</p>
                   </div>
-                  <button onClick={clearPick} className="text-xs text-slate-400 hover:text-white shrink-0">Change</button>
+                  <button onClick={clearPick} className="text-xs text-slate-400 hover:text-white shrink-0">{t("onboarding.race.change")}</button>
                 </div>
               ) : (
                 <>
                   <div className="relative">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
-                    <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
+                    <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder={t("onboarding.race.searchPlaceholder")}
                       className={INPUT_CLS + " pl-9"}/>
                   </div>
                   {editionResults.length > 0 && (
@@ -361,30 +380,30 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                     </div>
                   )}
 
-                  <AddRaceCard onClick={() => setShowAddRace(true)} subtitle="Sets it as your race — and helps others find it.">
+                  <AddRaceCard onClick={() => setShowAddRace(true)} subtitle={t("onboarding.race.addSubtitle")}>
                     {!manual ? (
                       <button onClick={() => setManual(true)} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">
-                        Just enter it for myself →
+                        {t("onboarding.race.manualLink")}
                       </button>
                     ) : (
                       <div className="space-y-4 pt-1">
                         <div>
-                          <label className="text-xs text-slate-400 block mb-1.5">Race date</label>
+                          <label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.race.dateLabel")}</label>
                           <input type="date" value={raceDate} onChange={e => { setRaceDate(e.target.value); onManualEdit(); }}
                             className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400"/>
                         </div>
                         <div>
-                          <label className="text-xs text-slate-400 block mb-1.5">Race distance (km)</label>
-                          <input type="number" min="1" max="200" step="0.1" value={distanceKm} placeholder="e.g. 21.1"
+                          <label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.race.distanceLabel")}</label>
+                          <input type="number" min="1" max="200" step="0.1" value={distanceKm} placeholder={t("onboarding.race.distancePlaceholder")}
                             onChange={e => { const n = parseFloat(e.target.value); setDist(isNaN(n) ? "" : n); onManualEdit(); }}
                             className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
                         </div>
                         <div>
-                          <label className="text-xs text-slate-400 block mb-1.5">Race elevation gain (m)</label>
+                          <label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.race.elevationLabel")}</label>
                           <input type="number" min="0" max="10000" step="10" value={raceElevation} placeholder="0"
                             onChange={e => { const v = e.target.value; setElev(v === "" ? "" : Math.max(0, parseInt(v) || 0)); onManualEdit(); }}
                             className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-                          <p className="text-slate-500 text-xs mt-1">Total climb on the course — sets training paces to the flat-equivalent effort.</p>
+                          <p className="text-slate-500 text-xs mt-1">{t("onboarding.race.elevationHint")}</p>
                         </div>
                       </div>
                     )}
@@ -394,7 +413,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
 
               <button onClick={() => go("raceGoal", {raceDate, distanceKm, raceElevation: Number(raceElevation) || 0, targetEditionId})} disabled={!raceDate || !distanceKm}
                 className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                Continue
+                {t("onboarding.continue")}
               </button>
             </div>
           )}
@@ -402,23 +421,23 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           {cur === "raceGoal" && (
             <div className="space-y-5">
               <div>
-                <p className="font-bold text-lg">Goal &amp; training days</p>
-                <p className="text-sm text-slate-400 mt-1">A realistic target is pre-filled — tweak it if you like.</p>
+                <p className="font-bold text-lg">{t("onboarding.raceGoal.title")}</p>
+                <p className="text-sm text-slate-400 mt-1">{t("onboarding.raceGoal.subtitle")}</p>
               </div>
               <LevelTiles value={level} onChange={setLevel}/>
               <GoalConfigurator distanceKm={distanceKm} goalSec={goalSec} onChange={setGoal}/>
               <div>
-                <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
+                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.daysLabel")}</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
                 <SessionSuggestionHint pinned={sessionsPinned} onReset={() => setSess(null)}/>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-2">Training style</label>
+                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.styleLabel")}</label>
                 <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
               </div>
               <button onClick={() => go("hr", {goalSec, planSessions, planStyle: effectiveStyle, trainingLevel: level})}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                Continue
+                {t("onboarding.continue")}
               </button>
             </div>
           )}
@@ -426,12 +445,12 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           {cur === "training" && (
             <div className="space-y-5">
               <div>
-                <p className="font-bold text-lg">Your training</p>
-                <p className="text-sm text-slate-400 mt-1">No race needed — pick a goal to build towards.</p>
+                <p className="font-bold text-lg">{t("onboarding.training.title")}</p>
+                <p className="text-sm text-slate-400 mt-1">{t("onboarding.training.subtitle")}</p>
               </div>
               <LevelTiles value={level} onChange={setLevel}/>
               <div>
-                <label className="text-xs text-slate-400 block mb-2">What do you want to build up to?</label>
+                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.training.buildLabel")}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {distOptions.map(o => {
                     const id = o.key || String(o.km);
@@ -449,30 +468,30 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 </div>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-2">Over how long?</label>
+                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.training.horizonLabel")}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[8, 12, 16].map(w => (
                     <button key={w} onClick={() => setHorizon(w)}
                       className={"py-2.5 rounded-xl border text-sm font-semibold transition-colors " + (horizon === w
                         ? "bg-orange-500 text-white border-orange-500"
                         : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white")}>
-                      {w} weeks
+                      {t("onboarding.training.weeks", {count: w})}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-2">Training days and durations</label>
+                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.daysLabel")}</label>
                 <SessionConfigurator sessions={planSessions} onChange={setSess}/>
                 <SessionSuggestionHint pinned={sessionsPinned} onReset={() => setSess(null)}/>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-2">Training style</label>
+                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.styleLabel")}</label>
                 <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
               </div>
               <button onClick={finishTraining}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                Continue
+                {t("onboarding.continue")}
               </button>
             </div>
           )}
@@ -480,15 +499,15 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           {cur === "hr" && (
             <div className="space-y-5">
               <div>
-                <p className="font-bold text-lg">Heart rate</p>
-                <p className="text-sm text-slate-400 mt-1">Personalize your effort targets on every session. Optional — you can add this later.</p>
+                <p className="font-bold text-lg">{t("onboarding.hr.title")}</p>
+                <p className="text-sm text-slate-400 mt-1">{t("onboarding.hr.subtitle")}</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div><label className="text-xs text-slate-400 block mb-1.5">Age</label>
+                <div><label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.hr.age")}</label>
                   <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} className={INPUT_CLS}/></div>
-                <div><label className="text-xs text-slate-400 block mb-1.5">Max HR</label>
-                  <input type="number" min="100" max="230" placeholder="auto" value={maxHR} onChange={e => setMaxHR(e.target.value)} className={INPUT_CLS}/></div>
-                <div><label className="text-xs text-slate-400 block mb-1.5">Rest HR</label>
+                <div><label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.hr.maxHR")}</label>
+                  <input type="number" min="100" max="230" placeholder={t("onboarding.hr.autoPlaceholder")} value={maxHR} onChange={e => setMaxHR(e.target.value)} className={INPUT_CLS}/></div>
+                <div><label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.hr.restHR")}</label>
                   <input type="number" min="30" max="120" placeholder="60" value={restHR} onChange={e => setRestHR(e.target.value)} className={INPUT_CLS}/></div>
               </div>
 
@@ -496,7 +515,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 {!(parseInt(maxHR) || 0) && (
                   <button type="button" onClick={estimateHR}
                     className="text-xs text-sky-300 hover:text-sky-200 underline underline-offset-2 transition-colors">
-                    I don&apos;t know my heart rate
+                    {t("onboarding.hr.dontKnow")}
                   </button>
                 )}
                 {maxHRHint && <p className="text-xs text-slate-500 mt-1.5">{maxHRHint}</p>}
@@ -504,7 +523,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
 
               <button onClick={() => go("health")}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                Continue
+                {t("onboarding.continue")}
               </button>
             </div>
           )}
@@ -516,13 +535,13 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                   <ShieldAlert size={22} className="text-orange-400"/>
                 </div>
                 <div>
-                  <p className="font-bold text-lg">One last thing</p>
-                  <p className="text-sm text-slate-400 mt-1">A quick safety check before you start. Your answer stays on this device and is not saved to your account.</p>
+                  <p className="font-bold text-lg">{t("onboarding.health.title")}</p>
+                  <p className="text-sm text-slate-400 mt-1">{t("onboarding.health.subtitle")}</p>
                 </div>
               </div>
 
               <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
-                <p className="text-sm text-slate-200">Do any of these apply to you?</p>
+                <p className="text-sm text-slate-200">{t("onboarding.health.question")}</p>
                 <ul className="space-y-1.5">
                   {healthItems.map((item, i) => (
                     <li key={i} className="flex gap-2 text-xs text-slate-400">
@@ -532,7 +551,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                   ))}
                 </ul>
                 <div className="grid grid-cols-2 gap-2 pt-0.5">
-                  {[{v:false, l:"No, none apply"}, {v:true, l:"Yes, one or more"}].map(opt => (
+                  {[{v:false, l:t("onboarding.health.no")}, {v:true, l:t("onboarding.health.yes")}].map(opt => (
                     <button key={opt.l} onClick={() => setScreenApplies(opt.v)}
                       className={"py-2.5 rounded-xl border text-sm font-semibold transition-colors " + (
                         screenApplies === opt.v
@@ -549,14 +568,14 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                   <div className="flex items-start gap-2">
                     <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5"/>
                     <div>
-                      <p className="text-sm font-semibold text-red-200">Please talk to a doctor first</p>
-                      <p className="text-xs text-red-200/80 mt-1">We strongly recommend you consult a physician before starting any training plan from this app. The plans here are general guidance, not medical advice, and may not be appropriate for your condition.</p>
+                      <p className="text-sm font-semibold text-red-200">{t("onboarding.health.doctorTitle")}</p>
+                      <p className="text-xs text-red-200/80 mt-1">{t("onboarding.health.doctorBody")}</p>
                     </div>
                   </div>
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input type="checkbox" checked={medConfirm} onChange={e => setMedConfirm(e.target.checked)}
                       className="mt-0.5 w-4 h-4 rounded accent-orange-500 shrink-0"/>
-                    <span className="text-xs text-red-100">I confirm I have consulted, or will consult, a doctor before I begin training with this app.</span>
+                    <span className="text-xs text-red-100">{t("onboarding.health.doctorConfirm")}</span>
                   </label>
                 </div>
               )}
@@ -564,32 +583,22 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
               {/* Medical / liability disclaimer — PLACEHOLDER copy, pending review
                   by a qualified lawyer before launch. Do not treat as final. */}
               <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
-                <p className="text-sm font-semibold text-slate-200">Health &amp; safety disclaimer</p>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Running Coach provides general training information only — it is
-                  not medical advice and is no substitute for professional
-                  guidance. Physical activity carries inherent risks, including
-                  injury and, in rare cases, serious cardiac events. You take part
-                  at your own risk and are responsible for training within your own
-                  limits and stopping if you feel unwell. Consult a physician before
-                  beginning this or any exercise programme. Nothing in this notice
-                  excludes or limits any liability that cannot be excluded or
-                  limited under applicable law.
-                </p>
+                <p className="text-sm font-semibold text-slate-200">{t("onboarding.health.disclaimerTitle")}</p>
+                <p className="text-xs text-slate-400 leading-relaxed">{t("onboarding.health.disclaimerBody")}</p>
                 <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer"
                   className="inline-block text-xs text-orange-400 hover:text-orange-300">
-                  Read the full disclaimer
+                  {t("onboarding.health.readFull")}
                 </a>
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input type="checkbox" checked={ackChecked} onChange={e => setAckChecked(e.target.checked)}
                     className="mt-0.5 w-4 h-4 rounded accent-orange-500 shrink-0"/>
-                  <span className="text-xs text-slate-200">I have read and accept the health &amp; safety disclaimer above.</span>
+                  <span className="text-xs text-slate-200">{t("onboarding.health.ack")}</span>
                 </label>
               </div>
 
               <button onClick={() => go("summary")} disabled={!canPassHealth}
                 className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                Continue
+                {t("onboarding.continue")}
               </button>
             </div>
           )}
@@ -597,42 +606,45 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
           {cur === "summary" && (() => {
             const preview = buildPlan(raceDate, goalSec, planSessions, distanceKm, raceElevation, {style: effectiveStyle, level});
             const weeks = preview?.weeks?.length || 0;
-            const label = pickedLabel || (intent === "fitness" ? "Build your base" : "Your race");
+            const label = pickedLabel || (intent === "fitness" ? t("onboarding.summary.fallbackFitness") : t("onboarding.summary.fallbackRace"));
             return (
               <div className="space-y-5 text-center">
                 <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto">
                   <Check size={24} className="text-emerald-400"/>
                 </div>
                 <div>
-                  <p className="font-bold text-lg">You&apos;re all set{trimmedName ? ", " + trimmedName : ""}!</p>
-                  <p className="text-sm text-slate-400 mt-1">Here&apos;s the plan we&apos;ve built for you.</p>
+                  <p className="font-bold text-lg">{trimmedName ? t("onboarding.summary.titleNamed", {name: trimmedName}) : t("onboarding.summary.title")}</p>
+                  <p className="text-sm text-slate-400 mt-1">{t("onboarding.summary.subtitle")}</p>
                 </div>
                 <div className="bg-slate-800 rounded-2xl p-4 space-y-3 text-left">
                   <div className="flex items-center gap-3">
                     <Target size={18} className="text-orange-400 shrink-0"/>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate">{label}</p>
-                      <p className="text-xs text-slate-400">{(intent === "fitness" ? "Goal " : "") + distanceKm + " km · " + fmt.date(raceDate)}</p>
+                      <p className="text-xs text-slate-400">{t(intent === "fitness" ? "onboarding.summary.metaGoal" : "onboarding.summary.meta", {km: distanceKm, date: fmt.date(raceDate)})}</p>
                     </div>
                   </div>
                   <div className="border-t border-slate-700/50 pt-3 grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-xl font-bold text-orange-300">{weeks}</p>
-                      <p className="text-xs text-slate-400">week plan</p>
+                      <p className="text-xs text-slate-400">{t("onboarding.summary.weekPlan")}</p>
                     </div>
                     <div>
                       <p className="text-xl font-bold text-orange-300">{planSessions.length}</p>
-                      <p className="text-xs text-slate-400">sessions / week</p>
+                      <p className="text-xs text-slate-400">{t("onboarding.summary.sessionsPerWeek")}</p>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5 text-left bg-slate-800/60 rounded-xl p-3">
                   <MessageCircle size={16} className="text-orange-400 shrink-0 mt-0.5"/>
-                  <p className="text-xs text-slate-400">Life happens — a niggle, a missed week, a schedule clash. Your <span className="text-slate-200 font-medium">coach</span> can adapt this plan anytime, from Plan or Home.</p>
+                  <p className="text-xs text-slate-400">
+                    <Trans i18nKey="onboarding.summary.coachNote" t={t}
+                      components={{ c: <span className="text-slate-200 font-medium" /> }}/>
+                  </p>
                 </div>
                 <button onClick={complete}
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
-                  Get started
+                  {t("onboarding.getStarted")}
                 </button>
               </div>
             );
@@ -654,9 +666,10 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
 // by both intent branches. Optional — the flow never blocks on it; unanswered
 // just means the style recommendation stays history-free conservative.
 function LevelTiles({ value, onChange }: { value: TrainingLevel | null; onChange: (l: TrainingLevel) => void }) {
+  const { t } = useTranslation();
   return (
     <div>
-      <label className="text-xs text-slate-400 block mb-2">How much do you run right now?</label>
+      <label className="text-xs text-slate-400 block mb-2">{t("onboarding.level.label")}</label>
       <div className="grid grid-cols-2 gap-2">
         {trainingLevels().map(l => (
           <button key={l.id} onClick={() => onChange(l.id)}
@@ -675,11 +688,12 @@ function LevelTiles({ value, onChange }: { value: TrainingLevel | null; onChange
 // Footer under SessionConfigurator: while untouched, says the days are a live
 // suggestion; once the user diverges, offers the way back.
 function SessionSuggestionHint({ pinned, onReset }: { pinned: boolean; onReset: () => void }) {
-  if (!pinned) return <p className="text-xs text-slate-500 mt-1.5">Suggested for your goal — adjust freely.</p>;
+  const { t } = useTranslation();
+  if (!pinned) return <p className="text-xs text-slate-500 mt-1.5">{t("onboarding.sessions.suggested")}</p>;
   return (
     <button type="button" onClick={onReset}
       className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
-      Reset to suggested days
+      {t("onboarding.sessions.reset")}
     </button>
   );
 }
