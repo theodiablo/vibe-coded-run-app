@@ -1,1 +1,6 @@
-{}
+{
+  "notif": {
+    "title": "Recording run",
+    "body": "Tap to return to Running Coach"
+  }
+}

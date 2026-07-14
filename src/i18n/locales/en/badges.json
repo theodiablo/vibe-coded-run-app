@@ -1,1 +1,24 @@
-{}
+{
+  "hint": {
+    "toGo": "{{amount}} {{unit}} to go",
+    "toGoCount_one": "{{count}} to go",
+    "toGoCount_other": "{{count}} to go",
+    "unit": { "km": "km", "wk": "wk", "m": "m" }
+  },
+  "dist-first-5k": { "label": "First 5K", "desc": "Run 5 km in one outing" },
+  "dist-first-10k": { "label": "First 10K", "desc": "Run 10 km in one outing" },
+  "dist-first-half": { "label": "Half Marathon", "desc": "Cover a half marathon" },
+  "dist-first-marathon": { "label": "Marathon", "desc": "Go the full marathon distance" },
+  "vol-100": { "label": "100 km club", "desc": "100 km logged all-time" },
+  "vol-500": { "label": "500 km club", "desc": "500 km logged all-time" },
+  "vol-1000": { "label": "1000 km club", "desc": "1000 km logged all-time" },
+  "weeks-4": { "label": "Getting going", "desc": "Run in 4 different weeks" },
+  "weeks-12": { "label": "In the habit", "desc": "Run in 12 different weeks" },
+  "weeks-26": { "label": "Half a year strong", "desc": "Run in 26 different weeks" },
+  "race-wishlist": { "label": "Dreaming big", "desc": "Add a race to your list" },
+  "race-done-1": { "label": "First finish line", "desc": "Complete your first race" },
+  "race-done-5": { "label": "Seasoned racer", "desc": "Complete 5 races" },
+  "gps-first": { "label": "On the map", "desc": "Track a run with GPS" },
+  "elev-1000": { "label": "Climber", "desc": "Climb 1000 m all-time" },
+  "elev-5000": { "label": "Mountain goat", "desc": "Climb 5000 m all-time" }
+}

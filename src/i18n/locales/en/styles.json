@@ -1,1 +1,43 @@
-{}
+{
+  "meta": {
+    "balanced": {
+      "label": "Balanced",
+      "blurb": "Classic build: a weekly long run plus alternating tempo and interval days."
+    },
+    "polarized": {
+      "label": "Polarized 80/20",
+      "blurb": "Mostly genuinely easy running with one hard session a week — great if you tend to run everything moderately hard."
+    },
+    "runwalk": {
+      "label": "Run/Walk",
+      "blurb": "Gentle run/walk intervals and no speedwork — finish feeling strong. Ideal when starting out or returning."
+    },
+    "lowfreq": {
+      "label": "3-Day Quality",
+      "blurb": "Three purposeful runs a week — intervals, tempo, long — other days optional cross-training. Best with exactly 3 run days."
+    },
+    "hansons": {
+      "label": "Hansons-style",
+      "blurb": "Higher frequency, a capped moderate long run and tempo at goal race pace. Best at 5–6 days for half/marathon."
+    }
+  },
+  "levels": {
+    "none": {
+      "label": "Not yet",
+      "sub": "Starting from scratch"
+    },
+    "occasional": {
+      "label": "Now and then",
+      "sub": "A run every week or two"
+    },
+    "regular": {
+      "label": "2–3× a week",
+      "sub": "Regular runner"
+    },
+    "frequent": {
+      "label": "4+× a week",
+      "sub": "Training consistently"
+    }
+  },
+  "recommended": "Recommended"
+}

@@ -1,4 +1,5 @@
-import { STYLE_IDS, STYLE_META, type StyleId } from "../utils/planStyles";
+import { useTranslation } from "react-i18next";
+import { STYLE_IDS, styleMeta, type StyleId } from "../utils/planStyles";
 
 // Radio-card picker for the training methodology style, shared by PlanView's
 // setup/edit forms and the onboarding wizard. `recommended` tags (and, while
@@ -11,10 +12,11 @@ type StylePickerProps = {
 };
 
 export function StylePicker({ value, onChange, recommended }: StylePickerProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2">
       {(STYLE_IDS as StyleId[]).map(id => {
-        const meta = STYLE_META[id];
+        const meta = styleMeta(id);
         const selected = id === value;
         const cardCls = "w-full text-left rounded-xl border p-3 transition-colors " +
           (selected ? "bg-orange-500/15 border-orange-500/60" : "bg-slate-700/40 border-slate-600 hover:border-slate-500");
@@ -24,7 +26,7 @@ export function StylePicker({ value, onChange, recommended }: StylePickerProps) 
               <span className={"text-sm font-semibold " + (selected ? "text-orange-300" : "text-white")}>{meta.label}</span>
               {recommended === id && (
                 <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 flex-shrink-0">
-                  Recommended
+                  {t("styles.recommended")}
                 </span>
               )}
             </div>

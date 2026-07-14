@@ -1,1 +1,43 @@
-{}
+{
+  "meta": {
+    "balanced": {
+      "label": "Equilibrado",
+      "blurb": "Progresión clásica: una tirada larga semanal más días alternos de tempo e intervalos."
+    },
+    "polarized": {
+      "label": "Polarizado 80/20",
+      "blurb": "Mayormente rodajes realmente suaves con una sesión dura a la semana — ideal si tiendes a correr todo a ritmo moderadamente fuerte."
+    },
+    "runwalk": {
+      "label": "Correr/Caminar",
+      "blurb": "Intervalos suaves de correr/caminar y sin series — termina sintiéndote fuerte. Ideal para empezar o volver a correr."
+    },
+    "lowfreq": {
+      "label": "Calidad en 3 días",
+      "blurb": "Tres carreras con propósito a la semana — intervalos, tempo, tirada larga — los demás días, entrenamiento cruzado opcional. Óptimo con exactamente 3 días de carrera."
+    },
+    "hansons": {
+      "label": "Estilo Hansons",
+      "blurb": "Mayor frecuencia, tirada larga moderada y limitada, y tempo a ritmo de carrera objetivo. Óptimo con 5–6 días para media o maratón."
+    }
+  },
+  "levels": {
+    "none": {
+      "label": "Todavía no",
+      "sub": "Empezando desde cero"
+    },
+    "occasional": {
+      "label": "De vez en cuando",
+      "sub": "Una carrera cada semana o dos"
+    },
+    "regular": {
+      "label": "2–3× por semana",
+      "sub": "Corredor habitual"
+    },
+    "frequent": {
+      "label": "4+× por semana",
+      "sub": "Entrenando con constancia"
+    }
+  },
+  "recommended": "Recomendado"
+}

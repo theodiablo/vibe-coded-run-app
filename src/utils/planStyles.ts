@@ -8,6 +8,7 @@
 // coach never rebuilds weeks.
 // @ts-expect-error Shared Deno/Vitest ESM has no TypeScript declaration file.
 import * as sharedStyles from "../../supabase/functions/_shared/coach/styles.mjs";
+import { t } from "../i18n";
 import { ymd } from "./format";
 import type { PlanSessionInput } from "./plan";
 
@@ -25,7 +26,7 @@ const styles = sharedStyles as StylesExports;
 export const { DEFAULT_STYLE, STYLE_PACING, stylePacing, styleNotes } = styles;
 
 // The APP-side list of usable styles, deliberately NOT re-exported from
-// styles.mjs: buildPlan and StylePicker index STYLE_SHAPE / STYLE_META /
+// styles.mjs: buildPlan and StylePicker index STYLE_SHAPE / styleMeta /
 // COMPOSERS, which are all Record<StyleId, …> — complete by type. Keying off
 // the shared list instead would let a style added server-side first pass
 // isStyleId and then crash the app-side lookups; this way such a style simply
@@ -36,29 +37,12 @@ export const STYLE_IDS: StyleId[] = ["balanced", "polarized", "runwalk", "lowfre
 export const isStyleId = (v: unknown): v is StyleId =>
   typeof v === "string" && (STYLE_IDS as string[]).includes(v);
 
-// Picker metadata — label + one-line blurb per style, in display order.
-export const STYLE_META: Record<StyleId, { label: string; blurb: string }> = {
-  balanced: {
-    label: "Balanced",
-    blurb: "Classic build: a weekly long run plus alternating tempo and interval days.",
-  },
-  polarized: {
-    label: "Polarized 80/20",
-    blurb: "Mostly genuinely easy running with one hard session a week — great if you tend to run everything moderately hard.",
-  },
-  runwalk: {
-    label: "Run/Walk",
-    blurb: "Gentle run/walk intervals and no speedwork — finish feeling strong. Ideal when starting out or returning.",
-  },
-  lowfreq: {
-    label: "3-Day Quality",
-    blurb: "Three purposeful runs a week — intervals, tempo, long — other days optional cross-training. Best with exactly 3 run days.",
-  },
-  hansons: {
-    label: "Hansons-style",
-    blurb: "Higher frequency, a capped moderate long run and tempo at goal race pace. Best at 5–6 days for half/marathon.",
-  },
-};
+// Picker metadata — label + one-line blurb per style. A function (not a const
+// map) so the strings resolve in the active UI language at render time.
+export const styleMeta = (id: StyleId): { label: string; blurb: string } => ({
+  label: t(`styles.meta.${id}.label`),
+  blurb: t(`styles.meta.${id}.blurb`),
+});
 
 // ── Plan-shape parameters ────────────────────────────────────────────────────
 // peakLong receives the race distance and an estimate of the configured weekly
@@ -143,15 +127,18 @@ export function pickHardDays(qualityDays: number[], longDay: number, count: numb
 // way a recent logged long run would be. Real logged runs always win over it.
 export type TrainingLevel = "none" | "occasional" | "regular" | "frequent";
 
-export const TRAINING_LEVELS: { id: TrainingLevel; label: string; sub: string }[] = [
-  { id: "none", label: "Not yet", sub: "Starting from scratch" },
-  { id: "occasional", label: "Now and then", sub: "A run every week or two" },
-  { id: "regular", label: "2–3× a week", sub: "Regular runner" },
-  { id: "frequent", label: "4+× a week", sub: "Training consistently" },
-];
+const TRAINING_LEVEL_IDS: TrainingLevel[] = ["none", "occasional", "regular", "frequent"];
+
+// Level tiles in display order — a function so labels follow the UI language.
+export const trainingLevels = (): { id: TrainingLevel; label: string; sub: string }[] =>
+  TRAINING_LEVEL_IDS.map((id) => ({
+    id,
+    label: t(`styles.levels.${id}.label`),
+    sub: t(`styles.levels.${id}.sub`),
+  }));
 
 export const isTrainingLevel = (v: unknown): v is TrainingLevel =>
-  typeof v === "string" && TRAINING_LEVELS.some((l) => l.id === v);
+  typeof v === "string" && (TRAINING_LEVEL_IDS as string[]).includes(v);
 
 // Synthetic history equivalents per level — deliberately conservative bands.
 const LEVEL_PROFILE: Record<TrainingLevel, { weeklyKm: number; runCount: number; startLongKm: number }> = {

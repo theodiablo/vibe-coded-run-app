@@ -1,1 +1,6 @@
-{}
+{
+  "notif": {
+    "title": "Enregistrement de la course",
+    "body": "Touchez pour revenir à Running Coach"
+  }
+}

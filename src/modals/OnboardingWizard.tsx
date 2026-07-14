@@ -5,7 +5,7 @@ import { SessionConfigurator } from "../components/SessionConfigurator";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { StylePicker } from "../components/StylePicker";
 import {
-  TRAINING_LEVELS, isStyleId, isTrainingLevel, recommendStyle, suggestPlanSessions,
+  trainingLevels, isStyleId, isTrainingLevel, recommendStyle, suggestPlanSessions,
   type StyleId, type TrainingLevel,
 } from "../utils/planStyles";
 import { RaceFormModal } from "./RaceFormModal";
@@ -658,7 +658,7 @@ function LevelTiles({ value, onChange }: { value: TrainingLevel | null; onChange
     <div>
       <label className="text-xs text-slate-400 block mb-2">How much do you run right now?</label>
       <div className="grid grid-cols-2 gap-2">
-        {TRAINING_LEVELS.map(l => (
+        {trainingLevels().map(l => (
           <button key={l.id} onClick={() => onChange(l.id)}
             className={"text-left rounded-xl border p-3 transition-colors " + (value === l.id
               ? "bg-orange-500/15 border-orange-500/60"

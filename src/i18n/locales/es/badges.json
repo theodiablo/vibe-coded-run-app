@@ -1,1 +1,24 @@
-{}
+{
+  "hint": {
+    "toGo": "faltan {{amount}} {{unit}}",
+    "toGoCount_one": "falta {{count}}",
+    "toGoCount_other": "faltan {{count}}",
+    "unit": { "km": "km", "wk": "sem", "m": "m" }
+  },
+  "dist-first-5k": { "label": "Primeros 5K", "desc": "Corre 5 km en una salida" },
+  "dist-first-10k": { "label": "Primeros 10K", "desc": "Corre 10 km en una salida" },
+  "dist-first-half": { "label": "Media maratón", "desc": "Cubre una media maratón" },
+  "dist-first-marathon": { "label": "Maratón", "desc": "Recorre la distancia completa de maratón" },
+  "vol-100": { "label": "Club de los 100 km", "desc": "100 km acumulados en total" },
+  "vol-500": { "label": "Club de los 500 km", "desc": "500 km acumulados en total" },
+  "vol-1000": { "label": "Club de los 1000 km", "desc": "1000 km acumulados en total" },
+  "weeks-4": { "label": "Cogiendo ritmo", "desc": "Corre en 4 semanas distintas" },
+  "weeks-12": { "label": "Ya es hábito", "desc": "Corre en 12 semanas distintas" },
+  "weeks-26": { "label": "Medio año fuerte", "desc": "Corre en 26 semanas distintas" },
+  "race-wishlist": { "label": "Soñando en grande", "desc": "Añade una carrera a tu lista" },
+  "race-done-1": { "label": "Primera meta", "desc": "Completa tu primera carrera" },
+  "race-done-5": { "label": "Corredor curtido", "desc": "Completa 5 carreras" },
+  "gps-first": { "label": "En el mapa", "desc": "Registra una carrera con GPS" },
+  "elev-1000": { "label": "Escalador", "desc": "Sube 1000 m en total" },
+  "elev-5000": { "label": "Cabra montesa", "desc": "Sube 5000 m en total" }
+}

@@ -9,6 +9,7 @@
 // stored as lucide *names* (strings) and mapped in Badge.jsx, keeping this file
 // React-free and unit-testable.
 
+import { t } from "../i18n";
 import { ymd } from "./format";
 import type { Participation, Run } from "../types";
 
@@ -34,16 +35,21 @@ const weekKey = (dateStr: string) => {
 
 const km1 = (n: number) => (n % 1 === 0 ? n : Math.round(n * 10) / 10);
 
-// A milestone badge: unlocked once `value >= threshold`. `unit`/`noun` shape the
-// remaining-amount hint.
-function milestone(id: string, label: string, Icon: Badge["Icon"], value: number, threshold: number, unit: string, noun: string): Badge {
+// A milestone badge: unlocked once `value >= threshold`. Label/desc come from
+// the badges.<id> dictionary entries; `unit` (km/wk/m, or null for bare counts)
+// shapes the remaining-amount hint. Strings resolve at call time so the active
+// UI language applies — computeBadges runs during render, never cached.
+function milestone(id: string, Icon: Badge["Icon"], value: number, threshold: number, unit: "km" | "wk" | "m" | null): Badge {
   const unlocked = value >= threshold;
   const remaining = Math.max(0, threshold - value);
   return {
-    id, label, Icon, unlocked,
+    id, Icon, unlocked,
+    label: t(`badges.${id}.label`),
     progress: clamp01(value / threshold),
-    desc: noun,
-    hint: unlocked ? null : km1(remaining) + unit + " to go",
+    desc: t(`badges.${id}.desc`),
+    hint: unlocked ? null : unit
+      ? t("badges.hint.toGo", { amount: km1(remaining), unit: t(`badges.hint.unit.${unit}`) })
+      : t("badges.hint.toGoCount", { count: remaining }),
   };
 }
 
@@ -58,32 +64,32 @@ export function computeBadges(runs: Run[] = [], participations: Participation[] 
 
   return [
     // ── Distance milestones (single longest run; walking counts) ────────────
-    milestone("dist-first-5k", "First 5K", "Footprints", maxKm, 5, " km", "Run 5 km in one outing"),
-    milestone("dist-first-10k", "First 10K", "Footprints", maxKm, 10, " km", "Run 10 km in one outing"),
-    milestone("dist-first-half", "Half Marathon", "Medal", maxKm, 21, " km", "Cover a half marathon"),
-    milestone("dist-first-marathon", "Marathon", "Trophy", maxKm, 42, " km", "Go the full marathon distance"),
+    milestone("dist-first-5k", "Footprints", maxKm, 5, "km"),
+    milestone("dist-first-10k", "Footprints", maxKm, 10, "km"),
+    milestone("dist-first-half", "Medal", maxKm, 21, "km"),
+    milestone("dist-first-marathon", "Trophy", maxKm, 42, "km"),
 
     // ── Volume (lifetime distance) ──────────────────────────────────────────
-    milestone("vol-100", "100 km club", "Gauge", totalKm, 100, " km", "100 km logged all-time"),
-    milestone("vol-500", "500 km club", "Gauge", totalKm, 500, " km", "500 km logged all-time"),
-    milestone("vol-1000", "1000 km club", "Gauge", totalKm, 1000, " km", "1000 km logged all-time"),
+    milestone("vol-100", "Gauge", totalKm, 100, "km"),
+    milestone("vol-500", "Gauge", totalKm, 500, "km"),
+    milestone("vol-1000", "Gauge", totalKm, 1000, "km"),
 
     // ── Consistency (cumulative active weeks — forgiving, not a streak) ──────
-    milestone("weeks-4", "Getting going", "CalendarCheck", activeWeeks, 4, " wk", "Run in 4 different weeks"),
-    milestone("weeks-12", "In the habit", "CalendarCheck", activeWeeks, 12, " wk", "Run in 12 different weeks"),
-    milestone("weeks-26", "Half a year strong", "CalendarHeart", activeWeeks, 26, " wk", "Run in 26 different weeks"),
+    milestone("weeks-4", "CalendarCheck", activeWeeks, 4, "wk"),
+    milestone("weeks-12", "CalendarCheck", activeWeeks, 12, "wk"),
+    milestone("weeks-26", "CalendarHeart", activeWeeks, 26, "wk"),
 
     // ── Races ───────────────────────────────────────────────────────────────
-    milestone("race-wishlist", "Dreaming big", "Star", wishlisted, 1, "", "Add a race to your list"),
-    milestone("race-done-1", "First finish line", "Flag", doneRaces, 1, "", "Complete your first race"),
-    milestone("race-done-5", "Seasoned racer", "Flag", doneRaces, 5, "", "Complete 5 races"),
+    milestone("race-wishlist", "Star", wishlisted, 1, null),
+    milestone("race-done-1", "Flag", doneRaces, 1, null),
+    milestone("race-done-5", "Flag", doneRaces, 5, null),
 
     // ── Exploration ─────────────────────────────────────────────────────────
-    { id: "gps-first", label: "On the map", Icon: "MapPin", unlocked: hasGps,
-      progress: hasGps ? 1 : 0, desc: "Track a run with GPS",
-      hint: hasGps ? null : "Track a run with GPS" },
-    milestone("elev-1000", "Climber", "Mountain", totalElev, 1000, " m", "Climb 1000 m all-time"),
-    milestone("elev-5000", "Mountain goat", "Mountain", totalElev, 5000, " m", "Climb 5000 m all-time"),
+    { id: "gps-first", label: t("badges.gps-first.label"), Icon: "MapPin", unlocked: hasGps,
+      progress: hasGps ? 1 : 0, desc: t("badges.gps-first.desc"),
+      hint: hasGps ? null : t("badges.gps-first.desc") },
+    milestone("elev-1000", "Mountain", totalElev, 1000, "m"),
+    milestone("elev-5000", "Mountain", totalElev, 5000, "m"),
   ];
 }
 

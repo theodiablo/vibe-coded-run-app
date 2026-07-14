@@ -9,7 +9,7 @@ import { GoalConfigurator } from "../components/GoalConfigurator";
 import { HRTarget } from "../components/HRTarget";
 import { PlanInfo } from "../components/PlanInfo";
 import { StylePicker } from "../components/StylePicker";
-import { STYLE_META, isStyleId, recommendStyle, stylePacing, suggestPlanSessions, type StyleId } from "../utils/planStyles";
+import { styleMeta, isStyleId, recommendStyle, stylePacing, suggestPlanSessions, type StyleId } from "../utils/planStyles";
 import type { Plan, PlanPrefill, PlanSession, RacesState, Run, RunType, SettingsState } from "../types";
 import type { PlanSessionInput } from "../utils/plan";
 
@@ -296,7 +296,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           <span>{"Race: " + fmt.sht(String(plan.raceDate || ""))}</span>
         </div>
         <div className="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
-          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">{STYLE_META[planStyle].label}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300">{styleMeta(planStyle).label}</span>
           <PlanInfo/>
         </div>
       </div>

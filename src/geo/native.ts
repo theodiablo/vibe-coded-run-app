@@ -1,5 +1,6 @@
 import { registerPlugin } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
+import { t } from "../i18n";
 
 type BgLocation = {
   latitude: number;
@@ -159,8 +160,8 @@ export const nativeSource = {
               requestPermissions: true,
               stale: false,
               distanceFilter: 5,
-              backgroundTitle: "Recording run",
-              backgroundMessage: "Tap to return to Running Coach",
+              backgroundTitle: t("tracker.notif.title"),
+              backgroundMessage: t("tracker.notif.body"),
             },
             (location, error) => {
               if (error) { onErr?.(adaptBgError(error)); return; }

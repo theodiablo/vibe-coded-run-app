@@ -1,1 +1,6 @@
-{}
+{
+  "notif": {
+    "title": "Grabando carrera",
+    "body": "Toca para volver a Running Coach"
+  }
+}
