@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Download } from "lucide-react";
 import { ymd } from "../utils/format";
 
@@ -13,6 +14,7 @@ type BackupData = {
 type BackupModalProps = { data: BackupData; onClose: () => void };
 
 export function BackupModal({data, onClose}: BackupModalProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const json  = JSON.stringify(data, null, 2);
@@ -41,24 +43,24 @@ export function BackupModal({data, onClose}: BackupModalProps) {
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
           <div>
-            <p className="font-semibold text-sm">Backup Data</p>
-            <p className="text-xs text-slate-400">{(data.runs ? data.runs.length : 0) + " run(s) · " + (data.plan ? "plan saved" : "no plan") + (data.userContext?.notes ? " · coach memory" : "") + (data.routes?.length ? " · " + data.routes.length + " route(s)" : "")}</p>
+            <p className="font-semibold text-sm">{t("settings.backup.modalTitle")}</p>
+            <p className="text-xs text-slate-400">{t("settings.backup.runsCount", { n: data.runs ? data.runs.length : 0 }) + " · " + (data.plan ? t("settings.backup.planSaved") : t("settings.backup.noPlan")) + (data.userContext?.notes ? " · " + t("settings.backup.coachMemory") : "") + (data.routes?.length ? " · " + t("settings.backup.routesCount", { n: data.routes.length }) : "")}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+          <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
         </div>
         <div className="p-4 space-y-3">
-          <p className="text-xs text-slate-400">Copy or download — save it to Notes, email, etc. Use Restore to reload it after any update.</p>
+          <p className="text-xs text-slate-400">{t("settings.backup.hint")}</p>
           <textarea ref={taRef} readOnly value={json} rows={6}
             className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 font-mono resize-none focus:outline-none"
             onFocus={e => e.target.select()}/>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={tryDownload}
               className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
-              <Download size={15}/>Download
+              <Download size={15}/>{t("settings.backup.download")}
             </button>
             <button onClick={copyJSON}
               className={"py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-white " + (copied ? "bg-emerald-500" : "bg-orange-500 hover:bg-orange-600")}>
-              {copied ? "Copied!" : "Copy JSON"}
+              {copied ? t("settings.backup.copied") : t("settings.backup.copyJson")}
             </button>
           </div>
         </div>
