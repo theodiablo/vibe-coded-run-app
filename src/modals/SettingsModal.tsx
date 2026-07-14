@@ -61,7 +61,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
         <span className="text-sm font-semibold">Settings</span>
-        <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+        <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
       </header>
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-lg mx-auto p-4 space-y-5">
