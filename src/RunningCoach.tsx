@@ -549,7 +549,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const handleRestore = (d: { runs?: Run[]; plan?: Plan | null; settings?: Partial<SettingsState>; races?: RacesState; userContext?: UserContextState; routes?: RouteBackup[] }) => {
     if (d.runs)     { setRuns(d.runs);         db.set(STORAGE_KEYS.RUNS, d.runs); }
     if (d.plan)     { setPlan(d.plan);          db.set(STORAGE_KEYS.PLAN, d.plan); }
-    if (d.settings) { const nextSettings = { ...settings, ...d.settings }; setSettings(nextSettings);  db.set(STORAGE_KEYS.SETTINGS, nextSettings); }
+    if (d.settings) { const nextSettings = { ...settings, ...d.settings }; setSettings(nextSettings);  db.set(STORAGE_KEYS.SETTINGS, nextSettings);
+      // Apply a restored language immediately (like the boot-load path), so the
+      // UI switches to the backup's preference instead of staying on the old one.
+      if (isLangId(nextSettings.language)) void setLocale(nextSettings.language); }
     if (d.races)    { setRaces(d.races);         db.set(STORAGE_KEYS.RACES, d.races); }
     if (d.userContext) saveUserContext(d.userContext);
     if (d.routes)   { restoreRoutes(d.routes as Parameters<typeof restoreRoutes>[0]); }

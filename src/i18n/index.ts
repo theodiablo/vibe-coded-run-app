@@ -45,14 +45,23 @@ export function initI18n(initial: LangId): void {
 
 export async function setLocale(lang: LangId, opts: { persist?: boolean } = {}): Promise<void> {
   if (!isLangId(lang)) return;
-  if (!i18n.hasResourceBundle(lang, "translation")) {
-    const mod = await loaders[lang]();
-    i18n.addResourceBundle(lang, "translation", mod.default);
-  }
-  await i18n.changeLanguage(lang);
-  document.documentElement.lang = lang;
-  if (opts.persist !== false) {
-    try { localStorage.setItem(RC_LANG_KEY, lang); } catch { /* private mode */ }
+  try {
+    // The es/fr resource bundle is a dynamic import(): a stale chunk after a
+    // redeploy, or an offline load, rejects here. Catch it so we neither leave
+    // an unhandled rejection (callers use `void setLocale(...)`) nor wedge the
+    // UI — on failure we simply stay on the current language and DON'T persist
+    // rc_lang, so a later boot retries the load.
+    if (!i18n.hasResourceBundle(lang, "translation")) {
+      const mod = await loaders[lang]();
+      i18n.addResourceBundle(lang, "translation", mod.default);
+    }
+    await i18n.changeLanguage(lang);
+    document.documentElement.lang = lang;
+    if (opts.persist !== false) {
+      try { localStorage.setItem(RC_LANG_KEY, lang); } catch { /* private mode */ }
+    }
+  } catch (err) {
+    if (typeof console !== "undefined") console.warn("setLocale failed to load", lang, err);
   }
 }
 
