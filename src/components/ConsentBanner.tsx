@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Shield } from "lucide-react";
 import { PRIVACY_URL } from "../constants";
 import {
@@ -20,6 +21,7 @@ import {
 type ConsentBannerProps = { onConsentChange?: (granted: boolean) => void };
 
 export function ConsentBanner({ onConsentChange }: ConsentBannerProps) {
+  const { t } = useTranslation();
   const [show, setShow] = useState(
     () => isTelemetryConfigured() && getConsentDecision() === "unset"
   );
@@ -37,20 +39,18 @@ export function ConsentBanner({ onConsentChange }: ConsentBannerProps) {
         <div className="flex items-center gap-2">
           <Shield size={15} className="text-orange-400 shrink-0" />
           <p className="text-sm font-semibold text-slate-200">
-            Help improve the app?
+            {t("app.consent.title")}
           </p>
         </div>
         <p className="text-xs text-slate-400">
-          We&apos;d like to collect limited usage analytics and crash reports to
-          fix bugs and see what&apos;s used. No run data, routes, notes, or heart
-          rate, or coach messages are ever sent. You can change this any time in Settings → Privacy.{" "}
+          {t("app.consent.body")}{" "}
           <a
             href={PRIVACY_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-orange-400 hover:text-orange-300 underline"
           >
-            Privacy policy
+            {t("app.consent.privacyPolicy")}
           </a>
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -58,13 +58,13 @@ export function ConsentBanner({ onConsentChange }: ConsentBannerProps) {
             onClick={() => choose(false)}
             className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
           >
-            Decline
+            {t("app.consent.decline")}
           </button>
           <button
             onClick={() => choose(true)}
             className="py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors"
           >
-            Accept
+            {t("app.consent.accept")}
           </button>
         </div>
       </div>
