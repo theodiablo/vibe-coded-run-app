@@ -275,7 +275,8 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                 </button>
                 <button onClick={() => setConfirmRegen(true)}
                   className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-                  title={t("plan.setup.regenerate")}>
+                  aria-label={t("plan.setup.regenerate")} title={t("plan.setup.regenerate")}>
+
                   <RotateCcw size={16}/>
                 </button>
               </>
@@ -464,11 +465,14 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                             <button
                               onClick={() => skipSess(wk.weekNumber, s.id)}
                               className={"flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors " + (isSkipped ? "bg-slate-600/40 text-slate-300 hover:bg-slate-600/60" : "bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200")}
+                              aria-label={isSkipped ? "Undo skip" : "Skip this session"}
                               title={isSkipped ? "Undo skip" : "Skip this session"}>
                               {isSkipped ? "Undo" : <X size={13}/>}
                             </button>
                           )}
                           <button onClick={() => toggleSess(wk.weekNumber, s.id)} className={checkCls}
+                            aria-label={s.done ? "Mark session not done" : "Mark session done"}
+                            aria-pressed={s.done}
                             title={s.done ? "Mark not done" : "Mark done"}>
                             {s.done && <Check size={11}/>}
                           </button>

@@ -643,6 +643,11 @@ and delete anything that becomes stale.
   than re-rolling the markup, so the two lists never drift.
 - Show a whole-minute duration with `fmt.mins` (`30min` / `1h` / `1h50`), never a
   bare `minutes / 60` — that prints `1.8333333333333335h`.
+- **Icon-only / glyph-only controls need an `aria-label`** — a `title` alone is
+  the weakest accessible-name fallback and isn't reliably announced. Any
+  `<button>` whose visible content is just a lucide icon (or a literal `x`) must
+  carry an `aria-label` (add `aria-pressed` for toggle controls). Buttons with
+  adjacent visible text already have their name from the text — don't double-label.
 - Number inputs: keep an emptied field empty while editing. Don't write
   `parseFloat(e.target.value) || 0` — the `|| fallback` snaps the value back to
   a default as soon as the user clears it. Coalesce to a number only at use time

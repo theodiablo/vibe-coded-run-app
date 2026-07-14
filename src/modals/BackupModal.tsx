@@ -44,7 +44,7 @@ export function BackupModal({data, onClose}: BackupModalProps) {
             <p className="font-semibold text-sm">Backup Data</p>
             <p className="text-xs text-slate-400">{(data.runs ? data.runs.length : 0) + " run(s) · " + (data.plan ? "plan saved" : "no plan") + (data.userContext?.notes ? " · coach memory" : "") + (data.routes?.length ? " · " + data.routes.length + " route(s)" : "")}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
         </div>
         <div className="p-4 space-y-3">
           <p className="text-xs text-slate-400">Copy or download — save it to Notes, email, etc. Use Restore to reload it after any update.</p>

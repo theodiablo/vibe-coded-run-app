@@ -16,17 +16,7 @@ describe("onboardingSteps", () => {
     expect(steps(null)).toEqual(steps("race"));
     expect(steps(undefined)).toEqual(steps("race"));
   });
-  it("shares an identical [welcome, intent] prefix across branches", () => {
-    const race = onboardingSteps("race");
-    const fit = onboardingSteps("fitness");
-    expect(race.slice(0, 2)).toEqual(["welcome", "intent"]);
-    expect(fit.slice(0, 2)).toEqual(race.slice(0, 2));
-  });
-  it("ends every branch with the health gate before the summary", () => {
-    for (const intent of ["race", "fitness", null]) {
-      const seq = steps(intent as "race" | "fitness" | null);
-      expect(seq[seq.length - 1]).toBe("summary");
-      expect(seq[seq.length - 2]).toBe("health");
-    }
-  });
+  // The [welcome, intent] shared prefix and the trailing health→summary gate are
+  // both fully pinned by the two exact-sequence assertions above, so no separate
+  // invariant tests for them.
 });
