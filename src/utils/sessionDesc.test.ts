@@ -3,6 +3,8 @@ import { buildPlan } from "./plan";
 import { STYLE_IDS } from "./planStyles";
 import { renderSd } from "./sessionDesc";
 import { cleanDesc } from "./format";
+// @ts-expect-error Shared edge-function ESM has no TypeScript declarations yet.
+import { applyToolCall } from "../../supabase/functions/_shared/coach/tools.mjs";
 import type { PlanSessionInput } from "./plan";
 
 // The English-equivalence guarantee: for every session buildPlan stamps with a
@@ -70,4 +72,44 @@ describe("renderSd reproduces the English desc for every generated sd", () => {
     // Guard against a vacuous pass if sd stops being emitted.
     expect(checked).toBeGreaterThan(0);
   });
+});
+
+// The same guarantee for COACH-authored sessions: swap/add/convert/recovery-week
+// stamp `sd` via sdFor, which must render to the tool's English `desc`
+// byte-for-byte — otherwise a coach edit shows a stale/mismatched sentence
+// (the app renders `sd` in preference to `desc`). Drives the real tool path.
+describe("renderSd reproduces the English desc for coach-authored sd", () => {
+  const firstEditable = (plan: ReturnType<typeof buildPlan>) => {
+    for (const w of plan.weeks) for (const s of w.sessions)
+      if (s.type !== "RACE" && !s.done) return { id: s.id, week: w.weekNumber, date: s.date };
+    throw new Error("no editable session");
+  };
+
+  for (const style of STYLE_IDS) {
+    it(`${style}: swap/add/convert/recovery sd renders to its desc`, () => {
+      const base = buildPlan("2026-11-29", 6340, [
+        { dayOffset: 1, minutes: 40 }, { dayOffset: 3, minutes: 45 }, { dayOffset: 6, minutes: 90 },
+      ], 21.1, 100, { style });
+      const check = (plan: ReturnType<typeof buildPlan>) => {
+        let n = 0;
+        for (const w of plan.weeks) for (const s of w.sessions) {
+          if (!s.sd) continue;
+          n++;
+          expect(renderSd(s.sd, s), `${style} ${s.type} ${JSON.stringify(s.sd)}`).toBe(cleanDesc(s.desc));
+        }
+        return n;
+      };
+      // swap to each allowed type
+      for (const nt of ["EASY", "TEMPO", "INTERVALS", "LONG", "WALK"]) {
+        const ed = firstEditable(base);
+        check(applyToolCall(base, "swap_session", { session_id: ed.id, new_type: nt }));
+      }
+      // convert to cross-training + recovery week
+      check(applyToolCall(base, "convert_to_cross_training", { session_id: firstEditable(base).id }));
+      check(applyToolCall(base, "insert_recovery_week", { week_number: firstEditable(base).week }));
+      // add a session (mid-plan date, safely before taper)
+      const added = applyToolCall(base, "add_session", { date: "2026-09-16", type: "EASY", km: 5 });
+      expect(check(added)).toBeGreaterThan(0);
+    });
+  }
 });

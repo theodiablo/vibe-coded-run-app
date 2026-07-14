@@ -38,7 +38,8 @@
   "long": {
     "easy": "Tirada larga — esfuerzo suave a {{pace}}/km",
     "steady": "Tirada larga — esfuerzo sostenido a {{pace}}/km",
-    "steadyModerate": "Tirada larga — esfuerzo sostenido y moderado a {{pace}}/km"
+    "steadyModerate": "Tirada larga — esfuerzo sostenido y moderado a {{pace}}/km",
+    "coachEasyNoPace": "Tirada larga — esfuerzo suave"
   },
   "easy": {
     "relaxed": "Carrera suave — esfuerzo aeróbico relajado",
@@ -50,12 +51,16 @@
     "oneHard": "Tempo — {{pace}}/km, tu única sesión dura de la semana",
     "strong": "Tempo — {{pace}}/km, fuerte y controlado",
     "goalPace": "Tempo — a ritmo objetivo de carrera {{pace}}/km, sostenido",
-    "goalPaceShort": "Tempo — corto, a ritmo objetivo de carrera {{pace}}/km"
+    "goalPaceShort": "Tempo — corto, a ritmo objetivo de carrera {{pace}}/km",
+    "coachComfortNoPace": "Tempo — cómodamente exigente",
+    "coachGoalNoPace": "Tempo — a ritmo objetivo de carrera, sostenido"
   },
   "intervals": {
     "standard": "Series — {{reps}}x{{dist}} a {{pace}}/km {{recovery}}",
     "speed": "Velocidad — {{reps}}x{{dist}} a {{pace}}/km {{recovery}}",
-    "strength": "Fuerza — {{reps}}x{{dist}} a ritmo objetivo menos {{offset}}s ({{pace}}/km) + 1km de trote de recuperación"
+    "strength": "Fuerza — {{reps}}x{{dist}} a ritmo objetivo menos {{offset}}s ({{pace}}/km) + 1km de trote de recuperación",
+    "coachGeneric": "Series — repeticiones a {{pace}}/km con recuperación completa",
+    "coachGenericNoPace": "Series — repeticiones con recuperación completa"
   },
   "rec": {
     "90s": "+ 90s de recuperación",
@@ -67,7 +72,9 @@
   "runwalk": {
     "long": "Tirada larga con caminata — corre {{runMin}} min / camina {{walkMin}} min, conversacional",
     "short": "Correr/caminar — corre {{runMin}} min / camina {{walkMin}} min, conversacional",
-    "shortTaper": "Correr/caminar — corre {{runMin}} min / camina {{walkMin}} min, corto y relajado"
+    "shortTaper": "Correr/caminar — corre {{runMin}} min / camina {{walkMin}} min, corto y relajado",
+    "coachLong": "Tirada larga con caminata — intervalos suaves de correr/caminar, conversacional",
+    "coachShort": "Correr/caminar — intervalos suaves, conversacional"
   },
   "cross": "Entrenamiento cruzado opcional — {{mins}} de bici, natación o elíptica suave (sáltalo si estás cansado)",
   "race": "Carrera — {{km}}km{{elev}}",
@@ -139,5 +146,7 @@
       "runNoPace": "Totalmente conversacional; las pausas para caminar están bien.",
       "finish": "Unos minutos de caminata y luego estiramientos suaves."
     }
-  }
+  },
+  "crosswalk": "Entrenamiento cruzado / caminata enérgica — sin impacto, esfuerzo suave",
+  "recovery": "Carrera de recuperación — esfuerzo muy suave, pausas para caminar bienvenidas"
 }

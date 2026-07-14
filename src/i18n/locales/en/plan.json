@@ -38,7 +38,8 @@
   "long": {
     "easy": "Long run — easy effort at {{pace}}/km",
     "steady": "Long run — steady effort at {{pace}}/km",
-    "steadyModerate": "Long run — steady, moderate effort at {{pace}}/km"
+    "steadyModerate": "Long run — steady, moderate effort at {{pace}}/km",
+    "coachEasyNoPace": "Long run — easy effort"
   },
   "easy": {
     "relaxed": "Easy run — relaxed aerobic effort",
@@ -50,12 +51,16 @@
     "oneHard": "Tempo run — {{pace}}/km, your one hard session this week",
     "strong": "Tempo run — {{pace}}/km, strong and controlled",
     "goalPace": "Tempo — at goal race pace {{pace}}/km, steady",
-    "goalPaceShort": "Tempo — short, at goal race pace {{pace}}/km"
+    "goalPaceShort": "Tempo — short, at goal race pace {{pace}}/km",
+    "coachComfortNoPace": "Tempo run — comfortably hard",
+    "coachGoalNoPace": "Tempo — at goal race pace, steady"
   },
   "intervals": {
     "standard": "Intervals — {{reps}}x{{dist}} at {{pace}}/km {{recovery}}",
     "speed": "Speed — {{reps}}x{{dist}} at {{pace}}/km {{recovery}}",
-    "strength": "Strength — {{reps}}x{{dist}} at goal pace minus {{offset}}s ({{pace}}/km) + 1km jog recovery"
+    "strength": "Strength — {{reps}}x{{dist}} at goal pace minus {{offset}}s ({{pace}}/km) + 1km jog recovery",
+    "coachGeneric": "Intervals — repeats at {{pace}}/km with full recovery",
+    "coachGenericNoPace": "Intervals — repeats with full recovery"
   },
   "rec": {
     "90s": "+ 90s recovery",
@@ -67,7 +72,9 @@
   "runwalk": {
     "long": "Long run/walk — run {{runMin}} min / walk {{walkMin}} min, conversational",
     "short": "Run/walk — run {{runMin}} min / walk {{walkMin}} min, conversational",
-    "shortTaper": "Run/walk — run {{runMin}} min / walk {{walkMin}} min, short and relaxed"
+    "shortTaper": "Run/walk — run {{runMin}} min / walk {{walkMin}} min, short and relaxed",
+    "coachLong": "Long run/walk — gentle run/walk intervals, conversational",
+    "coachShort": "Run/walk — gentle intervals, conversational"
   },
   "cross": "Optional cross-training — {{mins}} easy bike, swim or elliptical (skip if tired)",
   "race": "Race — {{km}}km{{elev}}",
@@ -139,5 +146,7 @@
       "runNoPace": "Fully conversational; walking breaks are fine.",
       "finish": "A few minutes of walking, then light stretching."
     }
-  }
+  },
+  "crosswalk": "Cross-training / brisk walk — no impact, easy effort",
+  "recovery": "Recovery run — very easy effort, walk breaks welcome"
 }

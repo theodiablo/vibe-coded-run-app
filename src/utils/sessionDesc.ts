@@ -33,6 +33,8 @@ export function renderSd(
     }
     case "intervals": {
       const v = sd.variant;
+      // Coach-authored generic intervals carry no reps/rep-distance.
+      if (v === "coachGeneric" || v === "coachGenericNoPace") return t(`plan.intervals.${v}`, { pace });
       if (v !== "standard" && v !== "speed" && v !== "strength") return null;
       const dist = repDist(sd.repM);
       if (v === "strength")
@@ -46,6 +48,11 @@ export function renderSd(
     }
     case "cross":
       return t("plan.cross", { mins: fmt.mins(sd.minutes) });
+    // Coach-authored kinds: a converted no-impact walk and a recovery-week run.
+    case "crosswalk":
+      return t("plan.crosswalk");
+    case "recovery":
+      return t("plan.recovery");
     case "race": {
       const elev = sd.elevM ? t("plan.raceElev", { elevM: sd.elevM }) : "";
       return t("plan.race", { km: sd.km, elev });

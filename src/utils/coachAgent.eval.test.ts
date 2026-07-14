@@ -237,9 +237,11 @@ const cases = [
     },
   },
   {
-    name: "add_session is blocked when French pain context is present",
+    name: "add_session is blocked when French pain context is present (accented)",
     async check() {
-      const context = makeContext("j'ai mal au genou, puis-je m'entraîner un jour de plus ?");
+      // Accented pain/illness words must be caught — earlier the ASCII \b
+      // boundaries broke on "fièvre"/"malgré" and let this slip past.
+      const context = makeContext("j'ai de la fièvre et je cours malgré la douleur, puis-je m'entraîner un jour de plus ?");
       const anchor = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done)!;
       const d = new Date(anchor.date + "T00:00:00");
       d.setDate(d.getDate() + 1);

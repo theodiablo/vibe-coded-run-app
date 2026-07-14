@@ -48,7 +48,9 @@ export type HrPending = { start: string | number; end: string | number; source: 
 // renders per-locale via renderSd (src/utils/sessionDesc.ts). Pace is
 // deliberately NOT here: sentences read it from session.pace at render time so
 // a coach pace edit or a locale switch can never desync sentence and field.
-// Mirrored as JSDoc in supabase/functions/_shared/coach/tools.mjs (sdFor).
+// buildPlan (src/utils/plan.ts) and the coach's sdFor (supabase/functions/
+// _shared/coach/tools.mjs) both stamp this; sessionDesc.test.ts proves both
+// render to the canonical English `desc` byte-for-byte.
 export type SessionSd = {
   kind: "long" | "easy" | "recovery" | "tempo" | "intervals" | "runwalk" | "cross" | "crosswalk" | "race" | "raceday";
   variant?: string;      // sentence flavor within a kind (1:1 with the English templates)

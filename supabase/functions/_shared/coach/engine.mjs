@@ -82,21 +82,27 @@ const riskText = (context, history, message) => [
 ].filter(Boolean).join("\n").toLowerCase();
 const latestUserText = (context, message) => String(message ?? context.report ?? "").toLowerCase();
 // Safety keyword detection runs on the runner's own words, which may be
-// English, Spanish or French (settings.language). The BLOCK-side detectors
-// (pain/illness, missed week, train-through-pain) are extended with es/fr
-// terms so guardToolForContext fires in every language. hasResolvedRisk is
-// deliberately kept English-only: failing to detect a resolution keeps the
-// guard cautious (blocked), which is the safe direction — an over-eager es/fr
-// "resolved" match without matching negation handling could unblock add_session
-// wrongly. The model is still told (SYSTEM_PROMPT) to ask if pain has cleared.
-const hasPainOrIllness = (s) => /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b|\b(a|my|have|had|with|caught|getting|from) cold\b|\b(dolor|duele|duelen|lesi[oó]n|lesionad\w*|molestias?|enferm\w*|fiebre|gripe|resfriad\w*|agotad\w*|fatigad\w*|rodilla|tobillo|gemelo|pantorrilla|isquio\w*|tend[oó]n|cadera|espinilla)\b|\b(douleur|blessur\w*|bless[ée]s?|malade|fi[èe]vre|grippe|rhume|[ée]puis[ée]s?|fatigu[ée]s?|genou|cheville|mollet|ischio\w*|hanche|tibia)\b|\bmal\s+(au|aux|[àa] la)\b/i.test(s);
-function hasResolvedRisk(s) {
+// English, Spanish or French (settings.language). CRITICAL: input is
+// accent-normalized first (`norm`) — ASCII `\b` word boundaries and the
+// alternations below don't match accented characters, so without this
+// "Je cours malgré la douleur" (the exact train-through-pain phrase the guard
+// exists to catch) slipped past. Verb stems (cour\w*, entren\w*, ...) cover
+// conjugations. The BLOCK-side detectors (pain/illness, missed week,
+// train-through-pain) fire in every language. hasResolvedRisk is deliberately
+// English-only: failing to detect a resolution keeps the guard cautious
+// (blocked) — the safe direction; an over-eager es/fr "resolved" match without
+// matching negation handling could unblock add_session wrongly. The model is
+// still told (SYSTEM_PROMPT) to ask if pain has cleared.
+const norm = (raw) => String(raw ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const hasPainOrIllness = (raw) => { const s = norm(raw); return /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b|\b(a|my|have|had|with|caught|getting|from) cold\b|\b(dolor|duele|duelen|lesion|lesionad\w*|molestias?|enferm\w*|fiebre|gripe|resfriad\w*|agotad\w*|fatigad\w*|rodilla|tobillo|gemelo|pantorrilla|isquio\w*|tendon|cadera|espinilla)\b|\b(douleur|blessur\w*|blesse\w*|malade|fievre|grippe|rhume|epuis\w*|fatigu\w*|genou|cheville|mollet|ischio\w*|hanche|tibia)\b|\bmal\s+(au|aux|a la|a l)\b/i.test(s); };
+function hasResolvedRisk(raw) {
+  const s = norm(raw);
   const positive = /\b(no|without|zero)\b[^.\n]{0,30}\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(gone|passed|resolved|cleared|better|fine)\b|\b(recovered|back to normal|feel normal|feeling normal)\b/i.test(s);
   if (!positive) return false;
   return !/\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent|don't|dont|doesn't|doesnt)\b[^.\n]{0,40}\b(gone|passed|resolved|cleared|better|fine|recovered|back to normal|feel normal|feeling normal)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent)\b[^.\n]{0,20}\b(gone|passed|resolved|cleared|better|fine)\b/i.test(s);
 }
-const hasMissedWeek = (s) => /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b|\b(perd\w*|salt[ée]\w*|falt[ée]\w*|rat[ée]\w*|manqu[ée]\w*|saut[ée]\w*)\b[^.\n]{0,40}\b(semana|semaine)\b|\b(semana|semaine)\b[^.\n]{0,40}\b(perd\w*|salt\w*|falt\w*|rat\w*|manqu\w*|saut\w*)\b/i.test(s);
-const hasUnsafePainPreference = (s) => /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(entrenar|correr|seguir|forzar|aguantar)\b[^.\n]{0,30}\b(dolor|lesi[oó]n)\b|\b(ignorar|ignoro)\b[^.\n]{0,20}\b(dolor|lesi[oó]n)\b|\b(courir|entra[îi]ner|forcer|continuer)\b[^.\n]{0,30}\b(malgr[ée]|avec)\b[^.\n]{0,20}\b(douleur|blessure)\b|\b(ignorer|ignore)\b[^.\n]{0,20}\b(douleur|blessure)\b/i.test(s);
+const hasMissedWeek = (raw) => { const s = norm(raw); return /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b|\b(perd\w*|salt\w*|falt\w*|rat\w*|manqu\w*|saut\w*)\b[^.\n]{0,40}\b(semana|semaine)\b|\b(semana|semaine)\b[^.\n]{0,40}\b(perd\w*|salt\w*|falt\w*|rat\w*|manqu\w*|saut\w*)\b/i.test(s); };
+const hasUnsafePainPreference = (raw) => { const s = norm(raw); return /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(entren\w*|corr\w*|forz\w*|fuerz\w*|empuj\w*|sigu\w*|segu\w*)\b[^.\n]{0,20}\b(con|a pesar|pese|aunque)\b[^.\n]{0,15}\b(dolor|lesion|molestia\w*)\b|\baguant\w*\b[^.\n]{0,15}\b(dolor|lesion)\b|\bignor\w*\b[^.\n]{0,15}\b(dolor|lesion)\b|\b(cour\w*|entrain\w*|forc\w*|continu\w*|pouss\w*)\b[^.\n]{0,25}\b(malgre|avec|a travers)\b[^.\n]{0,15}\b(douleur|blessur\w*|mal)\b|\bignor\w*\b[^.\n]{0,15}\b(douleur|blessure)\b/i.test(s); };
 
 function guardToolForContext(name, input, context, history, message) {
   const current = riskText(context, history, message);
