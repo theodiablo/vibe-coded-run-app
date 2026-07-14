@@ -1,0 +1,58 @@
+{
+  "brand": "Running Coach",
+  "heroLine1": "Préparez votre course,",
+  "heroLine2": "une semaine honnête à la fois.",
+  "nav": { "features": "Fonctionnalités", "races": "Courses", "login": "Se connecter", "getStarted": "Commencer" },
+  "hero": {
+    "eyebrow": "Préparez la course, pas seulement la sortie",
+    "body": "Choisissez votre course, fixez votre temps cible et obtenez un plan d'entraînement semaine par semaine. Quand la vie s'en mêle, demandez à votre coach — il propose un ajustement sûr en quelques secondes, et rien ne change tant que vous ne l'avez pas approuvé.",
+    "ctaPrimary": "Commencer — c'est gratuit",
+    "ctaSecondary": "J'ai déjà un compte",
+    "freeNote": "La version gratuite inclut tout — plans, suivi GPS, courses et le coach (avec une limite d'usage raisonnable par jour pour qu'il reste gratuit).",
+    "androidBeta": "Aussi sur Android — rejoignez la bêta fermée"
+  },
+  "stats": {
+    "plans": { "value": "5 km → Marathon", "label": "des plans calés sur la date de votre course" },
+    "adapts": { "value": "S'adapte à vous", "label": "votre coach remanie le plan en quelques secondes" },
+    "devices": { "value": "Web + Android", "label": "votre plan sur tous vos appareils" }
+  },
+  "features": {
+    "heading": "Tout ce qui sépare aujourd'hui de la ligne de départ.",
+    "sub": "Pas un énième fil des courses des autres — un plan, un coach et les outils pour aller au bout.",
+    "coach": { "title": "Un coach IA qui adapte votre plan", "alt": "Chat du coach", "body": "Genou capricieux ? Une semaine manquée ? Demandez, et votre coach propose une modification sûre en quelques secondes — il ajuste le programme, ne vous en donne jamais un risqué, et rien ne change tant que vous ne l'approuvez pas." },
+    "plan": { "title": "Un vrai plan d'entraînement", "alt": "Plan d'entraînement", "body": "Base, développement, pic, affûtage — autour de la date de votre course, de votre temps cible et des jours où vous pouvez vraiment vous entraîner. Choisissez votre méthode : Polarisé 80/20, style Hansons, 3 jours de qualité ou Course/Marche. Pas de boîte noire — ouvrez n'importe quelle séance pour voir exactement comment elle est construite." },
+    "track": { "title": "Suivez chaque sortie", "body": "GPS en direct avec allure, distance et dénivelé sur une carte. Associez la fréquence cardiaque sur Android et chaque sortie est classée en zones d'entraînement — pour savoir si vous avez forcé." },
+    "races": { "title": "Trouvez votre course", "alt": "Catalogue de courses", "body": "Un catalogue de courses communautaire — du Marathon de Berlin aux 10 km locaux. Choisissez-en une, et votre compte à rebours et votre plan s'y verrouillent. Il grandit encore, alors si la vôtre n'y figure pas, ajoutez-la en quelques secondes — pour tout le monde." },
+    "progress": { "title": "Voyez tout s'additionner", "alt": "Badges de progression", "body": "Historique, statistiques et tendances au même endroit, avec des badges bienveillants au fil de vos semaines d'entraînement — de votre premier 5 km au club des 1000 km." }
+  },
+  "import": {
+    "title": "Emportez votre historique de courses avec vous",
+    "body": "Importez vos courses depuis Strava, Garmin, Zepp ou ailleurs — les fichiers GPX, TCX ou CSV fonctionnent tous. Sur Android, les courses terminées peuvent aussi se synchroniser directement depuis votre montre."
+  },
+  "cta": {
+    "heading": "Prêt à réaliser votre meilleure course ?",
+    "body": "Créez un compte gratuit et obtenez votre plan d'entraînement en quelques minutes — tout est inclus, avec une limite d'usage raisonnable par jour sur le coach. Application Android en bêta fermée.",
+    "primary": "Commencer — c'est gratuit",
+    "androidBeta": "Rejoindre la bêta Android"
+  },
+  "footer": { "privacy": "Politique de confidentialité", "safety": "Note de sécurité" },
+  "closeLogin": "Fermer la connexion",
+  "mock": {
+    "coach": "Coach",
+    "userMsg": "J'ai le genou douloureux depuis la sortie longue de dimanche.",
+    "reply1": "Relâchons la pression le temps que ça se calme — pas de travail de vitesse tant que ce n'est pas indolore. Voici ce que je changerais cette semaine :",
+    "proposedChanges": "Changements proposés",
+    "tue": "Mar",
+    "sat": "Sam",
+    "row1Old": "Fractionné 6×400m",
+    "row1New": "Repos",
+    "row2Old": "Tempo 40 min",
+    "row2New": "Facile 25 min",
+    "apply": "Appliquer les changements",
+    "notNow": "Pas maintenant",
+    "reply2": "Et si ça dure plus de quelques jours, faites-le examiner avant de reprendre.",
+    "inputPlaceholder": "Écrivez à votre coach…",
+    "tiles": { "km": "KM", "time": "TEMPS", "pace": "ALLURE", "bpm": "BPM · Z2" },
+    "live": "EN DIRECT"
+  }
+}
