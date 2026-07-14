@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ArrowDown, Check, ChevronRight, MessageCircle, Plus, RotateCcw, X } from "lucide-react";
 import { TCLR } from "../constants";
 import { dayName } from "../i18n";
-import { fmt, estMin, cleanDesc } from "../utils/format";
+import { fmt, estMin } from "../utils/format";
+import { describeSession } from "../utils/sessionDesc";
 import { sessionSteps } from "../utils/sessionSteps";
 import { findEdition } from "../utils/races";
 import { SessionConfigurator } from "../components/SessionConfigurator";
@@ -437,7 +438,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                               )}
                               <ChevronRight size={12} className={"text-slate-600 transition-transform " + (sessOpen ? "rotate-90" : "")}/>
                             </div>
-                            <p className={descCls}>{cleanDesc(s.desc)}</p>
+                            <p className={descCls}>{describeSession(s)}</p>
                             <p className="text-xs text-slate-400 mt-0.5">{s.km + " km · ~" + estMin(Number(s.km), s.pace) + " · " + fmt.pace(s.pace) + "/km"}</p>
                           </div>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>

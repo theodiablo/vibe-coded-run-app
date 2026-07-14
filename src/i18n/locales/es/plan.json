@@ -1,1 +1,107 @@
-{}
+{
+  "long": {
+    "easy": "Tirada larga — esfuerzo suave a {{pace}}/km",
+    "steady": "Tirada larga — esfuerzo sostenido a {{pace}}/km",
+    "steadyModerate": "Tirada larga — esfuerzo sostenido y moderado a {{pace}}/km"
+  },
+  "easy": {
+    "relaxed": "Carrera suave — esfuerzo aeróbico relajado",
+    "conversational": "Carrera suave — ritmo relajado y conversacional",
+    "aroundRace": "Carrera suave — mantenlo ligero alrededor de tu carrera"
+  },
+  "tempo": {
+    "comfortablyHard": "Tempo — {{pace}}/km, cómodamente exigente",
+    "oneHard": "Tempo — {{pace}}/km, tu única sesión dura de la semana",
+    "strong": "Tempo — {{pace}}/km, fuerte y controlado",
+    "goalPace": "Tempo — a ritmo objetivo de carrera {{pace}}/km, sostenido",
+    "goalPaceShort": "Tempo — corto, a ritmo objetivo de carrera {{pace}}/km"
+  },
+  "intervals": {
+    "standard": "Series — {{reps}}x{{dist}} a {{pace}}/km {{recovery}}",
+    "speed": "Velocidad — {{reps}}x{{dist}} a {{pace}}/km {{recovery}}",
+    "strength": "Fuerza — {{reps}}x{{dist}} a ritmo objetivo menos {{offset}}s ({{pace}}/km) + 1km de trote de recuperación"
+  },
+  "rec": {
+    "90s": "+ 90s de recuperación",
+    "90sJog": "+ 90s de trote de recuperación",
+    "jogs": "+ trotes de recuperación",
+    "1kmJog": "+ 1km de trote de recuperación",
+    "full": "+ recuperación completa"
+  },
+  "runwalk": {
+    "long": "Tirada larga con caminata — corre {{runMin}} min / camina {{walkMin}} min, conversacional",
+    "short": "Correr/caminar — corre {{runMin}} min / camina {{walkMin}} min, conversacional",
+    "shortTaper": "Correr/caminar — corre {{runMin}} min / camina {{walkMin}} min, corto y relajado"
+  },
+  "cross": "Entrenamiento cruzado opcional — {{mins}} de bici, natación o elíptica suave (sáltalo si estás cansado)",
+  "race": "Carrera — {{km}}km{{elev}}",
+  "raceElev": " · +{{elevM}}m",
+  "raceday": "Día de carrera — {{km}}km{{elev}}. ¡Todo por lo que has entrenado!",
+  "racedayElev": " · +{{elevM}}m de desnivel",
+  "steps": {
+    "labels": {
+      "warmup": "Calentamiento",
+      "workout": "Sesión",
+      "cooldown": "Vuelta a la calma",
+      "stretch": "Estiramientos",
+      "start": "Inicio",
+      "main": "Principal",
+      "fuel": "Nutrición",
+      "activity": "Actividad",
+      "before": "Antes",
+      "race": "Carrera",
+      "after": "Después",
+      "run": "Correr",
+      "finish": "Final"
+    },
+    "stretch": "5 min de estiramientos suaves — gemelos, cuádriceps, isquios, caderas.",
+    "recPhrase": {
+      "90s": "90s de recuperación",
+      "90sJog": "90s de trote de recuperación",
+      "jogs": "trotes de recuperación",
+      "1kmJog": "1km de trote de recuperación",
+      "default": "un trote suave"
+    },
+    "intervals": {
+      "warmup": "10–15 min de trote suave, terminando con unas rectas relajadas.",
+      "cooldown": "5–10 min de trote muy suave para bajar las pulsaciones.",
+      "workoutReps": "{{count}} × {{dist}} a {{pace}}, con {{recovery}} entre repeticiones.",
+      "workoutRepsNoPace": "{{count}} × {{dist}}, con {{recovery}} entre repeticiones.",
+      "workoutGeneric": "Repeticiones a {{pace}} con trotes suaves de recuperación entre ellas.",
+      "workoutGenericNoPace": "Repeticiones con trotes suaves de recuperación entre ellas."
+    },
+    "tempo": {
+      "warmup": "10–15 min de trote suave.",
+      "cooldown": "5–10 min de trote muy suave.",
+      "workoutKm": "~{{km}} km a {{pace}} — cómodamente exigente: controlado, pero sin poder mantener una charla.",
+      "workoutKmNoPace": "~{{km}} km — cómodamente exigente: controlado, pero sin poder mantener una charla.",
+      "workoutNoKm": "El bloque principal a {{pace}} — cómodamente exigente: controlado, pero sin poder mantener una charla.",
+      "workoutNoKmNoPace": "El bloque principal — cómodamente exigente: controlado, pero sin poder mantener una charla."
+    },
+    "long": {
+      "start": "Entra poco a poco — los primeros 10 min deberían sentirse casi demasiado lentos.",
+      "mainRatio": "Instálate en correr {{run}} min / caminar {{walk}} min durante toda la distancia, conversacional en todo momento.",
+      "mainPace": "Mantén un esfuerzo relajado y conversacional en torno a {{pace}} todo el camino.",
+      "mainNoPace": "Mantén un esfuerzo relajado y conversacional todo el camino.",
+      "fuel": "Bebe con regularidad y toma carbohidratos cada 30–40 min — practica tu nutrición del día de carrera."
+    },
+    "walk": {
+      "warmup": "5 min de caminata enérgica.",
+      "mainRatio": "Alterna correr {{run}} min / caminar {{walk}} min — mantén conversacional cada segmento de carrera.",
+      "cooldown": "5 min de caminata suave.",
+      "activity": "Caminata enérgica o entrenamiento cruzado de bajo impacto — esfuerzo suave, sin impacto."
+    },
+    "race": {
+      "before": "Llega con antelación. 10 min de trote suave y unas rectas, y luego mantente en calor.",
+      "raceTarget": "Empieza controlado — objetivo {{pace}}; los primeros kilómetros deberían sentirse fáciles.",
+      "raceNoTarget": "Empieza controlado; los primeros kilómetros deberían sentirse fáciles.",
+      "after": "Sigue caminando unos minutos, repón energías y celébralo."
+    },
+    "other": "Entrenamiento cruzado opcional — bici, natación o elíptica a un esfuerzo suave. Sáltalo si estás cansado.",
+    "easy": {
+      "runPace": "Totalmente conversacional — en torno a {{pace}}; las pausas para caminar están bien.",
+      "runNoPace": "Totalmente conversacional; las pausas para caminar están bien.",
+      "finish": "Unos minutos de caminata y luego estiramientos suaves."
+    }
+  }
+}

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, Award, Check, ChevronRight, MessageCircle, Plus, Route, X, Zap } from "lucide-react";
 import { TBG, TCLR } from "../constants";
-import { fmt, ymd, estMin, cleanDesc } from "../utils/format";
+import { fmt, ymd, estMin } from "../utils/format";
+import { describeSession } from "../utils/sessionDesc";
 import { computeBadges, nextBadge } from "../utils/badges";
 import { sessionSteps } from "../utils/sessionSteps";
 import { HRTarget } from "../components/HRTarget";
@@ -146,7 +147,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
                 </span>
                 <ChevronRight size={16} className="text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0 mt-0.5"/>
               </div>
-              <p className="text-white text-base font-medium mt-1 leading-snug">{cleanDesc(nextSess.desc)}</p>
+              <p className="text-white text-base font-medium mt-1 leading-snug">{describeSession(nextSess)}</p>
               <p className="text-slate-400 text-xs mt-2">
                 {fmt.sht(nextSess.date) + " · " + nextSess.km + " km · ~" + estMin(Number(nextSess.km), nextSess.pace) + " · " + fmt.pace(nextSess.pace) + "/km"}
               </p>
