@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LANGS, setLocale, currentLang } from "../i18n";
-import { X, Smartphone, ArrowRight, MessageCircle, Download } from "lucide-react";
+import { X, Smartphone, ArrowRight, MessageCircle, Download, Globe } from "lucide-react";
 // Self-hosted Archivo (the design's typeface). These live in this web-only lazy
 // chunk, so the font never ships in the native APK, and they're served from our
 // own origin — no Google Fonts request, so nothing to add to the CSP.
@@ -83,24 +83,6 @@ export default function MarketingGate() {
             <a href="#races" className="hidden md:inline text-[#8B98AC] hover:text-[#FDBA74] transition-colors">
               {t("nav.races")}
             </a>
-            {/* Language selector: setLocale persists rc_lang so the choice sticks
-                into LoginScreen and the next visit. */}
-            <div className="flex items-center gap-0.5" role="group" aria-label={t("nav.language")}>
-              {LANGS.map((l) => (
-                <button
-                  key={l.id}
-                  type="button"
-                  onClick={() => void setLocale(l.id)}
-                  aria-pressed={currentLang() === l.id}
-                  className={
-                    "px-1.5 py-1 rounded text-[13px] font-bold uppercase transition-colors " +
-                    (currentLang() === l.id ? "text-[#F97316]" : "text-[#8B98AC] hover:text-[#F1F5F9]")
-                  }
-                >
-                  {l.id}
-                </button>
-              ))}
-            </div>
             <button type="button" onClick={signin} className="text-[#8B98AC] hover:text-[#F1F5F9] transition-colors">
               {t("nav.login")}
             </button>
@@ -273,10 +255,29 @@ export default function MarketingGate() {
         </section>
 
         {/* Footer */}
-        <footer className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-10 text-[14px] text-[#8B98AC]">
+        <footer className="flex flex-col sm:flex-row items-center justify-between gap-5 pb-10 text-[14px] text-[#8B98AC]">
           <div className="flex items-center gap-2.5">
             <BrandLogo size={16} className="text-[#F97316]" />
             <span className="font-bold text-[#B7C2D2]">{t("brand")}</span>
+          </div>
+          {/* Language selector — setLocale persists rc_lang so the choice sticks
+              into LoginScreen and the next visit. */}
+          <div className="flex items-center gap-2.5" role="group" aria-label={t("nav.language")}>
+            <Globe size={15} className="text-[#8B98AC]" />
+            {LANGS.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => void setLocale(l.id)}
+                aria-pressed={currentLang() === l.id}
+                className={
+                  "font-semibold transition-colors " +
+                  (currentLang() === l.id ? "text-[#F97316]" : "hover:text-[#F1F5F9]")
+                }
+              >
+                {l.label}
+              </button>
+            ))}
           </div>
           <div className="flex gap-6">
             <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#FDBA74] transition-colors">
