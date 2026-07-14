@@ -142,16 +142,16 @@ async function handle(req: Request): Promise<any> {
     const trajectoryId = String(body.trajectoryId ?? "");
     const { data: traj } = await admin.from("agent_trajectories")
       .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
-    if (!traj) return { error: "trajectory not found" };
-    if (traj.status !== "open") return { error: `trajectory is ${traj.status}` };
+    if (!traj) return { error: "trajectory not found", code: "TRAJECTORY_NOT_FOUND" };
+    if (traj.status !== "open") return { error: `trajectory is ${traj.status}`, code: "TRAJECTORY_CLOSED" };
     const { data: round } = await admin.from("agent_rounds")
       .select("id, proposed_plan, input_context").eq("trajectory_id", trajectoryId)
       .eq("outcome", "proposed").order("round_index", { ascending: false })
       .limit(1).maybeSingle();
-    if (!round) return { error: "no open proposal to confirm" };
+    if (!round) return { error: "no open proposal to confirm", code: "NO_OPEN_PROPOSAL" };
     // Belt and braces: never commit a plan that no longer validates.
     const check = validatePlan(round.proposed_plan, { baseline: round.input_context?.plan });
-    if (!check.ok) return { error: "proposal failed validation", detail: formatValidation(check) };
+    if (!check.ok) return { error: "proposal failed validation", detail: formatValidation(check), code: "PROPOSAL_INVALID" };
     await admin.from("agent_rounds").update({ outcome: "accepted" }).eq("id", round.id);
     await admin.from("agent_trajectories")
       .update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", trajectoryId);
@@ -173,7 +173,7 @@ async function handle(req: Request): Promise<any> {
   const plan = blob.rc_plan;
   const settings = blob.rc_settings ?? {};
   const userContext = cleanUserContext(blob.rc_user_context);
-  if (!plan?.weeks?.length) return { error: "no training plan to adjust — build one first" };
+  if (!plan?.weeks?.length) return { error: "no training plan to adjust — build one first", code: "NO_PLAN" };
   const recentRuns = (blob.rc_runs ?? []).slice(0, 30).map((r: Record<string, unknown>) => ({
     date: r.date, type: r.type, km: r.km, durationSec: r.durationSec, hr: r.hr, effort: r.effort,
   }));
@@ -198,7 +198,7 @@ async function handle(req: Request): Promise<any> {
 
   if (action === "propose") {
     const rateLimitError = await checkRateLimit();
-    if (rateLimitError) return { error: rateLimitError };
+    if (rateLimitError) return { error: rateLimitError, code: "RATE_LIMIT" };
     // One live conversation at a time: anything still open is now abandoned
     // (feedback given but never accepted — a distinct fate in the metrics).
     await admin.from("agent_trajectories")
@@ -212,8 +212,8 @@ async function handle(req: Request): Promise<any> {
     trajectoryId = String(body.trajectoryId ?? "");
     const { data: traj } = await admin.from("agent_trajectories")
       .select("id, status").eq("id", trajectoryId).eq("user_id", user.id).maybeSingle();
-    if (!traj) return { error: "trajectory not found" };
-    if (traj.status !== "open") return { error: `trajectory is ${traj.status}` };
+    if (!traj) return { error: "trajectory not found", code: "TRAJECTORY_NOT_FOUND" };
+    if (traj.status !== "open") return { error: `trajectory is ${traj.status}`, code: "TRAJECTORY_CLOSED" };
     const { data: rounds, error } = await admin.from("agent_rounds")
       .select("round_index, user_feedback, rationale, tool_calls")
       .eq("trajectory_id", trajectoryId).order("round_index", { ascending: true });
@@ -234,7 +234,7 @@ async function handle(req: Request): Promise<any> {
     if (latestErr) throw latestErr;
     workingPlan = latestProposal?.proposed_plan ?? baselinePlan;
     const rateLimitError = await checkRateLimit();
-    if (rateLimitError) return { error: rateLimitError };
+    if (rateLimitError) return { error: rateLimitError, code: "RATE_LIMIT" };
   }
 
   // Single goal shape for every consumer (buildMessages' prompt text AND
@@ -252,6 +252,9 @@ async function handle(req: Request): Promise<any> {
     },
     userContext,
     targetPace: workingPlan.targetPace,
+    // Reply-language preference from the synced settings blob (validated to the
+    // supported set); the engine steers only the model's prose, not tool I/O.
+    replyLanguage: settings.language === "es" || settings.language === "fr" ? settings.language : "en",
   };
 
   const { model, callModel } = makeCallModel(context, message);
@@ -338,7 +341,7 @@ Deno.serve(async (req) => {
       handle(req)
         .catch((err) => {
           console.error("coach-agent error", err);
-          return { error: "coach unavailable — try again in a moment" };
+          return { error: "coach unavailable — try again in a moment", code: "COACH_UNAVAILABLE" };
         })
         .then((responseBody) => {
           clearInterval(keepAlive);

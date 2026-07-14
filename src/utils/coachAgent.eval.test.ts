@@ -5,7 +5,7 @@
 
 import { afterAll, describe, expect, it } from "vitest";
 // @ts-expect-error Shared edge-function ESM has no TypeScript declarations yet.
-import { generateProposal } from "../../supabase/functions/_shared/coach/engine.mjs";
+import { generateProposal, buildMessages } from "../../supabase/functions/_shared/coach/engine.mjs";
 import { validatePlan } from "./coachValidation";
 import { buildPlan } from "./plan";
 import { ymd } from "./format";
@@ -216,6 +216,49 @@ const cases = [
       expect(added).toHaveLength(1);
       expect(added[0]).toMatchObject({ date, type: "EASY", km: 5 });
       expect(validatePlan(result.plan, { baseline: context.plan }).ok).toBe(true);
+    },
+  },
+  {
+    name: "add_session is blocked when Spanish pain context is present",
+    async check() {
+      // Same add as the "free day" case, but the runner reports knee pain in
+      // Spanish — the es safety keywords must make guardToolForContext block it.
+      const context = makeContext("me duele la rodilla, ¿puedo entrenar un día extra?");
+      const anchor = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done)!;
+      const d = new Date(anchor.date + "T00:00:00");
+      d.setDate(d.getDate() + 1);
+      const result = await run(context, [
+        [{ name: "add_session", input: { date: ymd(d), type: "EASY", km: 5 } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      expect(result.changed).toBe(false);
+      expect(allSessions(result.plan!).some(s => s.id.startsWith("coach-add-"))).toBe(false);
+    },
+  },
+  {
+    name: "add_session is blocked when French pain context is present",
+    async check() {
+      const context = makeContext("j'ai mal au genou, puis-je m'entraîner un jour de plus ?");
+      const anchor = allSessions(context.plan).find(s => s.type !== "RACE" && !s.done)!;
+      const d = new Date(anchor.date + "T00:00:00");
+      d.setDate(d.getDate() + 1);
+      const result = await run(context, [
+        [{ name: "add_session", input: { date: ymd(d), type: "EASY", km: 5 } }],
+        [],
+      ]);
+      expect(result.status).toBe("proposed");
+      expect(result.changed).toBe(false);
+      expect(allSessions(result.plan!).some(s => s.id.startsWith("coach-add-"))).toBe(false);
+    },
+  },
+  {
+    name: "reply-language line is injected for es/fr and absent for en",
+    check() {
+      const base = { plan: buildPlan(weeksOut(18), 6600, SESSIONS, 21.1, 0, {}), recentRuns: [], today: ymd(new Date()), goal: {}, report: "hola" };
+      expect(buildMessages({ ...base, replyLanguage: "es" }, [], null)[0].content).toContain("Spanish");
+      expect(buildMessages({ ...base, replyLanguage: "fr" }, [], null)[0].content).toContain("French");
+      expect(buildMessages({ ...base, replyLanguage: "en" }, [], null)[0].content).not.toContain("REPLY LANGUAGE");
     },
   },
   {

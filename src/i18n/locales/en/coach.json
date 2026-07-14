@@ -23,7 +23,22 @@
     "confirmNoPlan": "Coach confirmation did not include a plan.",
     "revalidateFailed": "The proposal no longer validates — nothing was applied.",
     "noResponseToFlag": "No coach response to flag.",
-    "noConversation": "No coach conversation is open."
+    "noConversation": "No coach conversation is open.",
+    "server": {
+      "RATE_LIMIT": "You've reached today's coach limit — try again tomorrow.",
+      "NO_PLAN": "There's no training plan to adjust yet — build one first.",
+      "COACH_UNAVAILABLE": "The coach is unavailable right now — try again in a moment.",
+      "TRAJECTORY_NOT_FOUND": "This coach conversation is no longer available.",
+      "TRAJECTORY_CLOSED": "This coach conversation is already closed.",
+      "NO_OPEN_PROPOSAL": "There's no open proposal to apply.",
+      "PROPOSAL_INVALID": "The proposal no longer validates — nothing was applied."
+    },
+    "transport": {
+      "timeout": "The coach took too long to start up — try again in a moment.",
+      "offline": "Couldn't reach the coach — check your connection and try again.",
+      "reauth": "Your session expired — sign in again.",
+      "unavailable": "The coach is unavailable right now — try again in a moment."
+    }
   },
   "toast": {
     "planAdjusted": "Plan adjusted by your coach ✓",

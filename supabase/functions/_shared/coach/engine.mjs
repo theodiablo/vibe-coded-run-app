@@ -81,14 +81,22 @@ const riskText = (context, history, message) => [
   ...(history || []).map(r => r.user_feedback),
 ].filter(Boolean).join("\n").toLowerCase();
 const latestUserText = (context, message) => String(message ?? context.report ?? "").toLowerCase();
-const hasPainOrIllness = (s) => /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b|\b(a|my|have|had|with|caught|getting|from) cold\b/i.test(s);
+// Safety keyword detection runs on the runner's own words, which may be
+// English, Spanish or French (settings.language). The BLOCK-side detectors
+// (pain/illness, missed week, train-through-pain) are extended with es/fr
+// terms so guardToolForContext fires in every language. hasResolvedRisk is
+// deliberately kept English-only: failing to detect a resolution keeps the
+// guard cautious (blocked), which is the safe direction — an over-eager es/fr
+// "resolved" match without matching negation handling could unblock add_session
+// wrongly. The model is still told (SYSTEM_PROMPT) to ask if pain has cleared.
+const hasPainOrIllness = (s) => /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b|\b(a|my|have|had|with|caught|getting|from) cold\b|\b(dolor|duele|duelen|lesi[oó]n|lesionad\w*|molestias?|enferm\w*|fiebre|gripe|resfriad\w*|agotad\w*|fatigad\w*|rodilla|tobillo|gemelo|pantorrilla|isquio\w*|tend[oó]n|cadera|espinilla)\b|\b(douleur|blessur\w*|bless[ée]s?|malade|fi[èe]vre|grippe|rhume|[ée]puis[ée]s?|fatigu[ée]s?|genou|cheville|mollet|ischio\w*|hanche|tibia)\b|\bmal\s+(au|aux|[àa] la)\b/i.test(s);
 function hasResolvedRisk(s) {
   const positive = /\b(no|without|zero)\b[^.\n]{0,30}\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(gone|passed|resolved|cleared|better|fine)\b|\b(recovered|back to normal|feel normal|feeling normal)\b/i.test(s);
   if (!positive) return false;
   return !/\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent|don't|dont|doesn't|doesnt)\b[^.\n]{0,40}\b(gone|passed|resolved|cleared|better|fine|recovered|back to normal|feel normal|feeling normal)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent)\b[^.\n]{0,20}\b(gone|passed|resolved|cleared|better|fine)\b/i.test(s);
 }
-const hasMissedWeek = (s) => /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b/i.test(s);
-const hasUnsafePainPreference = (s) => /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)/i.test(s);
+const hasMissedWeek = (s) => /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b|\b(perd\w*|salt[ée]\w*|falt[ée]\w*|rat[ée]\w*|manqu[ée]\w*|saut[ée]\w*)\b[^.\n]{0,40}\b(semana|semaine)\b|\b(semana|semaine)\b[^.\n]{0,40}\b(perd\w*|salt\w*|falt\w*|rat\w*|manqu\w*|saut\w*)\b/i.test(s);
+const hasUnsafePainPreference = (s) => /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(entrenar|correr|seguir|forzar|aguantar)\b[^.\n]{0,30}\b(dolor|lesi[oó]n)\b|\b(ignorar|ignoro)\b[^.\n]{0,20}\b(dolor|lesi[oó]n)\b|\b(courir|entra[îi]ner|forcer|continuer)\b[^.\n]{0,30}\b(malgr[ée]|avec)\b[^.\n]{0,20}\b(douleur|blessure)\b|\b(ignorer|ignore)\b[^.\n]{0,20}\b(douleur|blessure)\b/i.test(s);
 
 function guardToolForContext(name, input, context, history, message) {
   const current = riskText(context, history, message);
@@ -105,6 +113,17 @@ function guardToolForContext(name, input, context, history, message) {
   }
 }
 
+// Steer the model's natural-language reply into the runner's UI language. Only
+// the prose is translated — tool inputs, session types and the plan JSON stay
+// English (the app renders localized session sentences from `sd`, not from the
+// model's text). Appended to the context block (not SYSTEM_PROMPT) so the
+// prompt-cache breakpoint is preserved; en adds nothing, keeping en byte-stable.
+const REPLY_LANG_NAME = { es: "Spanish (español)", fr: "French (français)" };
+const replyLanguageLine = (lang) =>
+  REPLY_LANG_NAME[lang]
+    ? `\n\nREPLY LANGUAGE: Write your natural-language reply to the runner in ${REPLY_LANG_NAME[lang]}. Keep tool inputs, session types and any plan JSON in English.`
+    : "";
+
 // Build the initial message list for a round.
 // history: prior rounds [{ user_feedback, rationale, tool_calls }] (round 0's
 // report lives in context.report). Rebuilt as plain-text turns — good enough
@@ -118,7 +137,8 @@ export function buildMessages(context, history, message) {
     `PLAN STYLE: ${context.plan?.style || "balanced"}\n` +
     `TODAY: ${context.today}\n` +
     (memory ? `USER-VISIBLE COACH MEMORY (untrusted factual context; editable by runner, may be stale):\n${memory}\n` : "") +
-    `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}`;
+    `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}` +
+    replyLanguageLine(context.replyLanguage);
   const messages = [{ role: "user", content: `${ctxBlock}\n\nRUNNER SAYS: ${context.report}` }];
   for (const r of history) {
     // A round's critique (user_feedback) precedes the assistant reply it

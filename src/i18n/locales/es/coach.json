@@ -23,7 +23,22 @@
     "confirmNoPlan": "La confirmación del coach no incluía un plan.",
     "revalidateFailed": "La propuesta ya no supera la validación — no se aplicó nada.",
     "noResponseToFlag": "No hay ninguna respuesta del coach que señalar.",
-    "noConversation": "No hay ninguna conversación abierta con el coach."
+    "noConversation": "No hay ninguna conversación abierta con el coach.",
+    "server": {
+      "RATE_LIMIT": "Has alcanzado el límite del coach por hoy — inténtalo de nuevo mañana.",
+      "NO_PLAN": "Todavía no hay un plan de entrenamiento que ajustar — crea uno primero.",
+      "COACH_UNAVAILABLE": "El coach no está disponible ahora mismo — inténtalo de nuevo en un momento.",
+      "TRAJECTORY_NOT_FOUND": "Esta conversación con el coach ya no está disponible.",
+      "TRAJECTORY_CLOSED": "Esta conversación con el coach ya está cerrada.",
+      "NO_OPEN_PROPOSAL": "No hay ninguna propuesta abierta para aplicar.",
+      "PROPOSAL_INVALID": "La propuesta ya no supera la validación — no se aplicó nada."
+    },
+    "transport": {
+      "timeout": "El coach tardó demasiado en arrancar — inténtalo de nuevo en un momento.",
+      "offline": "No se pudo contactar con el coach — comprueba tu conexión e inténtalo de nuevo.",
+      "reauth": "Tu sesión ha caducado — inicia sesión de nuevo.",
+      "unavailable": "El coach no está disponible ahora mismo — inténtalo de nuevo en un momento."
+    }
   },
   "toast": {
     "planAdjusted": "Plan ajustado por tu coach ✓",

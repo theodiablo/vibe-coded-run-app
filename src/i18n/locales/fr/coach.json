@@ -23,7 +23,22 @@
     "confirmNoPlan": "La confirmation du coach ne contenait pas de plan.",
     "revalidateFailed": "La proposition n'est plus valide — rien n'a été appliqué.",
     "noResponseToFlag": "Aucune réponse du coach à signaler.",
-    "noConversation": "Aucune conversation avec le coach n'est ouverte."
+    "noConversation": "Aucune conversation avec le coach n'est ouverte.",
+    "server": {
+      "RATE_LIMIT": "Vous avez atteint la limite du coach pour aujourd'hui — réessayez demain.",
+      "NO_PLAN": "Il n'y a pas encore de plan d'entraînement à ajuster — créez-en un d'abord.",
+      "COACH_UNAVAILABLE": "Le coach est indisponible pour le moment — réessayez dans un instant.",
+      "TRAJECTORY_NOT_FOUND": "Cette conversation avec le coach n'est plus disponible.",
+      "TRAJECTORY_CLOSED": "Cette conversation avec le coach est déjà close.",
+      "NO_OPEN_PROPOSAL": "Il n'y a aucune proposition ouverte à appliquer.",
+      "PROPOSAL_INVALID": "La proposition n'est plus valide — rien n'a été appliqué."
+    },
+    "transport": {
+      "timeout": "Le coach a mis trop de temps à démarrer — réessayez dans un instant.",
+      "offline": "Impossible de joindre le coach — vérifiez votre connexion et réessayez.",
+      "reauth": "Votre session a expiré — reconnectez-vous.",
+      "unavailable": "Le coach est indisponible pour le moment — réessayez dans un instant."
+    }
   },
   "toast": {
     "planAdjusted": "Plan ajusté par ton coach ✓",
