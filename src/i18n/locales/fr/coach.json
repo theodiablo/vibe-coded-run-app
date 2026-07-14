@@ -1,0 +1,6 @@
+{
+  "diff": {
+    "new": "nouvelle {{type}} · {{km}} km le {{date}}",
+    "moved": "déplacée {{from}} → {{to}}"
+  }
+}

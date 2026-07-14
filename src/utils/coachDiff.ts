@@ -1,11 +1,12 @@
 // Pure plan-diff for the coach chat: what did the proposal change, per week?
 // Sessions are matched by id (stable across edits — the coach tools never
 // change ids). Returns [{ weekNumber, changes: [string] }] in week order.
+import { currentLocaleTag, t } from "../i18n";
 import type { Plan, PlanSession } from "../types";
 
 const short = (ymd: string) => {
   const d = new Date(ymd + "T12:00:00");
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  return d.toLocaleDateString(currentLocaleTag(), { weekday: "short", day: "numeric", month: "short" });
 };
 
 export function diffPlans(oldPlan: Plan | null | undefined, newPlan: Plan | null | undefined) {
@@ -16,10 +17,10 @@ export function diffPlans(oldPlan: Plan | null | undefined, newPlan: Plan | null
     const changes: string[] = [];
     for (const s of w.sessions) {
       const b = before[s.id];
-      if (!b) { changes.push(`new ${s.type} · ${s.km} km on ${short(s.date)}`); continue; }
+      if (!b) { changes.push(t("coach.diff.new", { type: s.type, km: s.km, date: short(s.date) })); continue; }
       const parts: string[] = [];
       if (b.type !== s.type) parts.push(`${b.type} → ${s.type}`);
-      if (b.date !== s.date) parts.push(`moved ${short(b.date)} → ${short(s.date)}`);
+      if (b.date !== s.date) parts.push(t("coach.diff.moved", { from: short(b.date), to: short(s.date) }));
       if (b.km !== s.km) parts.push(`${b.km} → ${s.km} km`);
       if (parts.length) changes.push(`${short(s.date)}: ${parts.join(", ")}`);
     }

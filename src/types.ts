@@ -33,6 +33,9 @@ export type SettingsState = Record<string, unknown> & {
   targetEditionId?: string | null;
   // Training methodology style (see src/utils/planStyles.ts); absent = balanced.
   planStyle?: string;
+  // UI language (synced preference; see src/i18n). Absent = device/browser
+  // locale. The per-device rc_lang localStorage key covers pre-auth screens.
+  language?: "en" | "es" | "fr";
   // Self-reported running volume from onboarding ("none" | "occasional" |
   // "regular" | "frequent") — the fitness signal before any runs are logged.
   trainingLevel?: string | null;

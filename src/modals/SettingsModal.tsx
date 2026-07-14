@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
+import { LANGS, setLocale, currentLang, isLangId, type LangId } from "../i18n";
 import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_WARN_CHARS, USER_CONTEXT_NOTICE_CHARS } from "../constants";
 import { HRZones } from "../views/HRZones";
 import { HrSensor } from "../views/HrSensor";
@@ -27,7 +29,16 @@ type SettingsModalProps = {
 // less-frequently-used data actions (Backup / Restore) tucked away here so
 // they don't clutter the header.
 export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast, scanImportsNow}: SettingsModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(settings.name || "");
+  // Language: synced preference, falling back to whatever the UI is showing
+  // (device-detected) when unset. Picking persists to the blob AND the
+  // per-device rc_lang key (inside setLocale) so pre-auth screens match.
+  const lang: LangId = isLangId(settings.language) ? settings.language : currentLang();
+  const pickLang = (id: LangId) => {
+    if (id !== settings.language) saveSettings({...settings, language: id});
+    void setLocale(id);
+  };
   const sourceMemory = userContext?.notes || "";
   const [memorySource, setMemorySource] = useState(sourceMemory);
   const [memory, setMemory] = useState(sourceMemory);
@@ -73,6 +84,19 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               <input type="text" maxLength={40} value={name} placeholder="Your name"
                 onChange={e => setName(e.target.value)} onBlur={commitName}
                 onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} className={INPUT_CLS}/>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1.5">{t("settings.language.label")}</label>
+              <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("settings.language.label")}>
+                {LANGS.map(l => (
+                  <button key={l.id} type="button" onClick={() => pickLang(l.id)}
+                    role="radio" aria-checked={lang === l.id}
+                    className={"py-2 rounded-xl text-sm font-semibold transition-colors " +
+                      (lang === l.id ? "bg-orange-500 text-white" : "bg-slate-700 hover:bg-slate-600 text-slate-200")}>
+                    {l.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <HRZones settings={settings} saveSettings={saveSettings}/>
             {/* Heart-rate sensor capture is native-only (BLE / Health Connect). */}

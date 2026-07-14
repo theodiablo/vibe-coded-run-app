@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { isNative } from "./native";
+import { isLangId, setLocale } from "./i18n";
 import { Loader, Settings } from "lucide-react";
 import { BrandLogo } from "./components/BrandLogo";
 import { db, currentUserId } from "./db";
@@ -185,6 +186,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       if (r) setRuns(r);
       if (p) setPlan(p);
       if (s) setSettings(prev => ({...prev, ...s}));
+      // The synced language preference wins over the boot-time device guess
+      // once the blob arrives (async side-effect, not a sync setState).
+      if (s && isLangId(s.language)) void setLocale(s.language);
       if (uc) {
         const nextContext = { notes: "", ...uc };
         userContextRef.current = nextContext;

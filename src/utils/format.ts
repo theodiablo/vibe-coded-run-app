@@ -1,4 +1,8 @@
 // Formatting / date helpers shared across views.
+// Dates follow the active UI locale; the "min"/"h" tokens in mins/estMin stay
+// as-is — they're the standard abbreviations in English, Spanish and French.
+
+import { currentLocaleTag } from "../i18n";
 
 export const p2 = (n: string | number) => String(n).padStart(2, "0");
 
@@ -12,8 +16,8 @@ export const fmt = {
     const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sc = Math.round(s%60);
     return h ? (h + ":" + p2(m) + ":" + p2(sc)) : (m + ":" + p2(sc));
   },
-  date: (s: string) => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "",
-  sht:  (s: string) => s ? new Date(s+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "",
+  date: (s: string) => s ? new Date(s+"T12:00:00").toLocaleDateString(currentLocaleTag(),{day:"numeric",month:"short",year:"numeric"}) : "",
+  sht:  (s: string) => s ? new Date(s+"T12:00:00").toLocaleDateString(currentLocaleTag(),{day:"numeric",month:"short"}) : "",
   // A whole-minute duration as a compact label: 30min, 1h, 1h15, 1h50. Avoids
   // the raw-float "1.8333333333333335h" you get from a bare `minutes / 60`.
   mins: (m: number | string | null | undefined) => {

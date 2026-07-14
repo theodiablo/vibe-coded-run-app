@@ -1,0 +1,18 @@
+{
+  "cancel": "Annuler",
+  "save": "Enregistrer",
+  "close": "Fermer",
+  "delete": "Supprimer",
+  "back": "Retour",
+  "next": "Suivant",
+  "done": "Terminé",
+  "skip": "Passer",
+  "undo": "Annuler",
+  "edit": "Modifier",
+  "add": "Ajouter",
+  "remove": "Retirer",
+  "confirm": "Confirmer",
+  "loading": "Chargement…",
+  "notNow": "Pas maintenant",
+  "gotIt": "Compris"
+}
