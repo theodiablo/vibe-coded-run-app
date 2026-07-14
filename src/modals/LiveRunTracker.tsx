@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Play, Pause, Square, X, Loader, MapPin, HeartPulse } from "lucide-react";
 import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
@@ -54,8 +55,9 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     || (hrMethod === "bluetooth" && !!pairedHrDevice)
     || (hrMethod === "healthconnect" && healthConnectAuthorized);
   const effectiveHrMethod = hrReady ? hrMethod : "off";
-  const t = useRunTracker({ hrMethod: effectiveHrMethod });
-  const tracker = t as Omit<typeof t, "location"> & { location: LocationPreview | null };
+  const { t } = useTranslation();
+  const rt = useRunTracker({ hrMethod: effectiveHrMethod });
+  const tracker = rt as Omit<typeof rt, "location"> & { location: LocationPreview | null };
   const { state, points, stats, error, pending, location } = tracker;
   const [busy, setBusy] = useState(false);
   // Resolve the HR source once per render from the seam (source.js), instead of
@@ -73,21 +75,21 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   const hrNudge = (() => {
     if (!isNative) return null;
     if (hrMethod === "healthconnect" && !healthConnectAuthorized) return {
-      title: "Authorize Health Connect?",
-      body: "Health Connect is selected, but this phone has not granted access yet. Authorize it in Settings to add heart rate after runs.",
-      acceptLabel: "Open Settings",
+      title: t("tracker.hrNudge.authTitle"),
+      body: t("tracker.hrNudge.authBody"),
+      acceptLabel: t("tracker.hrNudge.authAccept"),
       allowOptOut: false,
     };
     if (hrMethod === "bluetooth" && !pairedHrDevice) return {
-      title: "Pair your heart-rate sensor?",
-      body: "Bluetooth heart-rate capture is selected, but no sensor is paired on this phone. Pair one in Settings to record live BPM.",
-      acceptLabel: "Pair sensor",
+      title: t("tracker.hrNudge.pairTitle"),
+      body: t("tracker.hrNudge.pairBody"),
+      acceptLabel: t("tracker.hrNudge.pairAccept"),
       allowOptOut: false,
     };
     if ((hrMethod || "off") === "off" && !hrOptOut) return {
-      title: "Track your heart rate?",
-      body: "Connect a Bluetooth sensor or Health Connect to capture heart rate automatically — no need to type it in. You can set this up later in Settings.",
-      acceptLabel: "Set up",
+      title: t("tracker.hrNudge.setupTitle"),
+      body: t("tracker.hrNudge.setupBody"),
+      acceptLabel: t("tracker.hrNudge.setupAccept"),
       allowOptOut: true,
     };
     return null;
@@ -148,7 +150,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     // the disclosure flow, not deferred to Start. Mark disclosed only on success, so
     // a denial leaves it unset and the disclosure re-explains next time; the upfront
     // grant also means a later Start won't prompt again.
-    const granted = isNative ? await t.requestPermissions() : true;
+    const granted = isNative ? await rt.requestPermissions() : true;
     if (!granted || !mountedRef.current) return;
     markDisclosed();
     if (checkHr && run && maybeShowHrNudge(run)) return;
@@ -170,11 +172,11 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
 
   const handleClose = () => {
     if ((live || state === "stopped") && hasTrack &&
-      !window.confirm("Discard this run? Your tracked route will be lost.")) return;
+      !window.confirm(t("tracker.discardConfirm"))) return;
     // Only tear down (which clears the crash-recovery buffer) for an in-progress
     // or just-finished run. Backing out while idle must NOT wipe an unresumed
     // recovery buffer — it should still be offered next time the tracker opens.
-    if (live || state === "stopped") t.reset();
+    if (live || state === "stopped") rt.reset();
     onClose();
   };
 
@@ -193,7 +195,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       // silently: the route is viewable locally but won't be in the cloud yet.
       routeTmp = "rt" + Date.now();
       queuePendingRoute({ tmpId: routeTmp, points: simplified, stats: statObj });
-      showToast?.("Couldn't upload the route — saved on this device, will retry syncing.", "err");
+      showToast?.(t("tracker.routeUploadFailed"), "err");
     }
     // Heart rate: a live source (hrSrc.live, e.g. Bluetooth) has already filled
     // stats.hrAvg/hrMax. A post-run source (hrSrc set, not live, e.g. Health
@@ -207,7 +209,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     else if (hrSrc && !hrSrc.live) {
       // Explicit run window from the tracker (robust even with no GPS points),
       // falling back to point timestamps for a recovered run missing startedAt.
-      const { startedAt, stoppedAt } = t.runWindow();
+      const { startedAt, stoppedAt } = rt.runWindow();
       const startMs = startedAt || points.find(Boolean)?.[2] || Date.now();
       let endMs = stoppedAt || Date.now();
       if (!stoppedAt) for (let i = points.length - 1; i >= 0; i--) { const p = points[i]; if (p) { endMs = p[2]; break; } }
@@ -218,8 +220,8 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     }
     // Stamp the run's real start instant so a later watch import of the same run
     // (Health Connect) can dedupe by time overlap instead of double-logging it.
-    const startedAtMs = t.runWindow().startedAt || points.find(Boolean)?.[2] || null;
-    t.finalize();
+    const startedAtMs = rt.runWindow().startedAt || points.find(Boolean)?.[2] || null;
+    rt.finalize();
     setBusy(false);
     onFinish({
       date, type: "EASY", km,
@@ -239,9 +241,9 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       <header className="flex items-center justify-between px-4 border-b border-slate-800" style={{ height: 44 }}>
         <div className="flex items-center gap-1.5">
           <MapPin size={15} className="text-orange-400" />
-          <span className="text-sm font-semibold">{state === "stopped" ? "Run complete" : "Live run"}</span>
+          <span className="text-sm font-semibold">{state === "stopped" ? t("tracker.header.complete") : t("tracker.header.live")}</span>
         </div>
-        <button onClick={handleClose} aria-label="Close"
+        <button onClick={handleClose} aria-label={t("common.close")}
           className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>
       </header>
 
@@ -255,33 +257,33 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
 
         {state === "idle" && pending && (
           <div className="bg-slate-800 rounded-xl p-3 space-y-2 border border-slate-700">
-            <p className="text-sm text-slate-200">Resume your previous run?
-              <span className="text-slate-400"> {(pending.points || []).filter(Boolean).length} points saved.</span></p>
+            <p className="text-sm text-slate-200">{t("tracker.resume.title")}
+              <span className="text-slate-400"> {t("tracker.resume.pointsSaved", { count: (pending.points || []).filter(Boolean).length })}</span></p>
             <div className="flex gap-2">
-              <button onClick={t.resumePrevious}
-                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-semibold">Resume</button>
-              <button onClick={t.discardPrevious}
-                className="px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 rounded-lg text-sm font-semibold">Discard</button>
+              <button onClick={rt.resumePrevious}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-semibold">{t("tracker.resume.resume")}</button>
+              <button onClick={rt.discardPrevious}
+                className="px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 rounded-lg text-sm font-semibold">{t("tracker.resume.discard")}</button>
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-4 gap-2">
-          <Stat label="km" value={stats.km.toFixed(2)} />
-          <Stat label="time" value={fmt.dur(stats.movingSec) === "--" ? "0:00" : fmt.dur(stats.movingSec)} />
-          <Stat label="pace" value={fmt.pace(state === "tracking" ? stats.curPace : stats.avgPace)} />
-          <Stat label="elev" value={stats.elevation + "m"} />
+          <Stat label={t("tracker.stats.km")} value={stats.km.toFixed(2)} />
+          <Stat label={t("tracker.stats.time")} value={fmt.dur(stats.movingSec) === "--" ? "0:00" : fmt.dur(stats.movingSec)} />
+          <Stat label={t("tracker.stats.pace")} value={fmt.pace(state === "tracking" ? stats.curPace : stats.avgPace)} />
+          <Stat label={t("tracker.stats.elev")} value={stats.elevation + "m"} />
         </div>
 
         {liveHr && (
           <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2">
             <HeartPulse size={18} className={stats.hr != null ? "text-red-400" : "text-slate-500"} />
             <span className="text-2xl font-bold text-white tabular-nums leading-none">{stats.hr ?? "--"}</span>
-            <span className="text-[11px] text-slate-400 uppercase tracking-wide">bpm</span>
+            <span className="text-[11px] text-slate-400 uppercase tracking-wide">{t("tracker.hr.bpm")}</span>
             <BetaBadge />
             {stats.hrAvg != null
-              ? <span className="text-[11px] text-slate-500 ml-2">avg {stats.hrAvg} · max {stats.hrMax}</span>
-              : <span className="text-[11px] text-slate-500 ml-2">connecting…</span>}
+              ? <span className="text-[11px] text-slate-500 ml-2">{t("tracker.hr.avgMax", { avg: stats.hrAvg, max: stats.hrMax })}</span>
+              : <span className="text-[11px] text-slate-500 ml-2">{t("tracker.hr.connecting")}</span>}
           </div>
         )}
 
@@ -289,7 +291,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2 text-slate-300">
             <HeartPulse size={16} className="text-red-400 shrink-0" />
             <BetaBadge />
-            <span className="text-xs">Heart rate is added from Health Connect after you finish.</span>
+            <span className="text-xs">{t("tracker.hr.postRun")}</span>
           </div>
         )}
 
@@ -298,42 +300,40 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
             {location?.acc != null && (
               <p className={"text-[11px] text-center " + (
                 location.acc <= 15 ? "text-emerald-400" : location.acc <= 30 ? "text-amber-400" : "text-red-400")}>
-                GPS accuracy ±{Math.round(location.acc)} m
-                {location.acc <= 15 ? " — good to go" : " — wait for it to settle for a cleaner start"}
+                {t(location.acc <= 15 ? "tracker.gps.accuracyGood" : "tracker.gps.accuracyWait", { acc: Math.round(location.acc) })}
               </p>
             )}
             <div className="flex">
-              <Ctrl onClick={() => guardedStart(t.start, true)} color="bg-orange-500 hover:bg-orange-600 text-white">
-                <Play size={20} />Start run
+              <Ctrl onClick={() => guardedStart(rt.start, true)} color="bg-orange-500 hover:bg-orange-600 text-white">
+                <Play size={20} />{t("tracker.controls.start")}
               </Ctrl>
             </div>
           </>
         )}
         {state === "tracking" && (
           <div className="flex gap-2">
-            <Ctrl onClick={t.pause} color="bg-slate-700 hover:bg-slate-600 text-slate-100"><Pause size={20} />Pause</Ctrl>
-            <Ctrl onClick={t.stop} color="bg-red-500 hover:bg-red-600 text-white"><Square size={18} />Finish</Ctrl>
+            <Ctrl onClick={rt.pause} color="bg-slate-700 hover:bg-slate-600 text-slate-100"><Pause size={20} />{t("tracker.controls.pause")}</Ctrl>
+            <Ctrl onClick={rt.stop} color="bg-red-500 hover:bg-red-600 text-white"><Square size={18} />{t("tracker.controls.finish")}</Ctrl>
           </div>
         )}
         {state === "paused" && (
           <div className="flex gap-2">
-            <Ctrl onClick={() => guardedStart(t.resume)} color="bg-orange-500 hover:bg-orange-600 text-white"><Play size={20} />Resume</Ctrl>
-            <Ctrl onClick={t.stop} color="bg-red-500 hover:bg-red-600 text-white"><Square size={18} />Finish</Ctrl>
+            <Ctrl onClick={() => guardedStart(rt.resume)} color="bg-orange-500 hover:bg-orange-600 text-white"><Play size={20} />{t("tracker.controls.resume")}</Ctrl>
+            <Ctrl onClick={rt.stop} color="bg-red-500 hover:bg-red-600 text-white"><Square size={18} />{t("tracker.controls.finish")}</Ctrl>
           </div>
         )}
         {state === "stopped" && (
           <div className="flex gap-2">
-            <Ctrl onClick={handleClose} color="bg-slate-700 hover:bg-slate-600 text-slate-100" disabled={busy}>Discard</Ctrl>
+            <Ctrl onClick={handleClose} color="bg-slate-700 hover:bg-slate-600 text-slate-100" disabled={busy}>{t("tracker.controls.discard")}</Ctrl>
             <Ctrl onClick={handleSave} color="bg-orange-500 hover:bg-orange-600 text-white" disabled={busy}>
-              {busy ? <Loader size={18} className="animate-spin" /> : null}Save run
+              {busy ? <Loader size={18} className="animate-spin" /> : null}{t("tracker.controls.save")}
             </Ctrl>
           </div>
         )}
 
         {live && !isNative && (
           <p className="text-[11px] text-slate-500 text-center leading-snug">
-            Keep this screen on while running — browsers can't track in the background, so it
-            pauses if the screen locks. A native app version tracks with the screen off (less battery).
+            {t("tracker.keepScreenOn")}
           </p>
         )}
       </div>
@@ -351,23 +351,22 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           <div className="bg-slate-800 rounded-2xl w-full max-w-sm border border-slate-700 p-4 space-y-3">
             <div className="flex items-center gap-2">
               <HeartPulse size={16} className="text-orange-400" />
-              <p className="font-semibold text-sm">{hrNudge?.title || "Track your heart rate?"}</p>
-              <BetaBadge label="New beta" />
+              <p className="font-semibold text-sm">{hrNudge?.title || t("tracker.hrNudge.setupTitle")}</p>
+              <BetaBadge label={t("tracker.hrNudge.newBeta")} />
             </div>
             <p className="text-sm text-slate-300">
-              {hrNudge?.body || "Connect a Bluetooth sensor or Health Connect to capture heart rate automatically — no need to type it in. You can set this up later in Settings."}
+              {hrNudge?.body || t("tracker.hrNudge.setupBody")}
             </p>
             <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-100">
-              This capture feature is new and can break. Please check saved readings
-              before using them for training decisions.
+              {t("tracker.hrNudge.betaWarning")}
             </p>
-            <ConfirmButtons cancelLabel="Not now" acceptLabel={hrNudge?.acceptLabel || "Set up"}
+            <ConfirmButtons cancelLabel={t("common.notNow")} acceptLabel={hrNudge?.acceptLabel || t("tracker.hrNudge.setupAccept")}
               onCancel={() => dismissHrNudge(true)}
               onAccept={() => { dismissHrNudge(false); onConfigureHr?.(); }} />
             {hrNudge?.allowOptOut && (
               <button onClick={() => { dismissHrNudge(true); onDeclineHr?.(); }}
                 className="w-full text-center text-xs text-slate-500 hover:text-slate-300">
-                Don&apos;t record heart rate
+                {t("tracker.hrNudge.optOut")}
               </button>
             )}
           </div>
