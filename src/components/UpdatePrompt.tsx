@@ -1,15 +1,23 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, X } from "lucide-react";
-import { PLAY_STORE_URL } from "../constants";
+import { PLAY_STORE_URL, APP_STORE_URL } from "../constants";
+import { isIos } from "../native";
 
-// Open the Play Store listing (native: in the Play app via the system browser
-// handler; falls back to a normal new tab if the plugin isn't available).
+// The platform's own store listing; empty when unknown (APP_STORE_URL is blank
+// until the App Store record exists), in which case the buttons hide rather
+// than dead-link — the copy still tells the user to update.
+const storeUrl = () => (isIos ? APP_STORE_URL : PLAY_STORE_URL);
+
+// Open the store listing (native: via the system browser handler, which hands
+// off to the Play Store / App Store app; falls back to a normal new tab).
 async function openStore() {
+  const url = storeUrl();
+  if (!url) return;
   try {
     const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url: PLAY_STORE_URL });
-  } catch { window.open(PLAY_STORE_URL, "_blank", "noopener"); }
+    await Browser.open({ url });
+  } catch { window.open(url, "_blank", "noopener"); }
 }
 
 // Hard gate: the installed app is below the minimum supported version (e.g. after
@@ -27,10 +35,12 @@ export function UpdateRequired() {
         <p className="text-sm text-slate-400">
           {t("app.update.requiredBody")}
         </p>
-        <button onClick={openStore}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-colors">
-          {t("app.update.updateNow")}
-        </button>
+        {storeUrl() && (
+          <button onClick={openStore}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-colors">
+            {t("app.update.updateNow")}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -45,7 +55,9 @@ export function UpdateBanner() {
   return (
     <div className="fixed top-0 inset-x-0 z-[2500] bg-orange-500 text-white text-sm px-4 py-2 flex items-center gap-3 shadow-lg">
       <span className="flex-1">{t("app.update.available")}</span>
-      <button onClick={openStore} className="font-semibold underline whitespace-nowrap">{t("app.update.update")}</button>
+      {storeUrl() && (
+        <button onClick={openStore} className="font-semibold underline whitespace-nowrap">{t("app.update.update")}</button>
+      )}
       <button onClick={() => setDismissed(true)} aria-label={t("app.update.dismiss")} className="p-1 -mr-1 hover:opacity-80">
         <X size={16} />
       </button>

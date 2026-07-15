@@ -4,7 +4,7 @@ import { App as CapApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import { isNative } from "./native";
+import { isNative, isIos } from "./native";
 import { versionStatus } from "./utils/version";
 import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
@@ -153,10 +153,16 @@ export default function App() {
         const info = await CapApp.getInfo();
         const { data } = await supabase
           .from("app_config")
-          .select("min_supported_version, latest_version")
+          .select("min_supported_version, latest_version, min_supported_version_ios, latest_version_ios")
           .eq("id", 1)
           .maybeSingle();
-        if (!cancelled && data) setUpdateState(versionStatus(info.version, data));
+        // Each platform reads its own column pair: the stores roll out
+        // independently (and a partial release can leave one store behind), so a
+        // single shared version would lie to one of them.
+        const config = data && (isIos
+          ? { min_supported_version: data.min_supported_version_ios, latest_version: data.latest_version_ios }
+          : data);
+        if (!cancelled && config) setUpdateState(versionStatus(info.version, config));
       } catch { /* never block the app on a failed version check */ }
     })();
     return () => { cancelled = true; };

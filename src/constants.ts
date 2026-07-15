@@ -73,6 +73,12 @@ export const DISCLAIMER_VERSION = "2026-06-1";
 export const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=solutions.camboulive.run";
 
+// App Store listing for the iOS shell. Empty until the App Store Connect app
+// record exists (Apple assigns the numeric id then) — fill in
+// "https://apps.apple.com/app/id<APPLE_ID>" once known. While empty, the
+// update prompt on iOS shows without a store button rather than dead-linking.
+export const APP_STORE_URL = "";
+
 // Closed (internal) test track for the Android app — a private opt-in link,
 // surfaced as a secondary CTA on the marketing landing while the app is in beta.
 export const PLAY_STORE_BETA_URL =
