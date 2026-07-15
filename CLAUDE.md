@@ -332,6 +332,10 @@ and delete anything that becomes stale.
   CocoaPods) — `cap sync ios` rewrites `ios/App/CapApp-SPM/Package.swift` and
   correctly excludes the Android-only pianissimo Health Connect plugin (no
   `Package.swift`/ios dir). It runs fine on Linux; only `xcodebuild` needs a Mac.
+  Commit the Xcode workspace `Package.resolved`. SwiftPM can retain an old
+  background-geolocation manifest by package identity after an npm upgrade; if
+  it reports a Capacitor 7/8 constraint conflict, reset package caches or resolve
+  with fresh DerivedData rather than replacing Capacitor's generated package path.
   App-local Swift plugins are NOT auto-registered: `MainViewController.swift`
   (the storyboard's custom class) registers `HealthKitBridgePlugin` in
   `capacitorDidLoad()`. New Swift files must be hand-added to
