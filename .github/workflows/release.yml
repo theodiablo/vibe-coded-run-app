@@ -237,6 +237,7 @@ jobs:
       ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
       ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
       ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+      APPLE_DIST_CERT_P12_BASE64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
     steps:
       - name: Checkout
@@ -302,11 +303,11 @@ jobs:
           RUN_OFFSET=1000
           echo "build=$(( (GITHUB_RUN_NUMBER + RUN_OFFSET) * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
 
-      # App Store Connect API key for cloud-managed signing + upload: no
-      # certificates or provisioning profiles to maintain as secrets —
-      # -allowProvisioningUpdates lets Xcode create/refresh them via the API key.
-      # (If cloud signing ever misbehaves, the fallback is a manual distribution
-      # .p12 + profile imported into a temp keychain and signingStyle: manual.)
+      # App Store Connect API key: -allowProvisioningUpdates lets Xcode
+      # create/refresh provisioning profiles via the API key (role must be
+      # Admin — cloud signing operations fail with "Cloud signing permission
+      # error" on App Manager keys). Certificates are NOT cloud-managed here —
+      # see the distribution-certificate step below for why.
       - name: Install App Store Connect API key
         run: |
           if [ -z "$ASC_API_KEY_P8_BASE64" ] || [ -z "$ASC_API_KEY_ID" ] || [ -z "$ASC_API_ISSUER_ID" ]; then
@@ -316,16 +317,49 @@ jobs:
           mkdir -p ~/private_keys
           echo "$ASC_API_KEY_P8_BASE64" | base64 -d > ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8
 
-      # CODE_SIGN_IDENTITY="Apple Distribution": automatic signing signs an
-      # archive with a DEVELOPMENT cert/profile by default (which also requires
-      # >=1 registered device on the team), and the exportArchive cloud-managed
-      # re-sign has been seen shipping that dev-signed binary straight to App
-      # Store Connect, which rejects it ("Invalid Signature ... make sure you
-      # have signed your application with a distribution certificate").
-      # Forcing the distribution identity here makes cloud signing mint the
-      # App Store profile at archive time, so the uploaded IPA is
-      # distribution-signed by construction. Needs the ASC API key to have the
-      # Admin role (see above).
+      # Apple's cloud-managed "Distribution Managed" certificate produces IPAs
+      # that App Store Connect REJECTS with "Invalid Signature" when the app
+      # embeds frameworks — and Capacitor apps always embed Capacitor.framework
+      # + Cordova.framework (known defect: developer.apple.com/forums/thread/815235).
+      # The reliable fix is a MANUALLY created Apple Distribution certificate
+      # imported into a throwaway keychain: exportArchive re-signs with the
+      # local cert, while -allowProvisioningUpdates still creates/refreshes the
+      # App Store profile via the ASC API key (profiles stay maintenance-free;
+      # only the .p12 is a secret). Create the cert in Xcode (Settings →
+      # Accounts → Manage Certificates → + → Apple Distribution), export the
+      # .p12 from there, and set APPLE_DIST_CERT_P12_BASE64 +
+      # APPLE_DIST_CERT_PASSWORD secrets. Required on tag releases (the upload
+      # would fail without it); skippable on manual dispatch, which never
+      # uploads.
+      - name: Install Apple Distribution certificate
+        env:
+          APPLE_DIST_CERT_PASSWORD: ${{ secrets.APPLE_DIST_CERT_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_DIST_CERT_P12_BASE64" ]; then
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo "::error::APPLE_DIST_CERT_P12_BASE64 / APPLE_DIST_CERT_PASSWORD secrets are not set — the TestFlight upload needs a manually created Apple Distribution certificate (Apple's cloud-managed cert is rejected with 'Invalid Signature' on apps with embedded frameworks)."
+              exit 1
+            fi
+            echo "No distribution certificate configured — skipping (manual dispatch builds don't upload)."
+            exit 0
+          fi
+          KEYCHAIN_PATH="$RUNNER_TEMP/dist-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$APPLE_DIST_CERT_P12_BASE64" | base64 -d > "$RUNNER_TEMP/dist-cert.p12"
+          security import "$RUNNER_TEMP/dist-cert.p12" -P "$APPLE_DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          rm -f "$RUNNER_TEMP/dist-cert.p12"
+          # Allow codesign to use the imported key without a UI prompt.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+      # The archive itself stays on plain automatic signing (development cert +
+      # profile — needs >=1 registered device on the team); distribution
+      # signing happens at export. Do NOT override CODE_SIGN_IDENTITY here:
+      # automatic signing hard-fails with "App has conflicting provisioning
+      # settings" when an identity is forced.
       - name: Archive
         run: |
           set -o pipefail
@@ -340,7 +374,6 @@ jobs:
             MARKETING_VERSION="${{ steps.ver.outputs.name }}" \
             CURRENT_PROJECT_VERSION="${{ steps.ver.outputs.build }}" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8 \
             -authenticationKeyID "$ASC_API_KEY_ID" \
