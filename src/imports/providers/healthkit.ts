@@ -2,7 +2,6 @@ import { isIos } from "../../native";
 import {
   scanHealthKitWorkouts,
   hasHealthKitAuthorization,
-  setHealthKitAuthorization,
   requestHealthKitPermissions,
 } from "../../healthkit/import";
 import type { ImportProvider } from "../types";
@@ -24,10 +23,11 @@ export const healthKitProvider: ImportProvider = {
   isAvailable: () => isIos, // HealthKit is iOS-only; Android gets the Health Connect provider
   isConnected: () => hasHealthKitAuthorization(),
   connect: () => requestHealthKitPermissions(),
-  // "Turn off" only forgets the local marker; revoking the OS grant itself
-  // lives in the Health app (Sharing → Apps), which HealthKit doesn't let us
-  // probe or open per-app.
-  disconnect: () => setHealthKitAuthorization(false),
+  // No disconnect: the auth marker is SHARED with post-run HR (one HealthKit
+  // sheet grants both scopes), so clearing it here would silently break a
+  // configured hrMethod:"healthkit". "Turn off" already flips the watchImport
+  // preference, which is what gates scanning; real revocation lives in the
+  // Health app (Sharing → Apps), which HealthKit doesn't let us probe or open.
   scan: (runs: Run[], opts?: { days?: number; now?: number }) =>
     scanHealthKitWorkouts(runs, {
       enabled: true, // the synced preference gate is applied by the caller (registry `enabled` predicate)

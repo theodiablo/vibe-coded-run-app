@@ -248,7 +248,10 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       ...(routeId ? { routeId } : {}),
       ...(routeTmp ? { routeTmp, routePending: true } : {}),
       ...(hr != null ? { hr, hrMax } : {}),
-      ...(hrPending ? { hrPending } : {}),
+      // HealthKit markers ride their own field: shipped Android clients clear
+      // any hrPending whose source isn't "healthconnect" from the synced blob,
+      // which would destroy an iPhone's deferred HR before it could resolve.
+      ...(hrPending ? (hrPending.source === "healthkit" ? { hrPendingHk: hrPending } : { hrPending }) : {}),
     });
   };
 
@@ -307,7 +310,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2 text-slate-300">
             <HeartPulse size={16} className="text-red-400 shrink-0" />
             <BetaBadge />
-            <span className="text-xs">{t("tracker.hr.postRun")}</span>
+            <span className="text-xs">{t("tracker.hr.postRun", { store: hrSrc?.id === "healthkit" ? "Apple Health" : "Health Connect" })}</span>
           </div>
         )}
 

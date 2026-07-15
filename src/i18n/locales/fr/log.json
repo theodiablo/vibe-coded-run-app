@@ -4,7 +4,7 @@
   "trackLive": "Suivre une course en direct (GPS)",
   "orManual": "ou saisis-la manuellement",
   "gpsBanner": "Suivie par GPS — la distance, le temps et le dénivelé sont déjà remplis. Ajoute un type et des notes, puis enregistre.",
-  "watchBanner": "Importée depuis ta montre via Health Connect — vérifie les détails (pas de tracé/carte), choisis un type, puis enregistre.",
+  "watchBanner": "Importée depuis ta montre — vérifie les détails (pas de tracé/carte), choisis un type, puis enregistre.",
   "import": {
     "title": "Importer un fichier d’activité",
     "gpx": "<0>GPX / TCX :</0> une activité avec son tracé — exporte-la depuis Garmin Connect, Strava et la plupart des plateformes",

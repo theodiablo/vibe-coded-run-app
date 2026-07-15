@@ -133,16 +133,17 @@ npm run preview       # preview the production build locally
 
 ---
 
-## Android app (background GPS tracking)
+## Mobile apps (background GPS tracking)
 
 The web app records runs only while the screen is on — browsers can't track in the
-background. The **Android app** wraps the same web build in a [Capacitor](https://capacitorjs.com)
-shell and swaps the GPS source for a native background-location plugin, so a run
-keeps recording with the screen off or the app backgrounded. The UI, save path, and
-`run_routes` storage are reused unchanged; the web app is unaffected (a single bundle
-serves both — `Capacitor.isNativePlatform()` is `false` in the browser).
+background. The **Android and iOS apps** wrap the same web build in
+[Capacitor](https://capacitorjs.com) shells and swap the GPS source for a native
+background-location plugin, so a run keeps recording with the screen off or the app
+backgrounded. The UI, save path, and `run_routes` storage are reused unchanged; the
+web app is unaffected (a single bundle serves all — `Capacitor.isNativePlatform()`
+is `false` in the browser).
 
-**Build it locally** (needs Android Studio / the Android SDK + JDK 21):
+**Build Android locally** (needs Android Studio / the Android SDK + JDK 21):
 
 ```sh
 npm install
@@ -151,27 +152,49 @@ npx cap sync android       # copy web assets + native plugins into android/
 npx cap open android       # open in Android Studio, run on a device/emulator
 ```
 
-Debug builds need no signing. Release AABs for the Play Store are built by
-`.github/workflows/android.yml` (manual or on an `android-v*` tag) and need these
-extra repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. On an `android-v*` tag the workflow
-also uploads the AAB to Google Play (internal track) — that step needs
-`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (a Play Developer API service-account JSON key;
-grant the account "Release to testing tracks" in Play Console → Users &
-permissions). Bump the step's `track` to `production` to ship to users.
+**Build iOS locally** (needs a Mac with Xcode 26+; the project is SPM-based — no
+CocoaPods):
+
+```sh
+npm install
+npm run build              # → dist/
+npx cap sync ios           # copy web assets + rewrite CapApp-SPM/Package.swift
+npx cap open ios           # open in Xcode, run on a device/simulator
+```
+
+Debug builds need no signing. Store releases are built by
+`.github/workflows/release.yml` (manual or on a `v*` tag), which builds the web
+bundle once and ships **both stores in parallel**:
+
+- **Android** needs repository secrets `ANDROID_KEYSTORE_BASE64`,
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and
+  `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (a Play Developer API service-account JSON
+  key; grant the account "Release to testing tracks" in Play Console → Users &
+  permissions) for the Play upload (internal track — bump the step's `track` to
+  `production` to ship to users).
+- **iOS** needs an App Store Connect API key (role App Manager) as secrets
+  `ASC_API_KEY_P8_BASE64`, `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, plus the
+  `APPLE_TEAM_ID` repo variable; signing is cloud-managed
+  (`-allowProvisioningUpdates`) and the build lands in TestFlight.
+
+The two store jobs are independent — one failing never blocks the other; re-run
+just the failed job and it uploads with a fresh build number.
 
 ### Versioning & releases
 
-Don't hand-edit the version — it's derived at build time, so a release is just a tag:
+Don't hand-edit the version — it's derived at build time, so a release is just a
+tag (one tag ships both stores):
 
 ```sh
-git tag android-v1.2.0 && git push origin android-v1.2.0
+git tag v1.2.0 && git push origin v1.2.0
 ```
 
-- **`versionName`** (e.g. `1.2.0`) comes from the `android-v*` tag.
-- **`versionCode`** (what Play orders uploads by — must always increase) is
-  `run_number*1000 + run_attempt`, injected automatically so a rerun after a
-  partial release still gets a fresh Play Store version code. No manual bumping.
+- **`versionName` / `MARKETING_VERSION`** (e.g. `1.2.0`) comes from the `v*` tag.
+- **`versionCode` / `CFBundleVersion`** (what the stores order uploads by — must
+  always increase) is `(run_number + 1000) * 1000 + run_attempt`, injected
+  automatically so a rerun after a partial release still gets a fresh store build
+  number. The `+1000` offset keeps the sequence above the codes the retired
+  `android-v*` workflow already uploaded to Play. No manual bumping.
 - Local/debug builds fall back to `1` / `1.0`.
 
 ### In-app update prompt
@@ -179,10 +202,13 @@ git tag android-v1.2.0 && git push origin android-v1.2.0
 The app compares its installed `versionName` against the `app_config` row
 (`supabase/migrations/20260623120000_app_config.sql`) on launch:
 
-- `latest_version` — set **automatically** by the release workflow after a tagged
-  build, so users on an older version see a dismissible "update available" banner.
-- `min_supported_version` — **you bump this by hand** in Supabase only when you ship
-  a breaking change; clients below it get a non-dismissible "update required" screen.
+- `latest_version` / `latest_version_ios` — set **automatically** by the release
+  workflow after each store's upload succeeds (per-platform, so a partial release
+  never advertises a version a store didn't get); users on an older version see a
+  dismissible "update available" banner.
+- `min_supported_version` / `min_supported_version_ios` — **you bump these by
+  hand** in Supabase only when you ship a breaking change; clients below them get
+  a non-dismissible "update required" screen.
 
 For the workflow to write `latest_version`, configure the Supabase CLI credentials
 (the same values used by the Edge Function deploy workflow):
@@ -193,11 +219,11 @@ For the workflow to write `latest_version`, configure the Supabase CLI credentia
 | `SUPABASE_PROJECT_REF` | Variable | the Supabase project ref to link/query |
 
 The release workflow uses `npx supabase db query --linked` against the project in
-repo variable `SUPABASE_PROJECT_REF` to update `public.app_config.latest_version`.
-The token is a CI/server secret only: never put it in `config.ts`, the app bundle,
-or any `VITE_*` var. If either the secret or project-ref variable is missing, a
-tagged Android release fails after the Play upload instead of silently skipping the
-in-app update prompt bump.
+repo variable `SUPABASE_PROJECT_REF` to update the `public.app_config` version
+columns. The token is a CI/server secret only: never put it in `config.ts`, the app
+bundle, or any `VITE_*` var. If either the secret or project-ref variable is
+missing, a tagged release fails after the store upload instead of silently skipping
+the in-app update prompt bump.
 
 ### Install a build on your phone
 

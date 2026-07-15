@@ -84,6 +84,12 @@ export type Run = Record<string, unknown> & {
   routeTmp?: string;
   routePending?: boolean;
   hrPending?: HrPending | null;
+  // The HealthKit twin of hrPending, deliberately a SEPARATE field: shipped
+  // Android builds' flushPendingHr clears any hrPending whose source isn't
+  // "healthconnect", so an iOS marker stored there would be destroyed through
+  // the synced blob by an old phone. Old clients ignore unknown fields, so the
+  // iOS marker rides here untouched until the iPhone resolves it.
+  hrPendingHk?: HrPending | null;
   // Health Connect exercise-session id this run was imported from (source:"watch").
   // Used to dedupe repeated scans idempotently.
   hcId?: string;

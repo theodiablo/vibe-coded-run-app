@@ -26,7 +26,7 @@
     "bpm": "bpm",
     "avgMax": "moy {{avg}} · max {{max}}",
     "connecting": "connexion…",
-    "postRun": "La fréquence cardiaque est ajoutée depuis Health Connect après ta course."
+    "postRun": "La fréquence cardiaque est ajoutée depuis {{store}} après ta course."
   },
   "gps": {
     "accuracyGood": "Précision GPS ±{{acc}} m — c'est parti",

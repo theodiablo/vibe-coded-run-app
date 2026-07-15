@@ -111,16 +111,17 @@ export const healthConnectSource = {
   },
 };
 
-// Deferred relink for Health Connect markers (Android). The shared engine
-// (src/hr/pending.ts) does the marker triage — including leaving iOS
-// "healthkit"-stamped markers alone so this device can't clear a marker only an
-// iPhone can resolve; this wrapper supplies the HC-specific read gate.
+// Deferred relink for Health Connect markers (Android): the shared engine
+// (src/hr/pending.ts) triages `hrPending` — iOS markers live in the separate
+// `hrPendingHk` field precisely so this flusher (and every already-shipped
+// Android build) can't touch them; this wrapper supplies the HC read gate.
 export async function flushPendingHr(
   runs: PendingHrRun[],
   patch: PatchHr,
   { enabled = true, allowNativeRead = true, now = Date.now() }: { enabled?: boolean; allowNativeRead?: boolean; now?: number } = {},
 ) {
   return flushPendingHrFor(runs, patch, {
+    field: "hrPending",
     sourceId: "healthconnect",
     now,
     canRead: async () =>

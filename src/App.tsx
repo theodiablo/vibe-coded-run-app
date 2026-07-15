@@ -107,6 +107,17 @@ export default function App() {
     // reaches it for both the warm-return and cold-start cases.
     const reportAuthError = (text: string) => setAuthError(text);
 
+    // The OAuth flow opens in an in-app browser (LoginScreen). Android's custom
+    // tab dismisses itself when the deep link fires, but iOS's
+    // SFSafariViewController stays on screen over the app — close it once the
+    // callback lands. Browser.close() is unimplemented on Android; ignore.
+    const closeAuthBrowser = async () => {
+      try {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.close();
+      } catch { /* Android (unimplemented) or already closed — ignore */ }
+    };
+
     const processUrl = async (url: string) => {
       if (!url || url === lastUrlRef.current) return; // de-dupe appUrlOpen vs getLaunchUrl
       lastUrlRef.current = url;
@@ -115,9 +126,10 @@ export default function App() {
       // Provider-side denial/error (e.g. user cancels Google consent) carries no
       // `code` — surface it instead of silently no-oping.
       const provErr = params.get("error_description") || params.get("error");
-      if (provErr) { reportAuthError(provErr); return; }
+      if (provErr) { closeAuthBrowser(); reportAuthError(provErr); return; }
       const code = params.get("code");
       if (!code) return; // not an auth callback
+      closeAuthBrowser();
       try {
         await supabase.auth.exchangeCodeForSession(code);
       } catch (err) {

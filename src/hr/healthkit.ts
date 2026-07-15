@@ -52,16 +52,18 @@ export const healthKitSource = {
   },
 };
 
-// Deferred relink for HealthKit "hrPending" markers — the iOS sibling of
+// Deferred relink for HealthKit pending markers — the iOS sibling of
 // flushPendingHr, called alongside it at the same RunningCoach call sites
-// (boot + foreground). The shared engine leaves Android "healthconnect"
-// markers alone, and vice versa.
+// (boot + foreground). HealthKit markers live in the separate `hrPendingHk`
+// run field: shipped Android builds clear any `hrPending` with an unknown
+// source, so an iOS marker there would be destroyed through the synced blob.
 export async function flushPendingHkHr(
   runs: PendingHrRun[],
   patch: PatchHr,
   { enabled = true, now = Date.now() }: { enabled?: boolean; now?: number } = {},
 ) {
   return flushPendingHrFor(runs, patch, {
+    field: "hrPendingHk",
     sourceId: "healthkit",
     now,
     canRead: async () => enabled && isIos && hasHealthKitAuthorization() && (await isAvailable()),

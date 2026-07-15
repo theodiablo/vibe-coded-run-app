@@ -134,6 +134,10 @@ public class HealthKitBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             let workouts = results as? [HKWorkout] ?? []
             var sessions = [[String: Any]](repeating: [:], count: workouts.count)
             let group = DispatchGroup()
+            // HKStatisticsQuery result handlers fire on arbitrary background
+            // queues; funnel every write to `sessions` through one serial queue
+            // so concurrent per-workout callbacks can't race the array.
+            let resultQueue = DispatchQueue(label: "run.camboulive.healthkit-bridge.workouts")
             for (i, workout) in workouts.enumerated() {
                 var session: [String: Any] = [
                     "id": workout.uuid.uuidString,
@@ -160,18 +164,20 @@ public class HealthKitBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                     quantitySamplePredicate: HKQuery.predicateForObjects(from: workout),
                     options: [.discreteAverage, .discreteMax]
                 ) { _, stats, _ in
-                    if let avg = stats?.averageQuantity() {
-                        session["hrAvg"] = avg.doubleValue(for: self.bpmUnit)
+                    resultQueue.async {
+                        if let avg = stats?.averageQuantity() {
+                            session["hrAvg"] = avg.doubleValue(for: self.bpmUnit)
+                        }
+                        if let max = stats?.maximumQuantity() {
+                            session["hrMax"] = max.doubleValue(for: self.bpmUnit)
+                        }
+                        sessions[i] = session
+                        group.leave()
                     }
-                    if let max = stats?.maximumQuantity() {
-                        session["hrMax"] = max.doubleValue(for: self.bpmUnit)
-                    }
-                    sessions[i] = session
-                    group.leave()
                 }
                 self.store.execute(hrStats)
             }
-            group.notify(queue: .main) {
+            group.notify(queue: resultQueue) {
                 call.resolve(["sessions": sessions])
             }
         }

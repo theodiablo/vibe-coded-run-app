@@ -110,6 +110,11 @@ jobs:
       # permanently rejects a re-used versionCode, so a retry after a partial
       # failure (AAB uploaded, a later step failed) would otherwise fail every
       # time with "Version code N has already been used."
+      # RUN_OFFSET: run_number is PER-WORKFLOW-FILE and reset to 1 when
+      # android.yml became release.yml, but Play only accepts versionCodes above
+      # the highest ever uploaded (49001+ from the old workflow). The +1000
+      # offset restarts the sequence at 1_001_00x — far above anything the old
+      # workflow could have produced. Never remove or shrink it.
       - name: Compute version name
         id: ver
         run: |
@@ -118,7 +123,8 @@ jobs:
           else
             echo "name=0.0.0" >> "$GITHUB_OUTPUT"
           fi
-          echo "code=$(( GITHUB_RUN_NUMBER * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
+          RUN_OFFSET=1000
+          echo "code=$(( (GITHUB_RUN_NUMBER + RUN_OFFSET) * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
 
       # Release signing. Store a base64 keystore + credentials as Actions secrets.
       # Debug builds need no signing; only release AABs uploaded to Play do.
@@ -220,12 +226,27 @@ jobs:
           name: native-web-dist
           path: dist
 
+      # App Store uploads require Xcode 26+ (Apple's April 2026 floor); the
+      # macos-15 image still DEFAULTS to Xcode 16.x, so select explicitly.
+      - name: Select Xcode 26
+        run: |
+          XCODE_APP=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE_APP" ]; then
+            echo "::error::No Xcode 26.x on this runner image — App Store uploads require Xcode 26+. Bump the runner image or the glob."
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+
       - name: Sync Capacitor
         run: npx cap sync ios
 
       # CFBundleShortVersionString from the v* tag; CFBundleVersion uses the same
-      # run_number*1000+run_attempt scheme as Android's versionCode — TestFlight
-      # rejects a re-used build number per version string exactly like Play.
+      # offset run_number*1000+run_attempt scheme as Android's versionCode —
+      # TestFlight rejects a re-used build number per version string exactly
+      # like Play. (iOS has no legacy uploads, but keeping the two schemes
+      # identical means one mental model and room for the same workflow-rename
+      # trap later.)
       - name: Compute version name
         id: ver
         run: |
@@ -234,7 +255,8 @@ jobs:
           else
             echo "name=0.0.0" >> "$GITHUB_OUTPUT"
           fi
-          echo "build=$(( GITHUB_RUN_NUMBER * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
+          RUN_OFFSET=1000
+          echo "build=$(( (GITHUB_RUN_NUMBER + RUN_OFFSET) * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
 
       # App Store Connect API key for cloud-managed signing + upload: no
       # certificates or provisioning profiles to maintain as secrets —
@@ -296,6 +318,7 @@ jobs:
             -exportArchive \
             -archivePath build/App.xcarchive \
             -exportOptionsPlist build/exportOptions.plist \
+            -exportPath build/export \
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8 \
             -authenticationKeyID "$ASC_API_KEY_ID" \

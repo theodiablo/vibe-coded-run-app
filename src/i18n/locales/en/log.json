@@ -4,7 +4,7 @@
   "trackLive": "Track a run live (GPS)",
   "orManual": "or enter manually",
   "gpsBanner": "Tracked by GPS — distance, time and elevation are filled in. Add a type and notes, then save.",
-  "watchBanner": "Imported from your watch via Health Connect — check the details (there's no route/map), pick a type, then save.",
+  "watchBanner": "Imported from your watch — check the details (there's no route/map), pick a type, then save.",
   "import": {
     "title": "Import an activity file",
     "gpx": "<0>GPX / TCX:</0> one activity with its route map — export from Garmin Connect, Strava and most platforms",

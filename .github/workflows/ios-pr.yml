@@ -43,6 +43,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Match release.yml's toolchain (App Store uploads require Xcode 26+, and
+      # the macos-15 image defaults to 16.x) so "compiles on the PR" and
+      # "compiles at release" are the same claim.
+      - name: Select Xcode 26
+        run: |
+          XCODE_APP=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE_APP" ]; then
+            echo "::error::No Xcode 26.x on this runner image — keep this in sync with release.yml."
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+
       # Swift compilation never reads the web bundle; a stub dist satisfies
       # `cap sync`'s webDir copy without building (or leaking secrets to) the
       # real web app.

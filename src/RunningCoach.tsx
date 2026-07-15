@@ -172,7 +172,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // toasts only when a run actually gets filled in.
   const patchRunHr = (runId: string, patch: RunPatch) => {
     setRuns(prev => {
-      const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+      // A run carries at most ONE pending marker (hrPending on Android,
+      // hrPendingHk on iOS), so one patch clears both fields harmlessly and
+      // serves both platforms' flushers.
+      const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined, hrPendingHk: undefined } : x);
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
     });
@@ -247,7 +250,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       // Actual relinks still run on foreground and when a run is saved.
       let bootRuns: Run[] = r || [];
       const patchBootRunHr = (runId: string, patch: RunPatch) => {
-        bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+        bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined, hrPendingHk: undefined } : x);
         setRuns(bootRuns);
         db.set(STORAGE_KEYS.RUNS, bootRuns);
       };

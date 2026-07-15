@@ -26,7 +26,7 @@
     "bpm": "ppm",
     "avgMax": "media {{avg}} · máx {{max}}",
     "connecting": "conectando…",
-    "postRun": "La frecuencia cardíaca se añade desde Health Connect cuando terminas."
+    "postRun": "La frecuencia cardíaca se añade desde {{store}} cuando terminas."
   },
   "gps": {
     "accuracyGood": "Precisión GPS ±{{acc}} m — todo listo",

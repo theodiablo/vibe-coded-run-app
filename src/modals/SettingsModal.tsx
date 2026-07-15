@@ -180,7 +180,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
           </div>
 
           {/* Account */}
-          {(onSignOut || (!isNative && onDeleteAccount)) && (
+          {(onSignOut || onDeleteAccount) && (
             <div className="bg-slate-800 rounded-2xl p-4 space-y-2">
               {onSignOut && (
                 <button onClick={onSignOut}
@@ -188,7 +188,11 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
                   <LogOut size={15}/>{t("settings.account.signOut")}
                 </button>
               )}
-              {!isNative && onDeleteAccount && (
+              {/* In-app account deletion must be reachable on every platform:
+                  the App Store REQUIRES it for apps with account creation, and
+                  Play's data-deletion policy is happiest with it too. The flow
+                  is a plain Supabase RPC — nothing web-only about it. */}
+              {onDeleteAccount && (
                 <button onClick={onDeleteAccount}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-red-400 flex items-center justify-center gap-2 transition-colors">
                   <Trash2 size={15}/>{t("settings.deleteAccount.title")}

@@ -406,13 +406,17 @@ and delete anything that becomes stale.
     checkPermissions; the per-device marker (`HK_AUTH_KEY`, `rc_hk_auth`, one
     marker for both HR and workouts — a single sheet grants both) is set when
     the request flow completes and cleared only on availability failure, never
-    by a probe. Empty reads mean "no data", so runs just stay `hrPending`.
-    Pending-HR relink is the shared source-aware engine `src/hr/pending.ts`:
-    each platform's flusher (`flushPendingHr` / `flushPendingHkHr`, both called
-    at RunningCoach's boot + foreground sites) resolves ONLY its own
-    `hrPending.source` markers and must never clear the other platform's live
-    marker (the blob syncs — clearing it here would kill the other device's
-    retry); corrupt/stale/manually-filled markers may be cleared by either.
+    by a probe. Empty reads mean "no data", so runs just stay pending.
+    **Pending markers are per-platform FIELDS:** Android stamps `run.hrPending`,
+    iOS stamps `run.hrPendingHk` — separate because already-shipped Android
+    builds clear any `hrPending` whose source isn't "healthconnect", so an iOS
+    marker there would be destroyed through the synced blob. The shared engine
+    `src/hr/pending.ts` triages one field per flusher (`flushPendingHr` /
+    `flushPendingHkHr`, both called at RunningCoach's boot + foreground sites,
+    whose patch clears both fields — a run only ever carries one marker); never
+    move iOS markers back into `hrPending`. The HealthKit provider deliberately
+    has NO `disconnect` — its auth marker is shared with post-run HR, so
+    clearing it on watch-import "Turn off" would break `hrMethod:"healthkit"`.
     Per-workout HR aggregates in Swift use `HKQuery.predicateForObjects(from:
     workout)`, never a bare time window. Both health-store import providers
     share the synced `settings.watchImport` flag via
@@ -671,11 +675,13 @@ and delete anything that becomes stale.
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
   plus, for GPS-tracked runs, `{source:"gps", routeId}` (the `run_routes` ref).
   `id` is generated in `addRuns` if absent; runs are kept sorted newest-first.
-  A run awaiting post-run HR also carries a transient `hrPending:{start,end,source}`
-  (in the synced blob + backups); `flushPendingHr` clears it once resolved. It's
-  device-local in effect — a relink only works on the device whose Health Connect has
-  the data, so a synced-but-unresolvable marker is tolerated (dropped, never overwrites
-  manual HR).
+  A run awaiting post-run HR also carries a transient `{start,end,source}` marker
+  (in the synced blob + backups) in a **per-platform field**: `hrPending` (Health
+  Connect) or `hrPendingHk` (HealthKit) — separate fields because shipped Android
+  clients clear unknown-source `hrPending` values (see src/hr/pending.ts).
+  `flushPendingHr`/`flushPendingHkHr` clear them once resolved; a marker only
+  resolves on a device whose health store has the data, and it never overwrites
+  manual HR.
 - **Route:** `run_routes` row `{id, user_id, points, stats, created_at}` where
   `points` is the simplified `[lat,lng,t,alt]` array (null = gap) and `stats` is
   `{km, durationSec, elevation, avgPace}`.
