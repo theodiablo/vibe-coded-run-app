@@ -64,7 +64,9 @@ public class HealthKitBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["availability": HKHealthStore.isHealthDataAvailable() ? "Available" : "NotSupported"])
     }
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    // CAPPlugin itself declares requestPermissions(_:), so this is an override
+    // (public, to match the superclass's accessibility).
+    @objc override public func requestPermissions(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
             call.resolve(["granted": false])
             return
