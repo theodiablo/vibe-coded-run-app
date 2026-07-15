@@ -106,6 +106,9 @@ const isGranted = (p: { location?: string; coarseLocation?: string } | null | un
 // requests the runtime permission itself, then (via Google Play Services)
 // surfaces the system "turn on device location" dialog if needed. So use it as
 // the real ask whenever the fast-path check doesn't already confirm we're good.
+// (That gate is an Android/Play-Services quirk; on iOS the getCurrentPosition
+// probe is harmless — it just triggers the standard permission prompt — so the
+// one code path serves both shells.)
 export async function ensureForegroundPermission() {
   try {
     if (isGranted(await Geolocation.checkPermissions())) return true;

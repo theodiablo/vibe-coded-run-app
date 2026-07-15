@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "og:image": "node scripts/og-image/generate.mjs",
     "store:icon": "node scripts/store-icon/generate.mjs",
+    "ios:icon": "node scripts/store-icon/generate.mjs",
     "eval": "vitest run src/utils/coachAgent.eval.test.ts",
     "eval:live": "vitest run --config evals/coach/vitest.config.mjs"
   },
@@ -51,6 +52,7 @@
     "@anthropic-ai/sdk": "^0.110.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/cli": "^8.4.1",
+    "@capacitor/ios": "^8.4.2",
     "@eslint/js": "^10.0.1",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.0",
