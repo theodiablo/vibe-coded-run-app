@@ -1,0 +1,88 @@
+name: Seed Android Gradle cache (main)
+
+# Builds the Android app on every push to main so the Gradle dependency +
+# task-output build caches are written to the DEFAULT-branch cache scope. That
+# scope is the ONLY one GitHub lets every other ref read: caches are scoped
+# per-ref (a PR's cache is private to that PR, a tag's to that tag), and a run
+# may restore only its own ref's cache plus the default branch's. Without this
+# seed, android-pr.yml (PRs) and release.yml (tags) could never share a cache,
+# so a new PR's first build and every release started fully cold. This job is
+# what makes them warm — and doubles as the only native build check on main.
+#
+# It mirrors android-pr.yml's build (assembleDebug + bundleRelease, same web
+# env) so the exact task-output cache entries a PR looks up get populated.
+on:
+  push:
+    branches: [main]
+    # Only when something that affects the Android build changed — a docs- or
+    # eval-only merge doesn't need to re-seed. src/public/index.html/vite feed
+    # the web bundle that cap sync copies in; android/ + the package/capacitor
+    # files feed Gradle directly.
+    paths:
+      - "android/**"
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.*"
+      - "capacitor.config.json"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android-main.yml"
+  workflow_dispatch: {}
+
+# Only the newest main commit's cache matters; cancel an in-flight older seed.
+concurrency:
+  group: android-main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # Capacitor 8 CLI requires Node >= 22.
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Default (no cache-read-only): this IS the default branch, so setup-gradle
+      # WRITES the cache here — the one place it's seeded for everyone else.
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Same env as android-pr.yml so the produced dist/ matches a PR build and
+      # the asset-packaging task inputs (and thus cache keys) line up. The APK is
+      # never uploaded here — this build exists only to populate the cache.
+      - name: Build web assets
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://${{ vars.SUPABASE_PROJECT_REF }}.supabase.co
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          VITE_APP_ENV: preview
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      # Mirror android-pr.yml's task set exactly so the cache entries a PR will
+      # request (both the debug APK and the R8 release path) are all populated.
+      - name: Build debug APK and release bundle (seed cache)
+        working-directory: android
+        run: ./gradlew assembleDebug bundleRelease

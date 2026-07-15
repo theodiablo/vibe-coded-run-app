@@ -43,17 +43,16 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      # Persists the Gradle distribution, dependency caches AND the local
-      # task-output build cache (org.gradle.caching in android/gradle.properties)
-      # across runs — this is what turns the ~7 min cold Gradle step into an
-      # incremental one. cache-read-only must be false here: the action's
-      # default only WRITES cache from the default branch, and main never runs
-      # an Android build (this workflow fires on PRs, release.yml on tags), so
-      # the cache would otherwise never be seeded.
+      # Restores the Gradle distribution, dependency caches AND the task-output
+      # build cache (org.gradle.caching in android/gradle.properties) — this is
+      # what turns the ~7 min cold Gradle step into an incremental one. This job
+      # is READ-ONLY (setup-gradle's default off the default branch): GitHub
+      # scopes each ref's cache to itself and only the default branch's cache is
+      # readable everywhere, so PRs consume the cache seeded by android-main.yml
+      # (a build on push to main) rather than each writing their own PR-scoped
+      # copy. A brand-new PR before main has ever seeded is cold once, then warm.
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
-        with:
-          cache-read-only: false
 
       - name: Install dependencies
         run: npm ci

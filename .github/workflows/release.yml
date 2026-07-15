@@ -96,15 +96,14 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      # Same Gradle dependency + build-output caching as android-pr.yml, and it
-      # shares the same cache entries (branch caches restore from the most
-      # recent one), so a release starts warm from recent PR builds.
-      # cache-read-only false: main/tags never run android-pr, so this job must
-      # also be able to seed/refresh the cache.
+      # Read-only consumer of the Gradle cache seeded by android-main.yml (a
+      # build on push to main). A release runs on a TAG ref, whose cache scope
+      # is the tag itself — it can read the default branch's cache but not write
+      # to it, so it never seeds; it just reuses what main built. If the tagged
+      # commit's Android inputs match a recent main build (the usual case), the
+      # AAB build restores from cache.
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
-        with:
-          cache-read-only: false
 
       - name: Install dependencies
         run: npm ci
