@@ -1,5 +1,5 @@
 import { hrSummary } from "../utils/hr";
-import { isNative } from "../native";
+import { isAndroid } from "../native";
 import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
 import type { HrPending, Run } from "../types";
 
@@ -143,7 +143,7 @@ export async function flushPendingHr(
     else stillPending.push({ run: r as PendingHrRun & { id: string }, win });
   }
   if (!stillPending.length) return;
-  if (!enabled || !allowNativeRead || !isNative || !hasHealthConnectAuthorization()) return;
+  if (!enabled || !allowNativeRead || !isAndroid || !hasHealthConnectAuthorization()) return;
   if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return; // HC unavailable/unpermitted — leave for next load
   for (const { run, win } of stillPending) {
     const s = await healthConnectSource.fetchRange(win.start, win.end);

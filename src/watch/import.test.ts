@@ -2,7 +2,7 @@ import { beforeEach, describe, it, expect, vi } from "vitest";
 import { WATCH_HC_AUTH_KEY, WATCH_SEEN_MAX } from "../constants";
 
 // Force the native path on and stub the bridge so nothing touches a real plugin.
-vi.mock("../native", () => ({ isNative: true }));
+vi.mock("../native", () => ({ isNative: true, isAndroid: true, isIos: false, platform: "android" }));
 const plugin = {
   checkAvailability: vi.fn(),
   checkHealthPermissions: vi.fn(),

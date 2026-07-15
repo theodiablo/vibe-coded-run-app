@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Bluetooth, Loader, Check, Trash2 } from "lucide-react";
-import { HR_METHODS } from "../hr/source";
+import { hrMethodsForPlatform } from "../hr/source";
 import { bleSource } from "../hr/ble";
 import { healthConnectSource } from "../hr/healthconnect";
 import { getPairedDevice, setPairedDevice, forgetPairedDevice } from "../hr/device";
@@ -23,7 +23,13 @@ type HrSensorProps = {
 // Pairing follows the disclosure-then-OS-prompt pattern of background location.
 export function HrSensor({ settings, saveSettings, showToast }: HrSensorProps) {
   const { t } = useTranslation();
-  const persistedMethod = settings.hrMethod || "off";
+  const methods = hrMethodsForPlatform();
+  // hrMethod syncs across devices, so it can name the other platform's health
+  // store (e.g. "healthconnect" synced from an Android phone, opened on iOS).
+  // Render such a value as "off" here instead of a dead configuration panel —
+  // the preference itself is left untouched for the device it belongs to.
+  const rawMethod = settings.hrMethod || "off";
+  const persistedMethod = methods.some((m) => m.id === rawMethod) ? rawMethod : "off";
   const [setupMethod, setSetupMethod] = useState<HrMethod | null>(null);
   const method = setupMethod || persistedMethod;
   const [paired, setPaired] = useState<HrDevice | null>(() => getPairedDevice());
@@ -140,7 +146,7 @@ export function HrSensor({ settings, saveSettings, showToast }: HrSensorProps) {
 
       {/* Method selector */}
       <div className="grid grid-cols-3 gap-2">
-        {HR_METHODS.map((m) => (
+        {methods.map((m) => (
           <button key={m.id} type="button" onClick={() => chooseMethod(m.id as HrMethod)}
             className={"py-2 rounded-xl text-xs font-semibold border transition-colors flex items-center justify-center gap-1.5 " +
               (method === m.id

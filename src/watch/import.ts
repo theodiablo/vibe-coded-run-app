@@ -1,4 +1,4 @@
-import { isNative } from "../native";
+import { isAndroid } from "../native";
 import { WATCH_HC_AUTH_KEY, WATCH_SEEN_HC_IDS_KEY, WATCH_SEEN_MAX } from "../constants";
 import { getWatchImportPlugin, type WatchImportAvailability } from "./plugin";
 import { newWatchSessions } from "./mapping";
@@ -96,7 +96,7 @@ export async function scanWatchSessions(
   runs: Run[],
   { enabled = true, allowNativeRead = true, days = WATCH_SCAN_DAYS, now = Date.now() }: ScanOptions = {},
 ): Promise<Partial<Run>[]> {
-  if (!enabled || !allowNativeRead || !isNative || !hasWatchAuthorization()) return [];
+  if (!enabled || !allowNativeRead || !isAndroid || !hasWatchAuthorization()) return [];
   try {
     if (!(await isAvailable()) || !(await checkPermissions())) return [];
     const res = await getWatchImportPlugin().readExerciseSessions({
