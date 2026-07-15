@@ -28,11 +28,13 @@
     "@fontsource/archivo": "^5.2.8",
     "@pianissimoproject/capacitor-health-connect": "^0.7.1",
     "@supabase/supabase-js": "^2.107.0",
+    "i18next": "^26.3.6",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.17.0",
     "posthog-js": "^1.393.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-i18next": "^17.0.9",
     "react-markdown": "^10.1.0",
     "recharts": "^3.8.1",
     "remark-gfm": "^4.0.1"

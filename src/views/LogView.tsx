@@ -1,4 +1,5 @@
 import { useState, useRef, type ChangeEvent } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Loader, Plus, Upload, MapPin, HeartPulse } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { ymd } from "../utils/format";
@@ -42,6 +43,7 @@ type LogViewProps = {
 };
 
 export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: LogViewProps) {
+  const { t } = useTranslation();
   // A GPS-tracked run prefills its real measured duration; a plan session
   // prefills an estimate from km × prescribed pace.
   const estSec = prefill?.durationSec != null
@@ -62,13 +64,14 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
   const [busy,   setBusy] = useState(false);
   const [showImp,setImp]  = useState(false);
   const [csvMsg, setCsvMsg] = useState("");
+  const [csvOk,  setCsvOk]  = useState(false);
   const fRef = useRef<HTMLInputElement | null>(null);
   const set  = (k: keyof LogForm, v: string | number) => setF(prev => ({...prev, [k]: v}));
 
-  const showMsg = (msg: string, ms?: number) => { setCsvMsg(msg); setTimeout(() => setCsvMsg(""), ms || 3000); };
+  const showMsg = (msg: string, ok = false) => { setCsvOk(ok); setCsvMsg(msg); setTimeout(() => setCsvMsg(""), 3000); };
 
   const submit = async () => {
-    if (!f.km || (!f.dM && !f.dH)) { showMsg("Distance and duration are required."); return; }
+    if (!f.km || (!f.dM && !f.dH)) { showMsg(t("log.validation.required")); return; }
     setBusy(true);
     const sec = (parseInt(f.dH)||0)*3600 + (parseInt(f.dM)||0)*60 + (parseInt(f.dS)||0);
     addRuns([{
@@ -97,15 +100,15 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
     const file = e.target.files?.[0]; if (!file) return;
     e.target.value = "";
     if (file.size > MAX_GPX_BYTES) {
-      showMsg("File too large — max 20 MB.");
+      showMsg(t("log.import.tooLarge"));
       return;
     }
     const reader = new FileReader();
-    reader.onerror = () => showMsg("Couldn't read that file.");
+    reader.onerror = () => showMsg(t("log.import.readError"));
     reader.onload = async ev => {
       const { runs: parsed, error } = fileProvider.parse!({ name: file.name, text: String(ev.target?.result || "") });
       if (!parsed.length) {
-        showMsg(error || "No runs found in that file.");
+        showMsg(error || t("log.import.noRuns"));
         return;
       }
       const seen = getSeenIds();
@@ -118,13 +121,14 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
         if (!isDuplicateRun(r, (runs || []).concat(fresh as Run[]), seen, { fuzzy: false })) fresh.push(r);
       }
       if (!fresh.length) {
-        showMsg("Already imported — " + (parsed.length > 1 ? "those runs are" : "that run is") + " in your log.");
+        showMsg(t("log.import.alreadyImported", { count: parsed.length }));
         return;
       }
       addRuns(await persistImportedRoutes(fresh));
       const skipped = parsed.length - fresh.length;
-      showMsg("Imported " + fresh.length + " run" + (fresh.length > 1 ? "s" : "") +
-        (skipped ? " (" + skipped + " already logged)" : "") + ".");
+      showMsg(skipped
+        ? t("log.import.importedSkipped", { count: fresh.length, skipped })
+        : t("log.import.imported", { count: fresh.length }), true);
       setTimeout(() => onDone(), 1500);
     };
     reader.readAsText(file);
@@ -133,14 +137,14 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
   const impBtnCls = "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors " +
     (showImp ? "bg-orange-500 border-orange-500 text-white" : "border-orange-400/50 text-orange-400 hover:bg-orange-400/10");
   const msgCls = "mb-4 py-2.5 px-4 rounded-xl text-sm text-center " +
-    (csvMsg.startsWith("Imported") ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300");
+    (csvOk ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300");
 
   return (
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mt-4 mb-5">
-        <h2 className="text-xl font-bold">Record a Run</h2>
+        <h2 className="text-xl font-bold">{t("log.title")}</h2>
         <button onClick={() => setImp(v => !v)} className={impBtnCls}>
-          <Upload size={14}/>Import file
+          <Upload size={14}/>{t("log.importFileBtn")}
         </button>
       </div>
 
@@ -150,89 +154,88 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
         <>
           <button onClick={openTracker}
             className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors mb-4">
-            <MapPin size={16}/>Track a run live (GPS)
+            <MapPin size={16}/>{t("log.trackLive")}
           </button>
           <div className="flex items-center gap-3 mb-5 text-xs uppercase tracking-widest text-slate-500">
-            <div className="h-px flex-1 bg-slate-700"/>or enter manually<div className="h-px flex-1 bg-slate-700"/>
+            <div className="h-px flex-1 bg-slate-700"/>{t("log.orManual")}<div className="h-px flex-1 bg-slate-700"/>
           </div>
         </>
       )}
 
       {prefill?.source === "gps" && (
         <div className="bg-emerald-500/15 text-emerald-300 text-sm rounded-xl px-4 py-2.5 mb-5">
-          Tracked by GPS — distance, time and elevation are filled in. Add a type and notes, then save.
+          {t("log.gpsBanner")}
         </div>
       )}
 
       {prefill?.source === "watch" && (
         <div className="bg-sky-500/15 text-sky-300 text-sm rounded-xl px-4 py-2.5 mb-5">
-          Imported from your watch via Health Connect — check the details (there&apos;s no
-          route/map), pick a type, then save.
+          {t("log.watchBanner")}
         </div>
       )}
 
       {showImp && (
         <div className="bg-slate-800 rounded-2xl p-4 mb-5 border border-slate-700 space-y-2.5">
-          <p className="text-sm font-semibold text-slate-200">Import an activity file</p>
+          <p className="text-sm font-semibold text-slate-200">{t("log.import.title")}</p>
           <p className="text-xs text-slate-500">
-            <span className="text-slate-300">GPX / TCX:</span> one activity with its route map — export from Garmin Connect, Strava and most platforms<br/>
-            <span className="text-slate-300">Zepp CSV:</span> Profile → Privacy Center → Export Personal Data<br/>
-            <span className="text-slate-300">Strava CSV:</span> Settings → My Account → Download or Delete → Request Archive
+            <Trans i18nKey="log.import.gpx"><span className="text-slate-300">GPX / TCX:</span> one activity with its route map — export from Garmin Connect, Strava and most platforms</Trans><br/>
+            <Trans i18nKey="log.import.zepp"><span className="text-slate-300">Zepp CSV:</span> Profile → Privacy Center → Export Personal Data</Trans><br/>
+            <Trans i18nKey="log.import.strava"><span className="text-slate-300">Strava CSV:</span> Settings → My Account → Download or Delete → Request Archive</Trans>
           </p>
           <input ref={fRef} type="file" accept={fileProvider.fileAccept} onChange={handleFile} className="hidden"/>
           <button onClick={() => fRef.current?.click()}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
-            Choose file
+            {t("log.import.chooseFile")}
           </button>
         </div>
       )}
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={LABEL_CLS}>Date</label>
+          <div><label className={LABEL_CLS}>{t("log.fields.date")}</label>
             <input type="date" value={f.date} onChange={e => set("date", e.target.value)} className={INPUT_CLS}/></div>
-          <div><label className={LABEL_CLS}>Type</label>
+          <div><label className={LABEL_CLS}>{t("log.fields.type")}</label>
             <select value={f.type} onChange={e => set("type", e.target.value)} className={INPUT_CLS}>
-              {["EASY","TEMPO","LONG","INTERVALS","RACE","WALK","OTHER"].map(t => <option key={t}>{t}</option>)}
+              {["EASY","TEMPO","LONG","INTERVALS","RACE","WALK","OTHER"].map(ty =>
+                <option key={ty} value={ty}>{t("common.types." + ty, { defaultValue: ty })}</option>)}
             </select>
           </div>
         </div>
-        <div><label className={LABEL_CLS}>Distance (km)</label>
-          <input type="number" step="0.01" min="0" placeholder="e.g. 8.5" value={f.km}
+        <div><label className={LABEL_CLS}>{t("log.fields.distanceKm")}</label>
+          <input type="number" step="0.01" min="0" placeholder={t("log.fields.kmPh")} value={f.km}
             onChange={e => set("km", e.target.value)} className={INPUT_CLS}/></div>
-        <div><label className={LABEL_CLS}>Duration</label>
+        <div><label className={LABEL_CLS}>{t("log.fields.duration")}</label>
           <div className="grid grid-cols-3 gap-2">
-            <input type="number" min="0" max="23" placeholder="h"   value={f.dH} onChange={e => set("dH", e.target.value)} className={INPUT_CLS}/>
-            <input type="number" min="0" max="59" placeholder="min" value={f.dM} onChange={e => set("dM", e.target.value)} className={INPUT_CLS}/>
-            <input type="number" min="0" max="59" placeholder="sec" value={f.dS} onChange={e => set("dS", e.target.value)} className={INPUT_CLS}/>
+            <input type="number" min="0" max="23" placeholder={t("log.fields.hoursPh")}   value={f.dH} onChange={e => set("dH", e.target.value)} className={INPUT_CLS}/>
+            <input type="number" min="0" max="59" placeholder={t("log.fields.minutesPh")} value={f.dM} onChange={e => set("dM", e.target.value)} className={INPUT_CLS}/>
+            <input type="number" min="0" max="59" placeholder={t("log.fields.secondsPh")} value={f.dS} onChange={e => set("dS", e.target.value)} className={INPUT_CLS}/>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div><label className={LABEL_CLS}>Avg HR</label>
-            <input type="number" placeholder="e.g. 145" value={f.hr} onChange={e => set("hr", e.target.value)} className={INPUT_CLS}/></div>
-          <div><label className={LABEL_CLS}>Max HR</label>
-            <input type="number" placeholder="e.g. 170" value={f.hrMax} onChange={e => set("hrMax", e.target.value)} className={INPUT_CLS}/></div>
-          <div><label className={LABEL_CLS}>Elev (m)</label>
-            <input type="number" placeholder="e.g. 80" value={f.elev} onChange={e => set("elev", e.target.value)} className={INPUT_CLS}/></div>
+          <div><label className={LABEL_CLS}>{t("log.fields.avgHr")}</label>
+            <input type="number" placeholder={t("log.fields.avgHrPh")} value={f.hr} onChange={e => set("hr", e.target.value)} className={INPUT_CLS}/></div>
+          <div><label className={LABEL_CLS}>{t("log.fields.maxHr")}</label>
+            <input type="number" placeholder={t("log.fields.maxHrPh")} value={f.hrMax} onChange={e => set("hrMax", e.target.value)} className={INPUT_CLS}/></div>
+          <div><label className={LABEL_CLS}>{t("log.fields.elevM")}</label>
+            <input type="number" placeholder={t("log.fields.elevPh")} value={f.elev} onChange={e => set("elev", e.target.value)} className={INPUT_CLS}/></div>
         </div>
         {prefill?.hrPending && !f.hr && (
           <p className="text-xs text-slate-400 flex items-start gap-1.5">
             <HeartPulse size={14} className="text-red-400 mt-0.5 shrink-0" />
-            <span>Heart rate will be added automatically from Health Connect once your
-              watch syncs (usually a few minutes) — leave these blank, or enter them yourself.</span>
+            <span>{t("log.hrPendingNote")}</span>
           </p>
         )}
         <div>
-          <label className={LABEL_CLS}>{"Perceived effort: "}<span className="text-white font-semibold">{f.effort + "/10"}</span></label>
+          <label className={LABEL_CLS}>{t("log.fields.effort")} <span className="text-white font-semibold">{t("log.fields.effortValue", { value: f.effort })}</span></label>
           <input type="range" min="1" max="10" value={f.effort} onChange={e => set("effort", e.target.value)} className="w-full accent-orange-500"/>
         </div>
-        <div><label className={LABEL_CLS}>Notes</label>
-          <textarea rows={2} placeholder="How did it feel? Any aches?" value={f.notes}
+        <div><label className={LABEL_CLS}>{t("log.fields.notes")}</label>
+          <textarea rows={2} placeholder={t("log.fields.notesPh")} value={f.notes}
             onChange={e => set("notes", e.target.value)} className={INPUT_CLS + " resize-none"}/></div>
         <button onClick={submit} disabled={busy}
           className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-3.5 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
           {busy ? <Loader size={18} className="animate-spin"/> : <Plus size={18}/>}
-          Save Run
+          {t("log.saveRun")}
         </button>
       </div>
     </div>

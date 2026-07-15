@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import L, { type LeafletEvent, type LatLngTuple, type Map, type Marker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader, MapPin, Search, X } from "lucide-react";
@@ -43,6 +44,7 @@ const PIN_ICON = L.divIcon({
 // world view. "Jump to my current location" is offered too, but only as one
 // more way to seed the pin, never the only option.
 export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: LocationPickerProps) {
+  const { t } = useTranslation();
   const elRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const markerRef = useRef<Marker | null>(null);
@@ -148,26 +150,26 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: L
   return (
     <div className="fixed inset-0 bg-slate-900 z-[2000] flex flex-col">
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{ height: 44 }}>
-        <p className="text-sm font-semibold">Set race location</p>
-        <button onClick={onCancel} aria-label="Close" className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>
+        <p className="text-sm font-semibold">{t("races.picker.title")}</p>
+        <button onClick={onCancel} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>
       </header>
       <div className="px-4 pt-2 shrink-0 relative">
         <Search size={16} className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-        <input value={query} onChange={e => onQueryChange(e.target.value)} placeholder="Search a city or address…"
+        <input value={query} onChange={e => onQueryChange(e.target.value)} placeholder={t("races.picker.searchPlaceholder")}
           className={INPUT_CLS + " pl-9 pr-9"} />
         {searching && <Loader size={14} className="animate-spin absolute right-7 top-1/2 -translate-y-1/2 text-slate-400" />}
       </div>
       {searchMiss && !searching && (
-        <p className="text-[12px] text-red-400 px-4 pt-1 shrink-0">No match found — you can still tap the map directly.</p>
+        <p className="text-[12px] text-red-400 px-4 pt-1 shrink-0">{t("races.picker.noMatch")}</p>
       )}
       <p className="text-[12px] text-slate-400 px-4 py-2 shrink-0">
-        Tap or drag the pin onto where the race actually starts — not necessarily where you are right now.
+        {t("races.picker.hint")}
       </p>
       <div className="flex-1 min-h-0 relative">
         <div ref={elRef} className="absolute inset-0" />
         {!MAP_KEY && (
           <div className="absolute bottom-2 left-2 right-2 z-[400] text-[10px] text-amber-300 bg-slate-900/80 rounded px-1.5 py-0.5 pointer-events-none">
-            Map tiles need VITE_MAPTILER_KEY — you can still tap to set coordinates.
+            {t("races.picker.noKey")}
           </div>
         )}
       </div>
@@ -175,16 +177,16 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: L
         <button onClick={useMyLocation} disabled={locating}
           className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60">
           {locating ? <Loader size={14} className="animate-spin" /> : <MapPin size={14} />}
-          Jump to my current location
+          {t("races.picker.jump")}
         </button>
         <div className="flex gap-2">
           <button onClick={onCancel}
             className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-sm font-semibold transition-colors">
-            Cancel
+            {t("common.cancel")}
           </button>
           <button onClick={() => picked && onConfirm(picked)} disabled={!picked}
             className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
-            Confirm
+            {t("common.confirm")}
           </button>
         </div>
       </div>

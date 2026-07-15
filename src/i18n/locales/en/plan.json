@@ -1,0 +1,152 @@
+{
+  "title": "Your training plan",
+  "editPlan": "Edit plan",
+  "jumpToWeek": "Jump to this week",
+  "notConfigured": "not configured",
+  "sessionsLabel": "Sessions: ",
+  "longRunNudge": "Your goal builds long runs up to ~{{peak}}, longer than your longest training day ({{longest}}). That's expected for this distance — consider lengthening your long day in Edit plan.",
+  "header": {
+    "coach": "Coach",
+    "coachTitle": "Adjust the plan with your coach",
+    "resetConfirm": "Reset ✓"
+  },
+  "progress": {
+    "sessions": "{{done}} / {{total}} sessions",
+    "goal": "{{dist}}km{{elev}} · sub {{goal}}",
+    "race": "Race: {{date}}"
+  },
+  "setup": {
+    "intro": "Configure your goal and available training days.",
+    "introPromote": "Set your goal time, then build your plan.",
+    "raceDate": "Race date",
+    "raceDistance": "Race distance (km)",
+    "distance": "Race distance (km)",
+    "distancePlaceholder": "e.g. 21.1",
+    "raceElevation": "Race elevation gain (m)",
+    "elevationHelp": "Total climb on the course — sets training paces to the flat-equivalent effort.",
+    "trainingDays": "Training days and durations",
+    "suggestedNote": "Suggested for your race — adjust freely.",
+    "useSuggested": "Use suggested days for this race",
+    "trainingStyle": "Training style",
+    "hrNudge": "Add your HR profile in Settings to unlock heart rate targets on every session.",
+    "generate": "Generate My Training Plan",
+    "buildMyPlan": "Build my plan",
+    "regenerate": "Regenerate plan",
+    "regenNote": "Rebuilds every week from your current settings — completed and skipped sessions are kept.",
+    "promoteNote": "Builds a fresh plan for this race."
+  },
+  "long": {
+    "easy": "Long run — easy effort at {{pace}}/km",
+    "steady": "Long run — steady effort at {{pace}}/km",
+    "steadyModerate": "Long run — steady, moderate effort at {{pace}}/km",
+    "coachEasyNoPace": "Long run — easy effort"
+  },
+  "easy": {
+    "relaxed": "Easy run — relaxed aerobic effort",
+    "conversational": "Easy run — relaxed, conversational pace",
+    "aroundRace": "Easy run — keep it light around your race"
+  },
+  "tempo": {
+    "comfortablyHard": "Tempo run — {{pace}}/km, comfortably hard",
+    "oneHard": "Tempo run — {{pace}}/km, your one hard session this week",
+    "strong": "Tempo run — {{pace}}/km, strong and controlled",
+    "goalPace": "Tempo — at goal race pace {{pace}}/km, steady",
+    "goalPaceShort": "Tempo — short, at goal race pace {{pace}}/km",
+    "coachComfortNoPace": "Tempo run — comfortably hard",
+    "coachGoalNoPace": "Tempo — at goal race pace, steady"
+  },
+  "intervals": {
+    "standard": "Intervals — {{reps}}x{{dist}} at {{pace}}/km {{recovery}}",
+    "speed": "Speed — {{reps}}x{{dist}} at {{pace}}/km {{recovery}}",
+    "strength": "Strength — {{reps}}x{{dist}} at goal pace minus {{offset}}s ({{pace}}/km) + 1km jog recovery",
+    "coachGeneric": "Intervals — repeats at {{pace}}/km with full recovery",
+    "coachGenericNoPace": "Intervals — repeats with full recovery"
+  },
+  "rec": {
+    "90s": "+ 90s recovery",
+    "90sJog": "+ 90s jog recovery",
+    "jogs": "+ recovery jogs",
+    "1kmJog": "+ 1km jog recovery",
+    "full": "+ full recovery"
+  },
+  "runwalk": {
+    "long": "Long run/walk — run {{runMin}} min / walk {{walkMin}} min, conversational",
+    "short": "Run/walk — run {{runMin}} min / walk {{walkMin}} min, conversational",
+    "shortTaper": "Run/walk — run {{runMin}} min / walk {{walkMin}} min, short and relaxed",
+    "coachLong": "Long run/walk — gentle run/walk intervals, conversational",
+    "coachShort": "Run/walk — gentle intervals, conversational"
+  },
+  "cross": "Optional cross-training — {{mins}} easy bike, swim or elliptical (skip if tired)",
+  "race": "Race — {{km}}km{{elev}}",
+  "raceElev": " · +{{elevM}}m",
+  "raceday": "Race Day — {{km}}km{{elev}}! Everything you trained for.",
+  "racedayElev": " · +{{elevM}}m climb",
+  "steps": {
+    "labels": {
+      "warmup": "Warm-up",
+      "workout": "Workout",
+      "cooldown": "Cool-down",
+      "stretch": "Stretch",
+      "start": "Start",
+      "main": "Main",
+      "fuel": "Fuel",
+      "activity": "Activity",
+      "before": "Before",
+      "race": "Race",
+      "after": "After",
+      "run": "Run",
+      "finish": "Finish"
+    },
+    "stretch": "5 min of gentle stretching — calves, quads, hamstrings, hips.",
+    "recPhrase": {
+      "90s": "90s recovery",
+      "90sJog": "90s jog recovery",
+      "jogs": "recovery jogs",
+      "1kmJog": "1km jog recovery",
+      "default": "an easy jog"
+    },
+    "intervals": {
+      "warmup": "10–15 min easy jogging, finishing with a few relaxed strides.",
+      "cooldown": "5–10 min very easy jog to bring the heart rate down.",
+      "workoutReps": "{{count}} × {{dist}} at {{pace}}, with {{recovery}} between reps.",
+      "workoutRepsNoPace": "{{count}} × {{dist}}, with {{recovery}} between reps.",
+      "workoutGeneric": "Repeats at {{pace}} with easy jog recoveries between them.",
+      "workoutGenericNoPace": "Repeats with easy jog recoveries between them."
+    },
+    "tempo": {
+      "warmup": "10–15 min easy jogging.",
+      "cooldown": "5–10 min very easy jog.",
+      "workoutKm": "~{{km}} km at {{pace}} — comfortably hard: controlled, but you couldn't hold a chat.",
+      "workoutKmNoPace": "~{{km}} km — comfortably hard: controlled, but you couldn't hold a chat.",
+      "workoutNoKm": "The main block at {{pace}} — comfortably hard: controlled, but you couldn't hold a chat.",
+      "workoutNoKmNoPace": "The main block — comfortably hard: controlled, but you couldn't hold a chat."
+    },
+    "long": {
+      "start": "Ease into it — the first 10 min should feel almost too slow.",
+      "mainRatio": "Settle into run {{run}} min / walk {{walk}} min for the full distance, conversational throughout.",
+      "mainPace": "Hold a relaxed, conversational effort around {{pace}} the whole way.",
+      "mainNoPace": "Hold a relaxed, conversational effort the whole way.",
+      "fuel": "Drink regularly and take carbs every 30–40 min — practice your race-day fuelling."
+    },
+    "walk": {
+      "warmup": "5 min of brisk walking.",
+      "mainRatio": "Alternate run {{run}} min / walk {{walk}} min — keep every run segment conversational.",
+      "cooldown": "5 min of easy walking.",
+      "activity": "Brisk walk or low-impact cross-training — easy effort, no pounding."
+    },
+    "race": {
+      "before": "Arrive early. 10 min easy jog and a few strides, then keep warm.",
+      "raceTarget": "Start controlled — target {{pace}}; the first kilometres should feel easy.",
+      "raceNoTarget": "Start controlled; the first kilometres should feel easy.",
+      "after": "Keep walking a few minutes, refuel, and celebrate."
+    },
+    "other": "Optional cross-training — bike, swim or elliptical at an easy effort. Skip it if you're tired.",
+    "easy": {
+      "runPace": "Fully conversational — around {{pace}}; walking breaks are fine.",
+      "runNoPace": "Fully conversational; walking breaks are fine.",
+      "finish": "A few minutes of walking, then light stretching."
+    }
+  },
+  "crosswalk": "Cross-training / brisk walk — no impact, easy effort",
+  "recovery": "Recovery run — very easy effort, walk breaks welcome"
+}

@@ -1,0 +1,42 @@
+{
+  "greeting": "Good to see you,",
+  "greetingName": "{{name}} 🏃‍♂️",
+  "greetingAnon": "Good to see you 🏃‍♂️",
+  "race": {
+    "title": "Race Day",
+    "summary": "{{distance}}km · target sub {{goal}} · {{pace}}/km",
+    "daysToGo": "days to go",
+    "nextUp": "Next up: ",
+    "daysShort": "{{days}}d",
+    "setupTitle": "Set up your race",
+    "setupHint": "Pick a date and distance to build your training plan →"
+  },
+  "stats": {
+    "thisWeek": "This week",
+    "runsRecorded": "Runs recorded",
+    "total": "Total"
+  },
+  "nextBadge": "Next badge",
+  "session": {
+    "today": "Today's session",
+    "upNext": "Up next",
+    "viewInPlan": "View in your plan",
+    "howItUnfolds": "How it unfolds",
+    "record": "Record",
+    "skipTitle": "Skip this session"
+  },
+  "noPlan": "No training plan yet. Ready to get started?",
+  "setUpPlan": "Set Up My Plan",
+  "allSessionsDone": "All upcoming sessions done!",
+  "coach": {
+    "title": "Adjust your plan with your coach",
+    "subtitle": "Niggle, missed week, or a schedule clash? Ask for a tweak."
+  },
+  "recentRuns": "Recent runs",
+  "viewAll": "View all",
+  "empty": {
+    "noRuns": "No runs yet.",
+    "hint": "Tap Record below to add your first one.",
+    "restore": "Had data from a previous version? Open Settings (gear, top right) → Restore."
+  }
+}

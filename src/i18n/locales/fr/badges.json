@@ -1,0 +1,24 @@
+{
+  "hint": {
+    "toGo": "encore {{amount}} {{unit}}",
+    "toGoCount_one": "encore {{count}}",
+    "toGoCount_other": "encore {{count}}",
+    "unit": { "km": "km", "wk": "sem", "m": "m" }
+  },
+  "dist-first-5k": { "label": "Premier 5 km", "desc": "Courez 5 km en une sortie" },
+  "dist-first-10k": { "label": "Premier 10 km", "desc": "Courez 10 km en une sortie" },
+  "dist-first-half": { "label": "Semi-marathon", "desc": "Couvrez un semi-marathon" },
+  "dist-first-marathon": { "label": "Marathon", "desc": "Parcourez la distance complète du marathon" },
+  "vol-100": { "label": "Club des 100 km", "desc": "100 km enregistrés au total" },
+  "vol-500": { "label": "Club des 500 km", "desc": "500 km enregistrés au total" },
+  "vol-1000": { "label": "Club des 1000 km", "desc": "1000 km enregistrés au total" },
+  "weeks-4": { "label": "Ça démarre", "desc": "Courez sur 4 semaines différentes" },
+  "weeks-12": { "label": "Une habitude", "desc": "Courez sur 12 semaines différentes" },
+  "weeks-26": { "label": "Six mois solides", "desc": "Courez sur 26 semaines différentes" },
+  "race-wishlist": { "label": "Voir grand", "desc": "Ajoutez une course à votre liste" },
+  "race-done-1": { "label": "Première ligne d'arrivée", "desc": "Terminez votre première course" },
+  "race-done-5": { "label": "Coureur aguerri", "desc": "Terminez 5 courses" },
+  "gps-first": { "label": "Sur la carte", "desc": "Enregistrez une course avec le GPS" },
+  "elev-1000": { "label": "Grimpeur", "desc": "Grimpez 1000 m au total" },
+  "elev-5000": { "label": "Chèvre de montagne", "desc": "Grimpez 5000 m au total" }
+}

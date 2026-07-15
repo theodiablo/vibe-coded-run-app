@@ -1,0 +1,43 @@
+{
+  "cancel": "Annuler",
+  "save": "Enregistrer",
+  "close": "Fermer",
+  "delete": "Supprimer",
+  "back": "Retour",
+  "next": "Suivant",
+  "done": "Terminé",
+  "skip": "Passer",
+  "undo": "Annuler",
+  "edit": "Modifier",
+  "add": "Ajouter",
+  "remove": "Retirer",
+  "confirm": "Confirmer",
+  "loading": "Chargement…",
+  "notNow": "Pas maintenant",
+  "gotIt": "Compris",
+  "types": {
+    "EASY": "FACILE",
+    "TEMPO": "TEMPO",
+    "INTERVALS": "FRACTIONNÉ",
+    "LONG": "LONGUE",
+    "RACE": "COURSE",
+    "WALK": "MARCHE",
+    "OTHER": "AUTRE"
+  },
+  "phases": {
+    "BASE": "BASE",
+    "BUILD": "CHARGE",
+    "PEAK": "PIC",
+    "TAPER": "AFFÛTAGE",
+    "RACE": "COURSE"
+  },
+  "hrTargetNudge": "Ajoutez votre profil de FC dans les Réglages pour voir une zone cible",
+  "hrRowZone": {
+    "EASY": "Z2 · Base aérobie",
+    "LONG": "Z2 · Base aérobie",
+    "TEMPO": "Z3-4 · Seuil lactique",
+    "INTERVALS": "Z4-5 · Effort max (répétitions)",
+    "RACE": "Z3-4 · Effort de course",
+    "WALK": "Z1 · Récupération"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "signInFailed": "No se pudo iniciar sesión. Inténtalo de nuevo.",
+  "header": {
+    "settings": "Ajustes"
+  },
+  "beta": "Beta",
+  "toasts": {
+    "memoryFull": "La memoria del coach se está llenando — revísala en Ajustes.",
+    "hrAdded": "Frecuencia cardiaca añadida a una carrera desde Health Connect ❤",
+    "contributionVerified_one": "Tu contribución de carrera ha sido verificada — ¡gracias! 🎉",
+    "contributionVerified_other": "{{count}} de tus contribuciones de carreras han sido verificadas — ¡gracias! 🎉",
+    "badgeUnlocked_one": "Insignia desbloqueada: {{label}} 🏅",
+    "badgeUnlocked_other": "{{count}} insignias nuevas desbloqueadas 🏅",
+    "newBadge": "Nueva insignia",
+    "loggedAsRace": "Registrada como {{label}} 🎉",
+    "yourRace": "tu carrera",
+    "runDeleted": "Carrera eliminada.",
+    "runUpdated": "Carrera actualizada.",
+    "restored": "Restaurado — {{n}} carrera(s) importada(s).",
+    "foundRun": "Hemos encontrado una carrera de tu reloj — {{km}} km el {{date}}",
+    "foundRuns": "Hemos encontrado {{n}} carreras de tu reloj",
+    "review": "Revisar",
+    "importAll": "Importar todas"
+  },
+  "consent": {
+    "title": "¿Nos ayudas a mejorar la app?",
+    "body": "Nos gustaría recopilar analíticas de uso limitadas e informes de fallos para corregir errores y ver qué se usa. Nunca se envían datos de tus carreras, rutas, notas, frecuencia cardiaca ni mensajes del coach. Puedes cambiarlo en cualquier momento en Ajustes → Privacidad.",
+    "privacyPolicy": "Política de privacidad",
+    "decline": "Rechazar",
+    "accept": "Aceptar"
+  },
+  "crash": {
+    "title": "Algo ha salido mal",
+    "body": "La app ha encontrado un error inesperado. Recargar suele arreglarlo — tus carreras y tu plan están guardados.",
+    "showTrace": "Mostrar traza del error",
+    "hideTrace": "Ocultar traza del error",
+    "copyTrace": "Copiar traza",
+    "copied": "Copiado",
+    "emailTrace": "Enviar traza por correo",
+    "askSend": "¿Enviar un informe de fallo limitado para ayudar a corregirlo?",
+    "dontSend": "No enviar",
+    "sendReport": "Enviar informe",
+    "sent": "Informe de fallo enviado. Gracias.",
+    "reload": "Recargar"
+  },
+  "update": {
+    "requiredTitle": "Actualización necesaria",
+    "requiredBody": "Esta versión de Running Coach ya no es compatible. Actualiza a la última versión para seguir usando la app.",
+    "updateNow": "Actualizar ahora",
+    "available": "Hay una nueva versión de Running Coach disponible.",
+    "update": "Actualizar",
+    "dismiss": "Descartar"
+  }
+}

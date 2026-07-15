@@ -1,0 +1,25 @@
+{
+  "brand": "Running Coach",
+  "signIn": "Sign in",
+  "signUp": "Sign up",
+  "email": "Email",
+  "emailPlaceholder": "you@example.com",
+  "password": "Password",
+  "passwordPlaceholder": "••••••••",
+  "createAccount": "Create account",
+  "or": "or",
+  "continueWithGoogle": "Continue with Google",
+  "accountCreated": "Account created. Check your email to confirm, then sign in.",
+  "genericError": "Something went wrong.",
+  "dataSync": "Your data syncs securely to your account.",
+  "privacy": "Privacy",
+  "bgLocation": {
+    "title": "Background location",
+    "body": "To record your run accurately, Running Coach collects your <strong>location in the background</strong> — including <strong>while the app is closed or the screen is off</strong>.",
+    "bulletRecording": "Collected <strong>only while a run is recording</strong> — never at any other time.",
+    "bulletRoute": "Used to draw your route and compute distance, pace, and elevation.",
+    "bulletStored": "Stored in your own account; never sold or shared with third parties.",
+    "privacyNote": "See our <privacy>Privacy Policy</privacy>. When you tap Allow, Android will ask to use your location — choose <strong>“Allow all the time”</strong> for screen-off tracking.",
+    "allowContinue": "Allow & continue"
+  }
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 
 type InfoButtonProps = { title: string; label?: string; children: ReactNode };
@@ -11,6 +12,7 @@ type InfoSectionProps = { title: string; accent?: string; children: ReactNode };
 // the Plan and Stats views. A single centred card scrolls internally — no
 // full-screen takeover, no double scrollbar.
 export function InfoButton({title, label = "info", children}: InfoButtonProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -25,7 +27,7 @@ export function InfoButton({title, label = "info", children}: InfoButtonProps) {
           <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
             <header className="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
               <span className="text-sm font-semibold">{title}</span>
-              <button onClick={() => setOpen(false)} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+              <button onClick={() => setOpen(false)} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
             </header>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-slate-300 leading-relaxed">
               {children}

@@ -1,0 +1,42 @@
+{
+  "greeting": "Ça fait plaisir de te voir,",
+  "greetingName": "{{name}} 🏃‍♂️",
+  "greetingAnon": "Ça fait plaisir de te voir 🏃‍♂️",
+  "race": {
+    "title": "Jour de course",
+    "summary": "{{distance}}km · objectif sub {{goal}} · {{pace}}/km",
+    "daysToGo": "jours restants",
+    "nextUp": "À suivre : ",
+    "daysShort": "{{days}} j",
+    "setupTitle": "Configure ta course",
+    "setupHint": "Choisis une date et une distance pour créer ton plan d'entraînement →"
+  },
+  "stats": {
+    "thisWeek": "Cette semaine",
+    "runsRecorded": "Sorties enregistrées",
+    "total": "Total"
+  },
+  "nextBadge": "Prochain badge",
+  "session": {
+    "today": "Séance du jour",
+    "upNext": "À venir",
+    "viewInPlan": "Voir dans ton plan",
+    "howItUnfolds": "Comment ça se déroule",
+    "record": "Enregistrer",
+    "skipTitle": "Passer cette séance"
+  },
+  "noPlan": "Pas encore de plan d'entraînement. On s'y met ?",
+  "setUpPlan": "Configurer mon plan",
+  "allSessionsDone": "Toutes les séances à venir sont faites !",
+  "coach": {
+    "title": "Ajuste ton plan avec ton coach",
+    "subtitle": "Une gêne, une semaine manquée ou un imprévu ? Demande un ajustement."
+  },
+  "recentRuns": "Sorties récentes",
+  "viewAll": "Tout voir",
+  "empty": {
+    "noRuns": "Pas encore de sortie.",
+    "hint": "Touche Enregistrer en bas pour ajouter ta première sortie.",
+    "restore": "Des données d'une version précédente ? Ouvre Réglages (engrenage, en haut à droite) → Restaurer."
+  }
+}

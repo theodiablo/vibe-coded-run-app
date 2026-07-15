@@ -1,0 +1,69 @@
+{
+  "diff": {
+    "new": "nueva {{type}} · {{km}} km el {{date}}",
+    "moved": "movida {{from}} → {{to}}"
+  },
+  "title": "Coach",
+  "greeting": "¡Hola! Cuéntame qué te ayudaría a entrenar bien esta semana — llegar más fresco, encajar el plan con tu vida, ganar un poco de confianza o gestionar una molestia — y te propondré un ajuste seguro. Siempre verás el cambio antes de que se aplique nada.",
+  "examples": {
+    "fresh": "Ayúdame a llegar fresco al fin de semana",
+    "extraDay": "Tengo un día extra para entrenar",
+    "moveLongRun": "Mueve mi tirada larga al domingo",
+    "confidence": "Ganar confianza para el día de la carrera"
+  },
+  "fallback": {
+    "noValidAdjustment": "No encontré ningún ajuste que mantenga tu plan dentro de las reglas de entrenamiento de la app — no se cambió nada.",
+    "noChangeNeeded": "No hace falta cambiar nada del plan para eso.",
+    "proposal": "Este es el ajuste que te recomiendo.",
+    "applied": "Listo — tu plan está actualizado. ¿Algo más?"
+  },
+  "errors": {
+    "noProposedPlan": "La respuesta del coach no incluía un plan propuesto.",
+    "noProposalReady": "No hay ninguna propuesta del coach lista para aplicar.",
+    "confirmNoPlan": "La confirmación del coach no incluía un plan.",
+    "revalidateFailed": "La propuesta ya no supera la validación — no se aplicó nada.",
+    "noResponseToFlag": "No hay ninguna respuesta del coach que señalar.",
+    "noConversation": "No hay ninguna conversación abierta con el coach.",
+    "server": {
+      "RATE_LIMIT": "Has alcanzado el límite del coach por hoy — inténtalo de nuevo mañana.",
+      "NO_PLAN": "Todavía no hay un plan de entrenamiento que ajustar — crea uno primero.",
+      "COACH_UNAVAILABLE": "El coach no está disponible ahora mismo — inténtalo de nuevo en un momento.",
+      "TRAJECTORY_NOT_FOUND": "Esta conversación con el coach ya no está disponible.",
+      "TRAJECTORY_CLOSED": "Esta conversación con el coach ya está cerrada.",
+      "NO_OPEN_PROPOSAL": "No hay ninguna propuesta abierta para aplicar.",
+      "PROPOSAL_INVALID": "La propuesta ya no supera la validación — no se aplicó nada."
+    },
+    "transport": {
+      "timeout": "El coach tardó demasiado en arrancar — inténtalo de nuevo en un momento.",
+      "offline": "No se pudo contactar con el coach — comprueba tu conexión e inténtalo de nuevo.",
+      "reauth": "Tu sesión ha caducado — inicia sesión de nuevo.",
+      "unavailable": "El coach no está disponible ahora mismo — inténtalo de nuevo en un momento."
+    }
+  },
+  "toast": {
+    "planAdjusted": "Plan ajustado por tu coach ✓",
+    "feedbackFailed": "No se pudo enviar tu comentario — inténtalo de nuevo en un momento",
+    "feedbackSent": "Gracias — tu comentario se ha enviado.",
+    "memoryDuplicate": "Ya está en la memoria del coach."
+  },
+  "week": "Semana {{num}}",
+  "apply": "Aplicar este ajuste",
+  "memory": {
+    "prompt": "¿Recordar esto para futuros chats con el coach?",
+    "saved": "Guardado en la memoria del coach.",
+    "save": "Guardar en memoria"
+  },
+  "flag": {
+    "cta": "Esto no es correcto",
+    "placeholder": "¿En qué se equivocó el coach?",
+    "thanks": "Gracias — anotado."
+  },
+  "send": "Enviar",
+  "thinking": "El coach está pensando…",
+  "footer": "Tu coach usa tu mensaje, tu plan, tus carreras recientes y la memoria guardada para responder. Consulta nuestra <1>política de privacidad</1> y la <3>nota de seguridad</3>.",
+  "input": {
+    "aria": "Mensaje para el coach",
+    "placeholder": "p. ej. ayúdame a llegar fresco al fin de semana",
+    "placeholderFollowUp": "Sugiere un cambio…"
+  }
+}

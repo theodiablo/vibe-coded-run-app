@@ -1,0 +1,152 @@
+{
+  "title": "Votre plan d'entraînement",
+  "editPlan": "Modifier le plan",
+  "jumpToWeek": "Aller à cette semaine",
+  "notConfigured": "non configuré",
+  "sessionsLabel": "Séances : ",
+  "longRunNudge": "Votre objectif fait monter les sorties longues jusqu'à ~{{peak}}, plus que votre plus longue journée d'entraînement ({{longest}}). C'est normal pour cette distance — envisagez d'allonger votre jour long dans Modifier le plan.",
+  "header": {
+    "coach": "Coach",
+    "coachTitle": "Ajustez le plan avec votre coach",
+    "resetConfirm": "Réinitialiser ✓"
+  },
+  "progress": {
+    "sessions": "{{done}} / {{total}} séances",
+    "goal": "{{dist}}km{{elev}} · sous {{goal}}",
+    "race": "Course : {{date}}"
+  },
+  "setup": {
+    "intro": "Configurez votre objectif et les jours où vous pouvez vous entraîner.",
+    "introPromote": "Fixez votre temps cible, puis créez votre plan.",
+    "raceDate": "Date de la course",
+    "raceDistance": "Distance de la course (km)",
+    "distance": "Distance de la course (km)",
+    "distancePlaceholder": "p. ex. 21.1",
+    "raceElevation": "Dénivelé positif de la course (m)",
+    "elevationHelp": "Dénivelé total du parcours — cale les allures d'entraînement sur l'effort équivalent à plat.",
+    "trainingDays": "Jours et durées d'entraînement",
+    "suggestedNote": "Suggéré pour votre course — ajustez librement.",
+    "useSuggested": "Utiliser les jours suggérés pour cette course",
+    "trainingStyle": "Style d'entraînement",
+    "hrNudge": "Ajoutez votre profil de FC dans les Réglages pour débloquer des cibles de fréquence cardiaque à chaque séance.",
+    "generate": "Générer mon plan d'entraînement",
+    "buildMyPlan": "Créer mon plan",
+    "regenerate": "Régénérer le plan",
+    "regenNote": "Reconstruit chaque semaine à partir de vos réglages actuels — les séances terminées et ignorées sont conservées.",
+    "promoteNote": "Crée un nouveau plan pour cette course."
+  },
+  "long": {
+    "easy": "Sortie longue — effort facile à {{pace}}/km",
+    "steady": "Sortie longue — effort régulier à {{pace}}/km",
+    "steadyModerate": "Sortie longue — effort régulier et modéré à {{pace}}/km",
+    "coachEasyNoPace": "Sortie longue — effort facile"
+  },
+  "easy": {
+    "relaxed": "Footing — effort aérobie relâché",
+    "conversational": "Footing — allure relâchée, conversationnelle",
+    "aroundRace": "Footing — restez léger autour de votre course"
+  },
+  "tempo": {
+    "comfortablyHard": "Tempo — {{pace}}/km, confortablement soutenu",
+    "oneHard": "Tempo — {{pace}}/km, votre seule séance difficile de la semaine",
+    "strong": "Tempo — {{pace}}/km, fort et maîtrisé",
+    "goalPace": "Tempo — à l'allure cible de course {{pace}}/km, régulier",
+    "goalPaceShort": "Tempo — court, à l'allure cible de course {{pace}}/km",
+    "coachComfortNoPace": "Tempo — confortablement soutenu",
+    "coachGoalNoPace": "Tempo — à l'allure cible de course, régulier"
+  },
+  "intervals": {
+    "standard": "Fractionné — {{reps}}x{{dist}} à {{pace}}/km {{recovery}}",
+    "speed": "Vitesse — {{reps}}x{{dist}} à {{pace}}/km {{recovery}}",
+    "strength": "Force — {{reps}}x{{dist}} à l'allure cible moins {{offset}}s ({{pace}}/km) + 1km de footing de récupération",
+    "coachGeneric": "Fractionné — répétitions à {{pace}}/km avec récupération complète",
+    "coachGenericNoPace": "Fractionné — répétitions avec récupération complète"
+  },
+  "rec": {
+    "90s": "+ 90s de récupération",
+    "90sJog": "+ 90s de footing de récupération",
+    "jogs": "+ footings de récupération",
+    "1kmJog": "+ 1km de footing de récupération",
+    "full": "+ récupération complète"
+  },
+  "runwalk": {
+    "long": "Marche/course longue — courez {{runMin}} min / marchez {{walkMin}} min, conversationnel",
+    "short": "Course/marche — courez {{runMin}} min / marchez {{walkMin}} min, conversationnel",
+    "shortTaper": "Course/marche — courez {{runMin}} min / marchez {{walkMin}} min, court et détendu",
+    "coachLong": "Marche/course longue — intervalles doux de course/marche, conversationnel",
+    "coachShort": "Course/marche — intervalles doux, conversationnel"
+  },
+  "cross": "Entraînement croisé optionnel — {{mins}} de vélo, natation ou elliptique en douceur (à sauter si fatigué)",
+  "race": "Course — {{km}}km{{elev}}",
+  "raceElev": " · +{{elevM}}m",
+  "raceday": "Jour de course — {{km}}km{{elev}} ! Tout ce pour quoi vous vous êtes entraîné.",
+  "racedayElev": " · +{{elevM}}m de dénivelé",
+  "steps": {
+    "labels": {
+      "warmup": "Échauffement",
+      "workout": "Séance",
+      "cooldown": "Retour au calme",
+      "stretch": "Étirements",
+      "start": "Départ",
+      "main": "Principal",
+      "fuel": "Nutrition",
+      "activity": "Activité",
+      "before": "Avant",
+      "race": "Course",
+      "after": "Après",
+      "run": "Course",
+      "finish": "Fin"
+    },
+    "stretch": "5 min d'étirements en douceur — mollets, quadriceps, ischios, hanches.",
+    "recPhrase": {
+      "90s": "90s de récupération",
+      "90sJog": "90s de footing de récupération",
+      "jogs": "footings de récupération",
+      "1kmJog": "1km de footing de récupération",
+      "default": "un footing tranquille"
+    },
+    "intervals": {
+      "warmup": "10–15 min de footing tranquille, en terminant par quelques lignes droites relâchées.",
+      "cooldown": "5–10 min de footing très tranquille pour faire baisser le cœur.",
+      "workoutReps": "{{count}} × {{dist}} à {{pace}}, avec {{recovery}} entre les répétitions.",
+      "workoutRepsNoPace": "{{count}} × {{dist}}, avec {{recovery}} entre les répétitions.",
+      "workoutGeneric": "Répétitions à {{pace}} avec des footings tranquilles de récupération entre elles.",
+      "workoutGenericNoPace": "Répétitions avec des footings tranquilles de récupération entre elles."
+    },
+    "tempo": {
+      "warmup": "10–15 min de footing tranquille.",
+      "cooldown": "5–10 min de footing très tranquille.",
+      "workoutKm": "~{{km}} km à {{pace}} — confortablement soutenu : maîtrisé, mais impossible de tenir une conversation.",
+      "workoutKmNoPace": "~{{km}} km — confortablement soutenu : maîtrisé, mais impossible de tenir une conversation.",
+      "workoutNoKm": "Le bloc principal à {{pace}} — confortablement soutenu : maîtrisé, mais impossible de tenir une conversation.",
+      "workoutNoKmNoPace": "Le bloc principal — confortablement soutenu : maîtrisé, mais impossible de tenir une conversation."
+    },
+    "long": {
+      "start": "Mettez-vous en route progressivement — les 10 premières minutes devraient sembler presque trop lentes.",
+      "mainRatio": "Installez-vous sur courez {{run}} min / marchez {{walk}} min pour toute la distance, conversationnel du début à la fin.",
+      "mainPace": "Tenez un effort relâché et conversationnel autour de {{pace}} tout du long.",
+      "mainNoPace": "Tenez un effort relâché et conversationnel tout du long.",
+      "fuel": "Buvez régulièrement et prenez des glucides toutes les 30–40 min — répétez votre stratégie nutritionnelle du jour de course."
+    },
+    "walk": {
+      "warmup": "5 min de marche rapide.",
+      "mainRatio": "Alternez courez {{run}} min / marchez {{walk}} min — gardez chaque segment de course conversationnel.",
+      "cooldown": "5 min de marche tranquille.",
+      "activity": "Marche rapide ou entraînement croisé à faible impact — effort léger, sans à-coups."
+    },
+    "race": {
+      "before": "Arrivez tôt. 10 min de footing tranquille et quelques lignes droites, puis restez au chaud.",
+      "raceTarget": "Partez en contrôle — objectif {{pace}} ; les premiers kilomètres devraient sembler faciles.",
+      "raceNoTarget": "Partez en contrôle ; les premiers kilomètres devraient sembler faciles.",
+      "after": "Continuez à marcher quelques minutes, rechargez-vous et célébrez."
+    },
+    "other": "Entraînement croisé optionnel — vélo, natation ou elliptique à effort léger. À sauter si vous êtes fatigué.",
+    "easy": {
+      "runPace": "Entièrement conversationnel — autour de {{pace}} ; les pauses marche sont permises.",
+      "runNoPace": "Entièrement conversationnel ; les pauses marche sont permises.",
+      "finish": "Quelques minutes de marche, puis des étirements légers."
+    }
+  },
+  "crosswalk": "Entraînement croisé / marche rapide — sans impact, effort léger",
+  "recovery": "Footing de récupération — effort très facile, pauses marche bienvenues"
+}

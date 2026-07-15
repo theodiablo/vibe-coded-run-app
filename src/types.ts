@@ -33,12 +33,37 @@ export type SettingsState = Record<string, unknown> & {
   targetEditionId?: string | null;
   // Training methodology style (see src/utils/planStyles.ts); absent = balanced.
   planStyle?: string;
+  // UI language (synced preference; see src/i18n). Absent = device/browser
+  // locale. The per-device rc_lang localStorage key covers pre-auth screens.
+  language?: "en" | "es" | "fr";
   // Self-reported running volume from onboarding ("none" | "occasional" |
   // "regular" | "frequent") — the fitness signal before any runs are logged.
   trainingLevel?: string | null;
 };
 
 export type HrPending = { start: string | number; end: string | number; source: string };
+
+// Structured session descriptor. `desc` (English, canonical — what old clients
+// render and the coach model reads) stays alongside; `sd` is what the UI
+// renders per-locale via renderSd (src/utils/sessionDesc.ts). Pace is
+// deliberately NOT here: sentences read it from session.pace at render time so
+// a coach pace edit or a locale switch can never desync sentence and field.
+// buildPlan (src/utils/plan.ts) and the coach's sdFor (supabase/functions/
+// _shared/coach/tools.mjs) both stamp this; sessionDesc.test.ts proves both
+// render to the canonical English `desc` byte-for-byte.
+export type SessionSd = {
+  kind: "long" | "easy" | "recovery" | "tempo" | "intervals" | "runwalk" | "cross" | "crosswalk" | "race" | "raceday";
+  variant?: string;      // sentence flavor within a kind (1:1 with the English templates)
+  reps?: number;         // rep/set count
+  repM?: number;         // rep length in metres (400 | 600 | 800 | 1000 | 3000)
+  recover?: "90s" | "90sJog" | "1kmJog" | "jogs";
+  offsetSec?: number;    // Hansons strength: "goal pace minus 10s"
+  runMin?: number;       // Galloway ratio
+  walkMin?: number;
+  minutes?: number;      // lowfreq cross-training day budget
+  km?: number;           // race / raceday sentence figures
+  elevM?: number;
+};
 
 export type Run = Record<string, unknown> & {
   id?: string;
@@ -74,6 +99,7 @@ export type PlanSession = Record<string, unknown> & {
   date: string;
   type: RunType | string;
   desc: string;
+  sd?: SessionSd;
   km: number | string;
   pace: number;
   done?: boolean;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
 import { VERT_COST } from "../constants";
@@ -13,10 +14,11 @@ type StatCard = { l: string; v: string; s: string; c: string };
 type Period = "4w" | "12w" | "all";
 
 export function StatsView({runs, settings}: StatsViewProps) {
+  const { t } = useTranslation();
   return (
     <div className="max-w-lg mx-auto">
       <div className="px-4 pt-6 pb-0">
-        <h2 className="text-xl font-bold">Stats</h2>
+        <h2 className="text-xl font-bold">{t("progress.stats.title")}</h2>
       </div>
       <Overview runs={runs} settings={settings}/>
       <RacePredictions runs={runs} settings={settings}/>
@@ -26,6 +28,7 @@ export function StatsView({runs, settings}: StatsViewProps) {
 }
 
 function Overview({runs, settings}: StatsViewProps) {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("12w");
   // The user's goal pace, drawn on the pace trend so the reference line tracks
   // their actual target rather than a hardcoded 6:00.
@@ -86,12 +89,12 @@ function Overview({runs, settings}: StatsViewProps) {
   const totTime = fRuns.reduce((s, r) => s + (r.durationSec || 0), 0);
 
   const stats = [
-    {l:"Total distance", v:totKm.toFixed(1) + " km",    s:fRuns.length + " runs", c:"text-orange-400"},
-    {l:"Total time",     v:(totTime/3600).toFixed(1) + " h", s:"moving time",     c:"text-violet-400"},
-    {l:"Average pace",   v:fmt.pace(avgPace),             s:"min/km",               c:"text-sky-400"},
-    totElev > 0 && {l:"Total elevation", v:Math.round(totElev).toLocaleString() + " m", s:"climbed", c:"text-emerald-400"},
-    bestPace && {l:"Best pace",     v:fmt.pace(bestPace), s:"runs ≥3km",            c:"text-amber-400"},
-    avgHR > 0 && {l:"Avg heart rate", v:Math.round(avgHR) + "", s:"bpm",           c:"text-red-400"},
+    {l:t("progress.stats.cards.totalDistance"), v:totKm.toFixed(1) + " km",    s:t("progress.stats.cards.runsCount", {n: fRuns.length}), c:"text-orange-400"},
+    {l:t("progress.stats.cards.totalTime"),     v:(totTime/3600).toFixed(1) + " h", s:t("progress.stats.cards.movingTime"),     c:"text-violet-400"},
+    {l:t("progress.stats.cards.averagePace"),   v:fmt.pace(avgPace),             s:t("progress.stats.cards.minPerKm"),               c:"text-sky-400"},
+    totElev > 0 && {l:t("progress.stats.cards.totalElevation"), v:Math.round(totElev).toLocaleString() + " m", s:t("progress.stats.cards.climbed"), c:"text-emerald-400"},
+    bestPace && {l:t("progress.stats.cards.bestPace"),     v:fmt.pace(bestPace), s:t("progress.stats.cards.bestPaceSub"),            c:"text-amber-400"},
+    avgHR > 0 && {l:t("progress.stats.cards.avgHeartRate"), v:Math.round(avgHR) + "", s:t("progress.stats.cards.bpm"),           c:"text-red-400"},
   ].filter((s): s is StatCard => Boolean(s));
 
   const tt = {background:"#1e293b", border:"none", borderRadius:8, color:"#fff", fontSize:12};
@@ -99,19 +102,19 @@ function Overview({runs, settings}: StatsViewProps) {
   if (!runs.length) return (
     <div className="flex flex-col items-center justify-center pt-20 text-center gap-3 p-4">
       <TrendingUp size={48} className="text-slate-700"/>
-      <p className="text-slate-400">Record some runs to see your stats!</p>
+      <p className="text-slate-400">{t("progress.stats.empty")}</p>
     </div>
   );
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex justify-between items-center">
-        <p className="text-slate-400 text-xs">Totals for the selected window</p>
+        <p className="text-slate-400 text-xs">{t("progress.stats.totalsCaption")}</p>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
-          {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
-            <button key={pair[0]} onClick={() => setPeriod(pair[0] as Period)}
-              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
-              {pair[1]}
+          {(["4w","12w","all"] as const).map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === p ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
+              {t("progress.stats.period." + p)}
             </button>
           ))}
         </div>
@@ -127,13 +130,13 @@ function Overview({runs, settings}: StatsViewProps) {
       </div>
       {wkBars.length > 1 && (
         <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-slate-400 text-sm font-medium mb-3">Weekly distance (km)</p>
+          <p className="text-slate-400 text-sm font-medium mb-3">{t("progress.stats.weeklyDistance")}</p>
           <ResponsiveContainer width="100%" height={150}>
             <BarChart data={wkBars} margin={{top:0,right:4,left:-18,bottom:0}}>
               <CartesianGrid strokeDasharray="3 3" stroke="#0f172a"/>
               <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
               <YAxis tick={{fill:"#475569",fontSize:10}}/>
-              <Tooltip contentStyle={tt} formatter={v => [String(v) + " km", "Distance"]}/>
+              <Tooltip contentStyle={tt} formatter={v => [t("progress.stats.tooltip.km", {v: String(v)}), t("progress.stats.tooltip.distance")]}/>
               <Bar dataKey="km" fill="#f97316" radius={[4,4,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
@@ -141,13 +144,13 @@ function Overview({runs, settings}: StatsViewProps) {
       )}
       {totElev > 0 && wkElevBars.length > 1 && (
         <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-slate-400 text-sm font-medium mb-3">Weekly elevation gain (m)</p>
+          <p className="text-slate-400 text-sm font-medium mb-3">{t("progress.stats.weeklyElevation")}</p>
           <ResponsiveContainer width="100%" height={150}>
             <BarChart data={wkElevBars} margin={{top:0,right:4,left:-18,bottom:0}}>
               <CartesianGrid strokeDasharray="3 3" stroke="#0f172a"/>
               <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
               <YAxis tick={{fill:"#475569",fontSize:10}}/>
-              <Tooltip contentStyle={tt} formatter={v => [String(v) + " m", "Elevation"]}/>
+              <Tooltip contentStyle={tt} formatter={v => [t("progress.stats.tooltip.m", {v: String(v)}), t("progress.stats.tooltip.elevation")]}/>
               <Bar dataKey="elev" fill="#10b981" radius={[4,4,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
@@ -156,8 +159,8 @@ function Overview({runs, settings}: StatsViewProps) {
       {pLine.length > 2 && (
         <div className="bg-slate-800 rounded-2xl p-4">
           <div className="flex justify-between items-baseline mb-3">
-            <p className="text-slate-400 text-sm font-medium">Pace trend</p>
-            <p className="text-slate-400 text-xs">down = faster</p>
+            <p className="text-slate-400 text-sm font-medium">{t("progress.stats.paceTrend")}</p>
+            <p className="text-slate-400 text-xs">{t("progress.stats.downFaster")}</p>
           </div>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={pLine} margin={{top:4,right:4,left:-18,bottom:0}}>
@@ -165,10 +168,10 @@ function Overview({runs, settings}: StatsViewProps) {
               <XAxis dataKey="d" tick={{fill:"#475569",fontSize:10}}/>
               <YAxis tick={{fill:"#475569",fontSize:10}} domain={["dataMin - 30","dataMax + 30"]}
                 tickFormatter={v => fmt.pace(Number(v))}/>
-              <Tooltip contentStyle={tt} formatter={v => [fmt.pace(Number(v)) + "/km", "Pace"]}/>
+              <Tooltip contentStyle={tt} formatter={v => [t("progress.stats.tooltip.perKm", {v: fmt.pace(Number(v))}), t("progress.stats.tooltip.pace")]}/>
               {goalPace > 0 && (
                 <ReferenceLine y={Math.round(goalPace)} stroke="#f97316" strokeDasharray="5 3"
-                  label={{value: fmt.pace(goalPace) + " goal", fill:"#f97316", fontSize:10, position:"right"}}/>
+                  label={{value: t("progress.stats.goalLabel", {pace: fmt.pace(goalPace)}), fill:"#f97316", fontSize:10, position:"right"}}/>
               )}
               <Line type="monotone" dataKey="p" stroke="#38bdf8" strokeWidth={2.5}
                 dot={{r:3.5, fill:"#38bdf8", strokeWidth:0}}/>
@@ -182,6 +185,7 @@ function Overview({runs, settings}: StatsViewProps) {
 
 // Project finish times from logged runs.
 function RacePredictions({runs, settings}: StatsViewProps) {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("12w");
 
   // Same period filter the Overview uses, so both halves of Stats agree.
@@ -220,16 +224,16 @@ function RacePredictions({runs, settings}: StatsViewProps) {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold">Race predictions</h3>
+            <h3 className="text-lg font-bold">{t("progress.predictions.title")}</h3>
             <PredictionsInfo/>
           </div>
-          <p className="text-slate-400 text-xs mt-0.5">Projected from your strongest run in the selected window</p>
+          <p className="text-slate-400 text-xs mt-0.5">{t("progress.predictions.subtitle")}</p>
         </div>
         <div className="flex bg-slate-800 rounded-xl p-1 gap-0.5">
-          {[["4w","4w"],["12w","12w"],["all","All"]].map(pair => (
-            <button key={pair[0]} onClick={() => setPeriod(pair[0] as Period)}
-              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === pair[0] ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
-              {pair[1]}
+          {(["4w","12w","all"] as const).map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={"text-xs px-3 py-1.5 rounded-lg transition-colors " + (period === p ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white")}>
+              {t("progress.stats.period." + p)}
             </button>
           ))}
         </div>
@@ -237,7 +241,7 @@ function RacePredictions({runs, settings}: StatsViewProps) {
 
       {!best ? (
         <div className="bg-slate-800 rounded-xl p-4 text-center">
-          <p className="text-slate-400 text-sm">Log a run of 3 km or more to estimate your race times.</p>
+          <p className="text-slate-400 text-sm">{t("progress.predictions.needRun")}</p>
         </div>
       ) : (
         <>
@@ -252,22 +256,22 @@ function RacePredictions({runs, settings}: StatsViewProps) {
                 <div key={d} className="bg-slate-800 rounded-xl p-4">
                   <div className="flex items-baseline justify-between mb-3">
                     <p className="font-semibold">
-                      {d} km
-                      {isRace && <span className="ml-2 text-xs text-orange-400 font-normal">race day</span>}
-                      {isRace && raceGain > 0 && <span className="ml-2 text-xs text-slate-500 font-normal">incl. {Math.round(raceGain)} m climb</span>}
+                      {t("progress.predictions.distanceKm", {d})}
+                      {isRace && <span className="ml-2 text-xs text-orange-400 font-normal">{t("progress.predictions.raceDay")}</span>}
+                      {isRace && raceGain > 0 && <span className="ml-2 text-xs text-slate-500 font-normal">{t("progress.predictions.inclClimb", {m: Math.round(raceGain)})}</span>}
                     </p>
                   </div>
                   <div className={"grid gap-3 " + (ht ? "grid-cols-2" : "grid-cols-1")}>
                     <div>
-                      <p className="text-slate-400 text-xs">Best-effort estimate</p>
+                      <p className="text-slate-400 text-xs">{t("progress.predictions.bestEffortEstimate")}</p>
                       <p className="text-2xl font-bold mt-0.5 text-orange-400">{fmt.dur(bt)}</p>
-                      <p className="text-slate-400 text-xs">{fmt.pace(bt / d)}/km</p>
+                      <p className="text-slate-400 text-xs">{t("progress.predictions.pacePerKm", {pace: fmt.pace(bt / d)})}</p>
                     </div>
                     {ht && (
                       <div>
-                        <p className="text-slate-400 text-xs">HR-modelled estimate</p>
+                        <p className="text-slate-400 text-xs">{t("progress.predictions.hrEstimate")}</p>
                         <p className="text-2xl font-bold mt-0.5 text-sky-400">{fmt.dur(ht)}</p>
-                        <p className="text-slate-400 text-xs">{fmt.pace(ht / d)}/km</p>
+                        <p className="text-slate-400 text-xs">{t("progress.predictions.pacePerKm", {pace: fmt.pace(ht / d)})}</p>
                       </div>
                     )}
                   </div>
@@ -278,25 +282,27 @@ function RacePredictions({runs, settings}: StatsViewProps) {
 
           <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
             <p className="text-slate-400 text-xs">
-              <span className="text-orange-400 font-semibold">Best-effort</span> projects your strongest run
-              {" (" + best.raw.km + " km in " + fmt.dur(best.durationSec)
-                + ((best.raw.elevation || 0) > 0 ? ", " + Math.round(best.raw.elevation || 0) + " m climb" : "") + ")"}
-              {" "}to each distance with Riegel's formula.
+              <Trans i18nKey="progress.predictions.bestEffortExplainer"
+                values={{run: (best.raw.elevation || 0) > 0
+                  ? t("progress.predictions.runSummaryClimb", {km: best.raw.km, dur: fmt.dur(best.durationSec), climb: Math.round(best.raw.elevation || 0)})
+                  : t("progress.predictions.runSummary", {km: best.raw.km, dur: fmt.dur(best.durationSec)})}}
+                components={[<span className="text-orange-400 font-semibold"/>]}/>
             </p>
             {hrOk ? (
               <p className="text-slate-400 text-xs">
-                <span className="text-sky-400 font-semibold">HR-modelled</span> fits your pace against heart rate across
-                {" " + hr.n + " runs"} and extrapolates to threshold effort (~{hr.thrHR} bpm) — so easy runs handled
-                well count too, not just your fastest day.
+                <Trans i18nKey="progress.predictions.hrExplainer"
+                  values={{n: hr.n, thr: hr.thrHR}}
+                  components={[<span className="text-sky-400 font-semibold"/>]}/>
               </p>
             ) : (
               <p className="text-slate-500 text-xs">
-                Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.
+                {t("progress.predictions.hrLocked")}
               </p>
             )}
             <p className="text-slate-400 text-xs">
-              Runs are grade-adjusted for elevation gain. Times are for a flat course
-              {raceGain > 0 ? "; the race-day row includes its " + Math.round(raceGain) + " m climb." : ", except the race-day row once you set its climb in the Plan settings."}
+              {raceGain > 0
+                ? t("progress.predictions.gradeNoteClimb", {m: Math.round(raceGain)})
+                : t("progress.predictions.gradeNoteFlat")}
             </p>
           </div>
         </>

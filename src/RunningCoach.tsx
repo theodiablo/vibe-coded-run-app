@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 import { isNative } from "./native";
+import { isLangId, setLocale } from "./i18n";
 import { Loader, Settings } from "lucide-react";
 import { BrandLogo } from "./components/BrandLogo";
 import { db, currentUserId } from "./db";
@@ -80,6 +82,7 @@ const memoryKey = (line: unknown) => String(line || "").toLowerCase().replace(/^
 const weekMs = 7 * 86400000;
 
 export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () => void }) {
+  const { t } = useTranslation();
   const [loading,     setLoading]     = useState(true);
   const [tab,         setTab]         = useState("dash");
   const [runs,        setRuns]        = useState<Run[]>([]);
@@ -158,7 +161,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     if (notes.length < USER_CONTEXT_NOTICE_CHARS) return ctx;
     const last = ctx.lastLimitNoticeAt ? Date.parse(ctx.lastLimitNoticeAt) : 0;
     if (last && Date.now() - last < weekMs) return ctx;
-    showToast("Coach memory is getting full — review it in Settings.");
+    showToast(t("app.toasts.memoryFull"));
     return { ...ctx, lastLimitNoticeAt: new Date().toISOString() };
   };
 
@@ -172,7 +175,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
     });
-    if (patch.hr != null) showToast("Heart rate added to a run from Health Connect ❤");
+    if (patch.hr != null) showToast(t("app.toasts.hrAdded"));
   };
 
   useEffect(() => {
@@ -185,6 +188,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       if (r) setRuns(r);
       if (p) setPlan(p);
       if (s) setSettings(prev => ({...prev, ...s}));
+      // The synced language preference wins over the boot-time device guess
+      // once the blob arrives (async side-effect, not a sync setState).
+      if (s && isLangId(s.language)) void setLocale(s.language);
       if (uc) {
         const nextContext = { notes: "", ...uc };
         userContextRef.current = nextContext;
@@ -216,8 +222,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         if (next !== cur) { setRaces(next); db.set(STORAGE_KEYS.RACES, next); }
         if (fresh.length) {
           setToast({ type: "ok", msg: fresh.length === 1
-            ? "Your race contribution was verified — thanks! 🎉"
-            : fresh.length + " of your race contributions were verified — thanks! 🎉" });
+            ? t("app.toasts.contributionVerified", { count: 1 })
+            : t("app.toasts.contributionVerified", { count: fresh.length }) });
         }
       });
       // Retry any GPS traces that couldn't be uploaded on a previous (offline)
@@ -249,6 +255,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         allowNativeRead: hasHealthConnectAuthorization(),
       }).catch(() => {});
     })();
+    // Boot-once load: `t` is stable and must not re-trigger the whole boot on a
+    // language switch, so it is intentionally omitted from the deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-dismiss the toast. setState here runs from a timer callback (not
@@ -333,7 +342,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     const fresh = unlocked.filter(id => !seenBadges.includes(id));
     if (!fresh.length) return nextRaces;
     const first = badges.find(b => b.id === fresh[0]);
-    showToast(fresh.length === 1 ? "Badge unlocked: " + (first?.label || "New badge") + " 🏅" : fresh.length + " new badges unlocked 🏅");
+    showToast(fresh.length === 1 ? t("app.toasts.badgeUnlocked", { count: 1, label: first?.label || t("app.toasts.newBadge") }) : t("app.toasts.badgeUnlocked", { count: fresh.length }));
     return { ...nextRaces, seenBadges: unlocked };
   };
   const commitRaces = (next: RacesState) => { setRaces(next); db.set(STORAGE_KEYS.RACES, next); };
@@ -441,7 +450,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     if (prev?.status === "done") return null; // already logged — don't double-mark
     const joined = findEdition(edId);
     const ed = joined?.edition || { id: edId, date: match.date, distanceKm: match.km };
-    const label = prev?.label || (joined ? editionLabel({ name: String(joined.name) }, ed) : "your race");
+    const label = prev?.label || (joined ? editionLabel({ name: String(joined.name) }, ed) : t("app.toasts.yourRace"));
     const snapshot = { editionId: edId, raceId: joined?.raceId, label, raceDate: ed.date, distanceKm: ed.distanceKm };
     const done = { ...(prev || snapshot), status: "done", timeSec: match.durationSec, runId: match.id, source: "auto", notes: prev?.notes || "" };
     const next = prev ? parts.map(p => p.editionId === edId ? done : p) : [...parts, done];
@@ -466,8 +475,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     commitRaces(merged);
     if (det) {
       track("race_completed", { source: "auto" });
-      showToast("Logged as " + det.label + " 🎉", "ok",
-        { label: "Undo", onClick: () => commitRaces(reconcileBadges(nextRuns, { ...merged, participations: det.undoParts })) });
+      showToast(t("app.toasts.loggedAsRace", { label: det.label }), "ok",
+        { label: t("common.undo"), onClick: () => commitRaces(reconcileBadges(nextRuns, { ...merged, participations: det.undoParts })) });
     }
   };
 
@@ -515,7 +524,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
     });
-    showToast("Run deleted.");
+    showToast(t("app.toasts.runDeleted"));
   };
 
   const updateRun = (id: string, patch: RunPatch) => {
@@ -526,7 +535,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
     });
-    showToast("Run updated.");
+    showToast(t("app.toasts.runUpdated"));
   };
 
   const exportData    = async () => {
@@ -540,11 +549,14 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const handleRestore = (d: { runs?: Run[]; plan?: Plan | null; settings?: Partial<SettingsState>; races?: RacesState; userContext?: UserContextState; routes?: RouteBackup[] }) => {
     if (d.runs)     { setRuns(d.runs);         db.set(STORAGE_KEYS.RUNS, d.runs); }
     if (d.plan)     { setPlan(d.plan);          db.set(STORAGE_KEYS.PLAN, d.plan); }
-    if (d.settings) { const nextSettings = { ...settings, ...d.settings }; setSettings(nextSettings);  db.set(STORAGE_KEYS.SETTINGS, nextSettings); }
+    if (d.settings) { const nextSettings = { ...settings, ...d.settings }; setSettings(nextSettings);  db.set(STORAGE_KEYS.SETTINGS, nextSettings);
+      // Apply a restored language immediately (like the boot-load path), so the
+      // UI switches to the backup's preference instead of staying on the old one.
+      if (isLangId(nextSettings.language)) void setLocale(nextSettings.language); }
     if (d.races)    { setRaces(d.races);         db.set(STORAGE_KEYS.RACES, d.races); }
     if (d.userContext) saveUserContext(d.userContext);
     if (d.routes)   { restoreRoutes(d.routes as Parameters<typeof restoreRoutes>[0]); }
-    showToast("Restored — " + (d.runs ? d.runs.length : 0) + " run(s) imported.");
+    showToast(t("app.toasts.restored", { n: d.runs ? d.runs.length : 0 }));
   };
 
   if (loading) return (
@@ -579,11 +591,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     if (!manual) watchAutoShownRef.current = true;
     if (found.length === 1) {
       const r = found[0];
-      showToast(`Found a run from your watch — ${r.km} km on ${fmt.sht(r.date || "")}`, "ok",
-        { label: "Review", onClick: () => goLog({ ...r, ...(findOpenPlanSession(planRef.current, r.date || "") || {}) }) });
+      showToast(t("app.toasts.foundRun", { km: r.km, date: fmt.sht(r.date || "") }), "ok",
+        { label: t("app.toasts.review"), onClick: () => goLog({ ...r, ...(findOpenPlanSession(planRef.current, r.date || "") || {}) }) });
     } else {
-      showToast(`Found ${found.length} runs from your watch`, "ok",
-        { label: "Import all", onClick: () => addRuns(found) });
+      showToast(t("app.toasts.foundRuns", { n: found.length }), "ok",
+        { label: t("app.toasts.importAll"), onClick: () => addRuns(found) });
     }
     return found.length;
   };

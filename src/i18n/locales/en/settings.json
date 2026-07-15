@@ -1,0 +1,129 @@
+{
+  "title": "Settings",
+  "language": {
+    "label": "Language"
+  },
+  "newBeta": "New beta",
+  "profile": {
+    "title": "Profile",
+    "name": "Your name"
+  },
+  "memory": {
+    "title": "Coach memory",
+    "desc": "Things your coach should remember for future chats, like recurring injuries, training preferences, schedule constraints, or important corrections. Markdown headings like \"## Schedule\" or \"## Injury history\" are welcome. This is saved to your account, used in AI coach requests, and editable any time.",
+    "placeholder": "e.g. 2026-07-06: Prefers Sunday long runs.",
+    "footer": "We only save the AI suggestions you choose to store in your <link>AI Coach conversations</link>."
+  },
+  "privacy": {
+    "title": "Privacy",
+    "shareLabel": "Share usage & crash reports",
+    "shareAria": "Share usage and crash reports",
+    "shareDesc": "Limited app analytics and crash diagnostics. No run data, routes, heart-rate samples, or coach messages are ever sent.",
+    "crashNote": "If the app crashes, you'll still be asked before any crash report is sent.",
+    "policyLink": "Privacy policy",
+    "disclaimerLink": "Health & safety disclaimer",
+    "sharingOn": "Sharing enabled.",
+    "sharingOff": "Sharing disabled."
+  },
+  "backup": {
+    "title": "Backup & restore",
+    "desc": "Save a copy of your runs & plan, or reload from a previous backup.",
+    "backupBtn": "Backup",
+    "restoreBtn": "Restore",
+    "modalTitle": "Backup Data",
+    "runsCount": "{{n}} run(s)",
+    "planSaved": "plan saved",
+    "noPlan": "no plan",
+    "coachMemory": "coach memory",
+    "routesCount": "{{n}} route(s)",
+    "hint": "Copy or download — save it to Notes, email, etc. Use Restore to reload it after any update.",
+    "download": "Download",
+    "copied": "Copied!",
+    "copyJson": "Copy JSON"
+  },
+  "restore": {
+    "title": "Restore from Backup",
+    "desc": "Paste your backup JSON below.",
+    "placeholder": "Paste your backup JSON here...",
+    "invalidBackup": "Doesn't look like a valid backup.",
+    "invalidJson": "Invalid JSON — make sure you copied the entire backup.",
+    "submit": "Restore Data"
+  },
+  "account": {
+    "signOut": "Sign out"
+  },
+  "deleteAccount": {
+    "title": "Delete account",
+    "body": "This permanently deletes your account and all associated data — runs, GPS routes, training plan, and settings. <bold>This cannot be undone.</bold>",
+    "error": "Something went wrong. Please try again or email theo.camboulive.dev@gmail.com."
+  },
+  "hr": {
+    "title": "Heart rate",
+    "age": "Age",
+    "maxHr": "Max HR",
+    "restHr": "Rest HR",
+    "autoPlaceholder": "auto",
+    "dontKnow": "I don't know my heart rate",
+    "enterAge": "Enter your age above to estimate it.",
+    "estimated": "Estimated from age (Tanaka, 208 − 0.7×age): {{max}} bpm max HR, with a typical 60 bpm resting HR.",
+    "fullBreakdown": "Full zone breakdown is in Progress → Stats."
+  },
+  "hrSensor": {
+    "title": "Heart-rate sensor",
+    "subtitle": "Capture heart rate automatically during a run instead of typing it in.",
+    "betaWarning": "This is a new, lightly tested feature. Sensor pairing, live readings, or Health Connect imports may fail or arrive late, so check the saved heart rate before relying on it.",
+    "methods": {
+      "off": "Off",
+      "bluetooth": "Bluetooth sensor",
+      "healthconnect": "Health Connect"
+    },
+    "newTag": "new",
+    "forgetAria": "Forget sensor",
+    "scanning": "Scanning…",
+    "pairAnother": "Pair a different sensor",
+    "pair": "Pair a sensor",
+    "pairHelp": "Put your sensor in pairing mode (or enable heart-rate broadcast on your watch), then scan. Some watches only broadcast while a workout is active.",
+    "scanFailed": "Couldn't scan for sensors — make sure Bluetooth is on.",
+    "permissionNeeded": "Bluetooth permission is needed to pair a sensor.",
+    "paired": "Paired {{name}}.",
+    "hcConnected": "Connected — heart rate is added to your runs automatically.",
+    "hcReconnect": "Reconnect Health Connect",
+    "hcConnect": "Connect Health Connect",
+    "hcHelp": "Reads your heart rate from Android Health Connect after a run — useful if your watch syncs there but doesn't broadcast live. It may take a few minutes to appear after you finish.",
+    "hcNotSupported": "Health Connect isn't supported on this device (needs Android 8+).",
+    "hcSuccess": "Health Connect connected — heart rate will be read after your runs.",
+    "hcInstall": "Install Health Connect from Google Play, then tap Connect again.",
+    "hcDenied": "Access wasn't granted. In Health Connect, allow Running Coach to read Heart rate.",
+    "hcOpenFailed": "Couldn't open Health Connect. Make sure it's installed and up to date."
+  },
+  "hrDisclosure": {
+    "title": "Connect a heart-rate sensor",
+    "warning": "Heart-rate capture is new and not yet battle-tested. Readings can be delayed, missing, or wrong if your sensor/watch drops out.",
+    "intro": "To read your heart rate during a run, Running Coach connects to a nearby <bold>Bluetooth heart-rate sensor</bold> — a chest strap, an armband, or a watch broadcasting its heart rate.",
+    "bullet1": "Bluetooth is used <bold>only to find and read your sensor</bold> — never for location.",
+    "bullet2": "Your heart rate is saved on your run, in your own account.",
+    "bullet3": "Nothing is sold or shared with third parties.",
+    "policy": "See our <link>Privacy Policy</link>. When you tap Allow, Android will ask to use nearby Bluetooth devices.",
+    "accept": "Allow & continue"
+  },
+  "integrations": {
+    "title": "Runs from your watch",
+    "subtitle": "Import finished runs — distance, time, elevation and heart rate — from a watch, so you don't have to carry your phone.",
+    "connectedRow": "{{label}} — new runs are offered for import automatically.",
+    "scan30": "Scan last 30 days",
+    "turnOff": "Turn off",
+    "connect": "Connect {{label}}",
+    "connectSuccess": "Connected — your watch runs will appear here after they sync.",
+    "noNewRuns": "No new runs to import yet.",
+    "accessDenied": "Access wasn't granted. Allow Running Coach to read Exercise, Distance, Elevation and Heart rate.",
+    "connectFailed": "Couldn't connect. Make sure Health Connect is installed and up to date.",
+    "noRuns30": "No new runs found in the last 30 days.",
+    "scanFailed": "Couldn't read your connected sources.",
+    "providers": {
+      "healthconnect": {
+        "label": "Your watch (Health Connect)",
+        "help": "Works with any watch whose app writes workouts to Health Connect (Android 14+): Garmin Connect (Settings → Health Connect) or Zepp/Amazfit (Profile → 3rd-party access → Health Connect). Runs appear a few minutes after your watch syncs; no route/map is included."
+      }
+    }
+  }
+}

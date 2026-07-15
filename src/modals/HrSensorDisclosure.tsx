@@ -1,3 +1,4 @@
+import { useTranslation, Trans } from "react-i18next";
 import { HeartPulse } from "lucide-react";
 import { PRIVACY_URL } from "../constants";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
@@ -10,36 +11,39 @@ type HrSensorDisclosureProps = { onAccept: () => void; onCancel: () => void };
 // user accepts in-app, then the OS dialog gates the actual BLUETOOTH_SCAN/CONNECT
 // grant. Gated once per install in SettingsModal via HR_BLE_DISCLOSED_KEY.
 export function HrSensorDisclosure({ onAccept, onCancel }: HrSensorDisclosureProps) {
+  const { t } = useTranslation();
   return (
     <ModalOverlay>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700">
         <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
           <HeartPulse size={16} className="text-orange-400" />
-          <p className="font-semibold text-sm">Connect a heart-rate sensor</p>
-          <BetaBadge label="New beta" />
+          <p className="font-semibold text-sm">{t("settings.hrDisclosure.title")}</p>
+          <BetaBadge label={t("settings.newBeta")} />
         </div>
         <div className="p-4 space-y-3 text-sm text-slate-300">
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs leading-snug text-amber-100">
-            Heart-rate capture is new and not yet battle-tested. Readings can be
-            delayed, missing, or wrong if your sensor/watch drops out.
+            {t("settings.hrDisclosure.warning")}
           </div>
           <p>
-            To read your heart rate during a run, Running Coach connects to a nearby
-            <strong> Bluetooth heart-rate sensor</strong> — a chest strap, an armband,
-            or a watch broadcasting its heart rate.
+            <Trans i18nKey="settings.hrDisclosure.intro" components={{ bold: <strong /> }} />
           </p>
           <ul className="list-disc pl-5 space-y-1 text-[13px] text-slate-400">
-            <li>Bluetooth is used <strong>only to find and read your sensor</strong> — never for location.</li>
-            <li>Your heart rate is saved on your run, in your own account.</li>
-            <li>Nothing is sold or shared with third parties.</li>
+            <li><Trans i18nKey="settings.hrDisclosure.bullet1" components={{ bold: <strong /> }} /></li>
+            <li>{t("settings.hrDisclosure.bullet2")}</li>
+            <li>{t("settings.hrDisclosure.bullet3")}</li>
           </ul>
           <p className="text-[13px] text-slate-400">
-            See our{" "}
-            <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
-              className="text-orange-400 underline">Privacy Policy</a>. When you tap
-            Allow, Android will ask to use nearby Bluetooth devices.
+            <Trans
+              i18nKey="settings.hrDisclosure.policy"
+              components={{
+                link: (
+                  <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
+                    className="text-orange-400 underline" />
+                ),
+              }}
+            />
           </p>
-          <ConfirmButtons cancelLabel="Not now" acceptLabel="Allow & continue"
+          <ConfirmButtons cancelLabel={t("common.notNow")} acceptLabel={t("settings.hrDisclosure.accept")}
             onCancel={onCancel} onAccept={onAccept} />
         </div>
       </div>

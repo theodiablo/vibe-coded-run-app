@@ -4,6 +4,7 @@ import './index.css'
 // Sets window.__NATIVE_SHELL__ inside the Capacitor shell before the app renders
 // (no-op in the browser). Imported first so the flag is ready for everything.
 import './native'
+import { initI18n, detectInitialLocale } from './i18n'
 import { initTelemetry, installGlobalErrorHandlers } from './telemetry'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App'
@@ -16,10 +17,17 @@ installGlobalErrorHandlers()
 const root = document.getElementById('root')
 if (!root) throw new Error('Root element not found')
 
-createRoot(root).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
-)
+const render = () =>
+  createRoot(root).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+
+// Locale first so every surface — including the ErrorBoundary — has strings.
+// English resolves synchronously (bundled); for a returning es/fr visitor we
+// await their chunk before the first paint so they never see English flash to
+// their language. A failed load falls back to English and still renders.
+initI18n(detectInitialLocale()).finally(render)

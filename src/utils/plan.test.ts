@@ -213,8 +213,11 @@ describe("buildPlan", () => {
 // the multi-style refactor: any later restructuring of buildPlan must reproduce
 // these byte-for-byte, so a snapshot diff here means the default plan changed
 // for existing users. Sanctioned (deliberate) changes so far: the additive
-// `style` field, and budget-derived interval reps (desc and km now always
-// agree — short days get fewer reps instead of a silently clipped total).
+// `style` field, budget-derived interval reps (desc and km now always
+// agree — short days get fewer reps instead of a silently clipped total), and
+// the additive `sd` (structured session descriptor) used to render localized
+// session sentences — `desc` (English) is unchanged and stays the canonical
+// fallback, so these diffs are purely added `sd` blocks.
 describe("buildPlan balanced output freeze", () => {
   beforeEach(() => {
     vi.useFakeTimers();

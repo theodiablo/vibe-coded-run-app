@@ -1,0 +1,25 @@
+{
+  "brand": "Running Coach",
+  "signIn": "Se connecter",
+  "signUp": "S’inscrire",
+  "email": "E-mail",
+  "emailPlaceholder": "toi@exemple.com",
+  "password": "Mot de passe",
+  "passwordPlaceholder": "••••••••",
+  "createAccount": "Créer un compte",
+  "or": "ou",
+  "continueWithGoogle": "Continuer avec Google",
+  "accountCreated": "Compte créé. Vérifie tes e-mails pour confirmer, puis connecte-toi.",
+  "genericError": "Une erreur est survenue.",
+  "dataSync": "Tes données sont synchronisées en toute sécurité avec ton compte.",
+  "privacy": "Confidentialité",
+  "bgLocation": {
+    "title": "Localisation en arrière-plan",
+    "body": "Pour enregistrer ta course avec précision, Running Coach collecte ta <strong>position en arrière-plan</strong> — y compris <strong>quand l’appli est fermée ou l’écran éteint</strong>.",
+    "bulletRecording": "Collectée <strong>uniquement pendant l’enregistrement d’une course</strong> — jamais à un autre moment.",
+    "bulletRoute": "Utilisée pour tracer ton parcours et calculer la distance, l’allure et le dénivelé.",
+    "bulletStored": "Stockée sur ton propre compte ; jamais vendue ni partagée avec des tiers.",
+    "privacyNote": "Consulte notre <privacy>Politique de confidentialité</privacy>. Quand tu appuies sur Autoriser, Android te demandera d’utiliser ta position — choisis <strong>« Toujours autoriser »</strong> pour le suivi écran éteint.",
+    "allowContinue": "Autoriser et continuer"
+  }
+}

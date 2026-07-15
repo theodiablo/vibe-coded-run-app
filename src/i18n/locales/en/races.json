@@ -1,0 +1,131 @@
+{
+  "title": "Races",
+  "fallbackName": "Race",
+  "unverifiedTag": "unverified — verify on official site",
+  "segments": {
+    "mine": "My Races",
+    "find": "Find a race"
+  },
+  "toast": {
+    "added": "Added to your races.",
+    "logged": "Race logged 🎉",
+    "reported": "Thanks — reported for review."
+  },
+  "empty": {
+    "none": "No races yet — pick a goal to chase.",
+    "addFirst": "Add your first goal race"
+  },
+  "sections": {
+    "upcoming": "Upcoming",
+    "past": "Did you run these?",
+    "completed": "Completed"
+  },
+  "upcoming": {
+    "trainingTarget": "Training target",
+    "inYourPlan": "In your plan",
+    "daysToGo": "days to go",
+    "setAsTarget": "Set as target",
+    "removeFromPlan": "Remove from plan",
+    "addToPlanTitle": "Add this race to your plan",
+    "inPlan": "In plan",
+    "addToPlan": "Add to plan"
+  },
+  "past": {
+    "passed": "This race has passed — add your time to keep the record.",
+    "addTime": "Add your time"
+  },
+  "completed": {
+    "pb": "PB"
+  },
+  "find": {
+    "searchPlaceholder": "Search races, cities…",
+    "distance": "Distance",
+    "all": "All",
+    "nearMe": "Near me",
+    "within": "within",
+    "locationDenied": "Location unavailable or denied — showing all races by name.",
+    "catalogueUnavailable": "The race catalogue couldn't be loaded right now. Your own races are still listed under My Races.",
+    "noneInRadius": "No races within {{radius}} km. Try a wider radius or turn off Near me.",
+    "noMatch": "No races match — try a different search.",
+    "unlocatedBelow": "No races within {{radius}} km. Races without a set location are listed below.",
+    "nearestFirst": "Nearest first",
+    "locationUnknown": "Location unknown",
+    "addSubtitle": "Add it — instantly visible to everyone.",
+    "userSubmittedNote": "Races are user-submitted and tagged unverified until a maintainer reviews them."
+  },
+  "card": {
+    "onYourList": "On your list",
+    "noUpcomingDate": "no upcoming<br/>date",
+    "unverifiedTitle": "Unverified — details are user-submitted, check the official site",
+    "officialSite": "Official site",
+    "away": "{{dist}} away",
+    "datesDisclaimer": "Dates are user-submitted — always verify on the official site before planning.",
+    "elevation": "+{{elevation}}m elevation",
+    "wishlist": "Wishlist",
+    "report": "Report this race"
+  },
+  "result": {
+    "finishTime": "Finish time",
+    "hoursPlaceholder": "h",
+    "minutesPlaceholder": "min",
+    "secondsPlaceholder": "sec",
+    "notesPlaceholder": "Notes (optional)",
+    "alsoLog": "Also add to my run log",
+    "save": "Save result",
+    "defaultNote": "{{label}} — race"
+  },
+  "report": {
+    "title": "Report a problem",
+    "reasons": {
+      "wrongDate": "Wrong date",
+      "wrongDistance": "Wrong distance / details",
+      "duplicate": "Duplicate",
+      "spam": "Doesn't exist / spam",
+      "other": "Other"
+    },
+    "notePlaceholder": "Anything to add? (optional)",
+    "send": "Send report"
+  },
+  "form": {
+    "title": "Add a race",
+    "addingDateTo": "Adding a date to",
+    "change": "Change",
+    "name": "Race name",
+    "namePlaceholder": "e.g. Lyon Marathon",
+    "alreadyListed": "Already listed? Add your date to an existing race:",
+    "city": "City",
+    "cityPlaceholder": "Lyon",
+    "country": "Country",
+    "countryPlaceholder": "FR",
+    "officialSite": "Official site (optional)",
+    "officialSitePlaceholder": "https://…",
+    "location": "Location (for “races near me”)",
+    "locationSet": "Location set ✓",
+    "setLocation": "Set location on map",
+    "date": "Date",
+    "distanceKm": "Distance (km)",
+    "distanceKmPlaceholder": "42.2",
+    "elevation": "Elev. (m)",
+    "elevationPlaceholder": "0",
+    "disclaimer": "Races can be added by anyone and are user-submitted until a maintainer verifies them. Always confirm the date on the official site before planning around it.",
+    "addedToast": "Added — thanks! It's live for everyone (unverified until reviewed).",
+    "submit": "Add race",
+    "errors": {
+      "dateDistance": "A date and distance are required.",
+      "name": "A race name is required.",
+      "save": "Couldn't save that race. Please try again."
+    }
+  },
+  "picker": {
+    "title": "Set race location",
+    "searchPlaceholder": "Search a city or address…",
+    "noMatch": "No match found — you can still tap the map directly.",
+    "hint": "Tap or drag the pin onto where the race actually starts — not necessarily where you are right now.",
+    "noKey": "Map tiles need VITE_MAPTILER_KEY — you can still tap to set coordinates.",
+    "jump": "Jump to my current location"
+  },
+  "addCard": {
+    "dontSee": "Don't see your race?",
+    "addIt": "Add it to the catalogue"
+  }
+}

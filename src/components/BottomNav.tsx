@@ -1,4 +1,5 @@
 import { Activity, Calendar, Trophy, TrendingUp, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 // The app's bottom navigation: four row tabs (Home · Plan · Races · Progress)
 // with a raised center Record FAB. Extracted from RunningCoach so the marketing
@@ -8,15 +9,16 @@ import { Activity, Calendar, Trophy, TrendingUp, Plus } from "lucide-react";
 // (as the marketing mockup does) to render it as a static, decorative preview.
 
 const NAV_TABS = [
-  { id: "dash", label: "Home", Icon: Activity },
-  { id: "plan", label: "Plan", Icon: Calendar },
-  { id: "races", label: "Races", Icon: Trophy },
-  { id: "progress", label: "Progress", Icon: TrendingUp },
+  { id: "dash", labelKey: "nav.home", Icon: Activity },
+  { id: "plan", labelKey: "nav.plan", Icon: Calendar },
+  { id: "races", labelKey: "nav.races", Icon: Trophy },
+  { id: "progress", labelKey: "nav.progress", Icon: TrendingUp },
 ] as const;
 
-type NavItem = { id: string; label: string; Icon: React.ComponentType<{ size?: number }> };
+type NavItem = { id: string; labelKey: string; Icon: React.ComponentType<{ size?: number }> };
 
 function NavBtn({ item, active, onClick }: { item: NavItem; active: boolean; onClick?: () => void }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onClick}
@@ -26,7 +28,7 @@ function NavBtn({ item, active, onClick }: { item: NavItem; active: boolean; onC
       }
     >
       <item.Icon size={20} />
-      {item.label}
+      {t(item.labelKey)}
     </button>
   );
 }
@@ -44,6 +46,7 @@ type BottomNavProps = {
 };
 
 export function BottomNav({ active, className = "", onTab, onRecord, onProgress }: BottomNavProps) {
+  const { t } = useTranslation();
   const select = (id: string) => {
     if (id === "progress" && onProgress) return onProgress();
     onTab?.(id);
@@ -60,7 +63,7 @@ export function BottomNav({ active, className = "", onTab, onRecord, onProgress 
       <div className="flex-1 flex items-center justify-center">
         <button
           onClick={onRecord}
-          aria-label="Record a run"
+          aria-label={t("nav.record")}
           className="flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg transition-colors"
           style={{ width: 54, height: 54, marginTop: -18 }}
         >

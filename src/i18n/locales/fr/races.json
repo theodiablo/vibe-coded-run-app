@@ -1,0 +1,131 @@
+{
+  "title": "Courses",
+  "fallbackName": "Course",
+  "unverifiedTag": "non vérifiée — vérifie sur le site officiel",
+  "segments": {
+    "mine": "Mes courses",
+    "find": "Trouver une course"
+  },
+  "toast": {
+    "added": "Ajoutée à tes courses.",
+    "logged": "Course enregistrée 🎉",
+    "reported": "Merci — signalée pour vérification."
+  },
+  "empty": {
+    "none": "Pas encore de course — choisis un objectif à viser.",
+    "addFirst": "Ajoute ta première course objectif"
+  },
+  "sections": {
+    "upcoming": "À venir",
+    "past": "Tu les as courues ?",
+    "completed": "Terminées"
+  },
+  "upcoming": {
+    "trainingTarget": "Objectif d'entraînement",
+    "inYourPlan": "Dans ton plan",
+    "daysToGo": "jours restants",
+    "setAsTarget": "Définir comme objectif",
+    "removeFromPlan": "Retirer du plan",
+    "addToPlanTitle": "Ajoute cette course à ton plan",
+    "inPlan": "Dans le plan",
+    "addToPlan": "Ajouter au plan"
+  },
+  "past": {
+    "passed": "Cette course est passée — ajoute ton temps pour garder une trace.",
+    "addTime": "Ajoute ton temps"
+  },
+  "completed": {
+    "pb": "RP"
+  },
+  "find": {
+    "searchPlaceholder": "Cherche des courses, des villes…",
+    "distance": "Distance",
+    "all": "Toutes",
+    "nearMe": "Près de moi",
+    "within": "dans un rayon de",
+    "locationDenied": "Localisation indisponible ou refusée — affichage de toutes les courses par nom.",
+    "catalogueUnavailable": "Le catalogue des courses n'a pas pu être chargé pour l'instant. Tes propres courses restent listées dans Mes courses.",
+    "noneInRadius": "Aucune course à moins de {{radius}} km. Essaie un rayon plus large ou désactive Près de moi.",
+    "noMatch": "Aucune course ne correspond — essaie une autre recherche.",
+    "unlocatedBelow": "Aucune course à moins de {{radius}} km. Les courses sans lieu défini sont listées ci-dessous.",
+    "nearestFirst": "Les plus proches d'abord",
+    "locationUnknown": "Lieu inconnu",
+    "addSubtitle": "Ajoute-la — visible immédiatement par tout le monde.",
+    "userSubmittedNote": "Les courses sont ajoutées par les utilisateurs et marquées non vérifiées jusqu'à leur relecture par un mainteneur."
+  },
+  "card": {
+    "onYourList": "Sur ta liste",
+    "noUpcomingDate": "pas de date<br/>à venir",
+    "unverifiedTitle": "Non vérifiée — les infos viennent des utilisateurs, vérifie sur le site officiel",
+    "officialSite": "Site officiel",
+    "away": "à {{dist}}",
+    "datesDisclaimer": "Les dates viennent des utilisateurs — vérifie toujours sur le site officiel avant de planifier.",
+    "elevation": "+{{elevation}}m de dénivelé",
+    "wishlist": "Liste d'envies",
+    "report": "Signaler cette course"
+  },
+  "result": {
+    "finishTime": "Temps final",
+    "hoursPlaceholder": "h",
+    "minutesPlaceholder": "min",
+    "secondsPlaceholder": "s",
+    "notesPlaceholder": "Notes (facultatif)",
+    "alsoLog": "Ajouter aussi à mon journal d'entraînement",
+    "save": "Enregistrer le résultat",
+    "defaultNote": "{{label}} — course"
+  },
+  "report": {
+    "title": "Signaler un problème",
+    "reasons": {
+      "wrongDate": "Mauvaise date",
+      "wrongDistance": "Mauvaise distance / infos",
+      "duplicate": "Doublon",
+      "spam": "N'existe pas / spam",
+      "other": "Autre"
+    },
+    "notePlaceholder": "Quelque chose à ajouter ? (facultatif)",
+    "send": "Envoyer le signalement"
+  },
+  "form": {
+    "title": "Ajouter une course",
+    "addingDateTo": "Ajout d'une date à",
+    "change": "Modifier",
+    "name": "Nom de la course",
+    "namePlaceholder": "p. ex. Lyon Marathon",
+    "alreadyListed": "Déjà répertoriée ? Ajoute ta date à une course existante :",
+    "city": "Ville",
+    "cityPlaceholder": "Lyon",
+    "country": "Pays",
+    "countryPlaceholder": "FR",
+    "officialSite": "Site officiel (facultatif)",
+    "officialSitePlaceholder": "https://…",
+    "location": "Lieu (pour « courses près de moi »)",
+    "locationSet": "Lieu défini ✓",
+    "setLocation": "Définir le lieu sur la carte",
+    "date": "Date",
+    "distanceKm": "Distance (km)",
+    "distanceKmPlaceholder": "42.2",
+    "elevation": "Déniv. (m)",
+    "elevationPlaceholder": "0",
+    "disclaimer": "Tout le monde peut ajouter des courses ; elles restent marquées comme non vérifiées jusqu'à validation par un mainteneur. Confirme toujours la date sur le site officiel avant de planifier autour.",
+    "addedToast": "Ajoutée — merci ! Elle est en ligne pour tout le monde (non vérifiée en attendant relecture).",
+    "submit": "Ajouter la course",
+    "errors": {
+      "dateDistance": "Une date et une distance sont requises.",
+      "name": "Le nom de la course est requis.",
+      "save": "Impossible d'enregistrer cette course. Réessaie."
+    }
+  },
+  "picker": {
+    "title": "Définir le lieu de la course",
+    "searchPlaceholder": "Cherche une ville ou une adresse…",
+    "noMatch": "Aucun résultat — tu peux quand même toucher la carte directement.",
+    "hint": "Touche ou fais glisser le repère jusqu'au vrai départ de la course — pas forcément là où tu te trouves.",
+    "noKey": "Le fond de carte nécessite VITE_MAPTILER_KEY — tu peux quand même toucher pour définir les coordonnées.",
+    "jump": "Aller à ma position actuelle"
+  },
+  "addCard": {
+    "dontSee": "Tu ne vois pas ta course ?",
+    "addIt": "Ajoute-la au catalogue"
+  }
+}

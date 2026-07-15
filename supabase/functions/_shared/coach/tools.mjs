@@ -215,6 +215,30 @@ const descFor = (type, pace, style) => {
   if (type === "WALK") return "Cross-training / brisk walk — no impact, easy effort";
   return "Easy run — relaxed aerobic effort";
 };
+// Structured descriptor mirroring descFor branch-for-branch, so a coach-edited
+// or coach-added session carries an `sd` the app renders in the UI language —
+// and never a STALE one left over from the session's previous type (the app
+// renders `sd` in preference to `desc`, so an out-of-date `sd` would show the
+// wrong sentence). `renderSd` reproduces descFor's English byte-for-byte
+// (enforced by sessionDesc.test.ts). Pace-present cases reuse existing
+// templates; the `*NoPace`/`coach*` variants cover the rest.
+const sdFor = (type, pace, style) => {
+  const p = !!pace;
+  if (style === "runwalk") {
+    if (type === "LONG") return { kind: "runwalk", variant: "coachLong" };
+    if (type === "WALK" && pace) return { kind: "runwalk", variant: "coachShort" };
+    if (type === "WALK") return { kind: "crosswalk" };
+    if (type === "EASY") return { kind: "runwalk", variant: "coachShort" };
+  }
+  if (type === "LONG") return { kind: "long", variant: p ? "easy" : "coachEasyNoPace" };
+  if (type === "TEMPO") {
+    if (style === "hansons") return { kind: "tempo", variant: p ? "goalPace" : "coachGoalNoPace" };
+    return { kind: "tempo", variant: p ? "comfortablyHard" : "coachComfortNoPace" };
+  }
+  if (type === "INTERVALS") return { kind: "intervals", variant: p ? "coachGeneric" : "coachGenericNoPace" };
+  if (type === "WALK") return { kind: "crosswalk" };
+  return { kind: "easy", variant: "relaxed" };
+};
 
 // Apply one tool call, returning a NEW plan. Throws CoachToolError on refusal;
 // the caller reports it back to the model as an is_error tool_result.
@@ -252,6 +276,7 @@ export function applyToolCall(plan, name, input = {}) {
       session.type = new_type;
       session.pace = paceFor(p, new_type);
       session.desc = descFor(new_type, session.pace, p.style);
+      session.sd = sdFor(new_type, session.pace, p.style);
       return p;
     }
     case "reduce_week_volume": {
@@ -276,6 +301,7 @@ export function applyToolCall(plan, name, input = {}) {
         s.km = Math.max(1.5, Math.min(6, Math.round(s.km * 0.6 * 10) / 10));
         s.pace = paceFor(p, "EASY");
         s.desc = "Recovery run — very easy effort, walk breaks welcome";
+        s.sd = { kind: "recovery" };
       }
       return p;
     }
@@ -323,7 +349,7 @@ export function applyToolCall(plan, name, input = {}) {
       let id = `coach-add-${date}`;
       for (let n = 2; ids.has(id); n++) id = `coach-add-${date}-${n}`;
       const pace = paceFor(p, type);
-      target.sessions.push({ id, date, type, km: Math.round(km * 10) / 10, pace, desc: descFor(type, pace, p.style), done: false });
+      target.sessions.push({ id, date, type, km: Math.round(km * 10) / 10, pace, desc: descFor(type, pace, p.style), sd: sdFor(type, pace, p.style), done: false });
       target.sessions.sort((a, b) => a.date.localeCompare(b.date));
       return p;
     }
@@ -337,6 +363,7 @@ export function applyToolCall(plan, name, input = {}) {
       session.type = "WALK";
       session.pace = null;
       session.desc = descFor("WALK", null, p.style);
+      session.sd = sdFor("WALK", null, p.style);
       return p;
     }
     default:

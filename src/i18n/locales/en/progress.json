@@ -1,0 +1,147 @@
+{
+  "tabs": {
+    "log": "Log",
+    "stats": "Stats",
+    "badges": "Badges"
+  },
+  "badges": {
+    "title": "Badges",
+    "earned": "{{unlocked}} of {{total}} earned",
+    "hint": "Keep running and racing to unlock more — walks count too."
+  },
+  "history": {
+    "title": "History",
+    "subtitle_one": "{{count}} run · {{km}} km total",
+    "subtitle_other": "{{count}} runs · {{km}} km total",
+    "empty": "No runs recorded yet.",
+    "recordFirst": "Record your first run",
+    "loadingRoute": "Loading route…",
+    "routeUnavailable": "Route unavailable.",
+    "pendingSync": "Saved on this device — will sync to the cloud when possible.",
+    "viewRoute": "View route",
+    "editRun": "Edit run",
+    "deleteRun": "Delete run"
+  },
+  "stats": {
+    "title": "Stats",
+    "empty": "Record some runs to see your stats!",
+    "totalsCaption": "Totals for the selected window",
+    "period": {
+      "4w": "4w",
+      "12w": "12w",
+      "all": "All"
+    },
+    "cards": {
+      "totalDistance": "Total distance",
+      "runsCount": "{{n}} runs",
+      "totalTime": "Total time",
+      "movingTime": "moving time",
+      "averagePace": "Average pace",
+      "minPerKm": "min/km",
+      "totalElevation": "Total elevation",
+      "climbed": "climbed",
+      "bestPace": "Best pace",
+      "bestPaceSub": "runs ≥3km",
+      "avgHeartRate": "Avg heart rate",
+      "bpm": "bpm"
+    },
+    "weeklyDistance": "Weekly distance (km)",
+    "weeklyElevation": "Weekly elevation gain (m)",
+    "paceTrend": "Pace trend",
+    "downFaster": "down = faster",
+    "goalLabel": "{{pace}} goal",
+    "tooltip": {
+      "distance": "Distance",
+      "elevation": "Elevation",
+      "pace": "Pace",
+      "km": "{{v}} km",
+      "m": "{{v}} m",
+      "perKm": "{{v}}/km"
+    }
+  },
+  "predictions": {
+    "title": "Race predictions",
+    "subtitle": "Projected from your strongest run in the selected window",
+    "needRun": "Log a run of 3 km or more to estimate your race times.",
+    "distanceKm": "{{d}} km",
+    "raceDay": "race day",
+    "inclClimb": "incl. {{m}} m climb",
+    "bestEffortEstimate": "Best-effort estimate",
+    "hrEstimate": "HR-modelled estimate",
+    "pacePerKm": "{{pace}}/km",
+    "runSummary": "({{km}} km in {{dur}})",
+    "runSummaryClimb": "({{km}} km in {{dur}}, {{climb}} m climb)",
+    "bestEffortExplainer": "<0>Best-effort</0> projects your strongest run {{run}} to each distance with Riegel's formula.",
+    "hrExplainer": "<0>HR-modelled</0> fits your pace against heart rate across {{n}} runs and extrapolates to threshold effort (~{{thr}} bpm) — so easy runs handled well count too, not just your fastest day.",
+    "hrLocked": "Add your max HR in Settings and log more runs across easy + hard efforts to unlock the HR-based estimate.",
+    "gradeNoteClimb": "Runs are grade-adjusted for elevation gain. Times are for a flat course; the race-day row includes its {{m}} m climb.",
+    "gradeNoteFlat": "Runs are grade-adjusted for elevation gain. Times are for a flat course, except the race-day row once you set its climb in the Plan settings.",
+    "info": {
+      "title": "How predictions work",
+      "label": "How does this work?",
+      "intro": "Predictions project your finish time at each distance from the runs you've actually logged. Two independent methods are shown so you can sanity-check one against the other.",
+      "riegelTitle": "Riegel's formula — the engine",
+      "riegelP1": "Both estimates extrapolate a known time to a new distance with Peter Riegel's endurance model:",
+      "riegelFormula": "t₂ = t₁ × (d₂ / d₁)<0>1.06</0>",
+      "riegelP2": "The <0>1.06</0> exponent is the standard fatigue factor: going further costs slightly more than linear time, because you can't hold a 5 km pace for 20 km.",
+      "bestTitle": "Best-effort estimate",
+      "bestBody": "Picks your single <0>strongest run</0> (≥ 3 km with a time) and projects it to every distance. It isn't simply your fastest pace — a quick 1 km blip shouldn't outrank a strong 12 km — so each run is first normalised to its Riegel-equivalent 10 km time, and the best one wins.",
+      "hrTitle": "HR-modelled estimate",
+      "hrP1": "Fits a line through <0>pace vs. heart rate</0> across all your runs that recorded HR, then reads off the pace you could hold at threshold effort (~88–90% of max HR, roughly a one-hour race) and projects that with Riegel.",
+      "hrP2": "This rewards efficiency: a fast pace held at a low HR pulls the estimate quicker, so your easy runs count too — not just your single best day. It only appears once the data supports it (≥ 8 HR runs, a real spread of efforts, and a sensible fit).",
+      "elevTitle": "Elevation adjustment",
+      "elevBody": "Hills make a run slower than its flat twin, so each metre climbed is credited as ~8 extra flat metres before the maths runs. This stops hilly runs from looking unfit. Listed times are for a flat course; the <0>race-day row</0> adds back your course's climb once you set it in the Plan.",
+      "footer": "These are projections from past efforts, not promises — treat them as a fitness gauge that sharpens as you log more runs."
+    }
+  },
+  "zones": {
+    "title": "Heart Rate Zones",
+    "zoneLabel": "Z{{n}} · {{name}}",
+    "names": {
+      "1": "Recovery",
+      "2": "Aerobic Base",
+      "3": "Aerobic Tempo",
+      "4": "Threshold",
+      "5": "VO2 Max"
+    },
+    "descs": {
+      "1": "Very easy — active recovery, warm-up/cool-down",
+      "2": "Easy runs, fat burning, building endurance base",
+      "3": "Moderate effort — marathon and long-run pace",
+      "4": "Comfortably hard — lactate threshold, tempo runs",
+      "5": "Maximum effort — short intervals, race pace"
+    },
+    "types": {
+      "Aerobic": "Aerobic",
+      "Anaerobic": "Anaerobic"
+    },
+    "karvonenTitle": "Karvonen method: ",
+    "karvonenBody": "Zone HR = ((MaxHR - RestHR) x intensity%) + RestHR. HRR = {{max}} - {{rest}} = {{hrr}} bpm. Accounts for your resting HR and fitness, so it's more accurate than plain % of Max HR.",
+    "recentTitle": "Recent runs — zone analysis",
+    "runLine": "{{date}} · {{km}} km",
+    "avgHrLabel": "Avg HR: ",
+    "bpmValue": "{{bpm}} bpm",
+    "restLabel": "{{bpm}} bpm (rest)",
+    "maxLabel": "{{bpm}} bpm (max)"
+  },
+  "planInfo": {
+    "title": "How your plan is built",
+    "label": "How is this built?",
+    "intro": "Your plan is generated from three inputs — your <0>race date</0>, your <1>goal time / distance</1>, and the <2>days you can train</2>. Everything below is derived from those; nothing is hand-picked.",
+    "s1Title": "1 · From goal to target pace",
+    "s1P1": "Your goal time ÷ distance gives the pace you need on race day. If the course climbs, each metre of ascent is counted as ~8 extra flat metres, so a hilly goal demands the fitness of a faster flat runner. That <0>flat-equivalent target pace</0> anchors every session.",
+    "s1P2": "From the target pace we derive the training paces:",
+    "s1Easy": "<0>Easy</0> ≈ target × 1.25 — conversational, builds the aerobic engine",
+    "s1Tempo": "<0>Tempo</0> ≈ target × 1.05 — comfortably hard, at threshold",
+    "s1Intervals": "<0>Intervals</0> ≈ target pace — race effort in short reps",
+    "s2Title": "2 · Weeks and phases",
+    "s2P1": "The calendar between next Monday and your race is split into 4–24 weeks, grouped into four phases that shift the emphasis over time:",
+    "s2Base": "<0>Base</0> (first ~4 weeks) — easy volume only, laying foundation",
+    "s2Build": "<0>Build</0> (middle block) — tempo and interval sessions alternate week to week",
+    "s2Peak": "<0>Peak</0> (final weeks before taper) — highest volume and sharpest workouts",
+    "s2Taper": "<0>Taper</0> (last 3 weeks) — volume drops to ~85 / 65 / 45% so you arrive fresh",
+    "s3Title": "3 · Sizing each session",
+    "s3Body": "Your longest available day becomes the <0>long run</0>; its distance grows week to week and is capped by the minutes you said you have (time ÷ easy pace). Your other days become the <1>quality</1> sessions — easy in base/taper, tempo or intervals in build. Every distance is clamped so a session never exceeds the time you committed to.",
+    "footer": "Changing the goal, date, elevation, or training days and regenerating rebuilds the whole schedule from scratch."
+  }
+}

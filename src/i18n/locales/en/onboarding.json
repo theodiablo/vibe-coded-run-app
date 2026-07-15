@@ -1,0 +1,130 @@
+{
+  "stepOf": "Step {{step}} of {{total}}",
+  "continue": "Continue",
+  "getStarted": "Get started",
+  "back": "Back",
+  "skip": "Skip",
+  "welcome": {
+    "title": "Welcome to Running Coach",
+    "subtitle": "A coach in your pocket — let's set you up in under a minute.",
+    "featurePlan": "A training plan that adapts to your goal and your week",
+    "featureGps": "Track every run live with GPS",
+    "featureBadges": "Earn badges as you build the habit",
+    "namePlaceholder": "Your name (optional)"
+  },
+  "intent": {
+    "title": "What brings you here?",
+    "titleNamed": "Hi {{name}}! What brings you here?",
+    "subtitle": "We'll tailor your plan to suit.",
+    "race": {
+      "title": "I'm training for a race",
+      "sub": "Pick your race and we'll build a plan that peaks on the day."
+    },
+    "fitness": {
+      "title": "I'm just getting started",
+      "sub": "No race yet — build fitness and the running habit at your pace."
+    }
+  },
+  "race": {
+    "title": "Your race",
+    "subtitle": "Search the catalogue for your race.",
+    "pickedMeta": "{{date}} · {{km}} km",
+    "pickedMetaElev": "{{date}} · {{km}} km · +{{m}}m",
+    "change": "Change",
+    "searchPlaceholder": "Search races, cities…",
+    "resultMeta": "{{place}} · {{date}} · {{km}} km",
+    "addSubtitle": "Sets it as your race — and helps others find it.",
+    "manualLink": "Just enter it for myself →",
+    "dateLabel": "Race date",
+    "distanceLabel": "Race distance (km)",
+    "distancePlaceholder": "e.g. 21.1",
+    "elevationLabel": "Race elevation gain (m)",
+    "elevationHint": "Total climb on the course — sets training paces to the flat-equivalent effort.",
+    "addedToast": "Added to the catalogue — set as your race."
+  },
+  "raceGoal": {
+    "title": "Goal & training days",
+    "subtitle": "A realistic target is pre-filled — tweak it if you like."
+  },
+  "daysLabel": "Training days and durations",
+  "styleLabel": "Training style",
+  "training": {
+    "title": "Your training",
+    "subtitle": "No race needed — pick a goal to build towards.",
+    "buildLabel": "What do you want to build up to?",
+    "d5": {
+      "label": "5K",
+      "sub": "couch-to-5K friendly"
+    },
+    "d10": {
+      "label": "10K",
+      "sub": "a solid next step"
+    },
+    "dHalf": {
+      "label": "Half",
+      "sub": "21.1 km"
+    },
+    "dMore": {
+      "label": "Just run more",
+      "sub": "build the habit"
+    },
+    "horizonLabel": "Over how long?",
+    "weeks_one": "{{count}} week",
+    "weeks_other": "{{count}} weeks"
+  },
+  "hr": {
+    "title": "Heart rate",
+    "subtitle": "Personalize your effort targets on every session. Optional — you can add this later.",
+    "age": "Age",
+    "maxHR": "Max HR",
+    "restHR": "Rest HR",
+    "autoPlaceholder": "auto",
+    "dontKnow": "I don't know my heart rate",
+    "enterAge": "Enter your age above to estimate it.",
+    "estimated": "Estimated from age (Tanaka, 208 − 0.7×age): {{max}} bpm max HR, with a typical 60 bpm resting HR."
+  },
+  "health": {
+    "title": "One last thing",
+    "subtitle": "A quick safety check before you start. Your answer stays on this device and is not saved to your account.",
+    "question": "Do any of these apply to you?",
+    "item1": "A heart condition, or a doctor has told you to do physical activity only under medical supervision",
+    "item2": "Chest pain at rest, during daily activity, or during physical activity",
+    "item3": "Dizziness, loss of balance, or loss of consciousness during or after exercise",
+    "item4": "A bone or joint problem, or any other condition that running could make worse — or any other reason you should not do vigorous exercise",
+    "no": "No, none apply",
+    "yes": "Yes, one or more",
+    "doctorTitle": "Please talk to a doctor first",
+    "doctorBody": "We strongly recommend you consult a physician before starting any training plan from this app. The plans here are general guidance, not medical advice, and may not be appropriate for your condition.",
+    "doctorConfirm": "I confirm I have consulted, or will consult, a doctor before I begin training with this app.",
+    "disclaimerTitle": "Health & safety disclaimer",
+    "disclaimerBody": "Running Coach provides general training information only — it is not medical advice and is no substitute for professional guidance. Physical activity carries inherent risks, including injury and, in rare cases, serious cardiac events. You take part at your own risk and are responsible for training within your own limits and stopping if you feel unwell. Consult a physician before beginning this or any exercise programme. Nothing in this notice excludes or limits any liability that cannot be excluded or limited under applicable law.",
+    "readFull": "Read the full disclaimer",
+    "ack": "I have read and accept the health & safety disclaimer above."
+  },
+  "summary": {
+    "title": "You're all set!",
+    "titleNamed": "You're all set, {{name}}!",
+    "subtitle": "Here's the plan we've built for you.",
+    "fallbackFitness": "Build your base",
+    "fallbackRace": "Your race",
+    "meta": "{{km}} km · {{date}}",
+    "metaGoal": "Goal {{km}} km · {{date}}",
+    "weekPlan": "week plan",
+    "sessionsPerWeek": "sessions / week",
+    "coachNote": "Life happens — a niggle, a missed week, a schedule clash. Your <c>coach</c> can adapt this plan anytime, from Plan or Home."
+  },
+  "level": {
+    "label": "How much do you run right now?"
+  },
+  "sessions": {
+    "suggested": "Suggested for your goal — adjust freely.",
+    "reset": "Reset to suggested days",
+    "longestNote": "The longest session automatically becomes your long run."
+  },
+  "goal": {
+    "label": "Goal time",
+    "needDistance": "Enter a race distance first to set your goal.",
+    "time": "Time",
+    "pace": "Pace /km"
+  }
+}

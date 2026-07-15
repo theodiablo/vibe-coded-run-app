@@ -6,6 +6,7 @@
 import { supabase } from "./supabase";
 import { flushNow } from "./db";
 import { FunctionsHttpError, FunctionsFetchError, FunctionsRelayError } from "@supabase/supabase-js";
+import { t } from "./i18n";
 import type { Plan } from "./types";
 
 // Longer than normal Supabase calls because a cold coach-agent boot may need to
@@ -47,19 +48,29 @@ function transportMessage(error: unknown) {
   if (error instanceof FunctionsFetchError) {
     const reason = error.context as { name?: string } | undefined;
     if (reason?.name === "TimeoutError" || reason?.name === "AbortError") {
-      return "The coach took too long to start up — try again in a moment.";
+      return t("coach.errors.transport.timeout");
     }
-    return "Couldn't reach the coach — check your connection and try again.";
+    return t("coach.errors.transport.offline");
   }
   if (error instanceof FunctionsRelayError) {
-    return "The coach took too long to start up — try again in a moment.";
+    return t("coach.errors.transport.timeout");
   }
   if (error instanceof FunctionsHttpError) {
     const status = error.context?.status;
-    if (status === 401 || status === 403) return "Your session expired — sign in again.";
-    return "The coach took too long to start up — try again in a moment.";
+    if (status === 401 || status === 403) return t("coach.errors.transport.reauth");
+    return t("coach.errors.transport.timeout");
   }
-  return "The coach is unavailable right now — try again in a moment.";
+  return t("coach.errors.transport.unavailable");
+}
+
+// Localize a server-carried app error via its stable `code`, falling back to the
+// server's English `error` text for any code we don't have a translation for
+// (old clients / new codes stay readable rather than blank).
+function serverMessage(data: { error?: string; code?: unknown }) {
+  const fallback = data.error ?? t("coach.errors.transport.unavailable");
+  return typeof data.code === "string"
+    ? t(`coach.errors.server.${data.code}`, { defaultValue: fallback })
+    : fallback;
 }
 
 async function invoke(body: CoachAction): Promise<CoachResponse> {
@@ -71,7 +82,7 @@ async function invoke(body: CoachAction): Promise<CoachResponse> {
     timeout: COACH_INVOKE_TIMEOUT_MS,
   });
   if (error) throw new Error(transportMessage(error));
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) throw new Error(serverMessage(data));
   return data;
 }
 

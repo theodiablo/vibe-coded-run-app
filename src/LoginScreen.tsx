@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader, Mail, Lock } from "lucide-react";
 import { BrandLogo } from "./components/BrandLogo";
 import { Browser } from "@capacitor/browser";
@@ -19,6 +20,7 @@ type LoginScreenProps = {
 // `authError` is a native deep-link sign-in failure surfaced by App.jsx (e.g. the
 // user cancels Google consent); shown until the user takes another action.
 export default function LoginScreen({ authError, onClearAuthError, initialMode = "signin" }: LoginScreenProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<LoginMode>(initialMode); // signin | signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,14 +70,14 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
           options: { emailRedirectTo: authRedirectTo() },
         });
         if (error) throw error;
-        note("ok", "Account created. Check your email to confirm, then sign in.");
+        note("ok", t("login.accountCreated"));
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         // onAuthStateChange in App handles the transition
       }
     } catch (err) {
-      note("err", err instanceof Error ? err.message : "Something went wrong.");
+      note("err", err instanceof Error ? err.message : t("login.genericError"));
     } finally {
       setBusy(false);
     }
@@ -99,18 +101,18 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-6">
           <BrandLogo className="text-orange-400" size={26} />
-          <h1 className="text-xl font-bold text-white">Running Coach</h1>
+          <h1 className="text-xl font-bold text-white">{t("login.brand")}</h1>
         </div>
 
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-xl">
           <div className="flex gap-1 mb-4 bg-slate-900/60 p-1 rounded-xl">
-            {tab("signin", "Sign in")}
-            {tab("signup", "Sign up")}
+            {tab("signin", t("login.signIn"))}
+            {tab("signup", t("login.signUp"))}
           </div>
 
           <form onSubmit={onSubmit} className="space-y-3">
             <label className="block">
-              <span className="text-xs text-slate-400">Email</span>
+              <span className="text-xs text-slate-400">{t("login.email")}</span>
               <div className="mt-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3">
                 <Mail size={16} className="text-slate-500" />
                 <input
@@ -119,13 +121,13 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 bg-transparent py-2 text-sm text-white outline-none"
-                  placeholder="you@example.com"
+                  placeholder={t("login.emailPlaceholder")}
                 />
               </div>
             </label>
 
             <label className="block">
-              <span className="text-xs text-slate-400">Password</span>
+              <span className="text-xs text-slate-400">{t("login.password")}</span>
               <div className="mt-1 flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3">
                 <Lock size={16} className="text-slate-500" />
                 <input
@@ -137,7 +139,7 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="flex-1 bg-transparent py-2 text-sm text-white outline-none"
-                  placeholder="••••••••"
+                  placeholder={t("login.passwordPlaceholder")}
                 />
               </div>
             </label>
@@ -148,13 +150,13 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
               className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition"
             >
               {busy && <Loader size={16} className="animate-spin" />}
-              {mode === "signin" ? "Sign in" : "Create account"}
+              {mode === "signin" ? t("login.signIn") : t("login.createAccount")}
             </button>
           </form>
 
           <div className="flex items-center gap-3 my-4">
             <div className="h-px flex-1 bg-slate-700" />
-            <span className="text-xs text-slate-500">or</span>
+            <span className="text-xs text-slate-500">{t("login.or")}</span>
             <div className="h-px flex-1 bg-slate-700" />
           </div>
 
@@ -165,7 +167,7 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
             className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-800 font-medium py-2.5 rounded-lg transition"
           >
             <GoogleIcon />
-            Continue with Google
+            {t("login.continueWithGoogle")}
           </button>
 
           {shownMsg && (
@@ -181,9 +183,9 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
         </div>
 
         <p className="text-center text-xs text-slate-600 mt-4">
-          Your data syncs securely to your account.{" "}
+          {t("login.dataSync")}{" "}
           <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
-            className="text-slate-500 underline hover:text-slate-300">Privacy</a>
+            className="text-slate-500 underline hover:text-slate-300">{t("login.privacy")}</a>
         </p>
       </div>
     </div>

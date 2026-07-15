@@ -1,0 +1,100 @@
+{
+  "brand": "Running Coach",
+  "heroLine1": "Entrena para tu carrera,",
+  "heroLine2": "una semana honesta a la vez.",
+  "nav": {
+    "features": "Funciones",
+    "races": "Carreras",
+    "login": "Iniciar sesión",
+    "getStarted": "Empezar",
+    "language": "Idioma"
+  },
+  "hero": {
+    "eyebrow": "Entrena para la carrera, no solo para correr",
+    "body": "Elige tu carrera, fija tu tiempo objetivo y consigue un plan de entrenamiento semana a semana. Cuando la vida se interponga, pregúntale a tu entrenador — te propone un ajuste seguro en segundos, y nada cambia hasta que tú lo apruebes.",
+    "ctaPrimary": "Empezar — es gratis",
+    "ctaSecondary": "Ya tengo una cuenta",
+    "freeNote": "Gratis lo incluye todo — planes, seguimiento por GPS, carreras y el entrenador (con un límite diario de uso razonable para que siga siendo gratis).",
+    "androidBeta": "También en Android — únete a la beta cerrada"
+  },
+  "stats": {
+    "plans": {
+      "value": "5K → Maratón",
+      "label": "planes ajustados a la fecha de tu carrera"
+    },
+    "adapts": {
+      "value": "Se adapta a ti",
+      "label": "tu entrenador rehace el plan en segundos"
+    },
+    "devices": {
+      "value": "Web + Android",
+      "label": "tu plan en todos tus dispositivos"
+    }
+  },
+  "features": {
+    "heading": "Todo lo que hay entre hoy y la línea de salida.",
+    "sub": "No es otro muro con las carreras de los demás — un plan, un entrenador y las herramientas para llegar hasta el final.",
+    "coach": {
+      "title": "Un entrenador con IA que adapta tu plan",
+      "alt": "Chat del entrenador",
+      "body": "¿Te molesta la rodilla? ¿Perdiste una semana? Pregunta, y tu entrenador te propone un ajuste seguro en segundos — edita el calendario, nunca te da uno arriesgado, y nada cambia hasta que tú lo apruebes."
+    },
+    "plan": {
+      "title": "Un plan de entrenamiento de verdad",
+      "alt": "Plan de entrenamiento",
+      "body": "Base, construcción, pico y afinamiento — en torno a la fecha de tu carrera, tu tiempo objetivo y los días que realmente puedes entrenar. Elige tu método: Polarizado 80/20, estilo Hansons, 3 días de calidad o Correr/Caminar. Sin caja negra — abre cualquier sesión para ver exactamente cómo está construida."
+    },
+    "track": {
+      "title": "Registra cada carrera",
+      "body": "GPS en vivo con ritmo, distancia y desnivel en un mapa. Empareja la frecuencia cardíaca en Android y cada carrera se clasifica en zonas de entrenamiento — para que sepas si te pasaste de intensidad."
+    },
+    "races": {
+      "title": "Encuentra tu carrera",
+      "alt": "Catálogo de carreras",
+      "body": "Un catálogo de carreras comunitario — desde el Maratón de Berlín hasta los 10K locales. Elige una, y tu cuenta atrás y tu plan se fijan en ella. Sigue creciendo, así que si la tuya no aparece, añádela en segundos — para todos."
+    },
+    "progress": {
+      "title": "Ve cómo suma",
+      "alt": "Insignias de progreso",
+      "body": "Historial, estadísticas y tendencias en un solo lugar, con insignias amables a medida que se acumulan tus semanas de entrenamiento — desde tu primer 5K hasta el club de los 1000 km."
+    }
+  },
+  "import": {
+    "title": "Trae contigo tu historial de carreras",
+    "body": "Importa tus carreras desde Strava, Garmin, Zepp o cualquier otro sitio — los archivos GPX, TCX o CSV funcionan. En Android, las carreras terminadas también pueden sincronizarse directamente desde tu reloj."
+  },
+  "cta": {
+    "heading": "¿Listo para correr tu mejor carrera?",
+    "body": "Crea una cuenta gratis y consigue tu plan de entrenamiento en minutos — todo incluido, con un límite diario de uso razonable en el entrenador. App de Android en beta cerrada.",
+    "primary": "Empezar — es gratis",
+    "androidBeta": "Únete a la beta de Android"
+  },
+  "footer": {
+    "privacy": "Política de privacidad",
+    "safety": "Aviso de seguridad"
+  },
+  "closeLogin": "Cerrar el inicio de sesión",
+  "mock": {
+    "coach": "Entrenador",
+    "userMsg": "Me duele la rodilla desde la tirada larga del domingo.",
+    "reply1": "Quitemos presión mientras se calma — nada de series hasta que no duela. Esto es lo que cambiaría esta semana:",
+    "proposedChanges": "Cambios propuestos",
+    "tue": "Mar",
+    "sat": "Sáb",
+    "row1Old": "Series 6×400m",
+    "row1New": "Descanso",
+    "row2Old": "Tempo 40 min",
+    "row2New": "Suave 25 min",
+    "apply": "Aplicar cambios",
+    "notNow": "Ahora no",
+    "reply2": "Y si persiste más de unos días, hazte revisar antes de reconstruir.",
+    "inputPlaceholder": "Escribe a tu entrenador…",
+    "tiles": {
+      "km": "KM",
+      "time": "TIEMPO",
+      "pace": "RITMO",
+      "bpm": "PPM · Z2"
+    },
+    "live": "EN VIVO"
+  }
+}

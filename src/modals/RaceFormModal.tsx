@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { MapPin, Check, Plus, AlertTriangle, Loader } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import { track } from "../telemetry";
@@ -41,6 +42,7 @@ type RaceFormModalProps = {
 // (e.g. onboarding promotes it to the training target) instead of the default
 // toast-and-close.
 export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, showToast, onClose, prefill, onCreated }: RaceFormModalProps) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<CatalogueRace | null>(null); // an existing race to add a date to
   const [f, setF] = useState<RaceForm>({ name: "", city: "", country: "", url: "",
     date: prefill?.date || "", distanceKm: prefill?.distanceKm ?? "", elevation: prefill?.elevation ?? "" });
@@ -62,8 +64,8 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
   const submit = async () => {
     setErr("");
     const dist = parseFloat(String(f.distanceKm));
-    if (!f.date || !dist) { setErr("A date and distance are required."); return; }
-    if (!selected && !f.name.trim()) { setErr("A race name is required."); return; }
+    if (!f.date || !dist) { setErr(t("races.form.errors.dateDistance")); return; }
+    if (!selected && !f.name.trim()) { setErr(t("races.form.errors.name")); return; }
     const elevation = f.elevation ? parseInt(String(f.elevation)) : 0;
     setBusy(true);
     // Track a race we create here so we can roll it back if the follow-up
@@ -92,14 +94,14 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
       // Hand the new edition back when the caller wants it (onboarding promotes it
       // to the training target + shows its own confirmation); otherwise toast.
       if (onCreated) onCreated(created.id);
-      else showToast("Added — thanks! It's live for everyone (unverified until reviewed).");
+      else showToast(t("races.form.addedToast"));
       onClose();
     } catch (e) {
       console.error("add race failed", e);
       // Roll back a just-created race whose edition didn't land, so we don't
       // leave an orphan in the shared catalogue. Best-effort — already failing.
       if (createdRaceSlug) deleteRace(createdRaceSlug).catch(() => {});
-      setErr("Couldn't save that race. Please try again.");
+      setErr(t("races.form.errors.save"));
       setBusy(false);
     }
   };
@@ -109,28 +111,28 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
     <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700 shrink-0">
-          <p className="font-semibold text-sm">Add a race</p>
-          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
+          <p className="font-semibold text-sm">{t("races.form.title")}</p>
+          <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
         </div>
 
         <div className="p-4 space-y-4 overflow-y-auto">
           {selected ? (
             <div className="flex items-center justify-between gap-2 bg-slate-700/50 rounded-xl p-3">
               <div className="min-w-0">
-                <p className="text-xs text-slate-400">Adding a date to</p>
+                <p className="text-xs text-slate-400">{t("races.form.addingDateTo")}</p>
                 <p className="font-semibold truncate">{selected.name}</p>
               </div>
-              <button onClick={() => setSelected(null)} className="text-xs text-orange-400 hover:text-orange-300 shrink-0">Change</button>
+              <button onClick={() => setSelected(null)} className="text-xs text-orange-400 hover:text-orange-300 shrink-0">{t("races.form.change")}</button>
             </div>
           ) : (
             <>
               <div>
-                <label className={LABEL_CLS}>Race name</label>
-                <input value={f.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Lyon Marathon" className={INPUT_CLS}/>
+                <label className={LABEL_CLS}>{t("races.form.name")}</label>
+                <input value={f.name} onChange={e => set("name", e.target.value)} placeholder={t("races.form.namePlaceholder")} className={INPUT_CLS}/>
               </div>
               {matches.length > 0 && (
                 <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-2 space-y-1">
-                  <p className="text-[11px] text-slate-400 px-1">Already listed? Add your date to an existing race:</p>
+                  <p className="text-[11px] text-slate-400 px-1">{t("races.form.alreadyListed")}</p>
                   {matches.map(r => (
                     <button key={r.slug} onClick={() => setSelected(r)}
                       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-700/60 text-sm flex items-center gap-2">
@@ -141,24 +143,24 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={LABEL_CLS}>City</label>
-                  <input value={f.city} onChange={e => set("city", e.target.value)} placeholder="Lyon" className={INPUT_CLS}/></div>
-                <div><label className={LABEL_CLS}>Country</label>
-                  <input value={f.country} onChange={e => set("country", e.target.value)} placeholder="FR" maxLength={2} className={INPUT_CLS}/></div>
+                <div><label className={LABEL_CLS}>{t("races.form.city")}</label>
+                  <input value={f.city} onChange={e => set("city", e.target.value)} placeholder={t("races.form.cityPlaceholder")} className={INPUT_CLS}/></div>
+                <div><label className={LABEL_CLS}>{t("races.form.country")}</label>
+                  <input value={f.country} onChange={e => set("country", e.target.value)} placeholder={t("races.form.countryPlaceholder")} maxLength={2} className={INPUT_CLS}/></div>
               </div>
-              <div><label className={LABEL_CLS}>Official site (optional)</label>
-                <input value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://…" className={INPUT_CLS}/></div>
+              <div><label className={LABEL_CLS}>{t("races.form.officialSite")}</label>
+                <input value={f.url} onChange={e => set("url", e.target.value)} placeholder={t("races.form.officialSitePlaceholder")} className={INPUT_CLS}/></div>
               <div>
-                <label className={LABEL_CLS}>Location (for “races near me”)</label>
+                <label className={LABEL_CLS}>{t("races.form.location")}</label>
                 {loc ? (
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1.5 text-sm text-emerald-400"><MapPin size={14}/>Location set ✓</span>
-                    <button onClick={() => setShowPicker(true)} className="text-xs text-orange-400 hover:text-orange-300 font-semibold">Change</button>
+                    <span className="flex items-center gap-1.5 text-sm text-emerald-400"><MapPin size={14}/>{t("races.form.locationSet")}</span>
+                    <button onClick={() => setShowPicker(true)} className="text-xs text-orange-400 hover:text-orange-300 font-semibold">{t("races.form.change")}</button>
                   </div>
                 ) : (
                   <button onClick={() => setShowPicker(true)}
                     className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold transition-colors">
-                    <MapPin size={14}/>Set location on map
+                    <MapPin size={14}/>{t("races.form.setLocation")}
                   </button>
                 )}
               </div>
@@ -166,17 +168,17 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
           )}
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-1"><label className={LABEL_CLS}>Date</label>
+            <div className="col-span-1"><label className={LABEL_CLS}>{t("races.form.date")}</label>
               <input type="date" value={f.date} onChange={e => set("date", e.target.value)} className={INPUT_CLS}/></div>
-            <div><label className={LABEL_CLS}>Distance (km)</label>
-              <input type="number" step="0.1" min="0" value={f.distanceKm} onChange={e => set("distanceKm", e.target.value)} placeholder="42.2" className={INPUT_CLS}/></div>
-            <div><label className={LABEL_CLS}>Elev. (m)</label>
-              <input type="number" min="0" value={f.elevation} onChange={e => set("elevation", e.target.value)} placeholder="0" className={INPUT_CLS}/></div>
+            <div><label className={LABEL_CLS}>{t("races.form.distanceKm")}</label>
+              <input type="number" step="0.1" min="0" value={f.distanceKm} onChange={e => set("distanceKm", e.target.value)} placeholder={t("races.form.distanceKmPlaceholder")} className={INPUT_CLS}/></div>
+            <div><label className={LABEL_CLS}>{t("races.form.elevation")}</label>
+              <input type="number" min="0" value={f.elevation} onChange={e => set("elevation", e.target.value)} placeholder={t("races.form.elevationPlaceholder")} className={INPUT_CLS}/></div>
           </div>
 
           <div className="flex items-start gap-2 text-[11px] text-slate-400 bg-amber-500/5 border border-amber-500/20 rounded-xl p-2.5">
             <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5"/>
-            <span>Races can be added by anyone and are user-submitted until a maintainer verifies them. Always confirm the date on the official site before planning around it.</span>
+            <span>{t("races.form.disclaimer")}</span>
           </div>
 
           {err && <p className="text-sm text-red-400">{err}</p>}
@@ -184,9 +186,9 @@ export function RaceFormModal({ catalogue, addRace, addEdition, onContributed, s
           <div className="flex gap-2">
             <button onClick={submit} disabled={busy}
               className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-60">
-              {busy ? <Loader size={16} className="animate-spin"/> : <Plus size={16}/>}Add race
+              {busy ? <Loader size={16} className="animate-spin"/> : <Plus size={16}/>}{t("races.form.submit")}
             </button>
-            <button onClick={onClose} className="px-3 text-sm text-slate-400 hover:text-slate-200">Cancel</button>
+            <button onClick={onClose} className="px-3 text-sm text-slate-400 hover:text-slate-200">{t("common.cancel")}</button>
           </div>
         </div>
       </div>

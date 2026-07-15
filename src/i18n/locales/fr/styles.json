@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "balanced": {
+      "label": "Équilibré",
+      "blurb": "Progression classique : une sortie longue hebdomadaire plus des jours alternés de tempo et de fractionné."
+    },
+    "polarized": {
+      "label": "Polarisé 80/20",
+      "blurb": "Surtout de la course vraiment facile avec une séance dure par semaine — idéal si vous avez tendance à tout courir à allure modérément soutenue."
+    },
+    "runwalk": {
+      "label": "Course/Marche",
+      "blurb": "Des intervalles doux course/marche et pas de vitesse — finissez en pleine forme. Idéal pour débuter ou reprendre."
+    },
+    "lowfreq": {
+      "label": "Qualité en 3 jours",
+      "blurb": "Trois séances ciblées par semaine — fractionné, tempo, sortie longue — les autres jours, entraînement croisé facultatif. Optimal avec exactement 3 jours de course."
+    },
+    "hansons": {
+      "label": "Style Hansons",
+      "blurb": "Fréquence plus élevée, sortie longue modérée et plafonnée, tempo à l'allure de course visée. Optimal à 5–6 jours pour semi ou marathon."
+    }
+  },
+  "levels": {
+    "none": {
+      "label": "Pas encore",
+      "sub": "Je pars de zéro"
+    },
+    "occasional": {
+      "label": "De temps en temps",
+      "sub": "Une sortie toutes les une à deux semaines"
+    },
+    "regular": {
+      "label": "2–3× par semaine",
+      "sub": "Coureur régulier"
+    },
+    "frequent": {
+      "label": "4+× par semaine",
+      "sub": "Entraînement assidu"
+    }
+  },
+  "recommended": "Recommandé"
+}

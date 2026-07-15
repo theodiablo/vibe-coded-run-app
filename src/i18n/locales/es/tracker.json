@@ -1,0 +1,76 @@
+{
+  "notif": {
+    "title": "Grabando carrera",
+    "body": "Toca para volver a Running Coach"
+  },
+  "header": {
+    "live": "Carrera en vivo",
+    "complete": "Carrera completada"
+  },
+  "discardConfirm": "¿Descartar esta carrera? Tu ruta registrada se perderá.",
+  "routeUploadFailed": "No se pudo subir la ruta — guardada en este dispositivo, se reintentará la sincronización.",
+  "resume": {
+    "title": "¿Reanudar tu carrera anterior?",
+    "pointsSaved_one": "{{count}} punto guardado.",
+    "pointsSaved_other": "{{count}} puntos guardados.",
+    "resume": "Reanudar",
+    "discard": "Descartar"
+  },
+  "stats": {
+    "km": "km",
+    "time": "tiempo",
+    "pace": "ritmo",
+    "elev": "desnivel"
+  },
+  "hr": {
+    "bpm": "ppm",
+    "avgMax": "media {{avg}} · máx {{max}}",
+    "connecting": "conectando…",
+    "postRun": "La frecuencia cardíaca se añade desde Health Connect cuando terminas."
+  },
+  "gps": {
+    "accuracyGood": "Precisión GPS ±{{acc}} m — todo listo",
+    "accuracyWait": "Precisión GPS ±{{acc}} m — espera a que se estabilice para un inicio más limpio"
+  },
+  "controls": {
+    "start": "Iniciar carrera",
+    "pause": "Pausar",
+    "finish": "Terminar",
+    "resume": "Reanudar",
+    "discard": "Descartar",
+    "save": "Guardar carrera"
+  },
+  "keepScreenOn": "Mantén esta pantalla encendida mientras corres — los navegadores no pueden registrar en segundo plano, así que se pausa si la pantalla se bloquea. Una versión nativa de la app registra con la pantalla apagada (menos batería).",
+  "hrNudge": {
+    "authTitle": "¿Autorizar Health Connect?",
+    "authBody": "Health Connect está seleccionado, pero este teléfono aún no ha concedido acceso. Autorízalo en Ajustes para añadir la frecuencia cardíaca después de las carreras.",
+    "authAccept": "Abrir Ajustes",
+    "pairTitle": "¿Emparejar tu sensor de frecuencia cardíaca?",
+    "pairBody": "La captura de frecuencia cardíaca por Bluetooth está seleccionada, pero no hay ningún sensor emparejado en este teléfono. Empareja uno en Ajustes para registrar las pulsaciones en vivo.",
+    "pairAccept": "Emparejar sensor",
+    "setupTitle": "¿Registrar tu frecuencia cardíaca?",
+    "setupBody": "Conecta un sensor Bluetooth o Health Connect para capturar la frecuencia cardíaca automáticamente — sin necesidad de escribirla. Puedes configurarlo más tarde en Ajustes.",
+    "setupAccept": "Configurar",
+    "newBeta": "Nueva beta",
+    "betaWarning": "Esta función de captura es nueva y puede fallar. Comprueba las lecturas guardadas antes de usarlas para tomar decisiones de entrenamiento.",
+    "optOut": "No registrar la frecuencia cardíaca"
+  },
+  "errors": {
+    "permissionDeniedNative": "La ubicación es necesaria para registrar tu carrera. Asegúrate de que la ubicación esté activada en este dispositivo y permite el acceso («Permitir siempre») para esta app; luego vuelve a intentarlo.",
+    "permissionDeniedWeb": "Permiso de ubicación denegado. Actívalo para este sitio en los ajustes de tu navegador y vuelve a intentarlo.",
+    "noFix": "No se pudo obtener una señal GPS. Asegúrate de que la ubicación esté activada y de estar al aire libre.",
+    "timeout": "El GPS está tardando demasiado en responder. Reintentando…",
+    "location": "Error de ubicación: {{message}}",
+    "unsupported": "Este navegador/dispositivo no admite GPS (geolocalización). La geolocalización también necesita una conexión segura (https).",
+    "requestFailed": "No se pudo solicitar el permiso de ubicación. Inténtalo de nuevo.",
+    "locationGeneric": "Error de ubicación",
+    "permissionNotGranted": "No se concedió el permiso de ubicación."
+  },
+  "map": {
+    "noKey": "Los mosaicos del mapa necesitan VITE_MAPTILER_KEY — la ruta se registra igualmente."
+  },
+  "hrTarget": {
+    "addProfile": "Añade tu perfil de FC en Ajustes para ver una zona objetivo",
+    "range": "❤️ {{lo}}–{{hi}} ppm"
+  }
+}

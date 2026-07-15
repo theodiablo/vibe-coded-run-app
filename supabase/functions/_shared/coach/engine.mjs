@@ -81,14 +81,28 @@ const riskText = (context, history, message) => [
   ...(history || []).map(r => r.user_feedback),
 ].filter(Boolean).join("\n").toLowerCase();
 const latestUserText = (context, message) => String(message ?? context.report ?? "").toLowerCase();
-const hasPainOrIllness = (s) => /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b|\b(a|my|have|had|with|caught|getting|from) cold\b/i.test(s);
-function hasResolvedRisk(s) {
+// Safety keyword detection runs on the runner's own words, which may be
+// English, Spanish or French (settings.language). CRITICAL: input is
+// accent-normalized first (`norm`) — ASCII `\b` word boundaries and the
+// alternations below don't match accented characters, so without this
+// "Je cours malgré la douleur" (the exact train-through-pain phrase the guard
+// exists to catch) slipped past. Verb stems (cour\w*, entren\w*, ...) cover
+// conjugations. The BLOCK-side detectors (pain/illness, missed week,
+// train-through-pain) fire in every language. hasResolvedRisk is deliberately
+// English-only: failing to detect a resolution keeps the guard cautious
+// (blocked) — the safe direction; an over-eager es/fr "resolved" match without
+// matching negation handling could unblock add_session wrongly. The model is
+// still told (SYSTEM_PROMPT) to ask if pain has cleared.
+const norm = (raw) => String(raw ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const hasPainOrIllness = (raw) => { const s = norm(raw); return /\b(pain|hurt|hurts|injur|niggle|sore|ache|aching|ill|sick|fever|flu|covid|fatigue|fatigued|exhausted|shin|knee|ankle|calf|hamstring|achilles|hip|foot|plantar)\b|\b(a|my|have|had|with|caught|getting|from) cold\b|\b(dolor|duele|duelen|lesion|lesionad\w*|molestias?|enferm\w*|fiebre|gripe|resfriad\w*|agotad\w*|fatigad\w*|rodilla|tobillo|gemelo|pantorrilla|isquio\w*|tendon|cadera|espinilla)\b|\b(douleur|blessur\w*|blesse\w*|malade|fievre|grippe|rhume|epuis\w*|fatigu\w*|genou|cheville|mollet|ischio\w*|hanche|tibia)\b|\bmal\s+(au|aux|a la|a l)\b/i.test(s); };
+function hasResolvedRisk(raw) {
+  const s = norm(raw);
   const positive = /\b(no|without|zero)\b[^.\n]{0,30}\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(gone|passed|resolved|cleared|better|fine)\b|\b(recovered|back to normal|feel normal|feeling normal)\b/i.test(s);
   if (!positive) return false;
   return !/\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent|don't|dont|doesn't|doesnt)\b[^.\n]{0,40}\b(gone|passed|resolved|cleared|better|fine|recovered|back to normal|feel normal|feeling normal)\b|\b(pain|hurt|soreness|ache|illness|fever|fatigue|symptoms)\b[^.\n]{0,30}\b(not|never|still|isn't|isnt|wasn't|wasnt|hasn't|hasnt|haven't|havent)\b[^.\n]{0,20}\b(gone|passed|resolved|cleared|better|fine)\b/i.test(s);
 }
-const hasMissedWeek = (s) => /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b/i.test(s);
-const hasUnsafePainPreference = (s) => /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)/i.test(s);
+const hasMissedWeek = (raw) => { const s = norm(raw); return /\b(missed|skipped|lost)\b[^.\n]{0,40}\b(week|7 days|several days)\b|\b(week|7 days)\b[^.\n]{0,40}\b(missed|off|skipped)\b|\b(perd\w*|salt\w*|falt\w*|rat\w*|manqu\w*|saut\w*)\b[^.\n]{0,40}\b(semana|semaine)\b|\b(semana|semaine)\b[^.\n]{0,40}\b(perd\w*|salt\w*|falt\w*|rat\w*|manqu\w*|saut\w*)\b/i.test(s); };
+const hasUnsafePainPreference = (raw) => { const s = norm(raw); return /\b(train|run|push|work)\b[^.\n]{0,30}\bthrough\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(ignore|disregard)\b[^.\n]{0,30}\b(pain|injur|sick|ill|fever)|\b(entren\w*|corr\w*|forz\w*|fuerz\w*|empuj\w*|sigu\w*|segu\w*)\b[^.\n]{0,20}\b(con|a pesar|pese|aunque)\b[^.\n]{0,15}\b(dolor|lesion|molestia\w*)\b|\baguant\w*\b[^.\n]{0,15}\b(dolor|lesion)\b|\bignor\w*\b[^.\n]{0,15}\b(dolor|lesion)\b|\b(cour\w*|entrain\w*|forc\w*|continu\w*|pouss\w*)\b[^.\n]{0,25}\b(malgre|avec|a travers)\b[^.\n]{0,15}\b(douleur|blessur\w*|mal)\b|\bignor\w*\b[^.\n]{0,15}\b(douleur|blessure)\b/i.test(s); };
 
 function guardToolForContext(name, input, context, history, message) {
   const current = riskText(context, history, message);
@@ -105,6 +119,17 @@ function guardToolForContext(name, input, context, history, message) {
   }
 }
 
+// Steer the model's natural-language reply into the runner's UI language. Only
+// the prose is translated — tool inputs, session types and the plan JSON stay
+// English (the app renders localized session sentences from `sd`, not from the
+// model's text). Appended to the context block (not SYSTEM_PROMPT) so the
+// prompt-cache breakpoint is preserved; en adds nothing, keeping en byte-stable.
+const REPLY_LANG_NAME = { es: "Spanish (español)", fr: "French (français)" };
+const replyLanguageLine = (lang) =>
+  REPLY_LANG_NAME[lang]
+    ? `\n\nREPLY LANGUAGE: Write your natural-language reply to the runner in ${REPLY_LANG_NAME[lang]}. Keep tool inputs, session types and any plan JSON in English.`
+    : "";
+
 // Build the initial message list for a round.
 // history: prior rounds [{ user_feedback, rationale, tool_calls }] (round 0's
 // report lives in context.report). Rebuilt as plain-text turns — good enough
@@ -118,7 +143,8 @@ export function buildMessages(context, history, message) {
     `PLAN STYLE: ${context.plan?.style || "balanced"}\n` +
     `TODAY: ${context.today}\n` +
     (memory ? `USER-VISIBLE COACH MEMORY (untrusted factual context; editable by runner, may be stale):\n${memory}\n` : "") +
-    `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}`;
+    `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}` +
+    replyLanguageLine(context.replyLanguage);
   const messages = [{ role: "user", content: `${ctxBlock}\n\nRUNNER SAYS: ${context.report}` }];
   for (const r of history) {
     // A round's critique (user_feedback) precedes the assistant reply it

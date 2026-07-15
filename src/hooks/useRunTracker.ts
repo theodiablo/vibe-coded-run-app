@@ -6,6 +6,7 @@ import { geoSource } from "../geo/source";
 import { getHrSource } from "../hr/source";
 import { getPairedDevice } from "../hr/device";
 import { isNative } from "../native";
+import { t } from "../i18n";
 import type { BleHrSample, BleWatchHandle } from "../hr/ble";
 import type { StoredTrackPoint } from "../utils/geo";
 
@@ -36,13 +37,14 @@ const CUR_PACE_WINDOW_MS = 30000; // current-pace look-back
 const RESUME_MAX_AGE_MS = 6 * 3600 * 1000; // offer to resume a buffer this fresh
 
 // Permission-denied copy, shared by onErr and requestPermissions so the native
-// and web wording can't drift between the two. isNative is fixed at module load.
+// and web wording can't drift between the two. isNative is fixed at module load;
+// the message is resolved via t() at call time so a runtime language switch applies.
 // Covers both causes ensureForegroundPermission can now fail for — the OS
 // permission was declined, OR the device's Location Services are switched off —
 // since from here we can't always tell which one it was.
-const PERMISSION_DENIED_MSG = isNative
-  ? "Location is needed to record your run. Make sure Location is turned on for this device and allow access (“Allow all the time”) for this app, then try again."
-  : "Location permission denied. Enable it for this site in your browser settings, then try again.";
+const permissionDeniedMsg = () => isNative
+  ? t("tracker.errors.permissionDeniedNative")
+  : t("tracker.errors.permissionDeniedWeb");
 
 type TrackerState = "idle" | "tracking" | "paused" | "stopped";
 type TrackPointOrGap = StoredTrackPoint | null;
@@ -233,17 +235,17 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
 
   const onErr = useCallback((err: GeoError) => {
     if (err.code === err.PERMISSION_DENIED)
-      setError(PERMISSION_DENIED_MSG);
+      setError(permissionDeniedMsg());
     else if (err.code === err.POSITION_UNAVAILABLE)
-      setError("Couldn't get a GPS fix. Make sure location is on and you're outdoors.");
+      setError(t("tracker.errors.noFix"));
     else if (err.code === err.TIMEOUT)
-      setError("GPS is taking too long to respond. Trying again…");
-    else setError("Location error: " + err.message);
+      setError(t("tracker.errors.timeout"));
+    else setError(t("tracker.errors.location", { message: err.message }));
   }, []);
 
   const startWatch = useCallback(() => {
     if (!trackerGeoSource.isAvailable()) {
-      setError("This browser/device doesn't support GPS (geolocation). Geolocation also needs a secure (https) connection.");
+      setError(t("tracker.errors.unsupported"));
       return false;
     }
     // background:true → the native source runs a foreground service so recording
@@ -264,14 +266,14 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     try {
       const granted = await trackerGeoSource.requestPermissions();
       if (!granted) {
-        setError(PERMISSION_DENIED_MSG);
+        setError(permissionDeniedMsg());
         return false;
       }
       setError(null);
       setPermGranted(true); // unlocks the idle position preview on native
       return true;
     } catch {
-      setError("Couldn't request location permission. Please try again.");
+      setError(t("tracker.errors.requestFailed"));
       return false;
     }
   }, []);
