@@ -100,7 +100,7 @@ jobs:
         run: npm ci
 
       - name: Download web bundle
-        uses: actions/download-artifact@d8d0a99033603453ad2255e58e13547056a15840 # v7.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: native-web-dist
           path: dist
@@ -229,7 +229,7 @@ jobs:
         run: npm ci
 
       - name: Download web bundle
-        uses: actions/download-artifact@d8d0a99033603453ad2255e58e13547056a15840 # v7.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: native-web-dist
           path: dist
