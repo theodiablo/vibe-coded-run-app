@@ -43,6 +43,18 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # Persists the Gradle distribution, dependency caches AND the local
+      # task-output build cache (org.gradle.caching in android/gradle.properties)
+      # across runs — this is what turns the ~7 min cold Gradle step into an
+      # incremental one. cache-read-only must be false here: the action's
+      # default only WRITES cache from the default branch, and main never runs
+      # an Android build (this workflow fires on PRs, release.yml on tags), so
+      # the cache would otherwise never be seeded.
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+        with:
+          cache-read-only: false
+
       - name: Install dependencies
         run: npm ci
 
@@ -78,6 +90,10 @@ jobs:
           name: running-coach-pr${{ github.event.pull_request.number }}-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          # Sideload APKs are only useful while the PR is fresh; the default
+          # 90-day retention accumulates against the private-repo 500 MB
+          # artifact-storage cap for no benefit.
+          retention-days: 14
 
       # Post (and keep updated) a comment linking straight to the APK artifact.
       # Skipped for fork PRs, whose pull_request token is read-only.

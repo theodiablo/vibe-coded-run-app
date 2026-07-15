@@ -784,6 +784,25 @@ and delete anything that becomes stale.
   (the slim colour bar) is shared by both so they don't drift; HR-to-zone
   classification is the pure `runZoneIndex` in `src/utils/hr.ts`.
 
+## CI caching
+- **All workflows use Node 22** (Capacitor 8 CLI floor) — keep new workflows on
+  22 so they share one npm cache key family.
+- **Android:** `gradle/actions/setup-gradle` in `android-pr.yml` + `release.yml`
+  persists Gradle deps AND the task-output build cache; `android/gradle.properties`
+  enables `caching`/`parallel`/`configuration-cache` with a 4 GB heap. It must
+  keep `cache-read-only: false` — the action's default only writes cache from the
+  default branch, and `main` never runs an Android build (PR + tag triggers only),
+  so the cache would never be seeded otherwise. If a plugin update breaks with a
+  configuration-cache error, drop `org.gradle.configuration-cache=true` only.
+- **iOS:** SPM clones are pinned to `ios/SourcePackages`
+  (`-clonedSourcePackagesDirPath`, gitignored) and cached keyed on the *synced*
+  `CapApp-SPM/Package.swift` — the cache step must stay AFTER `npx cap sync ios`,
+  which rewrites that manifest. Deliberately no DerivedData caching (unreliable
+  invalidation, big caches, small win).
+- Repo is private → free tier: 2,000 min/mo (macOS ×10), 10 GB Actions cache
+  (LRU-evicted), 500 MB artifact storage — PR APKs use `retention-days: 14` to
+  stay clear of the storage cap.
+
 ## Git / PR workflow
 - Do not open or merge PRs unless explicitly asked.
 - We squash-merge PRs. After a squash-merge, a branch that keeps being reused

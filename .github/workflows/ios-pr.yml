@@ -65,6 +65,18 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync ios
 
+      # Cache the SPM package clones so xcodebuild skips the resolve/clone on
+      # warm runs (saves minutes at the macOS ×10 multiplier). Keyed on the
+      # synced CapApp-SPM manifest (cap sync rewrites it from package-lock.json,
+      # which is why this step sits AFTER Sync Capacitor). Same key family as
+      # release.yml's ios job so PR and release runs warm each other.
+      - name: Cache SPM packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ios/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('ios/App/CapApp-SPM/Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-
+
       - name: Build for Simulator (no signing)
         run: |
           set -o pipefail
@@ -73,5 +85,6 @@ jobs:
             -scheme App \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
+            -clonedSourcePackagesDirPath ios/SourcePackages \
             CODE_SIGNING_ALLOWED=NO \
             build | xcbeautify --renderer github-actions
