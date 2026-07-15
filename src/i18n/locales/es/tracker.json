@@ -62,7 +62,9 @@
     "timeout": "El GPS está tardando demasiado en responder. Reintentando…",
     "location": "Error de ubicación: {{message}}",
     "unsupported": "Este navegador/dispositivo no admite GPS (geolocalización). La geolocalización también necesita una conexión segura (https).",
-    "requestFailed": "No se pudo solicitar el permiso de ubicación. Inténtalo de nuevo."
+    "requestFailed": "No se pudo solicitar el permiso de ubicación. Inténtalo de nuevo.",
+    "locationGeneric": "Error de ubicación",
+    "permissionNotGranted": "No se concedió el permiso de ubicación."
   },
   "map": {
     "noKey": "Los mosaicos del mapa necesitan VITE_MAPTILER_KEY — la ruta se registra igualmente."

@@ -27,7 +27,7 @@ const loaders: Record<LangId, () => Promise<{ default: object }>> = {
   fr: () => import("./locales/fr"),
 };
 
-export function initI18n(initial: LangId): void {
+export function initI18n(initial: LangId): Promise<void> {
   // With inline resources and no backend plugin this init is synchronous, so
   // t() works immediately — main.tsx calls it before createRoot.
   void i18n.use(initReactI18next).init({
@@ -40,7 +40,12 @@ export function initI18n(initial: LangId): void {
   document.documentElement.lang = "en";
   // Boot detection must not pin the browser language into localStorage — only
   // an explicit user pick (Settings/onboarding) or the synced setting persists.
-  if (initial !== "en") void setLocale(initial, { persist: false });
+  // Return the load promise so main.tsx can await the es/fr chunk BEFORE the
+  // first paint — otherwise those users see a flash of English while the chunk
+  // downloads. English resolves instantly (bundled), so en users don't wait.
+  // setLocale never rejects (it swallows load failures and stays on English),
+  // so awaiting this is always safe.
+  return initial === "en" ? Promise.resolve() : setLocale(initial, { persist: false });
 }
 
 export async function setLocale(lang: LangId, opts: { persist?: boolean } = {}): Promise<void> {

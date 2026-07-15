@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
 import { LANGS, setLocale, currentLang, isLangId, type LangId } from "../i18n";
 import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_WARN_CHARS, USER_CONTEXT_NOTICE_CHARS } from "../constants";
@@ -109,12 +109,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
             <div>
               <p className="text-sm font-semibold text-slate-200">{t("settings.memory.title")}</p>
-              <p className="text-xs text-slate-400 mt-1">
-                Things your coach should remember for future chats, like recurring injuries,
-                training preferences, schedule constraints, or important corrections. Markdown
-                headings like "## Schedule" or "## Injury history" are welcome. This is saved
-                to your account, used in AI coach requests, and editable any time.
-              </p>
+              <p className="text-xs text-slate-400 mt-1">{t("settings.memory.desc")}</p>
             </div>
             <textarea value={memory} maxLength={USER_CONTEXT_MAX_CHARS} rows={6}
               onChange={e => setMemory(e.target.value)} onBlur={commitMemory}
@@ -122,14 +117,12 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               className={INPUT_CLS + " resize-none leading-relaxed"}/>
             <div className="flex items-center justify-between gap-3 text-xs">
               <p className="text-slate-500">
-                We only save the AI suggestions you choose to store
-                {onOpenCoach ? <>
-                  {" "}in your{" "}
-                  <button type="button" onClick={onOpenCoach}
-                    className="text-orange-400 hover:text-orange-300 underline underline-offset-2">
-                    AI Coach conversations
-                  </button>
-                </> : " in your AI Coach conversations"}.
+                <Trans i18nKey="settings.memory.footer" components={{
+                  link: onOpenCoach
+                    ? <button type="button" onClick={onOpenCoach}
+                        className="text-orange-400 hover:text-orange-300 underline underline-offset-2"/>
+                    : <span/>,
+                }}/>
               </p>
               <p className={memory.length >= USER_CONTEXT_NOTICE_CHARS ? "text-red-400" : memory.length >= USER_CONTEXT_WARN_CHARS ? "text-amber-400" : "text-slate-500"}>
                 {memory.length} / {USER_CONTEXT_MAX_CHARS}
@@ -145,11 +138,8 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm text-slate-200">Share usage &amp; crash reports</p>
-                <p className="text-xs text-slate-400">
-                  Limited app analytics and crash diagnostics. No run data,
-                  routes, heart-rate samples, or coach messages are ever sent.
-                </p>
+                <p className="text-sm text-slate-200">{t("settings.privacy.shareLabel")}</p>
+                <p className="text-xs text-slate-400">{t("settings.privacy.shareDesc")}</p>
               </div>
               <button onClick={toggleAnalytics} role="switch" aria-checked={analyticsOn}
                 aria-label={t("settings.privacy.shareAria")}
@@ -158,36 +148,33 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               </button>
             </div>
             {isNative && (
-              <p className="text-xs text-slate-500">
-                If the app crashes, you&apos;ll still be asked before any crash
-                report is sent.
-              </p>
+              <p className="text-xs text-slate-500">{t("settings.privacy.crashNote")}</p>
             )}
             <div className="flex items-center gap-2 text-xs">
               <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer"
                 className="text-orange-400 hover:text-orange-300">
-                Privacy policy
+                {t("settings.privacy.policyLink")}
               </a>
               <span className="text-slate-600">·</span>
               <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer"
                 className="text-orange-400 hover:text-orange-300">
-                Health &amp; safety disclaimer
+                {t("settings.privacy.disclaimerLink")}
               </a>
             </div>
           </div>
 
           {/* Backup & restore */}
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-200">Backup &amp; restore</p>
-            <p className="text-xs text-slate-400">Save a copy of your runs &amp; plan, or reload from a previous backup.</p>
+            <p className="text-sm font-semibold text-slate-200">{t("settings.backup.title")}</p>
+            <p className="text-xs text-slate-400">{t("settings.backup.desc")}</p>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={onBackup}
                 className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
-                <Download size={15}/>Backup
+                <Download size={15}/>{t("settings.backup.backupBtn")}
               </button>
               <button onClick={onRestore}
                 className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
-                <Upload size={15}/>Restore
+                <Upload size={15}/>{t("settings.backup.restoreBtn")}
               </button>
             </div>
           </div>
@@ -198,13 +185,13 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               {onSignOut && (
                 <button onClick={onSignOut}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 transition-colors">
-                  <LogOut size={15}/>Sign out
+                  <LogOut size={15}/>{t("settings.account.signOut")}
                 </button>
               )}
               {!isNative && onDeleteAccount && (
                 <button onClick={onDeleteAccount}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-red-400 flex items-center justify-center gap-2 transition-colors">
-                  <Trash2 size={15}/>Delete account
+                  <Trash2 size={15}/>{t("settings.deleteAccount.title")}
                 </button>
               )}
             </div>

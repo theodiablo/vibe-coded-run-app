@@ -17,7 +17,7 @@ export function diffPlans(oldPlan: Plan | null | undefined, newPlan: Plan | null
     const changes: string[] = [];
     for (const s of w.sessions) {
       const b = before[s.id];
-      if (!b) { changes.push(t("coach.diff.new", { type: s.type, km: s.km, date: short(s.date) })); continue; }
+      if (!b) { changes.push(t("coach.diff.new", { type: t("common.types." + s.type, { defaultValue: s.type }), km: s.km, date: short(s.date) })); continue; }
       const parts: string[] = [];
       if (b.type !== s.type) parts.push(`${t("common.types." + b.type, { defaultValue: b.type })} → ${t("common.types." + s.type, { defaultValue: s.type })}`);
       if (b.date !== s.date) parts.push(t("coach.diff.moved", { from: short(b.date), to: short(s.date) }));

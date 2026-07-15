@@ -62,7 +62,9 @@
     "timeout": "Le GPS met trop de temps à répondre. Nouvelle tentative…",
     "location": "Erreur de localisation : {{message}}",
     "unsupported": "Ce navigateur/appareil ne prend pas en charge le GPS (géolocalisation). La géolocalisation nécessite aussi une connexion sécurisée (https).",
-    "requestFailed": "Impossible de demander l'autorisation de localisation. Réessaie."
+    "requestFailed": "Impossible de demander l'autorisation de localisation. Réessaie.",
+    "locationGeneric": "Erreur de localisation",
+    "permissionNotGranted": "L'autorisation de localisation n'a pas été accordée."
   },
   "map": {
     "noKey": "Les tuiles de carte nécessitent VITE_MAPTILER_KEY — le parcours s'enregistre quand même."

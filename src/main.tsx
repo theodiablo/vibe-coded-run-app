@@ -9,9 +9,6 @@ import { initTelemetry, installGlobalErrorHandlers } from './telemetry'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App'
 
-// Locale first (synchronous for English; es/fr swap in as soon as their chunk
-// loads) so every surface — including the ErrorBoundary — has strings.
-initI18n(detectInitialLocale())
 // Start telemetry (no-op until a provider is wired in and the user consents)
 // and catch foreground errors that escape React. Both honour the consent flag.
 initTelemetry()
@@ -20,10 +17,17 @@ installGlobalErrorHandlers()
 const root = document.getElementById('root')
 if (!root) throw new Error('Root element not found')
 
-createRoot(root).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </StrictMode>,
-)
+const render = () =>
+  createRoot(root).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+
+// Locale first so every surface — including the ErrorBoundary — has strings.
+// English resolves synchronously (bundled); for a returning es/fr visitor we
+// await their chunk before the first paint so they never see English flash to
+// their language. A failed load falls back to English and still renders.
+initI18n(detectInitialLocale()).finally(render)

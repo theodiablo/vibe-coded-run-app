@@ -86,7 +86,7 @@ export function adaptBgError(error: unknown) {
   const err = typeof error === "object" && error ? error as { code?: unknown; message?: unknown } : null;
   const code = err?.code === "NOT_AUTHORIZED" ? PERMISSION_DENIED : POSITION_UNAVAILABLE;
   return {
-    code, message: typeof err?.message === "string" ? err.message : "Location error",
+    code, message: typeof err?.message === "string" ? err.message : t("tracker.errors.locationGeneric"),
     PERMISSION_DENIED, POSITION_UNAVAILABLE, TIMEOUT,
   };
 }
@@ -150,7 +150,7 @@ export const nativeSource = {
           return;
         }
         if (!granted) {
-          onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: "Location permission was not granted." }));
+          onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: t("tracker.errors.permissionNotGranted") }));
           return;
         }
         if (handle.removed) return;
@@ -199,7 +199,7 @@ export const nativeSource = {
   // permission (showing the OS dialog if needed), then a single getCurrentPosition.
   // Resolves { lat, lng }; rejects on denial/unavailable so the UI can react.
   async getCurrentPosition() {
-    if (!(await ensureForegroundPermission())) throw new Error("Location permission was not granted.");
+    if (!(await ensureForegroundPermission())) throw new Error(t("tracker.errors.permissionNotGranted"));
     const p = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 });
     return { lat: p.coords.latitude, lng: p.coords.longitude };
   },

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { LANGS, setLocale, currentLang } from "../i18n";
+import { LANGS, currentLang } from "../i18n";
 import { X, Smartphone, ArrowRight, MessageCircle, Download, Globe } from "lucide-react";
 // Self-hosted Archivo (the design's typeface). These live in this web-only lazy
 // chunk, so the font never ships in the native APK, and they're served from our
@@ -16,7 +16,7 @@ import { PRIVACY_URL, DISCLAIMER_URL, PLAY_STORE_BETA_URL } from "../constants";
 // Registers the web-only "marketing" i18n namespace (brand + hero come from
 // copy.json, the source shared with the OG-image generator). Importing it here
 // keeps those strings in this chunk — out of the APK.
-import { ensureMarketingI18n } from "./i18n";
+import { ensureMarketingI18n, setMarketingLocale } from "./i18n";
 // Real app screenshots, imported so Vite bundles them into this web-only chunk
 // (dropped from the APK along with the rest of the marketing code).
 import planShot from "./assets/02-plan.png";
@@ -260,15 +260,17 @@ export default function MarketingGate() {
             <BrandLogo size={16} className="text-[#F97316]" />
             <span className="font-bold text-[#B7C2D2]">{t("brand")}</span>
           </div>
-          {/* Language selector — setLocale persists rc_lang so the choice sticks
-              into LoginScreen and the next visit. */}
+          {/* Language selector — setMarketingLocale flips the already-bundled
+              landing copy instantly (no app-chunk download on the critical path),
+              persists rc_lang so the choice sticks into LoginScreen and the next
+              visit, and warms the app bundle in the background for login. */}
           <div className="flex items-center gap-2.5" role="group" aria-label={t("nav.language")}>
             <Globe size={15} className="text-[#8B98AC]" />
             {LANGS.map((l) => (
               <button
                 key={l.id}
                 type="button"
-                onClick={() => void setLocale(l.id)}
+                onClick={() => setMarketingLocale(l.id)}
                 aria-pressed={currentLang() === l.id}
                 className={
                   "font-semibold transition-colors " +

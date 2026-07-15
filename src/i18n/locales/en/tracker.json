@@ -62,7 +62,9 @@
     "timeout": "GPS is taking too long to respond. Trying again…",
     "location": "Location error: {{message}}",
     "unsupported": "This browser/device doesn't support GPS (geolocation). Geolocation also needs a secure (https) connection.",
-    "requestFailed": "Couldn't request location permission. Please try again."
+    "requestFailed": "Couldn't request location permission. Please try again.",
+    "locationGeneric": "Location error",
+    "permissionNotGranted": "Location permission was not granted."
   },
   "map": {
     "noKey": "Map tiles need VITE_MAPTILER_KEY — route still records."
