@@ -222,7 +222,7 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
         {prefill?.hrPending && !f.hr && (
           <p className="text-xs text-slate-400 flex items-start gap-1.5">
             <HeartPulse size={14} className="text-red-400 mt-0.5 shrink-0" />
-            <span>{t("log.hrPendingNote")}</span>
+            <span>{t("log.hrPendingNote", { store: prefill.hrPending.source === "healthkit" ? "Apple Health" : "Health Connect" })}</span>
           </p>
         )}
         <div>

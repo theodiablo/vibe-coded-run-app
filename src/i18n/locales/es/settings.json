@@ -75,7 +75,8 @@
     "methods": {
       "off": "Desactivado",
       "bluetooth": "Sensor Bluetooth",
-      "healthconnect": "Health Connect"
+      "healthconnect": "Health Connect",
+      "healthkit": "Apple Salud"
     },
     "newTag": "nuevo",
     "forgetAria": "Olvidar sensor",
@@ -94,7 +95,15 @@
     "hcSuccess": "Health Connect conectado — la frecuencia cardíaca se leerá tras tus carreras.",
     "hcInstall": "Instala Health Connect desde Google Play y luego vuelve a tocar Conectar.",
     "hcDenied": "No se concedió el acceso. En Health Connect, permite que Running Coach lea la frecuencia cardíaca.",
-    "hcOpenFailed": "No se pudo abrir Health Connect. Asegúrate de que está instalado y actualizado."
+    "hcOpenFailed": "No se pudo abrir Health Connect. Asegúrate de que está instalado y actualizado.",
+    "hkConnected": "Conectado — la frecuencia cardíaca se añade a tus carreras automáticamente.",
+    "hkReconnect": "Reconectar Apple Salud",
+    "hkConnect": "Conectar Apple Salud",
+    "hkHelp": "Lee tu frecuencia cardíaca desde Apple Salud tras una carrera — útil si tu reloj sincroniza ahí pero no emite en vivo. Puede tardar unos minutos en aparecer al terminar.",
+    "hkNotSupported": "Apple Salud no está disponible en este dispositivo.",
+    "hkSuccess": "Apple Salud conectado — la frecuencia cardíaca se leerá tras tus carreras.",
+    "hkDenied": "No se concedió el acceso. En la app Salud, permite que Running Coach lea Frecuencia cardíaca y Entrenos.",
+    "hkOpenFailed": "No se pudo acceder a Apple Salud. Vuelve a intentarlo o revisa los ajustes de compartir de la app Salud."
   },
   "hrDisclosure": {
     "title": "Conectar un sensor de frecuencia cardíaca",
@@ -123,6 +132,10 @@
       "healthconnect": {
         "label": "Tu reloj (Health Connect)",
         "help": "Funciona con cualquier reloj cuya app escriba entrenamientos en Health Connect (Android 14+): Garmin Connect (Ajustes → Health Connect) o Zepp/Amazfit (Perfil → Acceso de terceros → Health Connect). Las carreras aparecen unos minutos después de que tu reloj sincronice; no se incluye ruta ni mapa."
+      },
+      "healthkit": {
+        "label": "Tu reloj (Apple Salud)",
+        "help": "Funciona con la app Entreno del Apple Watch y con cualquier reloj cuya app escriba entrenamientos en Apple Salud (Garmin Connect, Polar Flow, Zepp…). Las carreras aparecen unos minutos después de que tu reloj sincronice; no se incluye ruta ni mapa."
       }
     }
   }

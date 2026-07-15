@@ -45,6 +45,8 @@
     "authTitle": "Autoriser Health Connect ?",
     "authBody": "Health Connect est sélectionné, mais ce téléphone n'a pas encore accordé l'accès. Autorise-le dans les Réglages pour ajouter la fréquence cardiaque après tes courses.",
     "authAccept": "Ouvrir les Réglages",
+    "hkAuthTitle": "Autoriser Apple Santé ?",
+    "hkAuthBody": "Apple Santé est sélectionné, mais ce téléphone n'a pas encore accordé l'accès. Autorise-le dans les Réglages pour ajouter la fréquence cardiaque après tes courses.",
     "pairTitle": "Associer ton capteur de fréquence cardiaque ?",
     "pairBody": "La capture de la fréquence cardiaque par Bluetooth est sélectionnée, mais aucun capteur n'est associé sur ce téléphone. Associes-en un dans les Réglages pour enregistrer le BPM en direct.",
     "pairAccept": "Associer un capteur",

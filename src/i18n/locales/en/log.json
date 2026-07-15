@@ -44,7 +44,7 @@
   "validation": {
     "required": "Distance and duration are required."
   },
-  "hrPendingNote": "Heart rate will be added automatically from Health Connect once your watch syncs (usually a few minutes) — leave these blank, or enter them yourself.",
+  "hrPendingNote": "Heart rate will be added automatically from {{store}} once your watch syncs (usually a few minutes) — leave these blank, or enter them yourself.",
   "saveRun": "Save Run",
   "edit": {
     "title": "Edit Run",

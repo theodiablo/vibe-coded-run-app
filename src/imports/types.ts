@@ -9,9 +9,10 @@ export type ImportedRun = Partial<Run> & { points?: TrackPointOrGap[] };
 
 export type ImportParseResult = { runs: ImportedRun[]; error?: string | null };
 
-// One pluggable source of finished runs. Three kinds today:
-//  - "healthconnect": native on-device store other watch apps write into
+// One pluggable source of finished runs. Four kinds today:
+//  - "healthconnect": Android's on-device store other watch apps write into
 //    (Garmin Connect, Zepp, Samsung Health…) — scan-capable, connectable.
+//  - "healthkit": the iOS equivalent (Apple Health) — same shape, iOS-only.
 //  - "file": user-picked activity exports (CSV/GPX/TCX) — parse-capable,
 //    works on web too, never scanned automatically.
 //  - "cloud": vendor cloud APIs (OAuth + server-side webhook/poll). Scaffold
@@ -24,7 +25,7 @@ export type ImportParseResult = { runs: ImportedRun[]; error?: string | null };
 export type ImportProvider = {
   id: string;
   label: string;
-  kind: "healthconnect" | "file" | "cloud";
+  kind: "healthconnect" | "healthkit" | "file" | "cloud";
   platform: "native" | "web" | "both";
   // Can this provider work here at all (right platform, plugin present,
   // config set)? Unavailable providers are skipped by scans and hidden by the UI.

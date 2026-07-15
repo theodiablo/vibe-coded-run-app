@@ -14,8 +14,9 @@ import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
+import { flushPendingHkHr } from "./hr/healthkit";
 import { markSeen, WATCH_MANUAL_SCAN_DAYS, WATCH_AUTO_SCAN_COOLDOWN_MS } from "./watch/import";
-import { scanAllProviders } from "./imports/registry";
+import { scanAllProviders, providerEnabledInSettings } from "./imports/registry";
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
@@ -254,6 +255,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         enabled: s?.hrMethod === "healthconnect",
         allowNativeRead: hasHealthConnectAuthorization(),
       }).catch(() => {});
+      // The iOS sibling — each flusher only resolves (and only clears) its own
+      // source's markers, so running both here is safe on either platform.
+      flushPendingHkHr(bootRuns, patchBootRunHr, {
+        enabled: s?.hrMethod === "healthkit",
+      }).catch(() => {});
     })();
     // Boot-once load: `t` is stable and must not re-trigger the whole boot on a
     // language switch, so it is intentionally omitted from the deps.
@@ -278,6 +284,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       flushPendingHr(runsRef.current, patchRunHr, {
         enabled: settingsRef.current.hrMethod === "healthconnect",
         allowNativeRead: hasHealthConnectAuthorization(),
+      }).catch(() => {});
+      flushPendingHkHr(runsRef.current, patchRunHr, {
+        enabled: settingsRef.current.hrMethod === "healthkit",
       }).catch(() => {});
       // A watch run often lands in Health Connect minutes after the run (once the
       // watch syncs to Garmin Connect), so re-scan on foreground too.
@@ -579,9 +588,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     watchLastScanRef.current = Date.now();
     const scanned = await scanAllProviders(runsRef.current, {
       ...(days ? { days } : {}),
-      // The synced preference gates the Health Connect provider; providers only
-      // check device-local state (grant markers) themselves.
-      enabled: p => p.id !== "healthconnect" || !!settingsRef.current.watchImport,
+      // The synced preference gates the health-store providers (watchImport is
+      // shared by Health Connect and HealthKit); providers only check
+      // device-local state (grant markers) themselves.
+      enabled: p => providerEnabledInSettings(settingsRef.current, p.id) || !p.connect,
     });
     // Persist any route traces a provider returned and swap them for routeId —
     // transient `points` never belong in the stored run (blob bloat). HC has no

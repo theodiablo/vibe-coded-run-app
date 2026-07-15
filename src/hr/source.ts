@@ -1,6 +1,7 @@
 import { isAndroid, isIos, platform } from "../native";
 import { bleSource } from "./ble";
 import { healthConnectSource } from "./healthconnect";
+import { healthKitSource } from "./healthkit";
 import type { HrMethod } from "../types";
 
 // Resolve the heart-rate source for a chosen method, or null for "off" / web /
@@ -16,8 +17,7 @@ import type { HrMethod } from "../types";
 export function getHrSource(method: HrMethod | string | null | undefined) {
   if (method === "bluetooth" && (isAndroid || isIos)) return bleSource;
   if (method === "healthconnect" && isAndroid) return healthConnectSource;
-  // "healthkit" (iOS) is wired in src/hr/healthkit.ts once the HealthKit bridge
-  // lands; until then it degrades to null like any unknown method.
+  if (method === "healthkit" && isIos) return healthKitSource;
   return null;
 }
 

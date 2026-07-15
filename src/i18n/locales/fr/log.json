@@ -44,7 +44,7 @@
   "validation": {
     "required": "La distance et la durée sont obligatoires."
   },
-  "hrPendingNote": "La fréquence cardiaque sera ajoutée automatiquement depuis Health Connect une fois ta montre synchronisée (généralement quelques minutes) — laisse ces champs vides, ou saisis-les toi-même.",
+  "hrPendingNote": "La fréquence cardiaque sera ajoutée automatiquement depuis {{store}} une fois ta montre synchronisée (généralement quelques minutes) — laisse ces champs vides, ou saisis-les toi-même.",
   "saveRun": "Enregistrer la course",
   "edit": {
     "title": "Modifier la course",

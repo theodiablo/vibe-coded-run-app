@@ -4,6 +4,7 @@ import { Bluetooth, Loader, Check, Trash2 } from "lucide-react";
 import { hrMethodsForPlatform } from "../hr/source";
 import { bleSource } from "../hr/ble";
 import { healthConnectSource } from "../hr/healthconnect";
+import { healthKitSource } from "../hr/healthkit";
 import { getPairedDevice, setPairedDevice, forgetPairedDevice } from "../hr/device";
 import { HrSensorDisclosure } from "../modals/HrSensorDisclosure";
 import { HR_BLE_DISCLOSED_KEY } from "../constants";
@@ -52,12 +53,15 @@ export function HrSensor({ settings, saveSettings, showToast }: HrSensorProps) {
     else setSetupMethod(m);
   };
 
-  // Reflect whether Health Connect read access is already granted (non-prompting),
+  // Reflect whether health-store read access is already granted (non-prompting),
   // so Settings shows a persistent "connected" state. Only meaningful on native.
+  // For HealthKit, checkPermissions reports the local auth marker — iOS never
+  // reveals read authorization, so a completed grant flow is the only signal.
   useEffect(() => {
-    if (method !== "healthconnect") return;
+    if (method !== "healthconnect" && method !== "healthkit") return;
+    const src = method === "healthkit" ? healthKitSource : healthConnectSource;
     let cancelled = false;
-    healthConnectSource.checkPermissions().then((ok) => { if (!cancelled) setHcConnected(ok); });
+    src.checkPermissions().then((ok) => { if (!cancelled) setHcConnected(ok); });
     return () => { cancelled = true; };
   }, [method]);
 
@@ -131,6 +135,28 @@ export function HrSensor({ settings, saveSettings, showToast }: HrSensorProps) {
     }
   };
 
+  // Apple Health (iOS). granted:true means the authorization sheet flow
+  // completed — HealthKit never says whether read access was actually granted,
+  // so this optimistically proceeds and empty reads later just stay pending.
+  const connectHk = async () => {
+    setHcBusy(true);
+    try {
+      if (!(await healthKitSource.isAvailable())) {
+        showToast?.(t("settings.hrSensor.hkNotSupported"), "err");
+        return;
+      }
+      const ok = await healthKitSource.requestPermissions();
+      setHcConnected(ok);
+      if (ok) { setSetupMethod(null); setMethod("healthkit"); }
+      else if (persistedMethod === "healthkit") setMethod("off");
+      showToast?.(ok ? t("settings.hrSensor.hkSuccess") : t("settings.hrSensor.hkDenied"), ok ? "ok" : "err");
+    } catch {
+      showToast?.(t("settings.hrSensor.hkOpenFailed"), "err");
+    } finally {
+      setHcBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 pt-1">
@@ -188,6 +214,26 @@ export function HrSensor({ settings, saveSettings, showToast }: HrSensorProps) {
               {t("settings.hrSensor.pairHelp")}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Apple Health (iOS) */}
+      {method === "healthkit" && (
+        <div className="space-y-2">
+          {hcConnected && (
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2 text-sm text-emerald-300">
+              <Check size={15} className="shrink-0" />
+              <span>{t("settings.hrSensor.hkConnected")}</span>
+            </div>
+          )}
+          <button type="button" onClick={connectHk} disabled={hcBusy}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 disabled:opacity-50">
+            {hcBusy ? <Loader size={15} className="animate-spin" /> : null}
+            {hcConnected ? t("settings.hrSensor.hkReconnect") : t("settings.hrSensor.hkConnect")}
+          </button>
+          <p className="text-xs text-slate-500">
+            {t("settings.hrSensor.hkHelp")}
+          </p>
         </div>
       )}
 

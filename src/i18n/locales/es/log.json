@@ -44,7 +44,7 @@
   "validation": {
     "required": "La distancia y la duración son obligatorias."
   },
-  "hrPendingNote": "La frecuencia cardíaca se añadirá automáticamente desde Health Connect cuando tu reloj se sincronice (suele tardar unos minutos) — deja estos campos en blanco o introdúcelos a mano.",
+  "hrPendingNote": "La frecuencia cardíaca se añadirá automáticamente desde {{store}} cuando tu reloj se sincronice (suele tardar unos minutos) — deja estos campos en blanco o introdúcelos a mano.",
   "saveRun": "Guardar carrera",
   "edit": {
     "title": "Editar carrera",
