@@ -59,14 +59,12 @@ Go to [supabase.com](https://supabase.com), create a new project, then grab your
 
 ### 2. Set up the database schema
 
-In your Supabase project, open the **SQL Editor** and run the migration files
-in order from `supabase/migrations/`:
-
-1. `20260607114706_init_schema.sql`
-2. `20260607165159_grant_table_privileges.sql`
-3. `20260614120000_harden_security_definer_functions.sql`
-4. `20260620120000_run_routes.sql` — GPS route traces
-5. `20260623120000_app_config.sql` — app version gate (in-app update prompt)
+In your Supabase project, open the **SQL Editor** and run **every** migration
+file from `supabase/migrations/` in filename (timestamp) order — the list grows
+over time, so don't rely on a snapshot of it. Highlights of what they set up:
+the core schema + RLS (`init_schema`), GPS route traces (`run_routes`), the app
+version gate for the in-app update prompt (`app_config`, plus the iOS columns
+in `app_config_ios`), the shared races catalogue, and the AI-coach tables.
 
 Alternatively, if you have the [Supabase CLI](https://supabase.com/docs/guides/cli)
 and Docker installed, you can run a full local stack:
@@ -172,10 +170,12 @@ bundle once and ships **both stores in parallel**:
   key; grant the account "Release to testing tracks" in Play Console → Users &
   permissions) for the Play upload (internal track — bump the step's `track` to
   `production` to ship to users).
-- **iOS** needs an App Store Connect API key (role App Manager) as secrets
-  `ASC_API_KEY_P8_BASE64`, `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, plus the
-  `APPLE_TEAM_ID` repo variable; signing is cloud-managed
-  (`-allowProvisioningUpdates`) and the build lands in TestFlight.
+- **iOS** needs an App Store Connect API key as secrets `ASC_API_KEY_P8_BASE64`,
+  `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, plus the `APPLE_TEAM_ID` repo variable;
+  signing is cloud-managed (`-allowProvisioningUpdates`) and the build lands in
+  TestFlight. The key's role must be **Admin**: automatic provisioning
+  creates/refreshes certificates and profiles, which App Manager keys aren't
+  allowed to do (Apple gates certificate access to Admin / Account Holder).
 
 The two store jobs are independent — one failing never blocks the other; re-run
 just the failed job and it uploads with a fresh build number.

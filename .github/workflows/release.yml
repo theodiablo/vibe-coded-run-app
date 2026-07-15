@@ -61,12 +61,16 @@ jobs:
       - name: Drop web-only SEO assets from the native bundle
         run: rm -f dist/og-image.png dist/robots.txt dist/sitemap.xml
 
+      # overwrite: artifacts are immutable per (run, name) since upload-artifact
+      # v4 — without it, "re-run all jobs" 409s here before either store job can
+      # even start.
       - name: Upload web bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: native-web-dist
           path: dist
           if-no-files-found: error
+          overwrite: true
 
   android:
     runs-on: ubuntu-latest
@@ -142,12 +146,16 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
+      # overwrite: a re-run of this job re-uploads the same artifact name, which
+      # 409s on the immutable v4+ artifact store *before* the Play upload step —
+      # exactly the retry path this job's run_attempt versioning exists for.
       - name: Upload AAB artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: running-coach-release-aab
           path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: warn
+          overwrite: true
 
       # Push the signed AAB to Google Play. Only on a real release tag. Starts on
       # the internal track to validate the pipeline end-to-end; bump `track` to
@@ -266,7 +274,7 @@ jobs:
       - name: Install App Store Connect API key
         run: |
           if [ -z "$ASC_API_KEY_P8_BASE64" ] || [ -z "$ASC_API_KEY_ID" ] || [ -z "$ASC_API_ISSUER_ID" ]; then
-            echo "::error::ASC_API_KEY_P8_BASE64 / ASC_API_KEY_ID / ASC_API_ISSUER_ID secrets are not all set — create an App Store Connect API key (role: App Manager) and add them."
+            echo "::error::ASC_API_KEY_P8_BASE64 / ASC_API_KEY_ID / ASC_API_ISSUER_ID secrets are not all set — create an App Store Connect API key (role: Admin — cloud-managed signing needs certificate access App Manager keys lack) and add them."
             exit 1
           fi
           mkdir -p ~/private_keys
