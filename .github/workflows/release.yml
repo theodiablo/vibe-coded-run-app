@@ -316,6 +316,16 @@ jobs:
           mkdir -p ~/private_keys
           echo "$ASC_API_KEY_P8_BASE64" | base64 -d > ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8
 
+      # CODE_SIGN_IDENTITY="Apple Distribution": automatic signing signs an
+      # archive with a DEVELOPMENT cert/profile by default (which also requires
+      # >=1 registered device on the team), and the exportArchive cloud-managed
+      # re-sign has been seen shipping that dev-signed binary straight to App
+      # Store Connect, which rejects it ("Invalid Signature ... make sure you
+      # have signed your application with a distribution certificate").
+      # Forcing the distribution identity here makes cloud signing mint the
+      # App Store profile at archive time, so the uploaded IPA is
+      # distribution-signed by construction. Needs the ASC API key to have the
+      # Admin role (see above).
       - name: Archive
         run: |
           set -o pipefail
@@ -330,6 +340,7 @@ jobs:
             MARKETING_VERSION="${{ steps.ver.outputs.name }}" \
             CURRENT_PROJECT_VERSION="${{ steps.ver.outputs.build }}" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8 \
             -authenticationKeyID "$ASC_API_KEY_ID" \

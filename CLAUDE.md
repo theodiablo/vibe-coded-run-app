@@ -189,6 +189,16 @@ and delete anything that becomes stale.
   track) and an `ios` job (xcodebuild archive → TestFlight via an App Store
   Connect API key with cloud-managed signing; needs `ASC_API_KEY_P8_BASE64` /
   `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var).
+  iOS signing gotchas, all hit in practice: the ASC key must have the **Admin**
+  role (App Manager fails with "Cloud signing permission error" at export); the
+  team needs ≥1 registered device or dev-profile creation fails ("team has no
+  devices" — a Mac's Provisioning UDID registered as a device satisfies it);
+  the archive step passes `CODE_SIGN_IDENTITY="Apple Distribution"` because
+  export's cloud re-sign once shipped a dev-signed IPA that App Store Connect
+  rejected ("Invalid Signature"); and upload validation demands
+  `NSHealthUpdateUsageDescription` in Info.plist even though the app never
+  writes to Health — HealthKit framework presence alone triggers it, so keep
+  that key when touching Info.plist.
   Build version is NOT in the DB — versionCode/CFBundleVersion is
   `run_number*1000 + run_attempt`, versionName/MARKETING_VERSION is the `v*` tag
   (`android/app/build.gradle` reads env; iOS gets xcodebuild command-line
