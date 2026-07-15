@@ -61,9 +61,11 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build debug APK
+      # Build the installable debug APK and also run the optimized release path.
+      # The latter catches R8/resource-shrinker failures without release secrets.
+      - name: Build debug APK and verify release bundle
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug bundleRelease
 
       - name: Upload APK artifact
         id: upload

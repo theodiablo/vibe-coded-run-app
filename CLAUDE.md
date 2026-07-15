@@ -354,6 +354,13 @@ and delete anything that becomes stale.
   uses `checkPermissions()` only as a fast-path "already granted" check and falls
   back to a real `getCurrentPosition()` probe — the one call that can actually
   show both dialogs — whenever that check doesn't succeed.
+- **Android release builds use R8:** `android/app/build.gradle` keeps
+  `minifyEnabled true`, `shrinkResources true`, and the optimized default
+  ProGuard file for `release`. Capacitor's consumer rules preserve annotated
+  plugin entrypoints, including local plugins; add narrow library-specific keep
+  rules only when a release build or on-device test demonstrates a reflection
+  requirement. Debug builds stay unminified; `android-pr.yml` also runs
+  `bundleRelease` so PR CI exercises R8 even though it only uploads the debug APK.
 
 ## Heart-rate sources (native HR capture)
 - **Same seam shape as GPS.** External HR capture mirrors `geoSource`: `getHrSource`
