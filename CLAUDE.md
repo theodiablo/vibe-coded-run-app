@@ -191,7 +191,9 @@ and delete anything that becomes stale.
   `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var —
   but the distribution CERTIFICATE is a manually created .p12 imported into a
   temp keychain: `APPLE_DIST_CERT_P12_BASE64` / `APPLE_DIST_CERT_PASSWORD`
-  secrets).
+  secrets. Mint/renew it Mac-free with `npm run ios:dist-cert` — creates the
+  cert via the ASC API using the same .p8 and prints the two secret values;
+  certs last 1 year, expiry only blocks new uploads).
   iOS signing gotchas, all hit in practice: the ASC key must have the **Admin**
   role (App Manager fails with "Cloud signing permission error" at export); the
   team needs ≥1 registered device or dev-profile creation fails ("team has no

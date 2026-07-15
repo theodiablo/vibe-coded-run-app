@@ -325,12 +325,13 @@ jobs:
       # imported into a throwaway keychain: exportArchive re-signs with the
       # local cert, while -allowProvisioningUpdates still creates/refreshes the
       # App Store profile via the ASC API key (profiles stay maintenance-free;
-      # only the .p12 is a secret). Create the cert in Xcode (Settings →
-      # Accounts → Manage Certificates → + → Apple Distribution), export the
-      # .p12 from there, and set APPLE_DIST_CERT_P12_BASE64 +
-      # APPLE_DIST_CERT_PASSWORD secrets. Required on tag releases (the upload
-      # would fail without it); skippable on manual dispatch, which never
-      # uploads.
+      # only the .p12 is a secret). Mint/renew the cert with
+      # `npm run ios:dist-cert` (scripts/ios-dist-cert.mjs — uses the same ASC
+      # .p8, needs no Mac; certs last 1 year and expiry only blocks NEW
+      # uploads), then set the APPLE_DIST_CERT_P12_BASE64 +
+      # APPLE_DIST_CERT_PASSWORD secrets it prints. Required on tag releases
+      # (the upload would fail without it); skippable on manual dispatch,
+      # which never uploads.
       - name: Install Apple Distribution certificate
         env:
           APPLE_DIST_CERT_PASSWORD: ${{ secrets.APPLE_DIST_CERT_PASSWORD }}
