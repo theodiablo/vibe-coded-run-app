@@ -62,7 +62,11 @@ jobs:
         run: npx cap sync android
 
       # Build the installable debug APK and also run the optimized release path.
-      # The latter catches R8/resource-shrinker failures without release secrets.
+      # The latter catches R8/resource-shrinker *configuration* failures (bad keep
+      # rules, missing classes) without release secrets. Note it does NOT prove
+      # runtime correctness: R8 stripping a reflectively-used class/method still
+      # produces a successful build, so a plugin broken by minification passes
+      # here and only crashes on-device — validate release behaviour on a device.
       - name: Build debug APK and verify release bundle
         working-directory: android
         run: ./gradlew assembleDebug bundleRelease

@@ -360,7 +360,14 @@ and delete anything that becomes stale.
   plugin entrypoints, including local plugins; add narrow library-specific keep
   rules only when a release build or on-device test demonstrates a reflection
   requirement. Debug builds stay unminified; `android-pr.yml` also runs
-  `bundleRelease` so PR CI exercises R8 even though it only uploads the debug APK.
+  `bundleRelease` so PR CI compiles R8 (bad keep rules / missing classes) even
+  though it only uploads the debug APK — but a green build does NOT prove runtime
+  correctness: R8 stripping a reflectively-used class/method still builds
+  successfully and only crashes on-device, so validate release behaviour on a
+  device before shipping. Because the release AAB is obfuscated, `release.yml`
+  uploads the per-build R8 `mapping.txt` (artifact `running-coach-mapping-<code>`)
+  — it's the only way to deobfuscate native crash stacks (PostHog `captureError`)
+  and is regenerated each build, so never rely on it surviving elsewhere.
 
 ## Heart-rate sources (native HR capture)
 - **Same seam shape as GPS.** External HR capture mirrors `geoSource`: `getHrSource`
