@@ -4,6 +4,8 @@ App/output
 App/App/public
 DerivedData
 xcuserdata
+# SPM clones pinned via -clonedSourcePackagesDirPath (CI caches this dir)
+SourcePackages
 
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins

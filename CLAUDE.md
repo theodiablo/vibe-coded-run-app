@@ -784,6 +784,37 @@ and delete anything that becomes stale.
   (the slim colour bar) is shared by both so they don't drift; HR-to-zone
   classification is the pure `runZoneIndex` in `src/utils/hr.ts`.
 
+## CI caching
+- **All workflows use Node 22** (Capacitor 8 CLI floor) — keep new workflows on
+  22 so they share one npm cache key family.
+- **Android — the cache is seeded from `main`, read everywhere else.** GitHub
+  scopes each ref's Actions cache to itself; a run may restore only its own
+  ref's cache **plus the default branch's**, which is the only universally
+  readable scope. So `android-main.yml` builds Android on push to `main`
+  (`gradle/actions/setup-gradle` writing, since it's the default branch) to seed
+  the Gradle dep + task-output build cache; `android-pr.yml` and `release.yml`
+  run setup-gradle with **no `cache-read-only` override** (its default is
+  read-only off the default branch) so they *consume* that seed. Do NOT set
+  `cache-read-only: false` on the PR/release jobs — that makes each PR/tag write
+  its own private cache instead of sharing main's. A brand-new PR before main has
+  seeded is cold once, then warm; repeat pushes to the same PR are warm. If you
+  add a `main`-affecting native change, `android-main.yml` re-seeds automatically.
+  `android/gradle.properties` enables `caching`/`parallel` with a 4 GB heap but
+  **not** `configuration-cache`: setup-gradle only persists config-cache state
+  with a `cache-encryption-key`, so it was pure overhead in CI (opt in locally
+  instead).
+- **iOS:** SPM clones are pinned to `ios/SourcePackages`
+  (`-clonedSourcePackagesDirPath`, gitignored) and cached via `actions/cache`
+  keyed on the *synced* `CapApp-SPM/Package.swift` — the cache step must stay
+  AFTER `npx cap sync ios`, which rewrites that manifest. There is **no** `main`
+  iOS seed (macOS minutes bill ×10, and `ios-pr.yml` is path-filtered to
+  `ios/**`), so the SPM cache is same-ref only: warm on repeat pushes to an
+  iOS-touching PR, cold on a new one. Deliberately no DerivedData caching
+  (unreliable invalidation, big caches, small win).
+- Repo is private → free tier: 2,000 min/mo (macOS ×10), 10 GB Actions cache
+  (LRU-evicted), 500 MB artifact storage — PR APKs use `retention-days: 14` to
+  stay clear of the storage cap.
+
 ## Git / PR workflow
 - Do not open or merge PRs unless explicitly asked.
 - We squash-merge PRs. After a squash-merge, a branch that keeps being reused
