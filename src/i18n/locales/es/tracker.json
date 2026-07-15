@@ -26,7 +26,7 @@
     "bpm": "ppm",
     "avgMax": "media {{avg}} · máx {{max}}",
     "connecting": "conectando…",
-    "postRun": "La frecuencia cardíaca se añade desde Health Connect cuando terminas."
+    "postRun": "La frecuencia cardíaca se añade desde {{store}} cuando terminas."
   },
   "gps": {
     "accuracyGood": "Precisión GPS ±{{acc}} m — todo listo",
@@ -45,6 +45,8 @@
     "authTitle": "¿Autorizar Health Connect?",
     "authBody": "Health Connect está seleccionado, pero este teléfono aún no ha concedido acceso. Autorízalo en Ajustes para añadir la frecuencia cardíaca después de las carreras.",
     "authAccept": "Abrir Ajustes",
+    "hkAuthTitle": "¿Autorizar Apple Salud?",
+    "hkAuthBody": "Apple Salud está seleccionado, pero este teléfono aún no ha concedido acceso. Autorízalo en Ajustes para añadir la frecuencia cardíaca después de las carreras.",
     "pairTitle": "¿Emparejar tu sensor de frecuencia cardíaca?",
     "pairBody": "La captura de frecuencia cardíaca por Bluetooth está seleccionada, pero no hay ningún sensor emparejado en este teléfono. Empareja uno en Ajustes para registrar las pulsaciones en vivo.",
     "pairAccept": "Emparejar sensor",

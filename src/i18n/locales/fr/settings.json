@@ -75,7 +75,8 @@
     "methods": {
       "off": "Désactivé",
       "bluetooth": "Capteur Bluetooth",
-      "healthconnect": "Health Connect"
+      "healthconnect": "Health Connect",
+      "healthkit": "Apple Santé"
     },
     "newTag": "nouveau",
     "forgetAria": "Oublier le capteur",
@@ -94,7 +95,15 @@
     "hcSuccess": "Health Connect connecté — la fréquence cardiaque sera lue après vos courses.",
     "hcInstall": "Installez Health Connect depuis Google Play, puis touchez à nouveau Connecter.",
     "hcDenied": "L'accès n'a pas été accordé. Dans Health Connect, autorisez Running Coach à lire la fréquence cardiaque.",
-    "hcOpenFailed": "Impossible d'ouvrir Health Connect. Assurez-vous qu'il est installé et à jour."
+    "hcOpenFailed": "Impossible d'ouvrir Health Connect. Assurez-vous qu'il est installé et à jour.",
+    "hkConnected": "Connecté — la fréquence cardiaque est ajoutée à vos courses automatiquement.",
+    "hkReconnect": "Reconnecter Apple Santé",
+    "hkConnect": "Connecter Apple Santé",
+    "hkHelp": "Lit votre fréquence cardiaque depuis Apple Santé après une course — utile si votre montre y synchronise mais ne diffuse pas en direct. Elle peut mettre quelques minutes à apparaître après la fin.",
+    "hkNotSupported": "Apple Santé n'est pas disponible sur cet appareil.",
+    "hkSuccess": "Apple Santé connecté — la fréquence cardiaque sera lue après vos courses.",
+    "hkDenied": "L'accès n'a pas été accordé. Dans l'app Santé, autorisez Running Coach à lire Fréquence cardiaque et Entraînements.",
+    "hkOpenFailed": "Impossible d'accéder à Apple Santé. Réessayez ou vérifiez les réglages de partage de l'app Santé."
   },
   "hrDisclosure": {
     "title": "Connecter un capteur de fréquence cardiaque",
@@ -123,6 +132,10 @@
       "healthconnect": {
         "label": "Votre montre (Health Connect)",
         "help": "Fonctionne avec toute montre dont l'application écrit les entraînements dans Health Connect (Android 14+) : Garmin Connect (Réglages → Health Connect) ou Zepp/Amazfit (Profil → Accès tiers → Health Connect). Les courses apparaissent quelques minutes après la synchronisation de votre montre ; aucun itinéraire ni carte n'est inclus."
+      },
+      "healthkit": {
+        "label": "Votre montre (Apple Santé)",
+        "help": "Fonctionne avec l'app Exercice de l'Apple Watch et toute montre dont l'application écrit les entraînements dans Apple Santé (Garmin Connect, Polar Flow, Zepp…). Les courses apparaissent quelques minutes après la synchronisation de votre montre ; aucun itinéraire ni carte n'est inclus."
       }
     }
   }

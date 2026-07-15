@@ -1,9 +1,9 @@
 import { hrSummary } from "../utils/hr";
-import { isNative } from "../native";
+import { isAndroid } from "../native";
 import { HR_HEALTH_CONNECT_AUTH_KEY } from "../constants";
-import type { HrPending, Run } from "../types";
+import { flushPendingHrFor, HR_PENDING_MAX_AGE_MS, type PatchHr, type PendingHrRun } from "./pending";
 
-export const HR_PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+export { HR_PENDING_MAX_AGE_MS };
 
 type HealthConnectAvailability = "Available" | "NotInstalled" | "NotSupported";
 type PermissionResult = { hasAllPermissions?: boolean; grantedPermissions?: unknown[] };
@@ -15,8 +15,6 @@ type HealthConnectPlugin = {
   checkHealthPermissions: (options: unknown) => Promise<PermissionResult>;
   readRecords: (options: unknown) => Promise<{ records?: HeartRateSeriesRecord[] }>;
 };
-type PendingHrRun = Pick<Run, "id" | "hr" | "hrMax" | "hrPending"> & Record<string, unknown>;
-
 export function hasHealthConnectAuthorization() {
   try { return localStorage.getItem(HR_HEALTH_CONNECT_AUTH_KEY) === "1"; }
   catch { return false; }
@@ -113,40 +111,22 @@ export const healthConnectSource = {
   },
 };
 
-function pendingWindow(hrPending: HrPending | null | undefined) {
-  const source = hrPending?.source || "healthconnect";
-  const start = Number(hrPending?.start);
-  const end = Number(hrPending?.end);
-  if (source !== "healthconnect" || !Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
-  return { start, end };
-}
-
-// Deferred relink, mirroring routes.js/flushPendingRoutes: on app load / foreground,
-// retry Health Connect for fresh runs stamped with `hrPending:{start,end}`. Invalid,
-// manually-filled, or stale markers are cleared first without touching the native
-// bridge, so a bad synced blob cannot crash the app forever after sign-in.
+// Deferred relink for Health Connect markers (Android): the shared engine
+// (src/hr/pending.ts) triages `hrPending` — iOS markers live in the separate
+// `hrPendingHk` field precisely so this flusher (and every already-shipped
+// Android build) can't touch them; this wrapper supplies the HC read gate.
 export async function flushPendingHr(
   runs: PendingHrRun[],
-  patch: (id: string, fields: Partial<Pick<Run, "hr" | "hrMax">>) => void,
+  patch: PatchHr,
   { enabled = true, allowNativeRead = true, now = Date.now() }: { enabled?: boolean; allowNativeRead?: boolean; now?: number } = {},
 ) {
-  const pending = (runs || []).filter(r => r.hrPending);
-  if (!pending.length) return;
-  // A run whose HR was filled some other way (manual edit) since it was stamped:
-  // never overwrite it — just clear the marker so it stops retrying. patch({}) with
-  // no HR fields lets the caller drop hrPending without touching hr/hrMax.
-  const stillPending: { run: PendingHrRun & { id: string }; win: { start: number; end: number } }[] = [];
-  for (const r of pending) {
-    if (!r.id) continue;
-    const win = pendingWindow(r.hrPending);
-    if (r.hr != null || !win || now - win.end > HR_PENDING_MAX_AGE_MS) patch(r.id, {});
-    else stillPending.push({ run: r as PendingHrRun & { id: string }, win });
-  }
-  if (!stillPending.length) return;
-  if (!enabled || !allowNativeRead || !isNative || !hasHealthConnectAuthorization()) return;
-  if (!(await isAvailable()) || !(await healthConnectSource.checkPermissions())) return; // HC unavailable/unpermitted — leave for next load
-  for (const { run, win } of stillPending) {
-    const s = await healthConnectSource.fetchRange(win.start, win.end);
-    if (s && s.hrAvg) patch(run.id, { hr: s.hrAvg, hrMax: s.hrMax });
-  }
+  return flushPendingHrFor(runs, patch, {
+    field: "hrPending",
+    sourceId: "healthconnect",
+    now,
+    canRead: async () =>
+      enabled && allowNativeRead && isAndroid && hasHealthConnectAuthorization()
+      && (await isAvailable()) && (await healthConnectSource.checkPermissions()),
+    fetchRange: (startMs, endMs) => healthConnectSource.fetchRange(startMs, endMs),
+  });
 }

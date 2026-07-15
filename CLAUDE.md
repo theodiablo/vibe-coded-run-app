@@ -54,9 +54,9 @@ and delete anything that becomes stale.
   re-throws genuine render bugs so they still reach `ErrorBoundary`. Keep any
   future top-level `lazy()` gate behind this same pattern. The runtime split is
   `isNative`; the **build-time** exclusion is `import.meta.env.VITE_NATIVE_BUILD`
-  (set `"1"` only in `android.yml`) — it constant-folds `MarketingGate` to `null`
-  so Rollup drops the whole marketing chunk from the APK (verified: zero
-  marketing bytes in a native build). Keep anything web-only-and-heavy behind
+  (set `"1"` only in `release.yml`'s web-build job and the native PR workflows) —
+  it constant-folds `MarketingGate` to `null` so Rollup drops the whole marketing
+  chunk from the APK/IPA (verified: zero marketing bytes in a native build). Keep anything web-only-and-heavy behind
   this same flag rather than a bare `isNative` runtime check, which still ships
   the code inside the APK. The landing's visual design is ported from the
   committed reference in `Marketing Page Design/` (a design-tool `.dc.html`
@@ -97,7 +97,8 @@ and delete anything that becomes stale.
   the PNG on any change to `copy.json` or `scripts/og-image/**` on a feature
   branch, so the refreshed card reaches `main` with the copy change. Never
   hand-edit the committed PNG. All three web-only SEO assets are `rm`'d in
-  `android.yml` before `cap sync` so they don't bloat the APK. If robust non-Google
+  `release.yml`'s web-build job before the per-platform `cap sync`s so they
+  don't bloat the native packages. If robust non-Google
   crawling or LCP from static content is ever needed, the next step is bot dynamic
   rendering (CloudFront function) or splitting marketing to its own path — not
   prerendering into the shared `#root`.
@@ -110,10 +111,14 @@ and delete anything that becomes stale.
   (rounded square, browser tab), the Android **adaptive** launcher icon
   (`drawable-v24/ic_launcher_foreground.xml` vector + `@color/ic_launcher_background`
   = `#F97316`; the adaptive icon is all that's used since `minSdk 26`, so the
-  legacy `mipmap-*/ic_launcher*.png` rasters are dead fallbacks), and the Play
+  legacy `mipmap-*/ic_launcher*.png` rasters are dead fallbacks), the Play
   Store 512 icon (`store-assets/play-store-icon.svg` → full-bleed square PNG via
-  `npm run store:icon`; Play applies its own mask). Keep all these in sync if the
-  mark changes.
+  `npm run store:icon`; Play applies its own mask), and the iOS app icon (the
+  same script also renders the 1024px opaque PNG into
+  `ios/App/App/Assets.xcassets/AppIcon.appiconset/`; iOS applies its own mask,
+  and App Store Connect rejects icons with alpha). Keep all these in sync if the
+  mark changes. The iOS launch screen is a solid `#0f172a` frame in
+  `LaunchScreen.storyboard`, matching the Android SplashScreen background.
 - **No router.** `src/RunningCoach.tsx` is the **single state hub**: it owns
   `runs`, `plan`, `settings`, modal flags, and the active `tab`, and passes a
   `shared` props bag down to every view. The five views switch on `tab`
@@ -178,19 +183,30 @@ and delete anything that becomes stale.
 - **Multi-user:** The app is open to public signups — don't make single-user
   assumptions. Every user gets their own isolated data via RLS on `app_state`
   and `profiles`.
-- **App versioning / update gate (native only):** build version is NOT in the DB
-  — `versionCode` is `run_number*1000 + run_attempt` (`android.yml`'s `ver` step),
-  `versionName` is the `android-v*` tag (`android/app/build.gradle` reads them from
-  env). The `run_attempt` term matters: Google Play permanently rejects a re-used
-  versionCode, and a bare `run_number` repeats on "re-run failed jobs" — which is
-  exactly what happens after a partial release (AAB uploaded to Play, a later step
-  like the Supabase version bump fails) prompts a retry. Seen in practice: run 45's
-  retry re-sent versionCode 45 and Play rejected it outright. The world-readable `app_config`
-  row owns *policy*: `latest_version` (soft "update available" banner, written by
-  the Android release workflow via `supabase db query --linked` using
-  `SUPABASE_ACCESS_TOKEN`) and `min_supported_version` (hard gate, bumped by hand on
-  a breaking change). `App.tsx` compares the installed version (`App.getInfo()`) via
-  `versionStatus` (`src/utils/version.ts`); a failed check never blocks the user.
+- **App versioning / update gate (native only):** one platform-agnostic `v*` tag
+  (e.g. `v1.4.0`) triggers `release.yml`, which builds the web bundle once and
+  ships **both** stores in parallel — an `android` job (AAB → Play internal
+  track) and an `ios` job (xcodebuild archive → TestFlight via an App Store
+  Connect API key with cloud-managed signing; needs `ASC_API_KEY_P8_BASE64` /
+  `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var).
+  Build version is NOT in the DB — versionCode/CFBundleVersion is
+  `run_number*1000 + run_attempt`, versionName/MARKETING_VERSION is the `v*` tag
+  (`android/app/build.gradle` reads env; iOS gets xcodebuild command-line
+  overrides). The `run_attempt` term matters: BOTH stores permanently reject a
+  re-used build number, and a bare `run_number` repeats on "re-run failed jobs" —
+  exactly what happens after a partial release. Seen in practice: run 45's retry
+  re-sent versionCode 45 and Play rejected it outright. The two platform jobs
+  are independent, so one store's failure never blocks the other; each job
+  publishes its OWN `app_config` column (`latest_version` for Android,
+  `latest_version_ios` for iOS, via `supabase db query --linked` using
+  `SUPABASE_ACCESS_TOKEN`) only after its upload succeeds, so a partial release
+  never advertises a version a store didn't get. `min_supported_version` /
+  `min_supported_version_ios` (hard gates) are bumped by hand on a breaking
+  change. `App.tsx` selects all four columns and compares the installed version
+  (`App.getInfo()`) against its platform's pair via `versionStatus`
+  (`src/utils/version.ts`); a failed check never blocks the user. iOS store
+  links need `APP_STORE_URL` (`src/constants.ts`) filled in once the App Store
+  record exists — the update prompt hides its button while it's empty.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.tsx`. Follow that style.
 - **Telemetry (analytics + crash reporting):** all routed through one
@@ -290,22 +306,41 @@ and delete anything that becomes stale.
   bridge it). Map basemap is MapTiler — needs `VITE_MAPTILER_KEY` (records fine
   without it, just no tiles).
 - **Phase 2 — native background tracking:** browser tracking is foreground-only
-  (screen must stay on). True background recording runs in a **Capacitor Android
-  shell** that swaps the GPS source behind `useRunTracker`'s interface. The hook
-  never touches `navigator.geolocation` directly anymore — it goes through
-  `geoSource` (`src/geo/source.ts`), which picks `webSource` (`src/geo/web.ts`,
-  `navigator.geolocation`, unchanged web behaviour) or `nativeSource`
-  (`src/geo/native.ts`: @capacitor-community/background-geolocation foreground
-  service for `background:true`, @capacitor/geolocation for the idle preview).
-  Selection is by `isNative` (`src/native.ts` → `Capacitor.isNativePlatform()`),
-  which also sets `window.__NATIVE_SHELL__` for the UI. **One bundle serves both**
-  web and shell; `isNative` is false in any browser, so the web build is unchanged
+  (screen must stay on). True background recording runs in the **Capacitor
+  shells** (Android + iOS) that swap the GPS source behind `useRunTracker`'s
+  interface. The hook never touches `navigator.geolocation` directly anymore —
+  it goes through `geoSource` (`src/geo/source.ts`), which picks `webSource`
+  (`src/geo/web.ts`, `navigator.geolocation`, unchanged web behaviour) or
+  `nativeSource` (`src/geo/native.ts`: @capacitor-community/background-geolocation
+  — Android foreground service / iOS background location mode — for
+  `background:true`, @capacitor/geolocation for the idle preview). Selection is
+  by `isNative` (`src/native.ts` → `Capacitor.isNativePlatform()`), which also
+  sets `window.__NATIVE_SHELL__` for the UI; `platform`/`isAndroid`/`isIos`
+  (same module) gate platform-exclusive integrations (Health Connect vs
+  HealthKit) — a synced preference naming the other platform's integration must
+  degrade to "off" locally, never render its UI. **One bundle serves all**
+  web + shells; `isNative` is false in any browser, so the web build is unchanged
   — keep it that way. To add a GPS source, implement the
   `isAvailable / watchPosition(onPos,onErr,{background}) / clearWatch` interface and
   hand `onPos` a `{coords:{latitude,longitude,altitude,accuracy}, timestamp}` object
   (see `adaptBgLocation`). Native auth uses a deep link (`AUTH_DEEP_LINK` in
-  `src/supabase.ts`, completed in `App.tsx`). Build: `npx cap sync android` then
-  `.github/workflows/android.yml`; the web S3/CloudFront deploy stays untouched.
+  `src/supabase.ts`, completed in `App.tsx`; Android intent filter +
+  `CFBundleURLTypes` in `ios/App/App/Info.plist`). Build: `npx cap sync
+  android|ios` then `.github/workflows/release.yml` (one `v*` tag ships both
+  stores); the web S3/CloudFront deploy stays untouched.
+- **iOS shell (`ios/`):** Capacitor 8 generated an **SPM** project (no
+  CocoaPods) — `cap sync ios` rewrites `ios/App/CapApp-SPM/Package.swift` and
+  correctly excludes the Android-only pianissimo Health Connect plugin (no
+  `Package.swift`/ios dir). It runs fine on Linux; only `xcodebuild` needs a Mac.
+  App-local Swift plugins are NOT auto-registered: `MainViewController.swift`
+  (the storyboard's custom class) registers `HealthKitBridgePlugin` in
+  `capacitorDidLoad()`. New Swift files must be hand-added to
+  `project.pbxproj` (build-file + file-ref + group + sources phase);
+  `ios-pr.yml` (no-signing Simulator build on PRs touching `ios/**`) is the
+  compile check. Info.plist owns the permission strings, `UIBackgroundModes`
+  (`location`, `bluetooth-central`), the deep-link scheme, and
+  `ITSAppUsesNonExemptEncryption=false`; `App.entitlements` carries the
+  HealthKit capability.
 - **Gotcha — Android permission prompt silently no-ops when Location Services
   are off:** `@capacitor/geolocation`'s `checkPermissions()`/`requestPermissions()`
   are gated *by the plugin itself* on the device's system Location toggle — they
@@ -322,9 +357,13 @@ and delete anything that becomes stale.
 
 ## Heart-rate sources (native HR capture)
 - **Same seam shape as GPS.** External HR capture mirrors `geoSource`: `getHrSource`
-  (`src/hr/source.ts`) returns a source or **null** (off / web / unknown), gated by
-  `isNative`, so the web build is unaffected (HR capture is native-only). Two **narrow
-  capability contracts**, not one fat interface — a source carries a `live` flag:
+  (`src/hr/source.ts`) returns a source or **null** (off / web / unknown / wrong
+  platform), so the web build is unaffected (HR capture is native-only). Methods
+  are platform-gated: `bluetooth` works on both shells, `healthconnect` is
+  Android-only, `healthkit` iOS-only — the Settings picker comes from
+  `hrMethodsForPlatform()`, and a synced off-platform method degrades to null.
+  Two **narrow capability contracts**, not one fat interface — a source carries
+  a `live` flag:
   - **Live** (`src/hr/ble.ts`, `bleSource`): a standard BLE Heart Rate Profile sensor
     (chest strap / armband / watch broadcasting, e.g. Amazfit "Heart Rate Push").
     `isAvailable / scan / requestPermissions / watch(onSample,onErr,{deviceId}) /
@@ -357,8 +396,33 @@ and delete anything that becomes stale.
     a synced method alone is not enough because Android permissions are per-install.
     Actual reads re-check permission and clear the marker if revoked. Needs
     `READ_HEART_RATE` + a Play health-data declaration/privacy policy.
+  - **HealthKit (iOS post-run, `src/hr/healthkit.ts` + `src/healthkit/`):** the
+    iOS mirror of the Health Connect pair — `healthKitSource` (post-run HR
+    fetchRange) plus a workout-import provider — backed by the local Swift
+    plugin `HealthKitBridgePlugin` (raw values only; pure TS mapping in
+    `src/healthkit/mapping.ts`, HK workout UUIDs ride `hcId` with an `hk:`
+    prefix so the ONE dedupe rule set needs no changes). **Gotcha: HealthKit
+    never reveals READ authorization** — there is no trustworthy
+    checkPermissions; the per-device marker (`HK_AUTH_KEY`, `rc_hk_auth`, one
+    marker for both HR and workouts — a single sheet grants both) is set when
+    the request flow completes and cleared only on availability failure, never
+    by a probe. Empty reads mean "no data", so runs just stay pending.
+    **Pending markers are per-platform FIELDS:** Android stamps `run.hrPending`,
+    iOS stamps `run.hrPendingHk` — separate because already-shipped Android
+    builds clear any `hrPending` whose source isn't "healthconnect", so an iOS
+    marker there would be destroyed through the synced blob. The shared engine
+    `src/hr/pending.ts` triages one field per flusher (`flushPendingHr` /
+    `flushPendingHkHr`, both called at RunningCoach's boot + foreground sites,
+    whose patch clears both fields — a run only ever carries one marker); never
+    move iOS markers back into `hrPending`. The HealthKit provider deliberately
+    has NO `disconnect` — its auth marker is shared with post-run HR, so
+    clearing it on watch-import "Turn off" would break `hrMethod:"healthkit"`.
+    Per-workout HR aggregates in Swift use `HKQuery.predicateForObjects(from:
+    workout)`, never a bare time window. Both health-store import providers
+    share the synced `settings.watchImport` flag via
+    `providerEnabledInSettings` (`src/imports/registry.ts`).
 - **Method preference syncs; the device does NOT.** `settings.hrMethod`
-  (`"off"|"bluetooth"|"healthconnect"`) is in the synced blob; the bonded BLE device
+  (`"off"|"bluetooth"|"healthconnect"|"healthkit"`) is in the synced blob; the bonded BLE device
   `{id,name}` is **per-device localStorage** (`src/hr/device.ts`, `HR_DEVICE_KEY`) —
   like the consent / bg-disclosure flags — because Bluetooth bonding is per-phone.
   Treat the synced method as a preference only: before using it, derive local
@@ -611,11 +675,13 @@ and delete anything that becomes stale.
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
   plus, for GPS-tracked runs, `{source:"gps", routeId}` (the `run_routes` ref).
   `id` is generated in `addRuns` if absent; runs are kept sorted newest-first.
-  A run awaiting post-run HR also carries a transient `hrPending:{start,end,source}`
-  (in the synced blob + backups); `flushPendingHr` clears it once resolved. It's
-  device-local in effect — a relink only works on the device whose Health Connect has
-  the data, so a synced-but-unresolvable marker is tolerated (dropped, never overwrites
-  manual HR).
+  A run awaiting post-run HR also carries a transient `{start,end,source}` marker
+  (in the synced blob + backups) in a **per-platform field**: `hrPending` (Health
+  Connect) or `hrPendingHk` (HealthKit) — separate fields because shipped Android
+  clients clear unknown-source `hrPending` values (see src/hr/pending.ts).
+  `flushPendingHr`/`flushPendingHkHr` clear them once resolved; a marker only
+  resolves on a device whose health store has the data, and it never overwrites
+  manual HR.
 - **Route:** `run_routes` row `{id, user_id, points, stats, created_at}` where
   `points` is the simplified `[lat,lng,t,alt]` array (null = gap) and `stats` is
   `{km, durationSec, elevation, avgPace}`.

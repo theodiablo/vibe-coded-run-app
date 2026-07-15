@@ -14,8 +14,9 @@ import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils
 import { addRace, addEdition } from "./races";
 import { deleteRoute, removePendingRoute, getAllRoutes, restoreRoutes, flushPendingRoutes } from "./routes";
 import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnect";
+import { flushPendingHkHr } from "./hr/healthkit";
 import { markSeen, WATCH_MANUAL_SCAN_DAYS, WATCH_AUTO_SCAN_COOLDOWN_MS } from "./watch/import";
-import { scanAllProviders } from "./imports/registry";
+import { scanAllProviders, providerEnabledInSettings } from "./imports/registry";
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
@@ -171,7 +172,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // toasts only when a run actually gets filled in.
   const patchRunHr = (runId: string, patch: RunPatch) => {
     setRuns(prev => {
-      const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+      // A run carries at most ONE pending marker (hrPending on Android,
+      // hrPendingHk on iOS), so one patch clears both fields harmlessly and
+      // serves both platforms' flushers.
+      const next = prev.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined, hrPendingHk: undefined } : x);
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
     });
@@ -246,13 +250,18 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       // Actual relinks still run on foreground and when a run is saved.
       let bootRuns: Run[] = r || [];
       const patchBootRunHr = (runId: string, patch: RunPatch) => {
-        bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined } : x);
+        bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined, hrPendingHk: undefined } : x);
         setRuns(bootRuns);
         db.set(STORAGE_KEYS.RUNS, bootRuns);
       };
       flushPendingHr(bootRuns, patchBootRunHr, {
         enabled: s?.hrMethod === "healthconnect",
         allowNativeRead: hasHealthConnectAuthorization(),
+      }).catch(() => {});
+      // The iOS sibling — each flusher only resolves (and only clears) its own
+      // source's markers, so running both here is safe on either platform.
+      flushPendingHkHr(bootRuns, patchBootRunHr, {
+        enabled: s?.hrMethod === "healthkit",
       }).catch(() => {});
     })();
     // Boot-once load: `t` is stable and must not re-trigger the whole boot on a
@@ -278,6 +287,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       flushPendingHr(runsRef.current, patchRunHr, {
         enabled: settingsRef.current.hrMethod === "healthconnect",
         allowNativeRead: hasHealthConnectAuthorization(),
+      }).catch(() => {});
+      flushPendingHkHr(runsRef.current, patchRunHr, {
+        enabled: settingsRef.current.hrMethod === "healthkit",
       }).catch(() => {});
       // A watch run often lands in Health Connect minutes after the run (once the
       // watch syncs to Garmin Connect), so re-scan on foreground too.
@@ -579,9 +591,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     watchLastScanRef.current = Date.now();
     const scanned = await scanAllProviders(runsRef.current, {
       ...(days ? { days } : {}),
-      // The synced preference gates the Health Connect provider; providers only
-      // check device-local state (grant markers) themselves.
-      enabled: p => p.id !== "healthconnect" || !!settingsRef.current.watchImport,
+      // The synced preference gates the health-store providers (watchImport is
+      // shared by Health Connect and HealthKit); providers only check
+      // device-local state (grant markers) themselves.
+      enabled: p => providerEnabledInSettings(settingsRef.current, p.id) || !p.connect,
     });
     // Persist any route traces a provider returned and swap them for routeId —
     // transient `points` never belong in the stored run (blob bloat). HC has no

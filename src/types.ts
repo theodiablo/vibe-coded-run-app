@@ -1,7 +1,10 @@
 import type { PlanSessionInput } from "./utils/plan";
 
 export type Intent = "race" | "fitness" | null;
-export type HrMethod = "off" | "bluetooth" | "healthconnect";
+// "healthconnect" is Android-only, "healthkit" iOS-only; the preference syncs
+// across devices, so readers must degrade an off-platform value to "off"
+// (getHrSource returns null for it) rather than assume it's usable locally.
+export type HrMethod = "off" | "bluetooth" | "healthconnect" | "healthkit";
 export type RunType = "EASY" | "TEMPO" | "INTERVALS" | "LONG" | "RACE" | "WALK" | "OTHER";
 
 export type HealthAck = { v?: string | number; at?: string } | null;
@@ -81,6 +84,12 @@ export type Run = Record<string, unknown> & {
   routeTmp?: string;
   routePending?: boolean;
   hrPending?: HrPending | null;
+  // The HealthKit twin of hrPending, deliberately a SEPARATE field: shipped
+  // Android builds' flushPendingHr clears any hrPending whose source isn't
+  // "healthconnect", so an iOS marker stored there would be destroyed through
+  // the synced blob by an old phone. Old clients ignore unknown fields, so the
+  // iOS marker rides here untouched until the iPhone resolves it.
+  hrPendingHk?: HrPending | null;
   // Health Connect exercise-session id this run was imported from (source:"watch").
   // Used to dedupe repeated scans idempotently.
   hcId?: string;

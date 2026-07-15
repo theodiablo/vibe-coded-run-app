@@ -67,6 +67,12 @@ const bleSourceImpl = {
     if (!deviceId) { onErr?.(new Error("No heart-rate sensor paired.")); return handle; }
     let backoff = 1000;
     const start = async () => {
+      // iOS cold-launch gotcha: CoreBluetooth can only connect to a peripheral
+      // this app session has *retrieved* — a deviceId saved on a previous
+      // launch must be re-materialized via getDevices() first or connect()
+      // rejects with "device not found". No-op when the device is already
+      // known (post-scan, or Android); real failures still surface in connect.
+      try { await BleClient.getDevices([deviceId]); } catch { /* connect() reports the actionable error */ }
       await BleClient.connect(deviceId, () => { if (!handle.stopped) retry(); });
       // clearWatch may have run while connect() was in flight (e.g. the run was
       // discarded/finished before a slow/out-of-range sensor finished connecting).

@@ -46,6 +46,14 @@ export const WATCH_HC_AUTH_KEY = "rc_watch_hc_auth";        // local exercise-re
 export const WATCH_SEEN_HC_IDS_KEY = "rc_watch_seen_hc_ids"; // JSON array of already-handled HC session ids
 export const WATCH_SEEN_MAX = 200;                          // cap on the seen-ids list (FIFO)
 
+// ── HealthKit (iOS) — PER-DEVICE, never in the synced blob ──
+// One marker covers both HR reads and workout import (a single HealthKit
+// authorization sheet grants both read scopes). Unlike Health Connect there is
+// no trustworthy "is read granted?" probe (HealthKit hides read authorization),
+// so this is set when the request flow completes and cleared only when
+// HealthKit itself is unavailable — never from a permission check.
+export const HK_AUTH_KEY = "rc_hk_auth";
+
 // Public privacy policy (static page in public/privacy.html, served at the site
 // root). Linked from the disclosure + login screen and required by the app stores
 // for background-location apps.
@@ -64,6 +72,12 @@ export const DISCLAIMER_VERSION = "2026-06-1";
 // Play Store listing — used by the in-app update prompt (see UpdatePrompt.jsx).
 export const PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=solutions.camboulive.run";
+
+// App Store listing for the iOS shell. Empty until the App Store Connect app
+// record exists (Apple assigns the numeric id then) — fill in
+// "https://apps.apple.com/app/id<APPLE_ID>" once known. While empty, the
+// update prompt on iOS shows without a store button rather than dead-linking.
+export const APP_STORE_URL = "";
 
 // Closed (internal) test track for the Android app — a private opt-in link,
 // surfaced as a secondary CTA on the marketing landing while the app is in beta.

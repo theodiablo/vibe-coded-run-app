@@ -26,3 +26,34 @@ export function dataOriginLabel(pkg?: string | null): string {
 export function importedNote(pkg?: string | null): string {
   return "Imported from " + dataOriginLabel(pkg);
 }
+
+// iOS bundle-id equivalents for HealthKit workouts (src/healthkit/). A workout
+// recorded on the watch itself carries a per-device "com.apple.health.<hash>"
+// bundle id and the watch's name as sourceName, hence the prefix match; unknown
+// apps fall back to HealthKit's own display name for the source, which is
+// exactly the "new brands work without a code change" property the Android map
+// approximates by hand.
+const HK_ORIGIN_LABELS: Record<string, string> = {
+  "com.garmin.connect.mobile": "Garmin",
+  "com.zepp.ios.zepposapp": "Zepp",
+  "com.huami.midong": "Zepp",                 // Amazfit's older companion app
+  "com.fitbit.FitbitMobile": "Fitbit",
+  "com.polar.polarflow": "Polar",
+  "com.suunto.SuuntoApp": "Suunto",
+  "com.coros.trainingpeaks": "COROS",
+  "com.strava.stravaride": "Strava",          // manual app exports synced to Health
+  "com.apple.health": "Apple Health",
+};
+
+export function hkOriginLabel(bundleId?: string | null, sourceName?: string | null): string {
+  if (bundleId) {
+    if (HK_ORIGIN_LABELS[bundleId]) return HK_ORIGIN_LABELS[bundleId];
+    if (bundleId.startsWith("com.apple.health")) return "Apple Watch";
+  }
+  return sourceName || "your watch";
+}
+
+// The note stamped on a HealthKit-imported run, e.g. "Imported from Apple Watch".
+export function hkImportedNote(bundleId?: string | null, sourceName?: string | null): string {
+  return "Imported from " + hkOriginLabel(bundleId, sourceName);
+}

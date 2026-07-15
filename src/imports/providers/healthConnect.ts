@@ -1,4 +1,4 @@
-import { isNative } from "../../native";
+import { isAndroid } from "../../native";
 import { scanWatchSessions, watchImportSource, hasWatchAuthorization, setWatchAuthorization, WATCH_SCAN_DAYS } from "../../watch/import";
 import type { ImportProvider } from "../types";
 import type { Run } from "../../types";
@@ -14,7 +14,7 @@ export const healthConnectProvider: ImportProvider = {
   label: "Your watch (Health Connect)",
   kind: "healthconnect",
   platform: "native",
-  isAvailable: () => isNative,
+  isAvailable: () => isAndroid, // Health Connect is Android-only; iOS gets the HealthKit provider
   isConnected: () => hasWatchAuthorization(),
   connect: () => watchImportSource.requestPermissions(),
   disconnect: () => setWatchAuthorization(false),

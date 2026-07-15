@@ -1,4 +1,5 @@
 import { healthConnectProvider } from "./providers/healthConnect";
+import { healthKitProvider } from "./providers/healthkit";
 import { fileProvider } from "./providers/file";
 import { garminCloudProvider } from "./providers/cloud";
 import { getSeenIds } from "../watch/import";
@@ -10,10 +11,22 @@ import type { Run } from "../types";
 // ImportProvider (see types.ts) and list it here — scanning, dedupe, the
 // Integrations settings panel and the file picker all pick it up from this list.
 export const importProviders: ImportProvider[] = [
-  healthConnectProvider,
+  healthConnectProvider, // Android
+  healthKitProvider,     // iOS — never both: each isAvailable() checks its platform
   fileProvider,
   garminCloudProvider, // scaffold: isAvailable() is false until actually wired
 ];
+
+// The on-device health-store providers (one per platform) share the synced
+// settings.watchImport enable-flag — it means "import finished runs from my
+// phone's health store", a platform-neutral preference; the per-device auth
+// markers stay separate. Anything newer gets its own settings.imports[id] key.
+export const healthStoreProviderIds = new Set([healthConnectProvider.id, healthKitProvider.id]);
+export const providerEnabledInSettings = (
+  settings: { watchImport?: boolean; imports?: Record<string, boolean> },
+  id: string,
+): boolean =>
+  healthStoreProviderIds.has(id) ? !!settings.watchImport : !!settings.imports?.[id];
 
 export const getProvider = (id: string) => importProviders.find(p => p.id === id) || null;
 

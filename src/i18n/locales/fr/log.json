@@ -4,7 +4,7 @@
   "trackLive": "Suivre une course en direct (GPS)",
   "orManual": "ou saisis-la manuellement",
   "gpsBanner": "Suivie par GPS — la distance, le temps et le dénivelé sont déjà remplis. Ajoute un type et des notes, puis enregistre.",
-  "watchBanner": "Importée depuis ta montre via Health Connect — vérifie les détails (pas de tracé/carte), choisis un type, puis enregistre.",
+  "watchBanner": "Importée depuis ta montre — vérifie les détails (pas de tracé/carte), choisis un type, puis enregistre.",
   "import": {
     "title": "Importer un fichier d’activité",
     "gpx": "<0>GPX / TCX :</0> une activité avec son tracé — exporte-la depuis Garmin Connect, Strava et la plupart des plateformes",
@@ -44,7 +44,7 @@
   "validation": {
     "required": "La distance et la durée sont obligatoires."
   },
-  "hrPendingNote": "La fréquence cardiaque sera ajoutée automatiquement depuis Health Connect une fois ta montre synchronisée (généralement quelques minutes) — laisse ces champs vides, ou saisis-les toi-même.",
+  "hrPendingNote": "La fréquence cardiaque sera ajoutée automatiquement depuis {{store}} une fois ta montre synchronisée (généralement quelques minutes) — laisse ces champs vides, ou saisis-les toi-même.",
   "saveRun": "Enregistrer la course",
   "edit": {
     "title": "Modifier la course",

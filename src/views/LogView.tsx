@@ -84,8 +84,10 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
       ...(prefill?.source   ? { source: prefill.source } : {}),
       ...(prefill?.routeId  ? { routeId: prefill.routeId } : {}),
       ...(prefill?.routeTmp ? { routeTmp: prefill.routeTmp, routePending: true } : {}),
-      // Health Connect HR wasn't ready at save — relink on next load (RunningCoach).
+      // Health-store HR wasn't ready at save — relink on next load (RunningCoach).
+      // Two fields, one per platform: see the hrPendingHk note in src/types.ts.
       ...(prefill?.hrPending ? { hrPending: prefill.hrPending } : {}),
+      ...(prefill?.hrPendingHk ? { hrPendingHk: prefill.hrPendingHk } : {}),
       // Carry the watch-import provenance through so repeated scans dedupe on it.
       ...(prefill?.hcId ? { hcId: prefill.hcId } : {}),
       ...(prefill?.startedAt ? { startedAt: prefill.startedAt } : {}),
@@ -219,10 +221,10 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
           <div><label className={LABEL_CLS}>{t("log.fields.elevM")}</label>
             <input type="number" placeholder={t("log.fields.elevPh")} value={f.elev} onChange={e => set("elev", e.target.value)} className={INPUT_CLS}/></div>
         </div>
-        {prefill?.hrPending && !f.hr && (
+        {(prefill?.hrPending || prefill?.hrPendingHk) && !f.hr && (
           <p className="text-xs text-slate-400 flex items-start gap-1.5">
             <HeartPulse size={14} className="text-red-400 mt-0.5 shrink-0" />
-            <span>{t("log.hrPendingNote")}</span>
+            <span>{t("log.hrPendingNote", { store: prefill.hrPendingHk ? "Apple Health" : "Health Connect" })}</span>
           </p>
         )}
         <div>

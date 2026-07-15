@@ -26,7 +26,7 @@
     "bpm": "bpm",
     "avgMax": "avg {{avg}} · max {{max}}",
     "connecting": "connecting…",
-    "postRun": "Heart rate is added from Health Connect after you finish."
+    "postRun": "Heart rate is added from {{store}} after you finish."
   },
   "gps": {
     "accuracyGood": "GPS accuracy ±{{acc}} m — good to go",
@@ -45,6 +45,8 @@
     "authTitle": "Authorize Health Connect?",
     "authBody": "Health Connect is selected, but this phone has not granted access yet. Authorize it in Settings to add heart rate after runs.",
     "authAccept": "Open Settings",
+    "hkAuthTitle": "Authorize Apple Health?",
+    "hkAuthBody": "Apple Health is selected, but this phone has not granted access yet. Authorize it in Settings to add heart rate after runs.",
     "pairTitle": "Pair your heart-rate sensor?",
     "pairBody": "Bluetooth heart-rate capture is selected, but no sensor is paired on this phone. Pair one in Settings to record live BPM.",
     "pairAccept": "Pair sensor",

@@ -4,7 +4,7 @@ import { App as CapApp } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import { isNative } from "./native";
+import { isNative, isIos } from "./native";
 import { versionStatus } from "./utils/version";
 import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
@@ -107,6 +107,17 @@ export default function App() {
     // reaches it for both the warm-return and cold-start cases.
     const reportAuthError = (text: string) => setAuthError(text);
 
+    // The OAuth flow opens in an in-app browser (LoginScreen). Android's custom
+    // tab dismisses itself when the deep link fires, but iOS's
+    // SFSafariViewController stays on screen over the app — close it once the
+    // callback lands. Browser.close() is unimplemented on Android; ignore.
+    const closeAuthBrowser = async () => {
+      try {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.close();
+      } catch { /* Android (unimplemented) or already closed — ignore */ }
+    };
+
     const processUrl = async (url: string) => {
       if (!url || url === lastUrlRef.current) return; // de-dupe appUrlOpen vs getLaunchUrl
       lastUrlRef.current = url;
@@ -115,9 +126,10 @@ export default function App() {
       // Provider-side denial/error (e.g. user cancels Google consent) carries no
       // `code` — surface it instead of silently no-oping.
       const provErr = params.get("error_description") || params.get("error");
-      if (provErr) { reportAuthError(provErr); return; }
+      if (provErr) { closeAuthBrowser(); reportAuthError(provErr); return; }
       const code = params.get("code");
       if (!code) return; // not an auth callback
+      closeAuthBrowser();
       try {
         await supabase.auth.exchangeCodeForSession(code);
       } catch (err) {
@@ -153,10 +165,16 @@ export default function App() {
         const info = await CapApp.getInfo();
         const { data } = await supabase
           .from("app_config")
-          .select("min_supported_version, latest_version")
+          .select("min_supported_version, latest_version, min_supported_version_ios, latest_version_ios")
           .eq("id", 1)
           .maybeSingle();
-        if (!cancelled && data) setUpdateState(versionStatus(info.version, data));
+        // Each platform reads its own column pair: the stores roll out
+        // independently (and a partial release can leave one store behind), so a
+        // single shared version would lie to one of them.
+        const config = data && (isIos
+          ? { min_supported_version: data.min_supported_version_ios, latest_version: data.latest_version_ios }
+          : data);
+        if (!cancelled && config) setUpdateState(versionStatus(info.version, config));
       } catch { /* never block the app on a failed version check */ }
     })();
     return () => { cancelled = true; };

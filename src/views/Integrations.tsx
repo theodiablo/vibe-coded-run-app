@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Watch, Loader, Check, RefreshCw } from "lucide-react";
-import { connectableProviders } from "../imports/registry";
+import { connectableProviders, healthStoreProviderIds, providerEnabledInSettings } from "../imports/registry";
 import { BetaBadge } from "../components/BetaBadge";
 import type { ImportProvider } from "../imports/types";
 import type { SettingsState } from "../types";
@@ -14,16 +14,15 @@ type IntegrationsProps = {
   scanImportsNow?: () => Promise<number>;
 };
 
-// Where is a provider's synced enable-flag? Health Connect predates the registry
-// and keeps its own settings.watchImport key (don't churn the synced blob);
-// anything newer lands in the settings.imports map.
+// Where is a provider's synced enable-flag? The health-store providers (Health
+// Connect on Android, HealthKit on iOS) share settings.watchImport — one
+// platform-neutral "import from my phone's health store" preference (don't
+// churn the synced blob); anything newer lands in the settings.imports map.
+// The read side is providerEnabledInSettings (registry.ts), shared with the
+// scan gate in RunningCoach so the two can't drift.
 type ImportsFlags = Record<string, boolean>;
-function providerEnabled(settings: SettingsState, id: string): boolean {
-  if (id === "healthconnect") return !!settings.watchImport;
-  return !!(settings.imports as ImportsFlags | undefined)?.[id];
-}
 function withProviderEnabled(settings: SettingsState, id: string, on: boolean): SettingsState {
-  if (id === "healthconnect") return { ...settings, watchImport: on };
+  if (healthStoreProviderIds.has(id)) return { ...settings, watchImport: on };
   return { ...settings, imports: { ...(settings.imports as ImportsFlags | undefined), [id]: on } };
 }
 
@@ -108,7 +107,7 @@ export function Integrations({ settings, saveSettings, showToast, scanImportsNow
       </p>
 
       {providers.map(p => {
-        const on = providerEnabled(settings, p.id) && connected[p.id];
+        const on = providerEnabledInSettings(settings, p.id) && connected[p.id];
         return (
           <div key={p.id} className="space-y-2">
             {on ? (

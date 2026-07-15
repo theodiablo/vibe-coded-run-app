@@ -75,7 +75,8 @@
     "methods": {
       "off": "Off",
       "bluetooth": "Bluetooth sensor",
-      "healthconnect": "Health Connect"
+      "healthconnect": "Health Connect",
+      "healthkit": "Apple Health"
     },
     "newTag": "new",
     "forgetAria": "Forget sensor",
@@ -94,7 +95,15 @@
     "hcSuccess": "Health Connect connected — heart rate will be read after your runs.",
     "hcInstall": "Install Health Connect from Google Play, then tap Connect again.",
     "hcDenied": "Access wasn't granted. In Health Connect, allow Running Coach to read Heart rate.",
-    "hcOpenFailed": "Couldn't open Health Connect. Make sure it's installed and up to date."
+    "hcOpenFailed": "Couldn't open Health Connect. Make sure it's installed and up to date.",
+    "hkConnected": "Connected — heart rate is added to your runs automatically.",
+    "hkReconnect": "Reconnect Apple Health",
+    "hkConnect": "Connect Apple Health",
+    "hkHelp": "Reads your heart rate from Apple Health after a run — useful if your watch syncs there but doesn't broadcast live. It may take a few minutes to appear after you finish.",
+    "hkNotSupported": "Apple Health isn't available on this device.",
+    "hkSuccess": "Apple Health connected — heart rate will be read after your runs.",
+    "hkDenied": "Access wasn't granted. In the Health app, allow Running Coach to read Heart Rate and Workouts.",
+    "hkOpenFailed": "Couldn't reach Apple Health. Try again, or check the Health app's sharing settings."
   },
   "hrDisclosure": {
     "title": "Connect a heart-rate sensor",
@@ -123,6 +132,10 @@
       "healthconnect": {
         "label": "Your watch (Health Connect)",
         "help": "Works with any watch whose app writes workouts to Health Connect (Android 14+): Garmin Connect (Settings → Health Connect) or Zepp/Amazfit (Profile → 3rd-party access → Health Connect). Runs appear a few minutes after your watch syncs; no route/map is included."
+      },
+      "healthkit": {
+        "label": "Your watch (Apple Health)",
+        "help": "Works with the Apple Watch Workout app and any watch whose companion app writes workouts to Apple Health (Garmin Connect, Polar Flow, Zepp…). Runs appear a few minutes after your watch syncs; no route/map is included."
       }
     }
   }

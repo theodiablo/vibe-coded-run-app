@@ -8,11 +8,12 @@ import { useRunTracker } from "../hooks/useRunTracker";
 import { getHrSource } from "../hr/source";
 import { getPairedDevice } from "../hr/device";
 import { hasHealthConnectAuthorization } from "../hr/healthconnect";
+import { hasHealthKitAuthorization } from "../healthkit/import";
 import { RouteMap } from "../components/RouteMap";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
 import { BetaBadge } from "../components/BetaBadge";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
-import { isNative } from "../native";
+import { isNative, isAndroid, isIos } from "../native";
 import { BG_LOC_DISCLOSED_KEY } from "../constants";
 import type { HrMethod, HrPending, Run } from "../types";
 
@@ -50,10 +51,16 @@ function Ctrl({ onClick, color, children, disabled = false }: { onClick: () => v
 export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOut, onConfigureHr, onDeclineHr }: LiveRunTrackerProps) {
   const pairedHrDevice = getPairedDevice();
   const healthConnectAuthorized = hasHealthConnectAuthorization();
+  const healthKitAuthorized = hasHealthKitAuthorization();
+  // Local readiness for the *synced* method. getHrSource already nulls an
+  // off-platform method (e.g. "healthconnect" synced onto an iPhone), so a
+  // platform check here would be redundant — the auth markers are per-device
+  // anyway and can only be set on the platform that owns them.
   const hrReady = !isNative
     || (hrMethod || "off") === "off"
     || (hrMethod === "bluetooth" && !!pairedHrDevice)
-    || (hrMethod === "healthconnect" && healthConnectAuthorized);
+    || (hrMethod === "healthconnect" && healthConnectAuthorized)
+    || (hrMethod === "healthkit" && healthKitAuthorized);
   const effectiveHrMethod = hrReady ? hrMethod : "off";
   const { t } = useTranslation();
   const rt = useRunTracker({ hrMethod: effectiveHrMethod });
@@ -74,9 +81,18 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   const [showHrNudge, setShowHrNudge] = useState(false);
   const hrNudge = (() => {
     if (!isNative) return null;
-    if (hrMethod === "healthconnect" && !healthConnectAuthorized) return {
+    // Re-authorize nudges only make sense on the platform that owns the synced
+    // method — on the other platform the method is effectively "off" but the
+    // generic setup nudge below would mislead too, so show nothing for it.
+    if (hrMethod === "healthconnect" && isAndroid && !healthConnectAuthorized) return {
       title: t("tracker.hrNudge.authTitle"),
       body: t("tracker.hrNudge.authBody"),
+      acceptLabel: t("tracker.hrNudge.authAccept"),
+      allowOptOut: false,
+    };
+    if (hrMethod === "healthkit" && isIos && !healthKitAuthorized) return {
+      title: t("tracker.hrNudge.hkAuthTitle"),
+      body: t("tracker.hrNudge.hkAuthBody"),
       acceptLabel: t("tracker.hrNudge.authAccept"),
       allowOptOut: false,
     };
@@ -232,7 +248,10 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       ...(routeId ? { routeId } : {}),
       ...(routeTmp ? { routeTmp, routePending: true } : {}),
       ...(hr != null ? { hr, hrMax } : {}),
-      ...(hrPending ? { hrPending } : {}),
+      // HealthKit markers ride their own field: shipped Android clients clear
+      // any hrPending whose source isn't "healthconnect" from the synced blob,
+      // which would destroy an iPhone's deferred HR before it could resolve.
+      ...(hrPending ? (hrPending.source === "healthkit" ? { hrPendingHk: hrPending } : { hrPending }) : {}),
     });
   };
 
@@ -291,7 +310,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           <div className="bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-center gap-2 text-slate-300">
             <HeartPulse size={16} className="text-red-400 shrink-0" />
             <BetaBadge />
-            <span className="text-xs">{t("tracker.hr.postRun")}</span>
+            <span className="text-xs">{t("tracker.hr.postRun", { store: hrSrc?.id === "healthkit" ? "Apple Health" : "Health Connect" })}</span>
           </div>
         )}
 
