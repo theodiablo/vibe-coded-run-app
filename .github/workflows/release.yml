@@ -1,0 +1,333 @@
+name: Release mobile apps
+
+# Unified, platform-agnostic release: one v* tag (e.g. v1.4.0) builds the web
+# bundle ONCE and ships Android (Play internal track) and iOS (TestFlight) in
+# parallel from the same commit and version name. Manual / tag-triggered only —
+# the mobile apps release on their own cadence, independent of the web deploy
+# (deploy.yml), even though all build from the same dist/.
+#
+# The platform jobs are independent (each needs only web-build), so an iOS
+# failure never blocks the Android upload and vice versa; each job publishes
+# its OWN app_config version column only after its own store upload succeeds,
+# so a partial release never advertises a version to a store that didn't get
+# it. "Re-run failed jobs" re-runs only the failed platform, and the build
+# number folds in run_attempt, so the retry gets a fresh store build number
+# (both Play and TestFlight permanently reject a re-used one).
+on:
+  workflow_dispatch: {}
+  push:
+    tags: ["v*"]
+
+jobs:
+  web-build:
+    runs-on: ubuntu-latest
+    # Defensive trigger gate (inherited from the old android.yml): GitHub has
+    # been observed starting tag-filtered workflows on ordinary branch pushes,
+    # producing noisy failing 0.0.0 builds. Never run for those.
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # Capacitor 8 CLI requires Node >= 22.
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://${{ vars.SUPABASE_PROJECT_REF }}.supabase.co
+          # Same domain-restricted MapTiler key as the web deploy (see README → Maps).
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          # Same PostHog project key as the web deploy (see docs/telemetry.md).
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          # Public support address for crash trace mailto links. Set as a repo variable.
+          VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          # Released native apps — production telemetry (PR builds tag "preview").
+          VITE_APP_ENV: production
+          # Native build: drop the web-only marketing landing chunk entirely so
+          # the packages ship zero marketing bytes (see MarketingGate in src/App.tsx).
+          VITE_NATIVE_BUILD: "1"
+
+      # Web-only SEO assets are useless inside a native package (the WebView is
+      # never crawled) and would just bloat the download — strip them before the
+      # per-platform Capacitor syncs copy dist/ into the shells.
+      - name: Drop web-only SEO assets from the native bundle
+        run: rm -f dist/og-image.png dist/robots.txt dist/sitemap.xml
+
+      - name: Upload web bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-web-dist
+          path: dist
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    needs: web-build
+    # The `secrets` context can't be used in step-level `if:` conditions
+    # (GitHub evaluates `if:` before the job reaches the runner). Hoist the
+    # secrets we branch on into job-level env vars and gate on `env.*` instead.
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download web bundle
+        uses: actions/download-artifact@d8d0a99033603453ad2255e58e13547056a15840 # v7.0.0
+        with:
+          name: native-web-dist
+          path: dist
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      # versionName from the v* tag (e.g. v1.2.0 → 1.2.0); dev/manual runs use
+      # 0.0.0. versionCode folds in run_attempt (not just run_number) — a plain
+      # run_number repeats on a re-run of the same run, and Google Play
+      # permanently rejects a re-used versionCode, so a retry after a partial
+      # failure (AAB uploaded, a later step failed) would otherwise fail every
+      # time with "Version code N has already been used."
+      - name: Compute version name
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=0.0.0" >> "$GITHUB_OUTPUT"
+          fi
+          echo "code=$(( GITHUB_RUN_NUMBER * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
+
+      # Release signing. Store a base64 keystore + credentials as Actions secrets.
+      # Debug builds need no signing; only release AABs uploaded to Play do.
+      - name: Decode keystore
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+
+      - name: Build AAB
+        working-directory: android
+        run: ./gradlew bundleRelease
+        env:
+          ANDROID_VERSION_CODE: ${{ steps.ver.outputs.code }}
+          ANDROID_VERSION_NAME: ${{ steps.ver.outputs.name }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: running-coach-release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn
+
+      # Push the signed AAB to Google Play. Only on a real release tag. Starts on
+      # the internal track to validate the pipeline end-to-end; bump `track` to
+      # production (and grant the service account the production-release
+      # permission in Play Console) when you're ready to ship to users. Needs the
+      # GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret (the service-account JSON key).
+      - name: Deploy to Google Play
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: solutions.camboulive.run
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: internal
+          status: completed
+
+      # On a real release, tell the ANDROID app the new latest version so
+      # outdated clients can be nudged to update — only after the Play upload
+      # succeeded, and never touching the *_ios columns (the ios job owns those).
+      # Uses the Supabase CLI with a management access token, matching the Edge
+      # Function deploy workflow; no service-role data API key is needed.
+      # min_supported_version is left for you to bump by hand in Supabase when
+      # you ship a breaking change.
+      - name: Publish latest Android version to Supabase
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          VERSION_NAME: ${{ steps.ver.outputs.name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN repo secret is not set — add a Supabase personal/service access token with database query rights on run-app."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "::error::SUPABASE_PROJECT_REF repo variable is not set."
+            exit 1
+          fi
+
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Refusing to publish unexpected version name: $VERSION_NAME"
+            exit 1
+          fi
+
+          npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          npx supabase db query --linked \
+            "update public.app_config set latest_version = '$VERSION_NAME', updated_at = now() where id = 1;"
+          echo "Set latest_version=$VERSION_NAME"
+
+  ios:
+    runs-on: macos-15
+    needs: web-build
+    env:
+      ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+      ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+      ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download web bundle
+        uses: actions/download-artifact@d8d0a99033603453ad2255e58e13547056a15840 # v7.0.0
+        with:
+          name: native-web-dist
+          path: dist
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      # CFBundleShortVersionString from the v* tag; CFBundleVersion uses the same
+      # run_number*1000+run_attempt scheme as Android's versionCode — TestFlight
+      # rejects a re-used build number per version string exactly like Play.
+      - name: Compute version name
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=0.0.0" >> "$GITHUB_OUTPUT"
+          fi
+          echo "build=$(( GITHUB_RUN_NUMBER * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
+
+      # App Store Connect API key for cloud-managed signing + upload: no
+      # certificates or provisioning profiles to maintain as secrets —
+      # -allowProvisioningUpdates lets Xcode create/refresh them via the API key.
+      # (If cloud signing ever misbehaves, the fallback is a manual distribution
+      # .p12 + profile imported into a temp keychain and signingStyle: manual.)
+      - name: Install App Store Connect API key
+        run: |
+          if [ -z "$ASC_API_KEY_P8_BASE64" ] || [ -z "$ASC_API_KEY_ID" ] || [ -z "$ASC_API_ISSUER_ID" ]; then
+            echo "::error::ASC_API_KEY_P8_BASE64 / ASC_API_KEY_ID / ASC_API_ISSUER_ID secrets are not all set — create an App Store Connect API key (role: App Manager) and add them."
+            exit 1
+          fi
+          mkdir -p ~/private_keys
+          echo "$ASC_API_KEY_P8_BASE64" | base64 -d > ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8
+
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath build/App.xcarchive \
+            archive \
+            MARKETING_VERSION="${{ steps.ver.outputs.name }}" \
+            CURRENT_PROJECT_VERSION="${{ steps.ver.outputs.build }}" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8 \
+            -authenticationKeyID "$ASC_API_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \
+            | xcbeautify --renderer github-actions
+
+      # Export + upload in one step: destination "upload" hands the build to
+      # App Store Connect / TestFlight processing directly (xcodebuild's
+      # supported upload path; altool is deprecated). Only on a real release tag
+      # — a manual dispatch stops after proving the archive builds and signs.
+      - name: Write export options
+        run: |
+          cat > build/exportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Upload to TestFlight
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportOptionsPlist build/exportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8 \
+            -authenticationKeyID "$ASC_API_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \
+            | xcbeautify --renderer github-actions
+
+      # The iOS twin of the Android publish step — only after the TestFlight
+      # upload succeeded, and only the *_ios column.
+      - name: Publish latest iOS version to Supabase
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          VERSION_NAME: ${{ steps.ver.outputs.name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN repo secret is not set — add a Supabase personal/service access token with database query rights on run-app."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "::error::SUPABASE_PROJECT_REF repo variable is not set."
+            exit 1
+          fi
+
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Refusing to publish unexpected version name: $VERSION_NAME"
+            exit 1
+          fi
+
+          npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          npx supabase db query --linked \
+            "update public.app_config set latest_version_ios = '$VERSION_NAME', updated_at = now() where id = 1;"
+          echo "Set latest_version_ios=$VERSION_NAME"
