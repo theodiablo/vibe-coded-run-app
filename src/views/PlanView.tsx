@@ -415,11 +415,11 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
               </button>
 
               {isExp && (
-                <div className="border-t border-slate-700/50">
+                <div className="border-t border-slate-700/50 animate-expand">
                   {wk.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).map(s => {
                     const isSkipped = !!s.skipped && !s.done;
-                    const rowCls = "flex items-start gap-3 px-4 py-3 border-b border-slate-700/30 last:border-0 " + (s.done ? "opacity-40" : isSkipped ? "opacity-50" : "");
-                    const checkCls = "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
+                    const rowCls = "flex items-start gap-3 px-4 py-3 border-b border-slate-700/30 last:border-0 transition-opacity duration-300 " + (s.done ? "opacity-40" : isSkipped ? "opacity-50" : "");
+                    const checkCls = "w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all active:scale-90 " + (s.done ? "bg-emerald-500 border-emerald-500" : "border-slate-500 hover:border-emerald-400");
                     const descCls = "text-sm mt-0.5 leading-snug " + (s.done ? "line-through text-slate-600" : isSkipped ? "line-through text-slate-500" : "text-slate-300");
                     const typeCls = "text-xs font-bold uppercase " + planTypeClass(s.type);
                     const sessOpen = openSess === s.id;
@@ -444,7 +444,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                           </div>
                           <HRTarget type={s.type} settings={settings} openSettings={openSettings}/>
                           {sessOpen && (
-                            <div className="mt-2 space-y-1.5 border-l-2 border-slate-700 pl-3">
+                            <div className="mt-2 space-y-1.5 border-l-2 border-slate-700 pl-3 animate-expand">
                               {sessionSteps(s).map(st => (
                                 <p key={st.label} className="text-xs text-slate-400 leading-snug">
                                   <span className="text-slate-300 font-semibold">{st.label}: </span>{st.detail}
@@ -457,14 +457,14 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                           {!s.done && !isSkipped && (
                             <button
                               onClick={() => goLog({date: s.date, type: s.type, km: Number(s.km), pace: s.pace, wNum: wk.weekNumber, sId: s.id})}
-                              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors">
+                              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-[background-color,transform] active:scale-95">
                               <Plus size={13}/>Record
                             </button>
                           )}
                           {!s.done && (
                             <button
                               onClick={() => skipSess(wk.weekNumber, s.id)}
-                              className={"flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors " + (isSkipped ? "bg-slate-600/40 text-slate-300 hover:bg-slate-600/60" : "bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200")}
+                              className={"flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-[background-color,color,transform] active:scale-95 " + (isSkipped ? "bg-slate-600/40 text-slate-300 hover:bg-slate-600/60" : "bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200")}
                               aria-label={isSkipped ? "Undo skip" : "Skip this session"}
                               title={isSkipped ? "Undo skip" : "Skip this session"}>
                               {isSkipped ? "Undo" : <X size={13}/>}
@@ -474,7 +474,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                             aria-label={s.done ? "Mark session not done" : "Mark session done"}
                             aria-pressed={s.done}
                             title={s.done ? "Mark not done" : "Mark done"}>
-                            {s.done && <Check size={11}/>}
+                            {s.done && <Check size={11} className="animate-pop"/>}
                           </button>
                         </div>
                       </div>

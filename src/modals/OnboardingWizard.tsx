@@ -12,6 +12,7 @@ import {
 } from "../utils/planStyles";
 import { RaceFormModal } from "./RaceFormModal";
 import { AddRaceCard } from "../components/AddRaceCard";
+import { Confetti } from "../components/Confetti";
 import { onboardingSteps } from "../utils/onboarding";
 import { searchEditions, editionLabel, findEdition } from "../utils/races";
 import { suggestedGoalSec } from "../utils/goal";
@@ -236,7 +237,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   ];
 
   return (
-    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
+    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-view-fade">
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
         <div className="flex items-center gap-2">
           {stepIdx > 0 && (
@@ -609,7 +610,8 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
             const label = pickedLabel || (intent === "fitness" ? t("onboarding.summary.fallbackFitness") : t("onboarding.summary.fallbackRace"));
             return (
               <div className="space-y-5 text-center">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto">
+                <Confetti/>
+                <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto animate-pop">
                   <Check size={24} className="text-emerald-400"/>
                 </div>
                 <div>

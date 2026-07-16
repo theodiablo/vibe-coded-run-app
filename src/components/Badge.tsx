@@ -33,7 +33,7 @@ export function Badge({ badge }: BadgeProps) {
       {!u && (
         <>
           <div className="w-full h-1 bg-slate-700 rounded-full overflow-hidden mt-0.5">
-            <div className="h-full bg-slate-500 rounded-full" style={{width: Math.round(badge.progress * 100) + "%"}}/>
+            <div className="h-full bg-slate-500 rounded-full transition-[width] duration-500" style={{width: Math.round(badge.progress * 100) + "%"}}/>
           </div>
           {badge.hint && <p className="text-[10px] text-slate-500">{badge.hint}</p>}
         </>

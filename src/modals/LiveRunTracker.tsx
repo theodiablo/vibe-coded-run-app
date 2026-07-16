@@ -5,6 +5,8 @@ import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
 import { saveRoute, queuePendingRoute } from "../routes";
 import { useRunTracker } from "../hooks/useRunTracker";
+import { useCountdown } from "../hooks/useCountdown";
+import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { getHrSource } from "../hr/source";
 import { getPairedDevice } from "../hr/device";
 import { hasHealthConnectAuthorization } from "../hr/healthconnect";
@@ -29,10 +31,13 @@ type LiveRunTrackerProps = {
 
 type LocationPreview = { lat: number; lng: number; acc?: number | null };
 
-function Stat({ label, value }: { label: string; value: ReactNode }) {
+// `pulseKey` (optional): when it changes, the value re-mounts (via `key`) and
+// plays a subtle tick. Used only for the km stat, keyed on the whole-kilometre
+// count, so it pulses once per km rather than on every ~1s GPS update.
+function Stat({ label, value, pulseKey }: { label: string; value: ReactNode; pulseKey?: number }) {
   return (
     <div className="bg-slate-800 rounded-xl px-3 py-2.5 text-center">
-      <p className="text-2xl font-bold text-white leading-tight tabular-nums">{value}</p>
+      <p key={pulseKey} className={"text-2xl font-bold text-white leading-tight tabular-nums " + (pulseKey != null ? "animate-tick" : "")}>{value}</p>
       <p className="text-[11px] text-slate-400 uppercase tracking-wide">{label}</p>
     </div>
   );
@@ -42,7 +47,7 @@ function Stat({ label, value }: { label: string; value: ReactNode }) {
 function Ctrl({ onClick, color, children, disabled = false }: { onClick: () => void; color: string; children: ReactNode; disabled?: boolean }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      className={"flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-semibold transition-colors disabled:opacity-50 " + color}>
+      className={"flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-semibold transition-[background-color,transform] active:scale-95 disabled:opacity-50 disabled:active:scale-100 " + color}>
       {children}
     </button>
   );
@@ -67,6 +72,11 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   const tracker = rt as Omit<typeof rt, "location"> & { location: LocationPreview | null };
   const { state, points, stats, error, pending, location } = tracker;
   const [busy, setBusy] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+  // A 3-2-1-Go overlay before a fresh run start (never on Resume). It runs AFTER
+  // guardedStart's disclosure/HR gates, since guardedStart calls this as its fn.
+  const countdown = useCountdown(() => rt.start());
+  const startWithCountdown = () => (reducedMotion ? rt.start() : countdown.start(3));
   // Resolve the HR source once per render from the seam (source.js), instead of
   // matching method-id strings all over this file — null off web/"off"/unknown,
   // otherwise carries the `live` flag every branch below dispatches on.
@@ -256,10 +266,19 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
+    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">
       <header className="flex items-center justify-between px-4 border-b border-slate-800" style={{ height: 44 }}>
         <div className="flex items-center gap-1.5">
-          <MapPin size={15} className="text-orange-400" />
+          {state === "tracking" ? (
+            <span className="relative flex h-2.5 w-2.5" aria-hidden>
+              <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+            </span>
+          ) : state === "paused" ? (
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" aria-hidden />
+          ) : (
+            <MapPin size={15} className="text-orange-400" />
+          )}
           <span className="text-sm font-semibold">{state === "stopped" ? t("tracker.header.complete") : t("tracker.header.live")}</span>
         </div>
         <button onClick={handleClose} aria-label={t("common.close")}
@@ -288,7 +307,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
         )}
 
         <div className="grid grid-cols-4 gap-2">
-          <Stat label={t("tracker.stats.km")} value={stats.km.toFixed(2)} />
+          <Stat label={t("tracker.stats.km")} value={stats.km.toFixed(2)} pulseKey={live ? Math.floor(stats.km) : undefined} />
           <Stat label={t("tracker.stats.time")} value={fmt.dur(stats.movingSec) === "--" ? "0:00" : fmt.dur(stats.movingSec)} />
           <Stat label={t("tracker.stats.pace")} value={fmt.pace(state === "tracking" ? stats.curPace : stats.avgPace)} />
           <Stat label={t("tracker.stats.elev")} value={stats.elevation + "m"} />
@@ -323,7 +342,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
               </p>
             )}
             <div className="flex">
-              <Ctrl onClick={() => guardedStart(rt.start, true)} color="bg-orange-500 hover:bg-orange-600 text-white">
+              <Ctrl onClick={() => guardedStart(startWithCountdown, true)} color="bg-orange-500 hover:bg-orange-600 text-white">
                 <Play size={20} />{t("tracker.controls.start")}
               </Ctrl>
             </div>
@@ -390,6 +409,16 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
             )}
           </div>
         </ModalOverlay>
+      )}
+
+      {countdown.count !== null && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/85"
+          onClick={countdown.cancel} role="button" aria-label={t("common.cancel")}>
+          <p key={countdown.count} aria-live="assertive"
+            className="text-8xl font-extrabold text-orange-400 tabular-nums animate-countdown">
+            {countdown.count > 0 ? countdown.count : t("tracker.countdown.go")}
+          </p>
+        </div>
       )}
     </div>
   );

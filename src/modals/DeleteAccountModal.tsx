@@ -24,8 +24,8 @@ export function DeleteAccountModal({ onSignOut, onClose }: DeleteAccountModalPro
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4">
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-overlay-fade">
+      <div className="bg-slate-800 rounded-2xl p-5 w-full max-w-sm space-y-4 animate-scale-in">
         <div className="flex items-center gap-3">
           <div className="bg-red-500/20 rounded-full p-2 shrink-0">
             <AlertTriangle size={20} className="text-red-400"/>

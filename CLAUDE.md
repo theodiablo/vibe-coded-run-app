@@ -734,6 +734,25 @@ and delete anything that becomes stale.
   Session types: EASY, TEMPO, INTERVALS, LONG, RACE, WALK, OTHER.
 
 ## Conventions
+- **Animations are CSS-only (no library).** Custom keyframes + `--animate-*`
+  tokens live in one `@theme` block in `src/index.css` (Tailwind v4 CSS-first —
+  there is no `tailwind.config`); add a new motion by defining the token +
+  `@keyframes` there, then use the generated `animate-*` utility. Keep them
+  transform/opacity-only (composites on the Capacitor WebViews) and short.
+  A single global `@media (prefers-reduced-motion: reduce)` block in `index.css`
+  degrades every animation/transition (spinners exempted via `:not(.animate-spin)`)
+  — enter keyframes must end in the natural resting state and exit/one-shot
+  keyframes use `both` so the near-zero-duration degrade lands on the right frame.
+  For the couple of places that change *behaviour* under reduced motion (skip the
+  run-start countdown, render no confetti) use `usePrefersReducedMotion`
+  (`src/hooks/`). Enter animations re-fire by remounting via a changing `key`
+  (the tab wrapper keys on `tab`; the toast keys on an incrementing `id`; the
+  countdown digit keys on its value; PlanView's done-`Check` and conditional
+  `{open && …}` bodies animate on mount). Modals animate **enter-only** (adding
+  the class to each `fixed inset-0` root / to `ModalOverlay`); only the global
+  Toast animates its **exit**, via `usePresence` (`src/hooks/`) which holds the
+  value ~200ms past dismissal. Celebration confetti is `src/components/Confetti.tsx`
+  (mounted on the onboarding summary + main-race auto-detect in `RunningCoach`).
 - Reuse existing form pieces rather than re-rolling inputs: `SessionConfigurator`
   (training days), `GoalConfigurator` (goal time/pace — a slider whose range
   comes from `paceBand(distanceKm)` in `src/utils/goal.ts`, plus editable Time /

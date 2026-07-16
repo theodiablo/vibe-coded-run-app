@@ -69,7 +69,7 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
+    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
         <span className="text-sm font-semibold">{t("settings.title")}</span>
         <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>

@@ -249,7 +249,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
+    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">
       <div className="flex justify-between items-center px-4 border-b border-slate-800 flex-shrink-0" style={{height:44}}>
         <div className="flex items-center gap-1.5">
           <MessageCircle size={15} className="text-orange-400"/>

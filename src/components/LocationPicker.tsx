@@ -148,7 +148,7 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: L
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900 z-[2000] flex flex-col">
+    <div className="fixed inset-0 bg-slate-900 z-[2000] flex flex-col animate-slide-up">
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{ height: 44 }}>
         <p className="text-sm font-semibold">{t("races.picker.title")}</p>
         <button onClick={onCancel} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>

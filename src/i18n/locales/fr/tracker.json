@@ -7,6 +7,9 @@
     "live": "Course en direct",
     "complete": "Course terminée"
   },
+  "countdown": {
+    "go": "Partez !"
+  },
   "discardConfirm": "Abandonner cette course ? Ton parcours enregistré sera perdu.",
   "routeUploadFailed": "Impossible d'envoyer le parcours — enregistré sur cet appareil, la synchronisation sera retentée.",
   "resume": {

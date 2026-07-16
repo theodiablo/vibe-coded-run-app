@@ -23,10 +23,13 @@ function NavBtn({ item, active, onClick }: { item: NavItem; active: boolean; onC
     <button
       onClick={onClick}
       className={
-        "flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-colors " +
+        "relative flex-1 flex flex-col items-center justify-center gap-0.5 text-xs transition-[color,transform] active:scale-95 " +
         (active ? "text-orange-400" : "text-slate-400 hover:text-slate-200")
       }
     >
+      {active && (
+        <span aria-hidden className="absolute top-0 h-0.5 w-8 rounded-full bg-orange-400 animate-scale-in" />
+      )}
       <item.Icon size={20} />
       {t(item.labelKey)}
     </button>
@@ -64,7 +67,7 @@ export function BottomNav({ active, className = "", onTab, onRecord, onProgress 
         <button
           onClick={onRecord}
           aria-label={t("nav.record")}
-          className="flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg transition-colors"
+          className="flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg transition-[background-color,transform] active:scale-90"
           style={{ width: 54, height: 54, marginTop: -18 }}
         >
           <Plus size={26} />

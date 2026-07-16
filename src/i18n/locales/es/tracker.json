@@ -7,6 +7,9 @@
     "live": "Carrera en vivo",
     "complete": "Carrera completada"
   },
+  "countdown": {
+    "go": "¡Ya!"
+  },
   "discardConfirm": "¿Descartar esta carrera? Tu ruta registrada se perderá.",
   "routeUploadFailed": "No se pudo subir la ruta — guardada en este dispositivo, se reintentará la sincronización.",
   "resume": {
