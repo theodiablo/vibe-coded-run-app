@@ -4,7 +4,7 @@ import { Loader, Mail, Lock } from "lucide-react";
 import { BrandLogo } from "./components/BrandLogo";
 import { Browser } from "@capacitor/browser";
 import { supabase, authRedirectTo } from "./supabase";
-import { isNative } from "./native";
+import { isNative, isAndroid } from "./native";
 import { PRIVACY_URL } from "./constants";
 
 type LoginMode = "signin" | "signup";
@@ -47,6 +47,24 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
       return;
     }
     if (isNative && data?.url) {
+      // Android must NOT go through @capacitor/browser: its Chrome Custom Tabs
+      // path only catches ActivityNotFoundException natively, so any other
+      // runtime failure launching the tab kills the process (the same crash that
+      // took down the "Update" button — see openStore in UpdatePrompt.tsx). A
+      // plain top-frame navigation is intercepted by Capacitor's WebViewClient
+      // (Bridge.launchIntent): the external OAuth host never loads in the WebView,
+      // it's handed to the OS as an ACTION_VIEW intent that opens in the default
+      // browser, and Google redirects back to the deep link (App.tsx completes the
+      // PKCE exchange). The WebView stays on localhost, so re-enabling the form
+      // below is still correct.
+      if (isAndroid) {
+        window.location.assign(data.url);
+        setBusy(false);
+        return;
+      }
+      // iOS: SFSafariViewController is the correct pattern (no WebViewClient
+      // intent interception there) and stays over the app until the deep link
+      // lands, when App.tsx closes it.
       await Browser.open({ url: data.url });
       // The external tab handles the rest; the WebView itself is NOT redirected, so
       // re-enable the form. Otherwise dismissing/cancelling the OAuth tab (no
