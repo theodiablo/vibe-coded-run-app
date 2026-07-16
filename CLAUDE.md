@@ -735,6 +735,7 @@ and delete anything that becomes stale.
   Session types: EASY, TEMPO, INTERVALS, LONG, RACE, WALK, OTHER.
 
 ## Conventions
+- **French and Spanish copy:** French uses informal `tu`; Spanish stays region-neutral. Reserve `course` / `carrera` for organized races and use `sortie` / `entrenamiento` for logged runs. Do not use em dashes (`—`) in either locale; use native punctuation and sentence structure instead. Locale parity/interpolation and this punctuation rule are enforced in `src/i18n/i18n.test.ts`.
 - **Animations are CSS-only (no library).** Custom keyframes + `--animate-*`
   tokens live in one `@theme` block in `src/index.css` (Tailwind v4 CSS-first —
   there is no `tailwind.config`); add a new motion by defining the token +

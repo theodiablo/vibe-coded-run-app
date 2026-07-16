@@ -80,7 +80,7 @@ export function HRZonesCard({runs, settings}: HRZonesCardProps) {
                       </p>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-600">—</span>
+                    <span className="text-xs text-slate-600">–</span>
                   )}
                 </div>
               );

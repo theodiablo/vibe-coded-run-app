@@ -4,46 +4,46 @@
     "moved": "déplacée {{from}} → {{to}}"
   },
   "title": "Coach",
-  "greeting": "Salut ! Dis-moi ce qui t'aiderait à bien t'entraîner cette semaine — arriver plus frais, concilier le plan avec ta vie, gagner un peu de confiance ou gérer une petite gêne — et je te proposerai un ajustement sans risque. Tu verras toujours le changement avant que quoi que ce soit ne soit appliqué.",
+  "greeting": "Salut ! Dis-moi ce qui t'aiderait à bien t'entraîner cette semaine : arriver en forme, concilier le plan avec ta vie, gagner en confiance ou gérer une petite gêne. Je te proposerai un ajustement prudent et tu verras toujours le changement avant de l'appliquer.",
   "examples": {
-    "fresh": "Aide-moi à être frais pour ce week-end",
+    "fresh": "Aide-moi à arriver en forme ce week-end",
     "extraDay": "J'ai un jour de plus pour m'entraîner",
-    "moveLongRun": "Déplace ma sortie longue au dimanche",
-    "confidence": "Prendre confiance pour le jour de la course"
+    "moveLongRun": "Déplace ma sortie longue à dimanche",
+    "confidence": "Aide-moi à prendre confiance pour le jour J"
   },
   "fallback": {
-    "noValidAdjustment": "Je n'ai pas trouvé d'ajustement qui garde ton plan dans les règles d'entraînement de l'app — rien n'a été modifié.",
+    "noValidAdjustment": "Je n'ai pas trouvé d'ajustement qui respecte les règles d'entraînement de l'app. Rien n'a été modifié.",
     "noChangeNeeded": "Rien n'a besoin de changer dans le plan pour ça.",
     "proposal": "Voici l'ajustement que je te recommande.",
-    "applied": "C'est fait — ton plan est à jour. Autre chose ?"
+    "applied": "C'est fait. Ton plan est à jour. Autre chose ?"
   },
   "errors": {
     "noProposedPlan": "La réponse du coach ne contenait pas de plan proposé.",
     "noProposalReady": "Aucune proposition du coach n'est prête à être appliquée.",
     "confirmNoPlan": "La confirmation du coach ne contenait pas de plan.",
-    "revalidateFailed": "La proposition n'est plus valide — rien n'a été appliqué.",
+    "revalidateFailed": "La proposition n'est plus valide. Rien n'a été appliqué.",
     "noResponseToFlag": "Aucune réponse du coach à signaler.",
     "noConversation": "Aucune conversation avec le coach n'est ouverte.",
     "server": {
-      "RATE_LIMIT": "Vous avez atteint la limite du coach pour aujourd'hui — réessayez demain.",
-      "NO_PLAN": "Il n'y a pas encore de plan d'entraînement à ajuster — créez-en un d'abord.",
-      "COACH_UNAVAILABLE": "Le coach est indisponible pour le moment — réessayez dans un instant.",
+      "RATE_LIMIT": "Tu as atteint la limite du coach pour aujourd'hui. Réessaie demain.",
+      "NO_PLAN": "Il n'y a pas encore de plan d'entraînement à ajuster. Crée-en un d'abord.",
+      "COACH_UNAVAILABLE": "Le coach est indisponible pour le moment. Réessaie dans un instant.",
       "TRAJECTORY_NOT_FOUND": "Cette conversation avec le coach n'est plus disponible.",
       "TRAJECTORY_CLOSED": "Cette conversation avec le coach est déjà close.",
       "NO_OPEN_PROPOSAL": "Il n'y a aucune proposition ouverte à appliquer.",
-      "PROPOSAL_INVALID": "La proposition n'est plus valide — rien n'a été appliqué."
+      "PROPOSAL_INVALID": "La proposition n'est plus valide. Rien n'a été appliqué."
     },
     "transport": {
-      "timeout": "Le coach a mis trop de temps à démarrer — réessayez dans un instant.",
-      "offline": "Impossible de joindre le coach — vérifiez votre connexion et réessayez.",
-      "reauth": "Votre session a expiré — reconnectez-vous.",
-      "unavailable": "Le coach est indisponible pour le moment — réessayez dans un instant."
+      "timeout": "Le coach a mis trop de temps à démarrer. Réessaie dans un instant.",
+      "offline": "Impossible de joindre le coach. Vérifie ta connexion et réessaie.",
+      "reauth": "Ta session a expiré. Reconnecte-toi.",
+      "unavailable": "Le coach est indisponible pour le moment. Réessaie dans un instant."
     }
   },
   "toast": {
     "planAdjusted": "Plan ajusté par ton coach ✓",
-    "feedbackFailed": "Impossible d'envoyer ton retour — réessaie dans un instant",
-    "feedbackSent": "Merci — ton retour a bien été envoyé.",
+    "feedbackFailed": "Impossible d'envoyer ton signalement. Réessaie dans un instant",
+    "feedbackSent": "Merci. Ton signalement a bien été envoyé.",
     "memoryDuplicate": "Déjà dans la mémoire du coach."
   },
   "week": "Semaine {{num}}",
@@ -54,16 +54,16 @@
     "save": "Enregistrer en mémoire"
   },
   "flag": {
-    "cta": "Ce n'est pas correct",
+    "cta": "Cette réponse est incorrecte",
     "placeholder": "Qu'est-ce que le coach a mal compris ?",
-    "thanks": "Merci — c'est noté."
+    "thanks": "Merci. C'est noté."
   },
   "send": "Envoyer",
   "thinking": "Le coach réfléchit…",
-  "footer": "Ton coach s'appuie sur ton message, ton plan, tes courses récentes et la mémoire enregistrée pour répondre. Consulte notre <1>politique de confidentialité</1> et notre <3>note de sécurité</3>.",
+  "footer": "Ton coach s'appuie sur ton message, ton plan, tes sorties récentes et la mémoire enregistrée pour répondre. Consulte notre <1>politique de confidentialité</1> et notre <3>note de sécurité</3>.",
   "input": {
     "aria": "Message au coach",
-    "placeholder": "ex. aide-moi à être frais pour ce week-end",
+    "placeholder": "P. ex. : aide-moi à arriver en forme ce week-end",
     "placeholderFollowUp": "Suggère une modification…"
   }
 }

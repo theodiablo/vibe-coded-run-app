@@ -739,7 +739,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
           <BrandLogo size={15} className="text-orange-400"/>
           <span className="text-sm font-semibold">Running Coach</span>
         </div>
-        <button onClick={openSettings} aria-label="Settings"
+        <button onClick={openSettings} aria-label={t("app.header.settings")}
           className="flex items-center justify-center text-slate-400 hover:text-white p-1.5 rounded-lg border border-slate-700 hover:border-slate-500 hover:bg-slate-800 transition-colors">
           <Settings size={15}/>
         </button>

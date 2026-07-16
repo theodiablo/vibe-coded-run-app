@@ -1,7 +1,7 @@
 {
   "brand": "Running Coach",
   "heroLine1": "Préparez votre course,",
-  "heroLine2": "une semaine honnête à la fois.",
+  "heroLine2": "une semaine réaliste après l'autre.",
   "nav": {
     "features": "Fonctionnalités",
     "races": "Courses",
@@ -10,11 +10,11 @@
     "language": "Langue"
   },
   "hero": {
-    "eyebrow": "Préparez la course, pas seulement la sortie",
-    "body": "Choisissez votre course, fixez votre temps cible et obtenez un plan d'entraînement semaine par semaine. Quand la vie s'en mêle, demandez à votre coach — il propose un ajustement sûr en quelques secondes, et rien ne change tant que vous ne l'avez pas approuvé.",
-    "ctaPrimary": "Commencer — c'est gratuit",
+    "eyebrow": "Préparez votre course, pas seulement votre prochaine sortie",
+    "body": "Choisissez votre course, fixez le chrono visé et obtenez un plan d'entraînement semaine par semaine. En cas d'imprévu, demandez à votre coach : il propose un ajustement prudent en quelques secondes et rien ne change tant que vous ne l'avez pas approuvé.",
+    "ctaPrimary": "Commencer gratuitement",
     "ctaSecondary": "J'ai déjà un compte",
-    "freeNote": "La version gratuite inclut tout — plans, suivi GPS, courses et le coach (avec une limite d'usage raisonnable par jour pour qu'il reste gratuit).",
+    "freeNote": "La version gratuite inclut tout : plans, suivi GPS, courses et coach, avec une limite d'usage raisonnable par jour afin de préserver la gratuité du service.",
     "iosBeta": "Rejoindre la bêta iOS",
     "androidBeta": "Rejoindre la bêta Android"
   },
@@ -33,41 +33,41 @@
     }
   },
   "features": {
-    "heading": "Tout ce qui sépare aujourd'hui de la ligne de départ.",
-    "sub": "Pas un énième fil des courses des autres — un plan, un coach et les outils pour aller au bout.",
+    "heading": "Tout ce qu'il faut d'ici à la ligne de départ.",
+    "sub": "Pas un énième fil d'actualité rempli des sorties des autres. Un plan, un coach et les outils pour aller au bout.",
     "coach": {
       "title": "Un coach IA qui adapte votre plan",
-      "alt": "Chat du coach",
-      "body": "Genou capricieux ? Une semaine manquée ? Demandez, et votre coach propose une modification sûre en quelques secondes — il ajuste le programme, ne vous en donne jamais un risqué, et rien ne change tant que vous ne l'approuvez pas."
+      "alt": "Conversation avec le coach",
+      "body": "Genou douloureux ? Une semaine manquée ? Demandez et votre coach proposera une modification prudente en quelques secondes. Il ajuste le programme sans jamais vous imposer un plan risqué, et rien ne change tant que vous ne l'approuvez pas."
     },
     "plan": {
       "title": "Un vrai plan d'entraînement",
       "alt": "Plan d'entraînement",
-      "body": "Base, développement, pic, affûtage — autour de la date de votre course, de votre temps cible et des jours où vous pouvez vraiment vous entraîner. Choisissez votre méthode : Polarisé 80/20, style Hansons, 3 jours de qualité ou Course/Marche. Pas de boîte noire — ouvrez n'importe quelle séance pour voir exactement comment elle est construite."
+      "body": "Base, développement, pic et affûtage, selon la date de votre course, le chrono visé et les jours où vous pouvez vraiment vous entraîner. Choisissez votre méthode : Polarisé 80/20, style Hansons, 3 séances de qualité ou Course/Marche. Pas de boîte noire : ouvrez n'importe quelle séance pour voir exactement comment elle est construite."
     },
     "track": {
       "title": "Suivez chaque sortie",
-      "body": "GPS en direct avec allure, distance et dénivelé sur une carte. Associez la fréquence cardiaque sur Android et chaque sortie est classée en zones d'entraînement — pour savoir si vous avez forcé."
+      "body": "GPS en direct avec allure, distance et dénivelé sur une carte. Connectez un capteur de fréquence cardiaque sur Android : chaque sortie est classée par zone d'entraînement pour savoir si vous avez forcé."
     },
     "races": {
       "title": "Trouvez votre course",
       "alt": "Catalogue de courses",
-      "body": "Un catalogue de courses communautaire — du Marathon de Berlin aux 10 km locaux. Choisissez-en une, et votre compte à rebours et votre plan s'y verrouillent. Il grandit encore, alors si la vôtre n'y figure pas, ajoutez-la en quelques secondes — pour tout le monde."
+      "body": "Un catalogue collaboratif de courses, du Marathon de Berlin aux épreuves locales de 10 km. Choisissez-en une : votre compte à rebours et votre plan s'y adaptent. Si la vôtre n'y figure pas, ajoutez-la en quelques secondes pour que tout le monde puisse la trouver."
     },
     "progress": {
-      "title": "Voyez tout s'additionner",
+      "title": "Voyez vos efforts s'accumuler",
       "alt": "Badges de progression",
-      "body": "Historique, statistiques et tendances au même endroit, avec des badges bienveillants au fil de vos semaines d'entraînement — de votre premier 5 km au club des 1000 km."
+      "body": "Historique, statistiques et tendances au même endroit, avec des badges encourageants au fil de vos semaines d'entraînement, de votre premier 5 km au club des 1000 km."
     }
   },
   "import": {
-    "title": "Emportez votre historique de courses avec vous",
-    "body": "Importez vos courses depuis Strava, Garmin, Zepp ou ailleurs — les fichiers GPX, TCX ou CSV fonctionnent tous. Sur Android, les courses terminées peuvent aussi se synchroniser directement depuis votre montre."
+    "title": "Emportez votre historique de sorties avec vous",
+    "body": "Importez vos sorties depuis Strava, Garmin, Zepp ou ailleurs grâce aux fichiers GPX, TCX ou CSV. Sur Android, les sorties terminées peuvent aussi se synchroniser directement depuis votre montre."
   },
   "cta": {
     "heading": "Prêt à réaliser votre meilleure course ?",
-    "body": "Créez un compte gratuit et obtenez votre plan d'entraînement en quelques minutes — tout est inclus, avec une limite d'usage raisonnable par jour sur le coach. Applications iOS et Android en bêta.",
-    "primary": "Commencer — c'est gratuit",
+    "body": "Créez un compte gratuit et obtenez votre plan d'entraînement en quelques minutes. Tout est inclus, avec une limite d'usage raisonnable par jour pour le coach. Les applications iOS et Android sont en bêta.",
+    "primary": "Commencer gratuitement",
     "iosBeta": "Rejoindre la bêta iOS",
     "androidBeta": "Rejoindre la bêta Android"
   },
@@ -75,11 +75,11 @@
     "privacy": "Politique de confidentialité",
     "safety": "Note de sécurité"
   },
-  "closeLogin": "Fermer la connexion",
+  "closeLogin": "Fermer la fenêtre de connexion",
   "mock": {
     "coach": "Coach",
     "userMsg": "J'ai le genou douloureux depuis la sortie longue de dimanche.",
-    "reply1": "Relâchons la pression le temps que ça se calme — pas de travail de vitesse tant que ce n'est pas indolore. Voici ce que je changerais cette semaine :",
+    "reply1": "Réduisons la charge le temps que la douleur disparaisse. Pas de travail de vitesse pour l'instant. Voici ce que je changerais cette semaine :",
     "proposedChanges": "Changements proposés",
     "tue": "Mar",
     "sat": "Sam",
@@ -89,7 +89,7 @@
     "row2New": "Facile 25 min",
     "apply": "Appliquer les changements",
     "notNow": "Pas maintenant",
-    "reply2": "Et si ça dure plus de quelques jours, faites-le examiner avant de reprendre.",
+    "reply2": "Si la douleur persiste, consultez un professionnel avant de reprendre le plan.",
     "inputPlaceholder": "Écrivez à votre coach…",
     "tiles": {
       "km": "KM",

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import L, { type Circle, type Control, type LatLngExpression, type Map, type Marker, type Polyline } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MAP_ATTRIBUTION, MAP_KEY, MAP_TILE_URL } from "../constants";
@@ -25,6 +26,7 @@ type RouteMapProps = {
 type ToggleKey = "dragging" | "scrollWheelZoom" | "doubleClickZoom" | "boxZoom" | "keyboard" | "touchZoom" | "tap";
 
 export function RouteMap({ points = [], follow = false, interactive = true, location = null, className = "", style }: RouteMapProps) {
+  const { t } = useTranslation();
   const elRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const linesRef = useRef<Polyline[]>([]);
@@ -169,7 +171,7 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
       <div ref={elRef} style={{ position: "absolute", inset: 0 }} />
       {!MAP_KEY && (
         <div className="absolute bottom-1 left-1 right-1 z-[400] text-[10px] text-amber-300 bg-slate-900/80 rounded px-1.5 py-0.5 pointer-events-none">
-          Map tiles need VITE_MAPTILER_KEY — route still records.
+          {t("tracker.map.noKey")}
         </div>
       )}
     </div>

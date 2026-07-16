@@ -19,19 +19,19 @@
     "EASY": "FACILE",
     "TEMPO": "TEMPO",
     "INTERVALS": "FRACTIONNÉ",
-    "LONG": "LONGUE",
+    "LONG": "SORTIE LONGUE",
     "RACE": "COURSE",
     "WALK": "MARCHE",
     "OTHER": "AUTRE"
   },
   "phases": {
     "BASE": "BASE",
-    "BUILD": "CHARGE",
-    "PEAK": "PIC",
+    "BUILD": "DÉVELOPPEMENT",
+    "PEAK": "PIC DE FORME",
     "TAPER": "AFFÛTAGE",
     "RACE": "COURSE"
   },
-  "hrTargetNudge": "Ajoutez votre profil de FC dans les Réglages pour voir une zone cible",
+  "hrTargetNudge": "Ajoute ton profil de FC dans les Paramètres pour voir une zone cible",
   "hrRowZone": {
     "EASY": "Z2 · Base aérobie",
     "LONG": "Z2 · Base aérobie",

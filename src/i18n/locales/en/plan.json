@@ -5,6 +5,22 @@
   "notConfigured": "not configured",
   "sessionsLabel": "Sessions: ",
   "longRunNudge": "Your goal builds long runs up to ~{{peak}}, longer than your longest training day ({{longest}}). That's expected for this distance — consider lengthening your long day in Edit plan.",
+  "week": {
+    "label": "W{{number}}",
+    "now": "now"
+  },
+  "session": {
+    "skipped": "skipped",
+    "record": "Record",
+    "undoSkip": "Undo skip",
+    "skip": "Skip this session",
+    "markDone": "Mark session done",
+    "markNotDone": "Mark session not done"
+  },
+  "promote": {
+    "newTarget": "New training target",
+    "yourRace": "Your race"
+  },
   "header": {
     "coach": "Coach",
     "coachTitle": "Adjust the plan with your coach",

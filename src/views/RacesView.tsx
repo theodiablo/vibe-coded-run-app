@@ -210,13 +210,13 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                   <div key={p.editionId} className="rounded-xl p-4 border border-amber-500/25 bg-amber-500/5">
                     <p className="font-semibold">{p.label}</p>
                     <p className="text-slate-400 text-sm mt-0.5">{fmt.date(p.raceDate || "") + " · " + p.distanceKm + " km"}</p>
-                    <p className="text-amber-200/80 text-xs mt-1">This race has passed — add your time to keep the record.</p>
+                    <p className="text-amber-200/80 text-xs mt-1">{t("races.past.passed")}</p>
                     <div className="flex gap-2 mt-3">
                        <button onClick={() => setLogFor(p.editionId || null)}
                         className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
-                        Add your time
+                         {t("races.past.addTime")}
                       </button>
-                      <button onClick={() => removePart(p.editionId)} aria-label="Remove"
+                      <button onClick={() => removePart(p.editionId)} aria-label={t("common.remove")}
                         className="flex items-center justify-center text-slate-400 hover:text-red-400 px-2 transition-colors">
                         <X size={16}/>
                       </button>
@@ -229,7 +229,7 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
           )}
 
           {done.length > 0 && (
-            <Section title="Completed">
+            <Section title={t("races.sections.completed")}>
               {done.slice().sort((a, b) => String(b.raceDate).localeCompare(String(a.raceDate))).map(p => (
                 <div key={p.editionId} className="bg-slate-800 rounded-xl p-4">
                   <div className="flex justify-between items-start gap-3">
@@ -239,12 +239,12 @@ export function RacesView({ races, saveRaces, settings, promoteEdition, setRaceI
                       {p.notes && <p className="text-slate-400 text-xs mt-1 truncate">{p.notes}</p>}
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-lg font-bold text-emerald-400 leading-none">{p.timeSec ? fmt.dur(p.timeSec) : "—"}</p>
-                      {isPersonalBest(p, parts) && <span className="inline-flex items-center gap-0.5 text-xs text-amber-300 mt-1 font-semibold"><Star size={11}/>PB</span>}
+                      <p className="text-lg font-bold text-emerald-400 leading-none">{p.timeSec ? fmt.dur(p.timeSec) : "–"}</p>
+                       {isPersonalBest(p, parts) && <span className="inline-flex items-center gap-0.5 text-xs text-amber-300 mt-1 font-semibold"><Star size={11}/>{t("races.completed.pb")}</span>}
                     </div>
                   </div>
                   <button onClick={() => removePart(p.editionId)}
-                    className="text-xs text-slate-500 hover:text-red-400 mt-2 transition-colors">Remove</button>
+                    className="text-xs text-slate-500 hover:text-red-400 mt-2 transition-colors">{t("common.remove")}</button>
                 </div>
               ))}
             </Section>
@@ -278,6 +278,7 @@ type FindPanelProps = {
 };
 
 function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult, showToast, openRaceForm }: FindPanelProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null); // raceId expanded
   const [reportFor, setReportFor] = useState<string | null>(null); // raceId being reported
@@ -335,12 +336,12 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
       <div className="space-y-2">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search races, cities…"
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("races.find.searchPlaceholder")}
             className={INPUT_CLS + " pl-9"}/>
         </div>
         <div className="flex gap-1.5 flex-wrap items-center">
-          <span className="text-[11px] text-slate-500 mr-1">Distance</span>
-          <Chip active={band == null} onClick={() => setBand(null)}>All</Chip>
+          <span className="text-[11px] text-slate-500 mr-1">{t("races.find.distance")}</span>
+          <Chip active={band == null} onClick={() => setBand(null)}>{t("races.find.all")}</Chip>
           {BANDS.map(b => <Chip key={b} active={band === b} onClick={() => setBand(band === b ? null : b)}>{b} km</Chip>)}
         </div>
         <div className="flex gap-1.5 flex-wrap items-center">
@@ -348,31 +349,31 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
             className={"inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors border disabled:opacity-60 " +
               (nearMe ? "bg-orange-500 text-white border-orange-500" : "bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-500")}>
             {status === "locating" ? <Loader size={13} className="animate-spin"/> : <Navigation size={13}/>}
-            Near me
+            {t("races.find.nearMe")}
           </button>
-          {nearMe && <span className="text-[11px] text-slate-500 mx-1">within</span>}
+          {nearMe && <span className="text-[11px] text-slate-500 mx-1">{t("races.find.within")}</span>}
           {nearMe && RADII.map(r => <Chip key={r} active={radius === r} onClick={() => setRadius(r)}>{r} km</Chip>)}
         </div>
         {status === "denied" && (
-          <p className="text-xs text-red-400">Location unavailable or denied — showing all races by name.</p>
+          <p className="text-xs text-red-400">{t("races.find.locationDenied")}</p>
         )}
       </div>
 
       {!catalogue.length ? (
         <div className="bg-slate-800 rounded-2xl p-6 text-center text-sm text-slate-400">
-          The race catalogue couldn't be loaded right now. Your own races are still listed under My Races.
+          {t("races.find.catalogueUnavailable")}
         </div>
       ) : nothing ? (
         <div className="bg-slate-800 rounded-2xl p-6 text-center text-sm text-slate-400">
-          {nearMe ? "No races within " + radius + " km. Try a wider radius or turn off Near me." : "No races match — try a different search."}
+          {nearMe ? t("races.find.noneInRadius", { radius }) : t("races.find.noMatch")}
         </div>
       ) : (
         <>
           {nearMe && located.length === 0 && unlocated.length > 0 && (
-            <p className="text-xs text-slate-500">No races within {radius} km. Races without a set location are listed below.</p>
+            <p className="text-xs text-slate-500">{t("races.find.unlocatedBelow", { radius })}</p>
           )}
           {nearMe && located.length > 0 && (
-            <p className="text-[11px] text-slate-500 uppercase tracking-widest">Nearest first</p>
+            <p className="text-[11px] text-slate-500 uppercase tracking-widest">{t("races.find.nearestFirst")}</p>
           )}
           <div className="space-y-2">
             {located.map(({ race, distM }) => (
@@ -383,7 +384,7 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
           </div>
           {unlocated.length > 0 && (
             <div>
-              <p className="text-[11px] text-slate-500 uppercase tracking-widest mt-4 mb-2">Location unknown</p>
+              <p className="text-[11px] text-slate-500 uppercase tracking-widest mt-4 mb-2">{t("races.find.locationUnknown")}</p>
               <div className="space-y-2">
                 {unlocated.map(race => (
                   <RaceCard key={race.id} race={race} distM={null}
@@ -397,9 +398,9 @@ function FindPanel({ catalogue, byId, addWishlist, logFor, setLogFor, saveResult
       )}
 
       <div className="mt-6">
-        <AddRaceCard onClick={openRaceForm} subtitle="Add it — instantly visible to everyone.">
+        <AddRaceCard onClick={openRaceForm} subtitle={t("races.find.addSubtitle")}>
           <p className="text-slate-500 text-[11px] px-1">
-            Races are user-submitted and tagged unverified until a maintainer reviews them.
+            {t("races.find.userSubmittedNote")}
           </p>
         </AddRaceCard>
       </div>
@@ -421,6 +422,7 @@ type RaceCardProps = Omit<FindPanelProps, "catalogue" | "openRaceForm"> & {
 };
 
 function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setLogFor, saveResult, reportFor, setReportFor, showToast }: RaceCardProps) {
+  const { t } = useTranslation();
   const todayStr = ymd(new Date());
   const upcoming = (race.editions || []).filter(e => e.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date));
   const next = upcoming[0];
@@ -437,7 +439,7 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
             ))}
             {onList && (
               <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-400">
-                <Check size={11}/>On your list
+                <Check size={11}/>{t("races.card.onYourList")}
               </span>
             )}
           </div>
@@ -449,11 +451,11 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
               <p className="text-[10px] text-slate-500 mt-0.5">{next.date.slice(0, 4) + (upcoming.length > 1 ? " · +" + (upcoming.length - 1) : "")}</p>
             </>
           ) : (
-            <p className="text-[10px] text-slate-500">no upcoming<br/>date</p>
+            <p className="text-[10px] text-slate-500">{t("races.card.noUpcomingDate")}</p>
           )}
         </div>
         {!race.verified && (
-          <span title="Unverified — details are user-submitted, check the official site" className="flex-shrink-0">
+          <span title={t("races.card.unverifiedTitle")} className="flex-shrink-0">
             <AlertTriangle size={13} className="text-amber-400"/>
           </span>
         )}
@@ -466,16 +468,16 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
             {race.url && (
               <a href={race.url} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300">
-                Official site<ExternalLink size={11}/>
+                {t("races.card.officialSite")}<ExternalLink size={11}/>
               </a>
             )}
             {distM != null && (
               <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                <Navigation size={11}/>{fmtKm(distM)} away
+                <Navigation size={11}/>{t("races.card.away", { dist: fmtKm(distM) })}
               </span>
             )}
           </div>}
-          <p className="text-[11px] text-slate-500">Dates are user-submitted — always verify on the official site before planning.</p>
+          <p className="text-[11px] text-slate-500">{t("races.card.datesDisclaimer")}</p>
           {race.editions.map(e => {
             const raceBase = { ...race, editions: undefined };
             const joined: JoinedRace = { ...raceBase, raceId: race.id, edition: e };
@@ -484,21 +486,21 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
               <div key={e.id} className="flex items-center gap-2 border-t border-slate-700/30 pt-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">{fmt.date(e.date)}</p>
-                  <p className="text-xs text-slate-400">{e.distanceKm + " km" + (e.elevation ? " · +" + e.elevation + "m elevation" : "")}</p>
+                  <p className="text-xs text-slate-400">{e.distanceKm + " km" + (e.elevation ? " · " + t("races.card.elevation", { elevation: e.elevation }) : "")}</p>
                 </div>
                 {part ? (
                   <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1 px-2">
-                    <Check size={13}/>{part.status === "done" ? "Done" : "On your list"}
+                    <Check size={13}/>{part.status === "done" ? t("common.done") : t("races.card.onYourList")}
                   </span>
                 ) : (
                   <>
                     <button onClick={() => addWishlist(joined)}
                       className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors">
-                      <Star size={12}/>Wishlist
+                      <Star size={12}/>{t("races.card.wishlist")}
                     </button>
                     <button onClick={() => setLogFor(e.id)}
                       className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600 transition-colors">
-                      <Flag size={12}/>Done
+                      <Flag size={12}/>{t("common.done")}
                     </button>
                   </>
                 )}
@@ -511,12 +513,12 @@ function RaceCard({ race, distM, open, onToggle, byId, addWishlist, logFor, setL
               <ReportForm onSubmit={(reason, note) => {
                 reportRace({ raceSlug: race.slug || race.id, editionId: null, reason, note }).catch(() => {});
                 setReportFor(null);
-                showToast("Thanks — reported for review.");
+                showToast(t("races.toast.reported"));
               }} onCancel={() => setReportFor(null)}/>
             ) : (
               <button onClick={() => setReportFor(race.id)}
                 className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-red-400 transition-colors">
-                <AlertTriangle size={11}/>Report this race
+                <AlertTriangle size={11}/>{t("races.card.report")}
               </button>
             )}
           </div>
@@ -558,6 +560,7 @@ type ResultFormProps = {
 };
 
 function ResultForm({ joined, onSave, onCancel }: ResultFormProps) {
+  const { t } = useTranslation();
   const [h, setH] = useState("");
   const [m, setM] = useState("");
   const [s, setS] = useState("");
@@ -573,49 +576,56 @@ function ResultForm({ joined, onSave, onCancel }: ResultFormProps) {
   return (
     <div className="mt-3 pt-3 border-t border-slate-700/50 space-y-3 w-full">
       <div>
-        <label className={LABEL_CLS}>Finish time</label>
+        <label className={LABEL_CLS}>{t("races.result.finishTime")}</label>
         <div className="grid grid-cols-3 gap-2">
-          <input type="number" min="0" max="59" placeholder="h" value={h} onChange={e => setH(e.target.value)} className={INPUT_CLS}/>
-          <input type="number" min="0" max="59" placeholder="min" value={m} onChange={e => setM(e.target.value)} className={INPUT_CLS}/>
-          <input type="number" min="0" max="59" placeholder="sec" value={s} onChange={e => setS(e.target.value)} className={INPUT_CLS}/>
+          <input type="number" min="0" max="59" placeholder={t("races.result.hoursPlaceholder")} value={h} onChange={e => setH(e.target.value)} className={INPUT_CLS}/>
+          <input type="number" min="0" max="59" placeholder={t("races.result.minutesPlaceholder")} value={m} onChange={e => setM(e.target.value)} className={INPUT_CLS}/>
+          <input type="number" min="0" max="59" placeholder={t("races.result.secondsPlaceholder")} value={s} onChange={e => setS(e.target.value)} className={INPUT_CLS}/>
         </div>
       </div>
-      <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)" className={INPUT_CLS}/>
+      <input value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("races.result.notesPlaceholder")} className={INPUT_CLS}/>
       <label className="flex items-center gap-2 text-xs text-slate-300">
         <input type="checkbox" checked={alsoLog} onChange={e => setAlsoLog(e.target.checked)} className="accent-orange-500"/>
-        Also add to my run log
+        {t("races.result.alsoLog")}
       </label>
       <div className="flex gap-2">
         <button onClick={submit}
           className="flex-1 flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
-          <Plus size={14}/>Save result
+          <Plus size={14}/>{t("races.result.save")}
         </button>
-        <button onClick={onCancel} className="px-3 text-sm text-slate-400 hover:text-slate-200">Cancel</button>
+        <button onClick={onCancel} className="px-3 text-sm text-slate-400 hover:text-slate-200">{t("common.cancel")}</button>
       </div>
     </div>
   );
 }
 
 // Inline "report this race" form → race_reports + maintainer notification.
-const REPORT_REASONS = ["Wrong date", "Wrong distance / details", "Duplicate", "Doesn't exist / spam", "Other"];
+const REPORT_REASONS = [
+  { value: "Wrong date", key: "wrongDate" },
+  { value: "Wrong distance / details", key: "wrongDistance" },
+  { value: "Duplicate", key: "duplicate" },
+  { value: "Doesn't exist / spam", key: "spam" },
+  { value: "Other", key: "other" },
+];
 type ReportFormProps = { onSubmit: (reason: string, note: string) => void; onCancel: () => void };
 
 function ReportForm({ onSubmit, onCancel }: ReportFormProps) {
-  const [reason, setReason] = useState(REPORT_REASONS[0]);
+  const { t } = useTranslation();
+  const [reason, setReason] = useState(REPORT_REASONS[0].value);
   const [note, setNote] = useState("");
   return (
     <div className="space-y-2">
-      <label className={LABEL_CLS}>Report a problem</label>
+      <label className={LABEL_CLS}>{t("races.report.title")}</label>
       <select value={reason} onChange={e => setReason(e.target.value)} className={INPUT_CLS}>
-        {REPORT_REASONS.map(r => <option key={r}>{r}</option>)}
+        {REPORT_REASONS.map(r => <option key={r.value} value={r.value}>{t("races.report.reasons." + r.key)}</option>)}
       </select>
-      <input value={note} onChange={e => setNote(e.target.value)} placeholder="Anything to add? (optional)" className={INPUT_CLS}/>
+      <input value={note} onChange={e => setNote(e.target.value)} placeholder={t("races.report.notePlaceholder")} className={INPUT_CLS}/>
       <div className="flex gap-2">
         <button onClick={() => onSubmit(reason, note)}
           className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
-          Send report
+          {t("races.report.send")}
         </button>
-        <button onClick={onCancel} className="px-3 text-sm text-slate-400 hover:text-slate-200">Cancel</button>
+        <button onClick={onCancel} className="px-3 text-sm text-slate-400 hover:text-slate-200">{t("common.cancel")}</button>
       </div>
     </div>
   );

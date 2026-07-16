@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { History, Pencil, Trash2, Map as MapIcon } from "lucide-react";
+import { currentLocaleTag } from "../i18n";
 import { fmt } from "../utils/format";
 import { RunRow } from "../components/RunRow";
 import { RouteMap } from "../components/RouteMap";
@@ -68,7 +69,7 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}: HistoryViewProp
   const totKm  = runs.reduce((s, r) => s + (r.km || 0), 0);
   const groups: RunGroup[] = [];
   runs.forEach(r => {
-    const key = new Date(r.date + "T12:00:00").toLocaleDateString("en-GB", {month:"long", year:"numeric"});
+    const key = new Date(r.date + "T12:00:00").toLocaleDateString(currentLocaleTag(), {month:"long", year:"numeric"});
     let g = groups[groups.length - 1];
     if (!g || g.key !== key) { g = {key, items:[]}; groups.push(g); }
     g.items.push(r);

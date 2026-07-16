@@ -108,13 +108,15 @@ export function Integrations({ settings, saveSettings, showToast, scanImportsNow
 
       {providers.map(p => {
         const on = providerEnabledInSettings(settings, p.id) && connected[p.id];
+        const label = t(`settings.integrations.providers.${p.id}.label`, { defaultValue: p.label });
+        const help = t(`settings.integrations.providers.${p.id}.help`, { defaultValue: p.help || "" });
         return (
           <div key={p.id} className="space-y-2">
             {on ? (
               <>
                 <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-3 py-2 text-sm text-emerald-300">
                   <Check size={15} className="shrink-0" />
-                  <span>{t("settings.integrations.connectedRow", { label: p.label })}</span>
+                  <span>{t("settings.integrations.connectedRow", { label })}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={scanOlder} disabled={scanning}
@@ -132,10 +134,10 @@ export function Integrations({ settings, saveSettings, showToast, scanImportsNow
               <button type="button" onClick={() => connect(p)} disabled={busyId === p.id}
                 className="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center gap-2 disabled:opacity-50">
                 {busyId === p.id ? <Loader size={15} className="animate-spin" /> : <Watch size={15} />}
-                {t("settings.integrations.connect", { label: p.label })}
+                {t("settings.integrations.connect", { label })}
               </button>
             )}
-            {p.help && <p className="text-xs text-slate-500">{p.help}</p>}
+            {help && <p className="text-xs text-slate-500">{help}</p>}
           </div>
         );
       })}

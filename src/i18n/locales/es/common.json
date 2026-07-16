@@ -19,14 +19,14 @@
     "EASY": "SUAVE",
     "TEMPO": "TEMPO",
     "INTERVALS": "SERIES",
-    "LONG": "LARGA",
+    "LONG": "TIRADA LARGA",
     "RACE": "CARRERA",
     "WALK": "CAMINATA",
-    "OTHER": "OTRO"
+    "OTHER": "OTRA ACTIVIDAD"
   },
   "phases": {
     "BASE": "BASE",
-    "BUILD": "CARGA",
+    "BUILD": "DESARROLLO",
     "PEAK": "PICO",
     "TAPER": "DESCARGA",
     "RACE": "CARRERA"

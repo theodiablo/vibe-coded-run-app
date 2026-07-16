@@ -4,11 +4,11 @@
   "greetingAnon": "Ça fait plaisir de te voir 🏃‍♂️",
   "race": {
     "title": "Jour de course",
-    "summary": "{{distance}}km · objectif sub {{goal}} · {{pace}}/km",
+    "summary": "{{distance}} km · objectif : moins de {{goal}} · {{pace}}/km",
     "daysToGo": "jours restants",
     "nextUp": "À suivre : ",
     "daysShort": "{{days}} j",
-    "setupTitle": "Configure ta course",
+    "setupTitle": "Configure ton objectif",
     "setupHint": "Choisis une date et une distance pour créer ton plan d'entraînement →"
   },
   "stats": {
@@ -27,7 +27,7 @@
   },
   "noPlan": "Pas encore de plan d'entraînement. On s'y met ?",
   "setUpPlan": "Configurer mon plan",
-  "allSessionsDone": "Toutes les séances à venir sont faites !",
+  "allSessionsDone": "Toutes les séances à venir sont terminées !",
   "coach": {
     "title": "Ajuste ton plan avec ton coach",
     "subtitle": "Une gêne, une semaine manquée ou un imprévu ? Demande un ajustement."
@@ -37,6 +37,6 @@
   "empty": {
     "noRuns": "Pas encore de sortie.",
     "hint": "Touche Enregistrer en bas pour ajouter ta première sortie.",
-    "restore": "Des données d'une version précédente ? Ouvre Réglages (engrenage, en haut à droite) → Restaurer."
+    "restore": "Des données d'une version précédente ? Ouvre Paramètres (engrenage, en haut à droite) → Restaurer."
   }
 }
