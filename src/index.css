@@ -6,6 +6,15 @@
    draws black and is invisible against the dark slate inputs. */
 :root {
   color-scheme: dark;
+
+  /* iOS safe-area insets. The Capacitor WebView draws edge-to-edge (see
+     viewport-fit=cover in index.html), so fixed chrome must pad itself clear of
+     the status bar / Dynamic Island (top) and the home indicator (bottom).
+     These resolve to 0 on web and Android, so every consumer is a no-op there.
+     Consumed via inline calc() styles on the header, bottom nav, banners,
+     toast, onboarding, and full-screen / bottom-sheet modals. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Tailwind v4's preflight resets buttons to `cursor: default`; restore the

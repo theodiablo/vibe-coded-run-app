@@ -734,7 +734,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         onContributed={refreshCatalogue} showToast={showToast} onCreated={undefined}
         onClose={() => setShowRaceForm(false)}/>}
 
-      <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20" style={{height:44}}>
+      <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20"
+        style={{height:"calc(44px + var(--safe-top))", paddingTop:"var(--safe-top)"}}>
         <div className="flex items-center gap-1.5">
           <BrandLogo size={15} className="text-orange-400"/>
           <span className="text-sm font-semibold">Running Coach</span>
@@ -745,7 +746,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         </button>
       </header>
 
-      <div key={tab} className="animate-view-fade" style={{paddingTop:44, paddingBottom:64}}>
+      <div key={tab} className="animate-view-fade" style={{paddingTop:"calc(44px + var(--safe-top))", paddingBottom:"calc(64px + var(--safe-bottom))"}}>
         {tab === "dash"  && <Dashboard  {...shared}/>}
         {tab === "plan"  && <PlanView   {...shared} planPrefill={planPrefill} clearPlanPrefill={() => setPlanPrefill(null)}/>}
         {tab === "log"   && <LogView    {...shared} key={prefillVer} prefill={logPrefill}

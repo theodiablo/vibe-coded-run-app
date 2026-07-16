@@ -72,12 +72,13 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">
-      <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
+      <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0"
+        style={{height:"calc(44px + var(--safe-top))", paddingTop:"var(--safe-top)"}}>
         <span className="text-sm font-semibold">{t("settings.title")}</span>
         <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>
       </header>
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-lg mx-auto p-4 space-y-5">
+        <div className="max-w-lg mx-auto p-4 space-y-5" style={{paddingBottom:"calc(1rem + var(--safe-bottom))"}}>
           {/* Profile — identity + physiology, all "about you" */}
           <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
             <p className="text-sm font-semibold text-slate-200">{t("settings.profile.title")}</p>

@@ -796,6 +796,19 @@ and delete anything that becomes stale.
   `parseFloat(e.target.value) || 0` — the `|| fallback` snaps the value back to
   a default as soon as the user clears it. Coalesce to a number only at use time
   (`buildPlan`/persistence), not in the `onChange`.
+- **iOS safe-area insets:** the Capacitor WebView draws edge-to-edge
+  (`viewport-fit=cover` in `index.html`), so any surface pinned to the top or
+  bottom edge (fixed `top-0`/`bottom-0` bars, full-screen `flex-col` modals with
+  a header/footer, bottom sheets, the toast) must pad itself clear of the status
+  bar / Dynamic Island and home indicator. Use the `--safe-top` / `--safe-bottom`
+  CSS vars (`src/index.css`, `env(safe-area-inset-*)`; **0 on web/Android**, so
+  every consumer is a no-op there) via inline `calc()` — a fixed-height header
+  becomes `height:"calc(44px + var(--safe-top))", paddingTop:"var(--safe-top)"`;
+  a padded footer becomes `paddingBottom:"calc(<existing> + var(--safe-bottom))"`.
+  Centered dialogs get symmetric safe padding on the backdrop. Existing pixel
+  offsets that assumed a zero-inset top (header height 44, content `paddingTop`,
+  toast `top`) are all inset-aware — keep new ones the same. Verify on a notched
+  device: web/simulator-without-inset can't exercise it.
 - Tailwind utility classes inline; dark slate palette with orange-500 accents.
 - Dates are `YYYY-MM-DD` strings; use `ymd()` and the `fmt.*` helpers
   (`src/utils/format.ts`) for durations/paces. Parse local dates as

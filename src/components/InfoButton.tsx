@@ -25,7 +25,8 @@ export function InfoButton({title, label = "info", children}: InfoButtonProps) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-overlay-fade" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-overlay-fade" onClick={() => setOpen(false)}
+          style={{ paddingTop: "calc(1rem + var(--safe-top))", paddingBottom: "calc(1rem + var(--safe-bottom))" }}>
           <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[85vh] overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
             <header className="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
               <span className="text-sm font-semibold">{title}</span>

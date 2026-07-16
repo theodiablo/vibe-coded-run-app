@@ -151,7 +151,8 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: L
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-[2000] flex flex-col animate-slide-up">
-      <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{ height: 44 }}>
+      <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0"
+        style={{ height: "calc(44px + var(--safe-top))", paddingTop: "var(--safe-top)" }}>
         <p className="text-sm font-semibold">{t("races.picker.title")}</p>
         <button onClick={onCancel} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>
       </header>
@@ -175,7 +176,7 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: L
           </div>
         )}
       </div>
-      <div className="p-4 space-y-2 border-t border-slate-800 shrink-0">
+      <div className="p-4 space-y-2 border-t border-slate-800 shrink-0" style={{ paddingBottom: "calc(1rem + var(--safe-bottom))" }}>
         <button onClick={useMyLocation} disabled={locating}
           className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60">
           {locating ? <Loader size={14} className="animate-spin" /> : <MapPin size={14} />}

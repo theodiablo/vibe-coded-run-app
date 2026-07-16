@@ -19,7 +19,15 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.maptiler.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.maptiler.com https://*.i.posthog.com; base-uri 'self'; object-src 'none'; form-action 'self'"
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      viewport-fit=cover lets the WebView draw edge-to-edge on notched / Dynamic
+      Island iPhones AND makes env(safe-area-inset-*) report the real inset sizes
+      (they stay 0 without it). Fixed chrome (header, bottom nav, banners, modals)
+      then pads itself clear of the status bar and home indicator via those insets
+      — see the --safe-top / --safe-bottom vars in src/index.css. No-op on web /
+      Android, where the insets resolve to 0.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!--
       SEO / social metadata. The app is a static SPA on S3/CloudFront (no SSR),

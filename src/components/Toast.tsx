@@ -14,7 +14,7 @@ export function Toast({msg, type, action, closing}: { msg: string; type: string;
     : isBadge ? "bg-slate-800 border border-orange-500/40"
     : "bg-emerald-500";
   return (
-    <div className={"fixed left-4 right-4 max-w-md mx-auto z-[2100] " + (closing ? "animate-toast-out" : "animate-toast-in")} style={{top:52}}>
+    <div className={"fixed left-4 right-4 max-w-md mx-auto z-[2100] " + (closing ? "animate-toast-out" : "animate-toast-in")} style={{top:"calc(52px + var(--safe-top))"}}>
       <div className={"py-2.5 px-4 rounded-xl text-sm font-medium shadow-lg text-white flex items-center justify-center gap-3 " + pill}>
         {isBadge && <Medal size={16} className="flex-shrink-0 text-orange-400 animate-pop"/>}
         <span>{msg}</span>

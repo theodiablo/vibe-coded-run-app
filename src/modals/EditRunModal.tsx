@@ -60,7 +60,8 @@ export function EditRunModal({run, onSave, onClose}: EditRunModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4 animate-overlay-fade" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4 animate-overlay-fade" onClick={onClose}
+      style={{ paddingBottom: "calc(1rem + var(--safe-bottom))" }}>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[90vh] overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700 shrink-0">
           <p className="font-semibold text-sm">{t("log.edit.title")}</p>

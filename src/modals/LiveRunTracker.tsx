@@ -277,7 +277,8 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">
-      <header className="flex items-center justify-between px-4 border-b border-slate-800" style={{ height: 44 }}>
+      <header className="flex items-center justify-between px-4 border-b border-slate-800"
+        style={{ height: "calc(44px + var(--safe-top))", paddingTop: "var(--safe-top)" }}>
         <div className="flex items-center gap-1.5">
           {state === "tracking" ? (
             <span className="relative flex h-2.5 w-2.5" aria-hidden>
@@ -300,7 +301,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           location={location} className="h-full w-full" style={{}} />
       </div>
 
-      <div className="p-4 space-y-3 border-t border-slate-800">
+      <div className="p-4 space-y-3 border-t border-slate-800" style={{ paddingBottom: "calc(1rem + var(--safe-bottom))" }}>
         {error && <div className="bg-red-500/15 text-red-300 text-sm rounded-xl px-3 py-2">{error}</div>}
 
         {state === "idle" && pending && (
