@@ -412,7 +412,7 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       )}
 
       {countdown.count !== null && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/85"
+        <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-slate-900/85"
           onClick={countdown.cancel} role="button" aria-label={t("common.cancel")}>
           <p key={countdown.count} aria-live="assertive"
             className="text-8xl font-extrabold text-orange-400 tabular-nums animate-countdown">
