@@ -232,7 +232,15 @@ and delete anything that becomes stale.
   intercepts external hosts (`Bridge.launchIntent`) and hands them to the OS
   as an `ACTION_VIEW` intent, which the Play Store app claims. Use the same
   pattern for any future Android outbound link that a native app should claim;
-  `Browser.open` stays correct for iOS (SFSafariViewController, as in OAuth).
+  `Browser.open` stays correct for iOS (SFSafariViewController). **The Android
+  OAuth open in `LoginScreen.tsx` is a known remaining instance of this crash
+  class** — it can't be blindly converted (plain navigation opens the external
+  browser, and the deep-link handshake back into the app is unverified
+  on-device), so treat it as an unconverted backlog item, not as vetted.
+  Trade-off accepted with the plain-navigation pattern: Capacitor swallows
+  `ActivityNotFoundException` natively, so if *nothing* claims the intent (no
+  Play Store, no browser — stripped ROM / locked-down work profile) the tap is
+  a silent no-op with no JS-detectable failure to fall back on.
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.tsx`. Follow that style.
 - **Telemetry (analytics + crash reporting):** all routed through one

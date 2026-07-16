@@ -15,7 +15,17 @@ vi.mock("@capacitor/browser", () => ({ Browser: { open: browserOpen } }));
 
 import { UpdateBanner, UpdateRequired } from "./UpdatePrompt";
 
+// Stub window.location.assign and return the spy. jsdom's Location props are
+// prototype accessors, so the spread copies little — restoreAllMocks below
+// puts the real location back before each test so the stub can't leak.
+function mockLocationAssign() {
+  const assign = vi.fn();
+  vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign } as unknown as Location);
+  return assign;
+}
+
 beforeEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
   browserOpen.mockResolvedValue(undefined);
   platform.isAndroid = false;
@@ -28,8 +38,7 @@ describe("UpdateBanner", () => {
     // Custom Tabs) crashed the app on-device. Android must use a top-frame
     // navigation, which Capacitor hands to the OS as an ACTION_VIEW intent.
     platform.isAndroid = true;
-    const assign = vi.fn();
-    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign } as unknown as Location);
+    const assign = mockLocationAssign();
 
     render(<UpdateBanner />);
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
@@ -62,8 +71,7 @@ describe("UpdateBanner", () => {
 describe("UpdateRequired", () => {
   it("Android: the hard gate's button also uses plain navigation", async () => {
     platform.isAndroid = true;
-    const assign = vi.fn();
-    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign } as unknown as Location);
+    const assign = mockLocationAssign();
 
     render(<UpdateRequired />);
     fireEvent.click(screen.getByRole("button", { name: "Update now" }));

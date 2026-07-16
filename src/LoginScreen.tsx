@@ -47,6 +47,13 @@ export default function LoginScreen({ authError, onClearAuthError, initialMode =
       return;
     }
     if (isNative && data?.url) {
+      // KNOWN RISK on Android: Browser.open's Custom Tabs path only catches
+      // ActivityNotFoundException natively, so other launch failures kill the
+      // process (the crash class fixed for the store link in UpdatePrompt.tsx).
+      // It stays in use here because OAuth needs the deep-link callback flow;
+      // switching to a plain top-frame navigation (external browser) is
+      // untested against the appUrlOpen handshake — verify on-device before
+      // converting. JS try/catch cannot mitigate a native process kill.
       await Browser.open({ url: data.url });
       // The external tab handles the rest; the WebView itself is NOT redirected, so
       // re-enable the form. Otherwise dismissing/cancelling the OAuth tab (no

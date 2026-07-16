@@ -26,6 +26,10 @@ async function openStore() {
   const url = storeUrl();
   if (!url) return;
   if (isAndroid) {
+    // Accepted edge: Capacitor swallows ActivityNotFoundException natively, so
+    // on a device where nothing claims the intent (no Play Store AND no
+    // browser) this is a silent no-op — there is no JS-detectable failure to
+    // fall back on (window.open routes through the same intent path).
     window.location.assign(url);
     return;
   }
