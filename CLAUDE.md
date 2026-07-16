@@ -77,7 +77,8 @@ and delete anything that becomes stale.
   the Strava API), and the free-tier "daily fair-use limit" phrasing
   (deliberately non-numeric; `RATE_LIMIT_PER_DAY` is env-configurable). CTAs open
   `LoginScreen`; a secondary CTA links to the Play Store closed test
-  (`PLAY_STORE_BETA_URL`).
+  (`PLAY_STORE_BETA_URL`); iOS beta CTAs use the public TestFlight opt-in
+  (`TESTFLIGHT_BETA_URL`).
 - **Marketing SEO is build-time only** (static S3/CloudFront, no SSR; CSP
   `script-src 'self'` forbids the inline-script pre-paint trick, so body content
   can't be prerendered into `#root` without a flash for signed-in users). The

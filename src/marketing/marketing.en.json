@@ -12,7 +12,8 @@
     "ctaPrimary": "Get started — it's free",
     "ctaSecondary": "I already have an account",
     "freeNote": "Free includes everything — plans, GPS tracking, races, and the coach (with a daily fair-use limit so it stays free).",
-    "androidBeta": "Also on Android — join the closed beta"
+    "iosBeta": "Join the iOS beta",
+    "androidBeta": "Join the Android beta"
   },
   "stats": {
     "plans": {
@@ -24,7 +25,7 @@
       "label": "your coach reshapes the plan in seconds"
     },
     "devices": {
-      "value": "Web + Android",
+      "value": "Web + iOS + Android",
       "label": "your plan on every device"
     }
   },
@@ -62,8 +63,9 @@
   },
   "cta": {
     "heading": "Ready to run your best race?",
-    "body": "Create a free account and get your training plan in minutes — everything's included, with a daily fair-use limit on the coach. Android app in closed beta.",
+    "body": "Create a free account and get your training plan in minutes — everything's included, with a daily fair-use limit on the coach. iOS and Android apps in beta.",
     "primary": "Get started — it's free",
+    "iosBeta": "Join the iOS beta",
     "androidBeta": "Join the Android beta"
   },
   "footer": {
