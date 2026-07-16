@@ -17,7 +17,8 @@ type ConfirmButtonsProps = {
 // live tracker (z-50) and other in-app sheets.
 export function ModalOverlay({ children }: ModalOverlayProps) {
   return (
-    <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4 animate-overlay-fade">
+    <div className="fixed inset-0 bg-black/70 z-[2000] flex items-center justify-center p-4 animate-overlay-fade"
+      style={{ paddingTop: "calc(1rem + var(--safe-top))", paddingBottom: "calc(1rem + var(--safe-bottom))" }}>
       <div className="w-full flex justify-center animate-scale-in">{children}</div>
     </div>
   );

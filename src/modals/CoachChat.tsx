@@ -252,7 +252,8 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">
-      <div className="flex justify-between items-center px-4 border-b border-slate-800 flex-shrink-0" style={{height:44}}>
+      <div className="flex justify-between items-center px-4 border-b border-slate-800 flex-shrink-0"
+        style={{height:"calc(44px + var(--safe-top))", paddingTop:"var(--safe-top)"}}>
         <div className="flex items-center gap-1.5">
           <MessageCircle size={15} className="text-orange-400"/>
           <span className="text-sm font-semibold">{t("coach.title")}</span>
@@ -347,7 +348,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
         <div ref={endRef}/>
       </div>
 
-      <div className="border-t border-slate-800 p-3 flex-shrink-0">
+      <div className="border-t border-slate-800 p-3 flex-shrink-0" style={{paddingBottom:"calc(0.75rem + var(--safe-bottom))"}}>
         <div className="max-w-lg mx-auto text-[11px] text-slate-500 mb-2">
           {/* Children stay in one text flow so the <1>/<3> element indices in the
               dictionary string line up with the two anchors. */}

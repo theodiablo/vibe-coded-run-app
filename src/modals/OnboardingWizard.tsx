@@ -238,7 +238,8 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-view-fade">
-      <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{height:44}}>
+      <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0"
+        style={{height:"calc(44px + var(--safe-top))", paddingTop:"var(--safe-top)"}}>
         <div className="flex items-center gap-2">
           {stepIdx > 0 && (
             <button onClick={back}
@@ -266,7 +267,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-sm mx-auto p-5">
+        <div className="max-w-sm mx-auto p-5" style={{paddingBottom:"calc(1.25rem + var(--safe-bottom))"}}>
           <p className="text-xs text-slate-500 mb-4">{t("onboarding.stepOf", {step: stepIdx + 1, total: seq.length})}</p>
 
           {cur === "welcome" && (

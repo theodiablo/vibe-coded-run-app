@@ -57,7 +57,10 @@ export function BottomNav({ active, className = "", onTab, onRecord, onProgress 
   return (
     <nav
       className={"bg-slate-800 border-t border-slate-700 flex items-stretch " + className}
-      style={{ height: 64 }}
+      // Grow past the 64px bar height by the iOS home-indicator inset and pad
+      // the buttons up off it (0 on web/Android). Marketing renders a static
+      // preview and no longer mounts this, so the inset never affects the mock.
+      style={{ height: "calc(64px + var(--safe-bottom))", paddingBottom: "var(--safe-bottom)" }}
     >
       {NAV_TABS.slice(0, 2).map((item) => (
         <NavBtn key={item.id} item={item} active={active === item.id} onClick={() => select(item.id)} />

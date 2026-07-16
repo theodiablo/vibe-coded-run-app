@@ -41,7 +41,8 @@ async function openStore() {
 export function UpdateRequired() {
   const { t } = useTranslation();
   return (
-    <div className="fixed inset-0 z-[3000] bg-slate-900 flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[3000] bg-slate-900 flex items-center justify-center p-6"
+      style={{ paddingTop: "calc(1.5rem + var(--safe-top))", paddingBottom: "calc(1.5rem + var(--safe-bottom))" }}>
       <div className="max-w-sm text-center space-y-4">
         <div className="mx-auto w-12 h-12 rounded-2xl bg-orange-500/15 flex items-center justify-center">
           <Download className="text-orange-400" size={24} />
@@ -68,7 +69,10 @@ export function UpdateBanner() {
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
   return (
-    <div className="fixed top-0 inset-x-0 z-[2500] bg-orange-500 text-white text-sm px-4 py-2 flex items-center gap-3 shadow-lg">
+    <div className="fixed top-0 inset-x-0 z-[2500] bg-orange-500 text-white text-sm px-4 py-2 flex items-center gap-3 shadow-lg"
+      // Pin below the iOS status bar / Dynamic Island — without this the banner
+      // renders under the clock and battery (0 inset on web/Android).
+      style={{ paddingTop: "calc(0.5rem + var(--safe-top))" }}>
       <span className="flex-1">{t("app.update.available")}</span>
       {storeUrl() && (
         <button onClick={openStore} className="font-semibold underline whitespace-nowrap">{t("app.update.update")}</button>
