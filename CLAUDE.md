@@ -913,6 +913,12 @@ and delete anything that becomes stale.
   stay clear of the storage cap.
 
 ## Git / PR workflow
+- **PR APK builds are opt-in via the `apk` label** (`android-pr.yml`): the job
+  is skipped unless the PR carries the label (it was ~34% of all billable
+  Actions minutes when it ran on every push). Add the label to get a
+  sideloadable debug APK, rebuilt on every subsequent push while it stays set;
+  `workflow_dispatch` bypasses the gate. Semgrep likewise runs on PRs only —
+  deliberately not re-run on push to main (pure duplicate spend).
 - **Open a PR automatically when a task is finished.** Once the change is
   complete — committed and pushed to the feature branch, with lint/typecheck/
   tests green locally where they apply — open a pull request for it without
