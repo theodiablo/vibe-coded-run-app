@@ -12,7 +12,12 @@ import "@fontsource/archivo/800.css";
 import "@fontsource/archivo/900.css";
 import LoginScreen from "../LoginScreen";
 import { BrandLogo } from "../components/BrandLogo";
-import { PRIVACY_URL, DISCLAIMER_URL, PLAY_STORE_BETA_URL } from "../constants";
+import {
+  PRIVACY_URL,
+  DISCLAIMER_URL,
+  PLAY_STORE_BETA_URL,
+  TESTFLIGHT_BETA_URL,
+} from "../constants";
 // Registers the web-only "marketing" i18n namespace (brand + hero come from
 // copy.json, the source shared with the OG-image generator). Importing it here
 // keeps those strings in this chunk — out of the APK.
@@ -129,17 +134,28 @@ export default function MarketingGate() {
             <p className="text-[13px] text-[#8B98AC]">
               {t("hero.freeNote")}
             </p>
-            {/* Secondary CTA: private Android closed-beta opt-in. */}
-            <a
-              href={PLAY_STORE_BETA_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#8B98AC] hover:text-[#FDBA74] transition-colors"
-            >
-              <Smartphone size={16} />
-              {t("hero.androidBeta")}
-              <ArrowRight size={15} />
-            </a>
+            <div className="flex flex-wrap gap-x-6 gap-y-3">
+              <a
+                href={TESTFLIGHT_BETA_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#8B98AC] hover:text-[#FDBA74] transition-colors"
+              >
+                <Smartphone size={16} />
+                {t("hero.iosBeta")}
+                <ArrowRight size={15} />
+              </a>
+              <a
+                href={PLAY_STORE_BETA_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#8B98AC] hover:text-[#FDBA74] transition-colors"
+              >
+                <Smartphone size={16} />
+                {t("hero.androidBeta")}
+                <ArrowRight size={15} />
+              </a>
+            </div>
             <div className="flex flex-wrap gap-x-9 gap-y-4 mt-3">
               {stats.map((s) => (
                 <div key={s.value} className="flex flex-col gap-0.5">
@@ -241,6 +257,16 @@ export default function MarketingGate() {
             >
               {t("cta.primary")}
             </button>
+            <a
+              href={TESTFLIGHT_BETA_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-[15px] font-bold text-[#3B2107] hover:text-[#0B1220] transition-colors"
+            >
+              <Smartphone size={16} />
+              {t("cta.iosBeta")}
+              <ArrowRight size={15} />
+            </a>
             <a
               href={PLAY_STORE_BETA_URL}
               target="_blank"

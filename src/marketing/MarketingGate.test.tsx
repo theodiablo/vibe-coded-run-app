@@ -15,4 +15,15 @@ describe("MarketingGate", () => {
     fireEvent.click(screen.getByRole("button", { name: /log in/i }));
     expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
   });
+
+  it("links to both mobile beta programs", () => {
+    render(<MarketingGate />);
+
+    expect(screen.getAllByRole("link", { name: /iOS beta|TestFlight/i })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: /iOS beta|TestFlight/i })[0]).toHaveAttribute(
+      "href",
+      "https://testflight.apple.com/join/T73yu15A",
+    );
+    expect(screen.getAllByRole("link", { name: /Android.*beta/i })).toHaveLength(2);
+  });
 });

@@ -15,6 +15,7 @@
     "ctaPrimary": "Commencer — c'est gratuit",
     "ctaSecondary": "J'ai déjà un compte",
     "freeNote": "La version gratuite inclut tout — plans, suivi GPS, courses et le coach (avec une limite d'usage raisonnable par jour pour qu'il reste gratuit).",
+    "iosBeta": "Aussi sur iOS — rejoignez-nous avec TestFlight",
     "androidBeta": "Aussi sur Android — rejoignez la bêta fermée"
   },
   "stats": {
@@ -27,7 +28,7 @@
       "label": "votre coach remanie le plan en quelques secondes"
     },
     "devices": {
-      "value": "Web + Android",
+      "value": "Web + iOS + Android",
       "label": "votre plan sur tous vos appareils"
     }
   },
@@ -65,8 +66,9 @@
   },
   "cta": {
     "heading": "Prêt à réaliser votre meilleure course ?",
-    "body": "Créez un compte gratuit et obtenez votre plan d'entraînement en quelques minutes — tout est inclus, avec une limite d'usage raisonnable par jour sur le coach. Application Android en bêta fermée.",
+    "body": "Créez un compte gratuit et obtenez votre plan d'entraînement en quelques minutes — tout est inclus, avec une limite d'usage raisonnable par jour sur le coach. Applications iOS et Android en bêta.",
     "primary": "Commencer — c'est gratuit",
+    "iosBeta": "Rejoindre la bêta iOS",
     "androidBeta": "Rejoindre la bêta Android"
   },
   "footer": {

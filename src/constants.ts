@@ -84,6 +84,9 @@ export const APP_STORE_URL = "";
 export const PLAY_STORE_BETA_URL =
   "https://play.google.com/store/apps/details?id=solutions.camboulive.run";
 
+// Public TestFlight opt-in for the iOS beta, surfaced on the marketing landing.
+export const TESTFLIGHT_BETA_URL = "https://testflight.apple.com/join/T73yu15A";
+
 // Map basemap. A keyed free-tier provider (MapTiler) — raw OSM tiles aren't
 // allowed for a multi-user app under the OSMF tile policy. Set VITE_MAPTILER_KEY
 // (a publishable, domain-restricted client key) at build. No default key is
