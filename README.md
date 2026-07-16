@@ -183,13 +183,23 @@ just the failed job and it uploads with a fresh build number.
 ### Versioning & releases
 
 Don't hand-edit the version — it's derived at build time, so a release is just a
-tag (one tag ships both stores):
+tag (one tag ships both stores). Two ways to cut one:
 
-```sh
-git tag v1.2.0 && git push origin v1.2.0
-```
+- **From a phone / no desktop:** GitHub → **Actions → "Release mobile apps" →
+  Run workflow** (works in a mobile browser). Leave the defaults to ship the
+  next patch, or pick `minor`/`major`, or type an exact `version`. The workflow
+  builds, uploads to both stores, and then **creates the `v*` tag and a GitHub
+  Release** (auto-generated notes) for you. `dry_run: true` builds only — no
+  upload, no tag. Needs `contents: write` for the workflow token (default under
+  Settings → Actions → General → Workflow permissions).
+- **From a desktop:** push the tag yourself — same jobs run:
 
-- **`versionName` / `MARKETING_VERSION`** (e.g. `1.2.0`) comes from the `v*` tag.
+  ```sh
+  git tag v1.2.0 && git push origin v1.2.0
+  ```
+
+- **`versionName` / `MARKETING_VERSION`** (e.g. `1.2.0`) comes from the `v*` tag
+  (or the version resolved by the manual run).
 - **`versionCode` / `CFBundleVersion`** (what the stores order uploads by — must
   always increase) is `(run_number + 1000) * 1000 + run_attempt`, injected
   automatically so a rerun after a partial release still gets a fresh store build

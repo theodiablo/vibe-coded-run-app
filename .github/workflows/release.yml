@@ -1,30 +1,139 @@
 name: Release mobile apps
 
-# Unified, platform-agnostic release: one v* tag (e.g. v1.4.0) builds the web
-# bundle ONCE and ships Android (Play internal track) and iOS (TestFlight) in
-# parallel from the same commit and version name. Manual / tag-triggered only —
-# the mobile apps release on their own cadence, independent of the web deploy
+# Unified, platform-agnostic release: one v* version (e.g. v1.4.0) builds the
+# web bundle ONCE and ships Android (Play internal track) and iOS (TestFlight)
+# in parallel from the same commit and version name. Manual / tag-triggered only
+# — the mobile apps release on their own cadence, independent of the web deploy
 # (deploy.yml), even though all build from the same dist/.
 #
-# The platform jobs are independent (each needs only web-build), so an iOS
-# failure never blocks the Android upload and vice versa; each job publishes
+# TWO ways to cut a release, both landing in the same jobs:
+#   1. workflow_dispatch — the mobile-friendly "just press a button" path. Open
+#      Actions → "Release mobile apps" → Run workflow (works in a mobile
+#      browser at github.com). The `prepare` job auto-computes the next version
+#      from the latest v* tag (patch by default; pick minor/major, or type an
+#      exact `version`), builds + uploads, then CREATES the v* tag and a GitHub
+#      Release with auto-generated notes. No local git / desktop needed.
+#      `dry_run: true` builds only (no upload, no tag) — the old manual-dispatch
+#      smoke test.
+#   2. push a v* tag from a desktop — same jobs; `prepare` reads the version
+#      from the ref and the `tag` job attaches a GitHub Release to it.
+# A tag created by the workflow's GITHUB_TOKEN does NOT recursively re-trigger
+# the `push: tags` path (GitHub suppresses that), so the dispatch path runs the
+# release exactly once.
+#
+# The platform jobs are independent (each needs only prepare + web-build), so an
+# iOS failure never blocks the Android upload and vice versa; each job publishes
 # its OWN app_config version column only after its own store upload succeeds,
 # so a partial release never advertises a version to a store that didn't get
 # it. "Re-run failed jobs" re-runs only the failed platform, and the build
 # number folds in run_attempt, so the retry gets a fresh store build number
 # (both Play and TestFlight permanently reject a re-used one).
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump from the latest v* tag (ignored if 'version' is set)"
+        type: choice
+        default: patch
+        options: [patch, minor, major]
+      version:
+        description: "Exact version override, e.g. 1.5.0 (leave blank to auto-bump)"
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        description: "Build only — no store upload, no tag/release"
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
+# Default the whole workflow to read-only; the `tag` job opts up to
+# contents: write to create the tag + GitHub Release.
+permissions:
+  contents: read
+
 jobs:
-  web-build:
+  # Resolve (and validate) the single version name for the whole run, so every
+  # platform job builds the same one. On a v* tag push the version comes from
+  # the ref; on dispatch it's the typed `version` or an auto-bump of the latest
+  # v* tag. `is_release` is the one switch the platform jobs gate their store
+  # uploads on (false only for a dry-run dispatch), replacing the old
+  # per-job `startsWith(github.ref, 'refs/tags/v')` checks.
+  prepare:
     runs-on: ubuntu-latest
     # Defensive trigger gate (inherited from the old android.yml): GitHub has
     # been observed starting tag-filtered workflows on ordinary branch pushes,
-    # producing noisy failing 0.0.0 builds. Never run for those.
+    # producing noisy failing 0.0.0 builds. Never run for those — and because
+    # every other job `needs: prepare`, skipping here skips the whole release.
     if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      is_release: ${{ steps.resolve.outputs.is_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Need the full tag list to auto-bump and to reject a duplicate.
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: resolve
+        env:
+          BUMP: ${{ inputs.bump }}
+          INPUT_VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          # Dry-run dispatch: keep the old smoke-test behaviour (build only).
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$DRY_RUN" == "true" ]]; then
+            echo "version=0.0.0" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+            echo "Dry run — building only, no store upload and no tag."
+            exit 0
+          fi
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Version comes straight from the pushed tag.
+            VERSION="${GITHUB_REF_NAME#v}"
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            # Explicit override wins over the bump. Tolerate a leading v.
+            VERSION="${INPUT_VERSION#v}"
+          else
+            # Auto-bump the latest vMAJOR.MINOR.PATCH tag (legacy android-v* tags
+            # don't start with 'v', so the glob skips them). No tags yet → 0.0.0.
+            LATEST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//' | sort -V | tail -n1)
+            LATEST="${LATEST:-0.0.0}"
+            IFS='.' read -r MA MI PA <<< "$LATEST"
+            case "$BUMP" in
+              major) MA=$((MA + 1)); MI=0; PA=0 ;;
+              minor) MI=$((MI + 1)); PA=0 ;;
+              *)     PA=$((PA + 1)) ;;
+            esac
+            VERSION="$MA.$MI.$PA"
+          fi
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version '$VERSION' — expected MAJOR.MINOR.PATCH (e.g. 1.5.0)."
+            exit 1
+          fi
+
+          # On a fresh dispatch, never reuse an existing tag — the stores reject
+          # a re-used build/version and it would silently no-op the release.
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] \
+             && git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Tag v$VERSION already exists — bump again or pass a higher version."
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "is_release=true" >> "$GITHUB_OUTPUT"
+          echo "Resolved release version: v$VERSION"
+
+  web-build:
+    runs-on: ubuntu-latest
+    needs: prepare
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -74,7 +183,7 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
-    needs: web-build
+    needs: [prepare, web-build]
     # The `secrets` context can't be used in step-level `if:` conditions
     # (GitHub evaluates `if:` before the job reaches the runner). Hoist the
     # secrets we branch on into job-level env vars and gate on `env.*` instead.
@@ -117,12 +226,13 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      # versionName from the v* tag (e.g. v1.2.0 → 1.2.0); dev/manual runs use
-      # 0.0.0. versionCode folds in run_attempt (not just run_number) — a plain
-      # run_number repeats on a re-run of the same run, and Google Play
-      # permanently rejects a re-used versionCode, so a retry after a partial
-      # failure (AAB uploaded, a later step failed) would otherwise fail every
-      # time with "Version code N has already been used."
+      # versionName comes from the resolved release version (prepare job);
+      # dry-run dispatch resolves it to 0.0.0. versionCode folds in run_attempt
+      # (not just run_number) — a plain run_number repeats on a re-run of the
+      # same run, and Google Play permanently rejects a re-used versionCode, so
+      # a retry after a partial failure (AAB uploaded, a later step failed)
+      # would otherwise fail every time with "Version code N has already been
+      # used."
       # RUN_OFFSET: run_number is PER-WORKFLOW-FILE and reset to 1 when
       # android.yml became release.yml, but Play only accepts versionCodes above
       # the highest ever uploaded (49001+ from the old workflow). The +1000
@@ -130,12 +240,10 @@ jobs:
       # workflow could have produced. Never remove or shrink it.
       - name: Compute version name
         id: ver
+        env:
+          VERSION_NAME: ${{ needs.prepare.outputs.version }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=0.0.0" >> "$GITHUB_OUTPUT"
-          fi
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           RUN_OFFSET=1000
           echo "code=$(( (GITHUB_RUN_NUMBER + RUN_OFFSET) * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
 
@@ -180,13 +288,14 @@ jobs:
           overwrite: true
           retention-days: 90
 
-      # Push the signed AAB to Google Play. Only on a real release tag. Starts on
-      # the internal track to validate the pipeline end-to-end; bump `track` to
-      # production (and grant the service account the production-release
-      # permission in Play Console) when you're ready to ship to users. Needs the
-      # GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret (the service-account JSON key).
+      # Push the signed AAB to Google Play. Only on a real release (not a
+      # dry-run dispatch). Starts on the internal track to validate the pipeline
+      # end-to-end; bump `track` to production (and grant the service account
+      # the production-release permission in Play Console) when you're ready to
+      # ship to users. Needs the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret (the
+      # service-account JSON key).
       - name: Deploy to Google Play
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -203,7 +312,7 @@ jobs:
       # min_supported_version is left for you to bump by hand in Supabase when
       # you ship a breaking change.
       - name: Publish latest Android version to Supabase
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
@@ -232,7 +341,7 @@ jobs:
 
   ios:
     runs-on: macos-15
-    needs: web-build
+    needs: [prepare, web-build]
     env:
       ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
       ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
@@ -286,20 +395,18 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('ios/App/CapApp-SPM/Package.swift') }}
           restore-keys: spm-${{ runner.os }}-
 
-      # CFBundleShortVersionString from the v* tag; CFBundleVersion uses the same
-      # offset run_number*1000+run_attempt scheme as Android's versionCode —
-      # TestFlight rejects a re-used build number per version string exactly
-      # like Play. (iOS has no legacy uploads, but keeping the two schemes
-      # identical means one mental model and room for the same workflow-rename
-      # trap later.)
+      # CFBundleShortVersionString from the resolved release version (prepare
+      # job); CFBundleVersion uses the same offset run_number*1000+run_attempt
+      # scheme as Android's versionCode — TestFlight rejects a re-used build
+      # number per version string exactly like Play. (iOS has no legacy uploads,
+      # but keeping the two schemes identical means one mental model and room
+      # for the same workflow-rename trap later.)
       - name: Compute version name
         id: ver
+        env:
+          VERSION_NAME: ${{ needs.prepare.outputs.version }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=0.0.0" >> "$GITHUB_OUTPUT"
-          fi
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           RUN_OFFSET=1000
           echo "build=$(( (GITHUB_RUN_NUMBER + RUN_OFFSET) * 1000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_OUTPUT"
 
@@ -329,19 +436,20 @@ jobs:
       # `npm run ios:dist-cert` (scripts/ios-dist-cert.mjs — uses the same ASC
       # .p8, needs no Mac; certs last 1 year and expiry only blocks NEW
       # uploads), then set the APPLE_DIST_CERT_P12_BASE64 +
-      # APPLE_DIST_CERT_PASSWORD secrets it prints. Required on tag releases
-      # (the upload would fail without it); skippable on manual dispatch,
+      # APPLE_DIST_CERT_PASSWORD secrets it prints. Required on a real release
+      # (the upload would fail without it); skippable on a dry-run dispatch,
       # which never uploads.
       - name: Install Apple Distribution certificate
         env:
           APPLE_DIST_CERT_PASSWORD: ${{ secrets.APPLE_DIST_CERT_PASSWORD }}
+          IS_RELEASE: ${{ needs.prepare.outputs.is_release }}
         run: |
           if [ -z "$APPLE_DIST_CERT_P12_BASE64" ]; then
-            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            if [ "$IS_RELEASE" = "true" ]; then
               echo "::error::APPLE_DIST_CERT_P12_BASE64 / APPLE_DIST_CERT_PASSWORD secrets are not set — the TestFlight upload needs a manually created Apple Distribution certificate (Apple's cloud-managed cert is rejected with 'Invalid Signature' on apps with embedded frameworks)."
               exit 1
             fi
-            echo "No distribution certificate configured — skipping (manual dispatch builds don't upload)."
+            echo "No distribution certificate configured — skipping (dry-run builds don't upload)."
             exit 0
           fi
           KEYCHAIN_PATH="$RUNNER_TEMP/dist-signing.keychain-db"
@@ -383,8 +491,8 @@ jobs:
 
       # Export + upload in one step: destination "upload" hands the build to
       # App Store Connect / TestFlight processing directly (xcodebuild's
-      # supported upload path; altool is deprecated). Only on a real release tag
-      # — a manual dispatch stops after proving the archive builds and signs.
+      # supported upload path; altool is deprecated). Only on a real release —
+      # a dry-run dispatch stops after proving the archive builds and signs.
       - name: Write export options
         run: |
           cat > build/exportOptions.plist <<EOF
@@ -401,7 +509,7 @@ jobs:
           EOF
 
       - name: Upload to TestFlight
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
         run: |
           set -o pipefail
           xcodebuild \
@@ -418,7 +526,7 @@ jobs:
       # The iOS twin of the Android publish step — only after the TestFlight
       # upload succeeded, and only the *_ios column.
       - name: Publish latest iOS version to Supabase
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
@@ -444,3 +552,44 @@ jobs:
           npx supabase db query --linked \
             "update public.app_config set latest_version_ios = '$VERSION_NAME', updated_at = now() where id = 1;"
           echo "Set latest_version_ios=$VERSION_NAME"
+
+  # Stamp the release: create the v* tag (dispatch path) and a GitHub Release
+  # with auto-generated notes. Runs once at least one store shipped, so a fully
+  # failed release leaves no dangling tag; a partial one is still recorded (the
+  # per-store app_config columns already reflect exactly what went out).
+  # A GITHUB_TOKEN-created tag does NOT recursively re-trigger the push: tags
+  # path, so the dispatch release still runs exactly once.
+  tag:
+    runs-on: ubuntu-latest
+    needs: [prepare, android, ios]
+    if: >-
+      ${{ always()
+      && needs.prepare.outputs.is_release == 'true'
+      && (needs.android.result == 'success' || needs.ios.result == 'success') }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          # A tag push already has a tag; a dispatch does not. gh release create
+          # creates the tag at $GITHUB_SHA if missing, or attaches to the
+          # existing one. Skip if a Release already exists (idempotent re-runs).
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — leaving it as-is."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes
+          echo "Created GitHub Release $TAG"

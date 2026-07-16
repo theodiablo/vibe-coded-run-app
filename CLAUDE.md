@@ -187,7 +187,27 @@ and delete anything that becomes stale.
 - **App versioning / update gate (native only):** one platform-agnostic `v*` tag
   (e.g. `v1.4.0`) triggers `release.yml`, which builds the web bundle once and
   ships **both** stores in parallel — an `android` job (AAB → Play internal
-  track) and an `ios` job (xcodebuild archive → TestFlight; profiles are
+  track) and an `ios` job.
+  **Two ways to cut a release, both landing in the same build+upload jobs:**
+  (1) **`workflow_dispatch`** — the mobile / no-desktop path. Open Actions →
+  "Release mobile apps" → **Run workflow** (works in a phone browser at
+  github.com; the GitHub *mobile app* can't dispatch). The `prepare` job
+  auto-computes the next version from the latest `v*` tag (`bump` input:
+  patch/minor/major, default patch; or type an exact `version`), builds +
+  uploads, then the final `tag` job **creates the `v*` tag and a GitHub Release
+  with `--generate-notes`**. `dry_run: true` builds only (no upload, no tag) —
+  the old smoke-test behaviour. (2) **pushing a `v*` tag** from a desktop — same
+  jobs; `prepare` reads the version from the ref and `tag` attaches a Release to
+  it. A tag created by the workflow's `GITHUB_TOKEN` does **not** recursively
+  re-trigger the `push: tags` path (GitHub suppresses that), so a dispatch
+  release runs exactly once; the `tag` job needs `permissions: contents: write`.
+  `prepare.outputs.is_release` (false only for a dry run) is the single switch
+  every store-upload / Supabase-publish step gates on — it replaced the old
+  per-step `startsWith(github.ref, 'refs/tags/v')` checks, so those must keep
+  reading `needs.prepare.outputs.is_release`, and the version name for every job
+  comes from `needs.prepare.outputs.version` (don't reintroduce per-job ref
+  parsing). The rest of the pipeline is unchanged: the `android` job (AAB → Play
+  internal track) and the `ios` job (xcodebuild archive → TestFlight; profiles are
   cloud-managed via an App Store Connect API key — `ASC_API_KEY_P8_BASE64` /
   `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var —
   but the distribution CERTIFICATE is a manually created .p12 imported into a
@@ -893,7 +913,25 @@ and delete anything that becomes stale.
   stay clear of the storage cap.
 
 ## Git / PR workflow
-- Do not open or merge PRs unless explicitly asked.
+- **Open a PR automatically when a task is finished.** Once the change is
+  complete — committed and pushed to the feature branch, with lint/typecheck/
+  tests green locally where they apply — open a pull request for it without
+  waiting to be asked. This standing instruction from the maintainer IS the
+  explicit opt-in; it overrides the default "don't open a PR unless asked".
+  Exceptions: skip the auto-PR for a trivial/no-op change, when the branch's PR
+  is already open (push to it instead), or when the maintainer said to hold off.
+  Mirror any `.github/pull_request_template.md` structure in the body.
+- **Never merge a PR unless explicitly asked** — auto-opening is opt-in, merging
+  is not.
+- **After opening a PR, track its CI and auto-fix failures.** Call
+  `subscribe_pr_activity` for the new PR, then end the turn — CI results and
+  review comments arrive as `<github-webhook-activity>` messages. On a CI
+  failure, investigate the logs, and if the fix is clear and in-scope, push it
+  to the same branch and let CI re-run; keep going until CI is green. Use
+  `AskUserQuestion` when a failure is ambiguous or needs an architectural call,
+  and surface (don't go silent on) a failure that's genuinely out of scope or
+  where repeated fixes aren't converging. Keep the subscription until the PR is
+  merged or closed. Green CI is the terminal state — report it when reached.
 - We squash-merge PRs. After a squash-merge, a branch that keeps being reused
   **diverges from `main`** and the next merge hits a conflict. Before merging
   again on the same branch: `git fetch origin main && git rebase origin/main`
