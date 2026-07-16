@@ -24,6 +24,11 @@ describe("MarketingGate", () => {
       "href",
       "https://testflight.apple.com/join/T73yu15A",
     );
-    expect(screen.getAllByRole("link", { name: /Android.*beta/i })).toHaveLength(2);
+    const androidBetaLinks = screen.getAllByRole("link", { name: /Android.*beta/i });
+    expect(androidBetaLinks).toHaveLength(2);
+    expect(androidBetaLinks[0]).toHaveAttribute(
+      "href",
+      "https://play.google.com/apps/testing/solutions.camboulive.run",
+    );
   });
 });
