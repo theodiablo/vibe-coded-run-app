@@ -2,18 +2,33 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, X } from "lucide-react";
 import { PLAY_STORE_URL, APP_STORE_URL } from "../constants";
-import { isIos } from "../native";
+import { isIos, isAndroid } from "../native";
 
 // The platform's own store listing; empty when unknown (APP_STORE_URL is blank
 // until the App Store record exists), in which case the buttons hide rather
 // than dead-link — the copy still tells the user to update.
 const storeUrl = () => (isIos ? APP_STORE_URL : PLAY_STORE_URL);
 
-// Open the store listing (native: via the system browser handler, which hands
-// off to the Play Store / App Store app; falls back to a normal new tab).
+// Open the store listing.
+// Android must NOT go through @capacitor/browser: its Chrome Custom Tabs path
+// (an extra translucent BrowserControllerActivity + custom-tabs service
+// binding) only catches ActivityNotFoundException natively, so any other
+// runtime failure launching the tab kills the process — tapping "Update"
+// crashed the app on-device. A plain top-frame navigation is intercepted by
+// Capacitor's WebViewClient (Bridge.launchIntent): external hosts never load
+// in the WebView, they're handed to the OS as an ACTION_VIEW intent — which
+// the Play Store app claims for its own listing URL — with
+// ActivityNotFoundException caught inside Capacitor. No plugin, no extra
+// activity, and the store opens as the app, not a browser tab.
+// iOS keeps Browser.open (SFSafariViewController, same as the OAuth flow),
+// falling back to a normal new tab.
 async function openStore() {
   const url = storeUrl();
   if (!url) return;
+  if (isAndroid) {
+    window.location.assign(url);
+    return;
+  }
   try {
     const { Browser } = await import("@capacitor/browser");
     await Browser.open({ url });

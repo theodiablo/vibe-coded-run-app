@@ -224,6 +224,15 @@ and delete anything that becomes stale.
   (`src/utils/version.ts`); a failed check never blocks the user. iOS store
   links need `APP_STORE_URL` (`src/constants.ts`) filled in once the App Store
   record exists — the update prompt hides its button while it's empty.
+  **Gotcha — never open the store link through `@capacitor/browser` on
+  Android** (tapping "Update" crashed the app on-device): the plugin's Custom
+  Tabs path only catches `ActivityNotFoundException` natively, so any other
+  failure launching the tab kills the process. `openStore` (`UpdatePrompt.tsx`)
+  instead does a plain top-frame navigation — Capacitor's WebViewClient
+  intercepts external hosts (`Bridge.launchIntent`) and hands them to the OS
+  as an `ACTION_VIEW` intent, which the Play Store app claims. Use the same
+  pattern for any future Android outbound link that a native app should claim;
+  `Browser.open` stays correct for iOS (SFSafariViewController, as in OAuth).
 - **Derived-state resets are done during render, not in effects** — see the
   `if (plan !== prevPlan)` pattern in `PlanView.tsx`. Follow that style.
 - **Telemetry (analytics + crash reporting):** all routed through one
