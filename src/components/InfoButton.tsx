@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
+import { useDismissable } from "../hooks/useDismissable";
 
 type InfoButtonProps = { title: string; label?: string; children: ReactNode };
 type InfoSectionProps = { title: string; accent?: string; children: ReactNode };
@@ -14,6 +15,7 @@ type InfoSectionProps = { title: string; accent?: string; children: ReactNode };
 export function InfoButton({title, label = "info", children}: InfoButtonProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  useDismissable(open, () => setOpen(false));
 
   return (
     <>
@@ -23,8 +25,8 @@ export function InfoButton({title, label = "info", children}: InfoButtonProps) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
-          <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-overlay-fade" onClick={() => setOpen(false)}>
+          <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 flex flex-col max-h-[85vh] overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
             <header className="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
               <span className="text-sm font-semibold">{title}</span>
               <button onClick={() => setOpen(false)} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>

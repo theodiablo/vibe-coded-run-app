@@ -1,12 +1,22 @@
+import { Medal } from "lucide-react";
+
 // Presentational only; the auto-dismiss timer lives in the parent so this
 // stays a pure component. An optional `action` ({label, onClick}) renders an
-// inline button (e.g. Undo).
+// inline button (e.g. Undo). `closing` (driven by the parent's usePresence)
+// swaps the enter animation for the exit one. `type === "badge"` is the
+// celebratory unlock variant — a dark pill with an orange medal.
 type ToastAction = { label: string; onClick: () => void };
 
-export function Toast({msg, type, action}: { msg: string; type: string; action?: ToastAction }) {
+export function Toast({msg, type, action, closing}: { msg: string; type: string; action?: ToastAction; closing?: boolean }) {
+  const isBadge = type === "badge";
+  const pill =
+    type === "err" ? "bg-red-500"
+    : isBadge ? "bg-slate-800 border border-orange-500/40"
+    : "bg-emerald-500";
   return (
-    <div className="fixed left-4 right-4 max-w-md mx-auto z-[2100]" style={{top:52}}>
-      <div className={"py-2.5 px-4 rounded-xl text-sm font-medium shadow-lg text-white flex items-center justify-center gap-3 " + (type === "err" ? "bg-red-500" : "bg-emerald-500")}>
+    <div className={"fixed left-4 right-4 max-w-md mx-auto z-[2100] " + (closing ? "animate-toast-out" : "animate-toast-in")} style={{top:52}}>
+      <div className={"py-2.5 px-4 rounded-xl text-sm font-medium shadow-lg text-white flex items-center justify-center gap-3 " + pill}>
+        {isBadge && <Medal size={16} className="flex-shrink-0 text-orange-400 animate-pop"/>}
         <span>{msg}</span>
         {action && (
           <button onClick={action.onClick}

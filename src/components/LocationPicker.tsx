@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import L, { type LeafletEvent, type LatLngTuple, type Map, type Marker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader, MapPin, Search, X } from "lucide-react";
@@ -45,6 +46,7 @@ const PIN_ICON = L.divIcon({
 // more way to seed the pin, never the only option.
 export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: LocationPickerProps) {
   const { t } = useTranslation();
+  useDismissable(true, onCancel);
   const elRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const markerRef = useRef<Marker | null>(null);
@@ -148,7 +150,7 @@ export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: L
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900 z-[2000] flex flex-col">
+    <div className="fixed inset-0 bg-slate-900 z-[2000] flex flex-col animate-slide-up">
       <header className="flex items-center justify-between px-4 border-b border-slate-800 shrink-0" style={{ height: 44 }}>
         <p className="text-sm font-semibold">{t("races.picker.title")}</p>
         <button onClick={onCancel} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>

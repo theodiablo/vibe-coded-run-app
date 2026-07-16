@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import { Download } from "lucide-react";
 import { ymd } from "../utils/format";
 
@@ -15,6 +16,7 @@ type BackupModalProps = { data: BackupData; onClose: () => void };
 
 export function BackupModal({data, onClose}: BackupModalProps) {
   const { t } = useTranslation();
+  useDismissable(true, onClose);
   const [copied, setCopied] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const json  = JSON.stringify(data, null, 2);
@@ -39,8 +41,8 @@ export function BackupModal({data, onClose}: BackupModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4 animate-overlay-fade" onClick={onClose}>
+      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
           <div>
             <p className="font-semibold text-sm">{t("settings.backup.modalTitle")}</p>

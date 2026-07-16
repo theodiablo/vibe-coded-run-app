@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import type { Plan, RouteBackup, Run, SettingsState, UserContextState } from "../types";
 
 type BackupPayload = {
@@ -14,6 +15,7 @@ type RestoreModalProps = { onRestore: (payload: BackupPayload) => void; onClose:
 
 export function RestoreModal({onRestore, onClose}: RestoreModalProps) {
   const { t } = useTranslation();
+  useDismissable(true, onClose);
   const [text, setText] = useState("");
   const [err,  setErr]  = useState("");
   const attempt = () => {
@@ -24,8 +26,8 @@ export function RestoreModal({onRestore, onClose}: RestoreModalProps) {
     } catch { setErr(t("settings.restore.invalidJson")); }
   };
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4" onClick={onClose}>
-      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end justify-center p-4 animate-overlay-fade" onClick={onClose}>
+      <div className="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700">
           <p className="font-semibold text-sm">{t("settings.restore.title")}</p>
           <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white text-lg leading-none px-1">x</button>

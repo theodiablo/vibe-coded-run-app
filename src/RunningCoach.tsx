@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { isNative } from "./native";
+import { App as CapApp } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
+import { dismissTop } from "./utils/backDismiss";
 import { isLangId, setLocale } from "./i18n";
 import { Loader, Settings } from "lucide-react";
 import { BrandLogo } from "./components/BrandLogo";
@@ -19,6 +22,8 @@ import { markSeen, WATCH_MANUAL_SCAN_DAYS, WATCH_AUTO_SCAN_COOLDOWN_MS } from ".
 import { scanAllProviders, providerEnabledInSettings } from "./imports/registry";
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
+import { Confetti } from "./components/Confetti";
+import { usePresence } from "./hooks/usePresence";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
 import { RestoreModal } from "./modals/RestoreModal";
@@ -95,6 +100,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     planSessions:[{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}],
   });
   const [toast,       setToast]       = useState<ToastState | null>(null);
+  const toastIdRef = useRef(0);
+  // Hold the toast ~200ms past dismissal so its exit animation can play (it
+  // otherwise hard-unmounts the moment the auto-dismiss timer nulls it).
+  const toastP = usePresence(toast, 200);
+  const [celebrate,   setCelebrate]   = useState(false);
   const [logPrefill,  setLogPrefill]  = useState<(Partial<Run> & { wNum?: number; sId?: string }) | null>(null);
   const [prefillVer,  setPrefillVer]  = useState(0);
   const [showBackup,  setShowBackup]  = useState(false);
@@ -156,7 +166,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const [progressNonce,setProgressNonce]= useState(0);
 
   // An optional `action` ({label, onClick}) turns the toast into an undoable one.
-  const showToast = (msg: string, type = "ok", action?: ToastAction) => setToast({msg, type, action});
+  const showToast = (msg: string, type = "ok", action?: ToastAction) =>
+    setToast({id: toastIdRef.current++, msg, type, action});
   const withLimitNotice = (ctx: UserContextState) => {
     const notes = ctx?.notes || "";
     if (notes.length < USER_CONTEXT_NOTICE_CHARS) return ctx;
@@ -225,9 +236,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         const { next, fresh } = computeVerifiedThanks(cat, cur, currentUserId());
         if (next !== cur) { setRaces(next); db.set(STORAGE_KEYS.RACES, next); }
         if (fresh.length) {
-          setToast({ type: "ok", msg: fresh.length === 1
+          showToast(fresh.length === 1
             ? t("app.toasts.contributionVerified", { count: 1 })
-            : t("app.toasts.contributionVerified", { count: fresh.length }) });
+            : t("app.toasts.contributionVerified", { count: fresh.length }));
         }
       });
       // Retry any GPS traces that couldn't be uploaded on a previous (offline)
@@ -277,6 +288,38 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     const t = setTimeout(() => setToast(null), toast.action ? 6000 : 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Global back/Escape handling: the Android hardware back button and the web
+  // Escape key close the topmost open overlay (via the useDismissable stack);
+  // with nothing open they return to the home tab, and on Android a back press
+  // already home lets the app exit. Registered once — the live tab is read
+  // through a ref so this needn't re-subscribe the native listener on every tab
+  // change. Onboarding deliberately does NOT register a dismiss, so it stays an
+  // unskippable gate.
+  const tabRef = useRef(tab);
+  useEffect(() => { tabRef.current = tab; }, [tab]);
+  useEffect(() => {
+    const goBack = (): boolean => {
+      if (dismissTop()) return true;
+      if (tabRef.current !== "dash") { setTab("dash"); return true; }
+      return false;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && goBack()) e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    let active = true;
+    let handle: PluginListenerHandle | undefined;
+    if (isNative) {
+      CapApp.addListener("backButton", () => { if (!goBack()) CapApp.exitApp(); })
+        .then(h => { if (active) handle = h; else h.remove?.(); });
+    }
+    return () => {
+      active = false;
+      window.removeEventListener("keydown", onKey);
+      handle?.remove?.();
+    };
+  }, []);
 
   // Health Connect HR often lands minutes after a run finishes (once the watch
   // syncs), so retry the deferred relink whenever the app returns to the
@@ -354,7 +397,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     const fresh = unlocked.filter(id => !seenBadges.includes(id));
     if (!fresh.length) return nextRaces;
     const first = badges.find(b => b.id === fresh[0]);
-    showToast(fresh.length === 1 ? t("app.toasts.badgeUnlocked", { count: 1, label: first?.label || t("app.toasts.newBadge") }) : t("app.toasts.badgeUnlocked", { count: fresh.length }));
+    showToast(fresh.length === 1 ? t("app.toasts.badgeUnlocked", { count: 1, label: first?.label || t("app.toasts.newBadge") }) : t("app.toasts.badgeUnlocked", { count: fresh.length }), "badge");
     return { ...nextRaces, seenBadges: unlocked };
   };
   const commitRaces = (next: RacesState) => { setRaces(next); db.set(STORAGE_KEYS.RACES, next); };
@@ -487,6 +530,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     commitRaces(merged);
     if (det) {
       track("race_completed", { source: "auto" });
+      if (det.isMain) setCelebrate(true);
       showToast(t("app.toasts.loggedAsRace", { label: det.label }), "ok",
         { label: t("common.undo"), onClick: () => commitRaces(reconcileBadges(nextRuns, { ...merged, participations: det.undoParts })) });
     }
@@ -626,7 +670,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // four real destinations, split 2 / 2 around it.
   return (
     <div className="bg-slate-900 text-white min-h-screen" style={{fontFamily:"system-ui,-apple-system,sans-serif"}}>
-      {toast       && <Toast {...toast}/>}
+      {toastP.rendered && <Toast key={toastP.rendered.id} {...toastP.rendered} closing={toastP.closing}/>}
+      {celebrate   && <Confetti onDone={() => setCelebrate(false)}/>}
       {onboarding  && <OnboardingWizard settings={settings}
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
         refreshCatalogue={refreshCatalogue} showToast={showToast}
@@ -700,7 +745,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         </button>
       </header>
 
-      <div style={{paddingTop:44, paddingBottom:64}}>
+      <div key={tab} className="animate-view-fade" style={{paddingTop:44, paddingBottom:64}}>
         {tab === "dash"  && <Dashboard  {...shared}/>}
         {tab === "plan"  && <PlanView   {...shared} planPrefill={planPrefill} clearPlanPrefill={() => setPlanPrefill(null)}/>}
         {tab === "log"   && <LogView    {...shared} key={prefillVer} prefill={logPrefill}

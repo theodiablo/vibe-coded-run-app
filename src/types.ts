@@ -206,4 +206,6 @@ export type JoinedEdition = CatalogueRace & {
 export type RaceCandidate = { editionId?: string | null; date?: string; distanceKm?: string | number };
 
 export type ToastAction = { label: string; onClick: () => void };
-export type ToastState = { msg: string; type: string; action?: ToastAction };
+// `id` monotonically increments per showToast call so back-to-back toasts remount
+// (via `key`) and re-run the enter animation instead of silently swapping text.
+export type ToastState = { id: number; msg: string; type: string; action?: ToastAction };
