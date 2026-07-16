@@ -187,7 +187,27 @@ and delete anything that becomes stale.
 - **App versioning / update gate (native only):** one platform-agnostic `v*` tag
   (e.g. `v1.4.0`) triggers `release.yml`, which builds the web bundle once and
   ships **both** stores in parallel — an `android` job (AAB → Play internal
-  track) and an `ios` job (xcodebuild archive → TestFlight; profiles are
+  track) and an `ios` job.
+  **Two ways to cut a release, both landing in the same build+upload jobs:**
+  (1) **`workflow_dispatch`** — the mobile / no-desktop path. Open Actions →
+  "Release mobile apps" → **Run workflow** (works in a phone browser at
+  github.com; the GitHub *mobile app* can't dispatch). The `prepare` job
+  auto-computes the next version from the latest `v*` tag (`bump` input:
+  patch/minor/major, default patch; or type an exact `version`), builds +
+  uploads, then the final `tag` job **creates the `v*` tag and a GitHub Release
+  with `--generate-notes`**. `dry_run: true` builds only (no upload, no tag) —
+  the old smoke-test behaviour. (2) **pushing a `v*` tag** from a desktop — same
+  jobs; `prepare` reads the version from the ref and `tag` attaches a Release to
+  it. A tag created by the workflow's `GITHUB_TOKEN` does **not** recursively
+  re-trigger the `push: tags` path (GitHub suppresses that), so a dispatch
+  release runs exactly once; the `tag` job needs `permissions: contents: write`.
+  `prepare.outputs.is_release` (false only for a dry run) is the single switch
+  every store-upload / Supabase-publish step gates on — it replaced the old
+  per-step `startsWith(github.ref, 'refs/tags/v')` checks, so those must keep
+  reading `needs.prepare.outputs.is_release`, and the version name for every job
+  comes from `needs.prepare.outputs.version` (don't reintroduce per-job ref
+  parsing). The rest of the pipeline is unchanged: the `android` job (AAB → Play
+  internal track) and the `ios` job (xcodebuild archive → TestFlight; profiles are
   cloud-managed via an App Store Connect API key — `ASC_API_KEY_P8_BASE64` /
   `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var —
   but the distribution CERTIFICATE is a manually created .p12 imported into a
