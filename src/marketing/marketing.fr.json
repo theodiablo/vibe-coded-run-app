@@ -15,8 +15,8 @@
     "ctaPrimary": "Commencer — c'est gratuit",
     "ctaSecondary": "J'ai déjà un compte",
     "freeNote": "La version gratuite inclut tout — plans, suivi GPS, courses et le coach (avec une limite d'usage raisonnable par jour pour qu'il reste gratuit).",
-    "iosBeta": "Aussi sur iOS — rejoignez-nous avec TestFlight",
-    "androidBeta": "Aussi sur Android — rejoignez la bêta fermée"
+    "iosBeta": "Rejoindre la bêta iOS",
+    "androidBeta": "Rejoindre la bêta Android"
   },
   "stats": {
     "plans": {

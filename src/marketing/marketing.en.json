@@ -12,8 +12,8 @@
     "ctaPrimary": "Get started — it's free",
     "ctaSecondary": "I already have an account",
     "freeNote": "Free includes everything — plans, GPS tracking, races, and the coach (with a daily fair-use limit so it stays free).",
-    "iosBeta": "Also on iOS — join with TestFlight",
-    "androidBeta": "Also on Android — join the closed beta"
+    "iosBeta": "Join the iOS beta",
+    "androidBeta": "Join the Android beta"
   },
   "stats": {
     "plans": {
