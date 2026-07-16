@@ -1,4 +1,5 @@
 import { useTranslation, Trans } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import { MapPin } from "lucide-react";
 import { PRIVACY_URL } from "../constants";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
@@ -11,6 +12,7 @@ type BgLocationDisclosureProps = { onAccept: () => void; onCancel: () => void };
 // the actual grant. See LiveRunTracker for the once-per-install gating.
 export function BgLocationDisclosure({ onAccept, onCancel }: BgLocationDisclosureProps) {
   const { t } = useTranslation();
+  useDismissable(true, onCancel);
   return (
     <ModalOverlay>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700">

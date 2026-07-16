@@ -753,6 +753,20 @@ and delete anything that becomes stale.
   Toast animates its **exit**, via `usePresence` (`src/hooks/`) which holds the
   value ~200ms past dismissal. Celebration confetti is `src/components/Confetti.tsx`
   (mounted on the onboarding summary + main-race auto-detect in `RunningCoach`).
+- **Back / Escape dismissal:** the Android hardware back button and the web
+  Escape key close the topmost open overlay, else return to the home (`dash`)
+  tab, else (Android, already home) let the app exit. The single dispatcher lives
+  in `RunningCoach.tsx` (a `keydown` listener + a Capacitor `App` `backButton`
+  listener, guarded by `isNative`), reading the live tab via a ref. It closes
+  overlays through a LIFO registry (`src/utils/backDismiss.ts`): every dismissable
+  overlay calls `useDismissable(active, onDismiss)` (`src/hooks/`) so it works
+  regardless of whether its open-state is a `RunningCoach` boolean or local child
+  state, and stacked sub-overlays close innermost-first. **Any new modal/sheet
+  must call `useDismissable`** (pass the guarded close where one exists — e.g.
+  `LiveRunTracker` registers `handleClose` for the discard confirm, `DeleteAccount`
+  no-ops while `busy`). Register in the overlay's OWN component to avoid
+  double-registration; `OnboardingWizard` deliberately does NOT register (it's an
+  unskippable gate).
 - Reuse existing form pieces rather than re-rolling inputs: `SessionConfigurator`
   (training days), `GoalConfigurator` (goal time/pace — a slider whose range
   comes from `paceBand(distanceKm)` in `src/utils/goal.ts`, plus editable Time /

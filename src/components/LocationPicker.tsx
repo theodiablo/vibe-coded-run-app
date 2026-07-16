@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import L, { type LeafletEvent, type LatLngTuple, type Map, type Marker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Loader, MapPin, Search, X } from "lucide-react";
@@ -45,6 +46,7 @@ const PIN_ICON = L.divIcon({
 // more way to seed the pin, never the only option.
 export function LocationPicker({ initial, geocodeQuery, onConfirm, onCancel }: LocationPickerProps) {
   const { t } = useTranslation();
+  useDismissable(true, onCancel);
   const elRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const markerRef = useRef<Marker | null>(null);

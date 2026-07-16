@@ -1,4 +1,5 @@
 import { useTranslation, Trans } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import { HeartPulse } from "lucide-react";
 import { PRIVACY_URL } from "../constants";
 import { ModalOverlay, ConfirmButtons } from "../components/ModalPrimitives";
@@ -12,6 +13,7 @@ type HrSensorDisclosureProps = { onAccept: () => void; onCancel: () => void };
 // grant. Gated once per install in SettingsModal via HR_BLE_DISCLOSED_KEY.
 export function HrSensorDisclosure({ onAccept, onCancel }: HrSensorDisclosureProps) {
   const { t } = useTranslation();
+  useDismissable(true, onCancel);
   return (
     <ModalOverlay>
       <div className="bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-700">

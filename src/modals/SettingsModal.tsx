@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
 import { LANGS, setLocale, currentLang, isLangId, type LangId } from "../i18n";
 import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_WARN_CHARS, USER_CONTEXT_NOTICE_CHARS } from "../constants";
@@ -30,6 +31,7 @@ type SettingsModalProps = {
 // they don't clutter the header.
 export function SettingsModal({settings, saveSettings, userContext, saveUserContext, onBackup, onRestore, onSignOut, onDeleteAccount, onOpenCoach, onClose, showToast, scanImportsNow}: SettingsModalProps) {
   const { t } = useTranslation();
+  useDismissable(true, onClose);
   const [name, setName] = useState(settings.name || "");
   // Language: synced preference, falling back to whatever the UI is showing
   // (device-detected) when unset. Picking persists to the blob AND the

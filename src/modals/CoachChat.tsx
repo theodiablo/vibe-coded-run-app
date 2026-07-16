@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type ComponentPropsWithoutRef } from "react";
 import { useTranslation, Trans } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import { Loader, MessageCircle, Send, X, Flag } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -88,6 +89,7 @@ type CoachChatProps = {
 
 export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose }: CoachChatProps) {
   const { t } = useTranslation();
+  useDismissable(true, onClose);
   // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, trajectoryId?, roundIndex? }
   // trajectoryId/roundIndex are stamped on every real coach answer (the ones
   // logged server-side to agent_rounds) so it can be flagged as wrong; the

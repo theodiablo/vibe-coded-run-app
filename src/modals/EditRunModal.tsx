@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import { Check } from "lucide-react";
 import { INPUT_CLS, LABEL_CLS } from "../constants";
 import type { Run, RunPatch } from "../types";
@@ -27,6 +28,7 @@ type EditRunModalProps = {
 // Edit an existing run — mirrors the fields on the Log a Run form.
 export function EditRunModal({run, onSave, onClose}: EditRunModalProps) {
   const { t } = useTranslation();
+  useDismissable(true, onClose);
   const sec = run.durationSec || 0;
   const [f, setF] = useState<EditRunForm>({
     date:  run.date,

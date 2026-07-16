@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import { Download } from "lucide-react";
 import { ymd } from "../utils/format";
 
@@ -15,6 +16,7 @@ type BackupModalProps = { data: BackupData; onClose: () => void };
 
 export function BackupModal({data, onClose}: BackupModalProps) {
   const { t } = useTranslation();
+  useDismissable(true, onClose);
   const [copied, setCopied] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const json  = JSON.stringify(data, null, 2);

@@ -7,6 +7,7 @@ import { saveRoute, queuePendingRoute } from "../routes";
 import { useRunTracker } from "../hooks/useRunTracker";
 import { useCountdown } from "../hooks/useCountdown";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
+import { useDismissable } from "../hooks/useDismissable";
 import { getHrSource } from "../hr/source";
 import { getPairedDevice } from "../hr/device";
 import { hasHealthConnectAuthorization } from "../hr/healthconnect";
@@ -264,6 +265,15 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       ...(hrPending ? (hrPending.source === "healthkit" ? { hrPendingHk: hrPending } : { hrPending }) : {}),
     });
   };
+
+  // Back/Escape dismissal, innermost first: countdown → HR nudge → the tracker
+  // itself (routed through handleClose so an in-progress run gets the discard
+  // confirm, never a silent teardown). Each registers only while shown, so the
+  // stack order matches what's visually on top. The bg-location disclosure
+  // self-registers inside BgLocationDisclosure, so it isn't listed here.
+  useDismissable(true, handleClose);
+  useDismissable(showHrNudge, () => dismissHrNudge(false));
+  useDismissable(countdown.count !== null, countdown.cancel);
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">

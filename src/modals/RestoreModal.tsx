@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useDismissable } from "../hooks/useDismissable";
 import type { Plan, RouteBackup, Run, SettingsState, UserContextState } from "../types";
 
 type BackupPayload = {
@@ -14,6 +15,7 @@ type RestoreModalProps = { onRestore: (payload: BackupPayload) => void; onClose:
 
 export function RestoreModal({onRestore, onClose}: RestoreModalProps) {
   const { t } = useTranslation();
+  useDismissable(true, onClose);
   const [text, setText] = useState("");
   const [err,  setErr]  = useState("");
   const attempt = () => {

@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { isNative } from "./native";
+import { App as CapApp } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
+import { dismissTop } from "./utils/backDismiss";
 import { isLangId, setLocale } from "./i18n";
 import { Loader, Settings } from "lucide-react";
 import { BrandLogo } from "./components/BrandLogo";
@@ -285,6 +288,38 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     const t = setTimeout(() => setToast(null), toast.action ? 6000 : 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Global back/Escape handling: the Android hardware back button and the web
+  // Escape key close the topmost open overlay (via the useDismissable stack);
+  // with nothing open they return to the home tab, and on Android a back press
+  // already home lets the app exit. Registered once — the live tab is read
+  // through a ref so this needn't re-subscribe the native listener on every tab
+  // change. Onboarding deliberately does NOT register a dismiss, so it stays an
+  // unskippable gate.
+  const tabRef = useRef(tab);
+  useEffect(() => { tabRef.current = tab; }, [tab]);
+  useEffect(() => {
+    const goBack = (): boolean => {
+      if (dismissTop()) return true;
+      if (tabRef.current !== "dash") { setTab("dash"); return true; }
+      return false;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && goBack()) e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    let active = true;
+    let handle: PluginListenerHandle | undefined;
+    if (isNative) {
+      CapApp.addListener("backButton", () => { if (!goBack()) CapApp.exitApp(); })
+        .then(h => { if (active) handle = h; else h.remove?.(); });
+    }
+    return () => {
+      active = false;
+      window.removeEventListener("keydown", onKey);
+      handle?.remove?.();
+    };
+  }, []);
 
   // Health Connect HR often lands minutes after a run finishes (once the watch
   // syncs), so retry the deferred relink whenever the app returns to the

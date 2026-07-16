@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
+import { useDismissable } from "../hooks/useDismissable";
 
 type InfoButtonProps = { title: string; label?: string; children: ReactNode };
 type InfoSectionProps = { title: string; accent?: string; children: ReactNode };
@@ -14,6 +15,7 @@ type InfoSectionProps = { title: string; accent?: string; children: ReactNode };
 export function InfoButton({title, label = "info", children}: InfoButtonProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  useDismissable(open, () => setOpen(false));
 
   return (
     <>
