@@ -93,9 +93,22 @@ export function adaptBgError(error: unknown) {
 
 // True if a Geolocation permission status grants fine or coarse location.
 const isGranted = (p: { location?: string; coarseLocation?: string } | null | undefined) => !!p && (p.location === "granted" || p.coarseLocation === "granted");
+// True only if FINE (precise) location is granted. On Android 12+ a user can grant
+// "Approximate" (coarse) while denying precise, which leaves `location` un-granted.
+const isFineGranted = (p: { location?: string } | null | undefined) => !!p && p.location === "granted";
 
-// Request foreground (fine) location, reliably showing the OS dialog(s). Returns
-// true if location is usable; never throws (fast to check below).
+// Request foreground location, reliably showing the OS dialog(s). Returns true if
+// location is usable; never throws (fast to check below).
+//
+// `highAccuracy` (default true — run tracking needs PRECISE GPS) decides which
+// Android permission is requested, which decides whether the OS dialog even
+// OFFERS a "Precise" toggle: the Capacitor Geolocation plugin requests the
+// COARSE-only permission alias when enableHighAccuracy is false (Android 12+),
+// so a false here means the user is only ever offered "Approximate" and can
+// never grant precise — the exact "can't request precise location" bug. Pass
+// true so ACCESS_FINE_LOCATION is requested and the precise toggle appears; the
+// background-geolocation watcher then finds fine already granted. Discover's
+// coarse-only "races near me" fix passes false (approximate is all it needs).
 //
 // checkPermissions()/requestPermissions() are the plugin's OWN gate on Android:
 // they check whether the device's system Location Services are switched on FIRST,
@@ -109,12 +122,23 @@ const isGranted = (p: { location?: string; coarseLocation?: string } | null | un
 // (That gate is an Android/Play-Services quirk; on iOS the getCurrentPosition
 // probe is harmless — it just triggers the standard permission prompt — so the
 // one code path serves both shells.)
-export async function ensureForegroundPermission() {
+//
+// The fast-path "already granted" check is accuracy-aware: a high-accuracy ask
+// is NOT satisfied by a coarse-only grant, so a user who previously granted only
+// "Approximate" is re-prompted (via the getCurrentPosition probe) to upgrade to
+// precise instead of being silently pinned to approximate forever.
+export async function ensureForegroundPermission(highAccuracy = true) {
   try {
-    if (isGranted(await Geolocation.checkPermissions())) return true;
+    const status = await Geolocation.checkPermissions();
+    if (highAccuracy ? isFineGranted(status) : isGranted(status)) return true;
   } catch { /* location services likely off — fall through to the real ask below */ }
   try {
-    await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 });
+    // The probe requests FINE when highAccuracy (so the OS offers the precise
+    // toggle). A resolved probe means location is USABLE — return true even if
+    // the user picked "Approximate", so choosing approximate degrades accuracy
+    // rather than blocking the run. The strict fast-path above still routes an
+    // approximate-only user back through this probe to re-offer precise.
+    await Geolocation.getCurrentPosition({ enableHighAccuracy: highAccuracy, timeout: 15000 });
     return true;
   } catch {
     return false;
@@ -132,8 +156,9 @@ export const nativeSource = {
 
   // Request foreground location, showing the OS dialog. Called from the consent
   // flow so the prompt appears right after the user accepts the disclosure — not
-  // only when recording starts. Returns true if usable; may reject (caller wraps).
-  requestPermissions: () => ensureForegroundPermission(),
+  // only when recording starts. Precise (FINE) so the OS offers the precise
+  // toggle — run tracking needs GPS accuracy. Returns true if usable.
+  requestPermissions: () => ensureForegroundPermission(true),
 
   // Returns a sync handle immediately. The underlying watcher id resolves
   // asynchronously; `handle.removed` covers a clearWatch that races ahead of it.
@@ -149,7 +174,7 @@ export const nativeSource = {
         // Grant foreground first, THEN addWatcher: the Android-correct order.
         let granted;
         try {
-          granted = await ensureForegroundPermission();
+          granted = await ensureForegroundPermission(true); // precise — run tracking needs FINE GPS
         } catch (e) {
           onErr?.(adaptBgError(e)); // surface — do not hide a broken prompt
           return;
@@ -204,7 +229,8 @@ export const nativeSource = {
   // permission (showing the OS dialog if needed), then a single getCurrentPosition.
   // Resolves { lat, lng }; rejects on denial/unavailable so the UI can react.
   async getCurrentPosition() {
-    if (!(await ensureForegroundPermission())) throw new Error(t("tracker.errors.permissionNotGranted"));
+    // Coarse is enough for "races near me" — don't over-ask for precise here.
+    if (!(await ensureForegroundPermission(false))) throw new Error(t("tracker.errors.permissionNotGranted"));
     const p = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000 });
     return { lat: p.coords.latitude, lng: p.coords.longitude };
   },

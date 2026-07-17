@@ -65,17 +65,48 @@ describe("ensureForegroundPermission", () => {
   const checkPermissions = vi.mocked(Geolocation.checkPermissions);
   const getCurrentPosition = vi.mocked(Geolocation.getCurrentPosition);
 
-  const permission = (location: "granted" | "denied") => ({
+  const permission = (
+    location: "granted" | "denied",
+    coarseLocation: "granted" | "denied" = "denied",
+  ) => ({
     location,
-    coarseLocation: "denied" as const,
+    coarseLocation,
   }) as Awaited<ReturnType<typeof Geolocation.checkPermissions>>;
   const position = () => ({
     coords: { latitude: 1, longitude: 2 },
   }) as Awaited<ReturnType<typeof Geolocation.getCurrentPosition>>;
 
-  it("returns true on the fast path when already granted", async () => {
+  it("returns true on the fast path when fine location is already granted", async () => {
     checkPermissions.mockResolvedValue(permission("granted"));
     await expect(ensureForegroundPermission()).resolves.toBe(true);
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  // The precise-location fix: a high-accuracy ask requests FINE so the OS dialog
+  // offers the "Precise" toggle. Requesting coarse-only (enableHighAccuracy:false)
+  // is why users could only ever grant "Approximate".
+  it("requests precise (enableHighAccuracy) when highAccuracy is set", async () => {
+    checkPermissions.mockResolvedValue(permission("denied"));
+    getCurrentPosition.mockResolvedValue(position());
+    await expect(ensureForegroundPermission(true)).resolves.toBe(true);
+    expect(getCurrentPosition).toHaveBeenCalledWith(expect.objectContaining({ enableHighAccuracy: true }));
+  });
+
+  // A coarse-only ("Approximate") grant does NOT satisfy a high-accuracy ask —
+  // the user is routed to the probe to re-offer precise, instead of being pinned
+  // to approximate forever by the fast path.
+  it("does not fast-path a coarse-only grant when precise is requested", async () => {
+    checkPermissions.mockResolvedValue(permission("denied", "granted"));
+    getCurrentPosition.mockResolvedValue(position());
+    await expect(ensureForegroundPermission(true)).resolves.toBe(true);
+    expect(getCurrentPosition).toHaveBeenCalled();
+  });
+
+  // Discover ("races near me") only needs coarse: a coarse-only grant fast-paths
+  // and never over-asks for precise.
+  it("fast-paths a coarse-only grant when highAccuracy is false", async () => {
+    checkPermissions.mockResolvedValue(permission("denied", "granted"));
+    await expect(ensureForegroundPermission(false)).resolves.toBe(true);
     expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 

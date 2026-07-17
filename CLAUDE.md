@@ -411,6 +411,20 @@ and delete anything that becomes stale.
   uses `checkPermissions()` only as a fast-path "already granted" check and falls
   back to a real `getCurrentPosition()` probe — the one call that can actually
   show both dialogs — whenever that check doesn't succeed.
+- **Gotcha — precise vs approximate location hinges on `enableHighAccuracy`.**
+  On Android 12+ the `@capacitor/geolocation` plugin picks the runtime permission
+  from `enableHighAccuracy`: `false` requests the COARSE-only alias, so the OS
+  dialog never shows the "Precise" toggle and the user can only grant
+  *Approximate* — the "can't request precise location" bug. Run tracking needs
+  FINE GPS, so `ensureForegroundPermission(highAccuracy)` defaults to `true` and
+  the run-tracking call sites (`requestPermissions`, the background watcher) pass
+  `true`; only Discover's "races near me" one-off passes `false` (approximate is
+  enough — don't over-ask). The fast-path "already granted" check is
+  accuracy-aware (`isFineGranted` for a precise ask, `isGranted` for coarse) so a
+  user who previously granted only Approximate is routed back through the probe to
+  re-offer precise instead of being pinned to approximate forever. A resolved
+  probe still returns `true` even if the user picks Approximate — choosing it
+  degrades accuracy, it never blocks the run.
 - **Foreground location only — no `ACCESS_BACKGROUND_LOCATION`.** Screen-off
   recording works via the background-geolocation **foreground service** (started
   while the app is visible) under the "while using the app" grant, so the app
@@ -429,6 +443,16 @@ and delete anything that becomes stale.
   (`REC_NOTIF_ASKED_KEY`) the first time a run starts — wired into
   `LiveRunTracker`'s `guardedStart` + `acceptDisclosure`, before the service starts.
   Below Android 13 it's a no-op (no such runtime permission).
+- **Every native Start/Resume is gated on a live location check** (`guardedStart`
+  in `LiveRunTracker`): after the disclosure, it `await`s `rt.requestPermissions()`
+  (→ `ensureForegroundPermission`) and aborts if it returns false, so a run never
+  enters the "tracking" state with a running clock and a blank map. That one call
+  covers BOTH failure causes — permission not granted (OS prompt) and the device's
+  Location Services switched off (the `getCurrentPosition` probe surfaces the "turn
+  on location" dialog) — and on denial sets `tracker.errors.permissionDeniedNative`,
+  which tells the user to do both. For a granted user with location on it fast-paths
+  (a bare `checkPermissions()`, no dialog), so it's not a per-run nag. Don't drop
+  this gate back to "start and hope" — the silent blank-map run was the bug.
 - **npm dependency patches (`patches/`, applied by `postinstall` → `patch-package`):**
   native plugin modules compile straight out of `node_modules`
   (`android/capacitor.settings.gradle`), so a committed patch reaches every
