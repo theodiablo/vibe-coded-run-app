@@ -15,11 +15,11 @@
   "privacy": "Privacidad",
   "bgLocation": {
     "title": "Ubicación en segundo plano",
-    "body": "Para registrar tu entrenamiento con precisión, Running Coach recoge tu <strong>ubicación en segundo plano</strong>, incluso <strong>con la aplicación cerrada o la pantalla apagada</strong>.",
+    "body": "Para registrar tu entrenamiento con precisión, Running Coach recoge tu <strong>ubicación en segundo plano</strong>, incluso <strong>con la aplicación en segundo plano o la pantalla apagada</strong>.",
     "bulletRecording": "Se recoge <strong>solo mientras grabas un entrenamiento</strong>, nunca en ningún otro momento.",
     "bulletRoute": "Se usa para dibujar tu ruta y calcular la distancia, el ritmo y el desnivel.",
     "bulletStored": "Se guarda en tu propia cuenta; nunca se vende ni se comparte con terceros.",
-    "privacyNote": "Consulta nuestra <privacy>Política de privacidad</privacy>. Al tocar Permitir, Android te pedirá usar tu ubicación. Elige <strong>«Permitir siempre»</strong> para el seguimiento con la pantalla apagada.",
+    "privacyNote": "Consulta nuestra <privacy>Política de privacidad</privacy>. Al tocar Permitir, Android te pedirá usar tu ubicación. Elige <strong>«Mientras usas la aplicación»</strong>; la grabación continúa con la pantalla apagada.",
     "allowContinue": "Permitir y continuar"
   }
 }

@@ -142,9 +142,11 @@ export const nativeSource = {
 
     if (background) {
       (async () => {
-        // Step 1: foreground/fine location — a guaranteed OS prompt. Step 2
-        // (addWatcher requestPermissions) escalates to "Allow all the time" for
-        // screen-off recording. This two-step order is the Android-correct flow.
+        // Foreground/fine location — a guaranteed OS prompt. The background
+        // watcher below then runs a foreground service (started while the app is
+        // visible), which keeps location flowing with the screen off under the
+        // "while using the app" grant — no ACCESS_BACKGROUND_LOCATION needed.
+        // Grant foreground first, THEN addWatcher: the Android-correct order.
         let granted;
         try {
           granted = await ensureForegroundPermission();

@@ -9,6 +9,7 @@ import { useCountdown } from "../hooks/useCountdown";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { useDismissable } from "../hooks/useDismissable";
 import { getHrSource } from "../hr/source";
+import { requestRunNotificationsOnce } from "../geo/notifications";
 import { getPairedDevice } from "../hr/device";
 import { hasHealthConnectAuthorization } from "../hr/healthconnect";
 import { hasHealthKitAuthorization } from "../healthkit/import";
@@ -157,13 +158,18 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   // "Resume" (incl. the crash-recovery resume, which starts a fresh watch), so a
   // background-location request never fires without a prior disclosure. No-op
   // gate on the web / once already disclosed.
-  const guardedStart = (fn: () => void, checkHr = false) => {
+  const guardedStart = async (fn: () => void, checkHr = false) => {
     if (isNative && !disclosed()) {
       pendingStartRef.current = fn;
       pendingHrCheckRef.current = checkHr;
       setShowDisclosure(true);
       return;
     }
+    // Ask once (Android 13+) for notification permission so the recording
+    // foreground-service notification is visible — before the watch/service
+    // starts. Never blocks: no-op after the first ask or off-Android.
+    await requestRunNotificationsOnce();
+    if (!mountedRef.current) return;
     if (checkHr && maybeShowHrNudge(fn)) return;
     fn();
   };
@@ -180,6 +186,10 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     const granted = isNative ? await rt.requestPermissions() : true;
     if (!granted || !mountedRef.current) return;
     markDisclosed();
+    // Same one-time notification ask as guardedStart, here on the first-ever run
+    // (which goes through the disclosure), before the run's foreground service starts.
+    await requestRunNotificationsOnce();
+    if (!mountedRef.current) return;
     if (checkHr && run && maybeShowHrNudge(run)) return;
     run?.();
   };
