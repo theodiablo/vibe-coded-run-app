@@ -19,6 +19,7 @@ import { BetaBadge } from "../components/BetaBadge";
 import { BgLocationDisclosure } from "./BgLocationDisclosure";
 import { isNative, isAndroid, isIos } from "../native";
 import { BG_LOC_DISCLOSED_KEY } from "../constants";
+import { track } from "../telemetry";
 import type { HrMethod, HrPending, Run } from "../types";
 
 type LiveRunTrackerProps = {
@@ -77,8 +78,13 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   const reducedMotion = usePrefersReducedMotion();
   // A 3-2-1-Go overlay before a fresh run start (never on Resume). It runs AFTER
   // guardedStart's disclosure/HR gates, since guardedStart calls this as its fn.
-  const countdown = useCountdown(() => rt.start());
-  const startWithCountdown = () => (reducedMotion ? rt.start() : countdown.start(3));
+  // Fire the analytics event at the moment tracking actually begins — after the
+  // disclosure / permission / HR-nudge gates and the countdown — never on the
+  // button tap and never on Resume, so it counts genuine live-run starts only.
+  // No properties (consent-gated in track(); a plain count is all we want).
+  const startTracking = () => { track("live_run_started", {}); rt.start(); };
+  const countdown = useCountdown(startTracking);
+  const startWithCountdown = () => (reducedMotion ? startTracking() : countdown.start(3));
   // Resolve the HR source once per render from the seam (source.js), instead of
   // matching method-id strings all over this file — null off web/"off"/unknown,
   // otherwise carries the `live` flag every branch below dispatches on.

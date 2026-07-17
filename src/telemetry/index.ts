@@ -139,9 +139,13 @@ export function captureError(error: Error, context?: TelemetryProps) {
 // ---- Global handlers (web only) -----------------------------------------
 // Foreground browser errors that never reach the React ErrorBoundary (event
 // handlers, async callbacks, rejected promises). Consent-gated at fire time.
-// Left off on native: there we rely on the per-crash prompt (and, later, the
-// native SDK's own beforeSend hook) so a background error can't ship without
-// the user's in-the-moment choice.
+// Web only by design: on native the ErrorBoundary installs its OWN window
+// `error` / `unhandledrejection` listeners (so it can also show the crash
+// screen) and auto-reports them consent-permitting — installing here too would
+// double-report. Both platforms now capture the same way (auto-report when the
+// user has granted analytics consent); PostHog's remote exception-autocapture
+// is unused (blocked by our CSP), so every crash rides the bundled
+// captureException from here or the ErrorBoundary.
 let handlersInstalled = false;
 export function installGlobalErrorHandlers() {
   if (handlersInstalled || typeof window === "undefined" || isNative) return;

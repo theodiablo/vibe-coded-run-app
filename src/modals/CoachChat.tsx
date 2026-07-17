@@ -160,6 +160,10 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     // so only treat a real string as an override and otherwise read the input.
     const text = (typeof preset === "string" ? preset : input).trim();
     if (!text || busy) return;
+    // Count genuine coach interactions — a user actually sending a message.
+    // Never the message text; just whether it opens a chat or follows up on an
+    // already-open trajectory (a proposal round). Consent-gated in track().
+    track("coach_message_sent", { followUp: !!trajectoryId });
     setInput("");
     setMsgs(m => [...m, { role: "user", text }]);
     setBusy(true);

@@ -37,9 +37,6 @@
     "copyTrace": "Copiar traza",
     "copied": "Copiado",
     "emailTrace": "Enviar traza por correo",
-    "askSend": "¿Enviar un informe de fallo limitado para ayudar a corregirlo?",
-    "dontSend": "No enviar",
-    "sendReport": "Enviar informe",
     "sent": "Informe de fallo enviado. Gracias.",
     "reload": "Recargar"
   },
