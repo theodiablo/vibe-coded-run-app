@@ -1,0 +1,55 @@
+diff --git a/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java b/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java
+index a92fcf9..34afd72 100644
+--- a/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java
++++ b/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java
+@@ -34,6 +34,7 @@ import com.google.android.gms.tasks.OnSuccessListener;
+ 
+ import org.json.JSONObject;
+ 
++import androidx.core.app.ActivityCompat;
+ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+ 
+ @CapacitorPlugin(
+@@ -324,7 +325,7 @@ public class BackgroundGeolocation extends Plugin {
+     @Override
+     protected void handleOnResume() {
+         if (service != null) {
+-            if (stoppedWithoutPermissions && getPermissionState("location") == PermissionState.GRANTED) {
++            if (stoppedWithoutPermissions && hasLocationPermissions()) {
+                 service.onPermissionsGranted();
+             }
+         }
+@@ -333,10 +334,32 @@ public class BackgroundGeolocation extends Plugin {
+ 
+     @Override
+     protected void handleOnPause() {
+-        stoppedWithoutPermissions = getPermissionState("location") != PermissionState.GRANTED;
++        stoppedWithoutPermissions = !hasLocationPermissions();
+         super.handleOnPause();
+     }
+ 
++    // Equivalent to getPermissionState("location") == PermissionState.GRANTED (the
++    // "location" alias is GRANTED only when both COARSE and FINE are granted), but
++    // computed directly so the activity lifecycle callbacks never go through
++    // Bridge.getPermissionStates, which dereferences the plugin annotation and
++    // throws a NullPointerException during some pause/teardown sequences
++    // (Play Console: RuntimeException "Unable to pause activity" caused by NPE at
++    // Bridge.getPermissionStates(Bridge.java:1217) via handleOnPause).
++    private boolean hasLocationPermissions() {
++        try {
++            Context context = getContext();
++            return context != null
++                    && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
++                            == PackageManager.PERMISSION_GRANTED
++                    && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
++                            == PackageManager.PERMISSION_GRANTED;
++        } catch (RuntimeException ignored) {
++            // If the bridge is already torn down even getContext() can fail; report
++            // "not granted" — handleOnResume re-checks before acting on the flag.
++            return false;
++        }
++    }
++
+     @Override
+     protected void handleOnDestroy() {
+         if (service != null) {

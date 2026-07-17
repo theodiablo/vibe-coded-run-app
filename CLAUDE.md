@@ -405,6 +405,21 @@ and delete anything that becomes stale.
   uses `checkPermissions()` only as a fast-path "already granted" check and falls
   back to a real `getCurrentPosition()` probe — the one call that can actually
   show both dialogs — whenever that check doesn't succeed.
+- **npm dependency patches (`patches/`, applied by `postinstall` → `patch-package`):**
+  native plugin modules compile straight out of `node_modules`
+  (`android/capacitor.settings.gradle`), so a committed patch reaches every
+  local and CI build. Current patch: `@capacitor-community/background-geolocation`
+  crashed in production ("Unable to pause activity" → NPE at
+  `Bridge.getPermissionStates`, Bridge.java:1217) because its
+  `handleOnPause`/`handleOnResume` call `getPermissionState("location")` — the
+  annotation-reflection path — on every activity pause/resume; the patch computes
+  the same both-granted COARSE+FINE check via `ActivityCompat.checkSelfPermission`
+  in a try/catch instead. The dependency is **pinned exact** (no `^`) so the
+  patch always matches; on a version bump, check whether upstream fixed the
+  lifecycle permission check (repo issue tracker was silent as of 1.2.26 and the
+  plugin lags on Capacitor majors — see its issue #156), then regenerate
+  (`npx patch-package @capacitor-community/background-geolocation`) or delete
+  the patch.
 - **Android release builds use R8:** `android/app/build.gradle` keeps
   `minifyEnabled true`, `shrinkResources true`, and the optimized default
   ProGuard file for `release`. Capacitor's consumer rules preserve annotated
