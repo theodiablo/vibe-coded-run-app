@@ -1,14 +1,24 @@
 name: Build Android PR APK
 
-# Builds an installable DEBUG APK for every PR so changes can be tested on a real
-# device (the AAB from android.yml is for Play and can't be sideloaded). Debug
+# Builds an installable DEBUG APK for a PR so changes can be tested on a real
+# device (the AAB from release.yml is for Play and can't be sideloaded). Debug
 # builds are signed with the auto-generated debug key — no secrets required, so
 # this also works for fork PRs (just without the MapTiler key / tiles).
+#
+# OPT-IN via the `apk` label: this was the single most expensive workflow
+# (~34% of all billable Actions minutes) and most PRs never sideload the APK,
+# so it no longer runs on every push to every PR. Add the `apk` label to a PR
+# to build — and keep rebuilding on every subsequent push (`synchronize` fires
+# with the label still present, so the gate below passes). Remove the label to
+# stop. CI/typecheck coverage is NOT lost by skipping this: the release-path
+# Gradle check still runs on merge via android-main.yml.
 on:
   pull_request:
     branches: [main]
+    # Default types + `labeled` so adding the `apk` label triggers the first
+    # build immediately (not just on the next push).
+    types: [opened, synchronize, reopened, labeled]
   # Manual re-run (e.g. when a push doesn't fire the pull_request event).
-  # Becomes available once this workflow is on the default branch.
   workflow_dispatch: {}
 
 permissions:
@@ -21,6 +31,12 @@ concurrency:
 
 jobs:
   apk:
+    # The `apk`-label gate. A skipped job bills zero minutes. workflow_dispatch
+    # bypasses it (dispatch has no PR context, and only write-access users can
+    # dispatch anyway).
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch'
+      || contains(github.event.pull_request.labels.*.name, 'apk') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

@@ -1,11 +1,14 @@
 name: Security scan (Semgrep)
 
-# Static analysis gate: runs on every PR and on pushes to main so insecure
-# patterns are caught before they ship. Independent of the deploy workflow.
+# Static analysis gate: runs on every PR so insecure patterns are caught
+# before they ship. Independent of the deploy workflow.
+#
+# Deliberately NOT re-run on push to main: every merge already had this exact
+# scan pass on the PR's merge ref minutes earlier, and nothing on main consumes
+# the result — it was pure duplicate spend. workflow_dispatch remains for an
+# on-demand scan of main (e.g. after bumping the semgrep image or rule packs).
 on:
   pull_request:
-  push:
-    branches: [main]
   workflow_dispatch: {}
 
 permissions:
