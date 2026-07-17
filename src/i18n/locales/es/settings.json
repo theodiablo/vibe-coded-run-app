@@ -3,50 +3,50 @@
   "language": {
     "label": "Idioma"
   },
-  "newBeta": "Nueva beta",
+  "newBeta": "Nueva función · beta",
   "profile": {
     "title": "Perfil",
     "name": "Tu nombre"
   },
   "memory": {
     "title": "Memoria del entrenador",
-    "desc": "Cosas que tu entrenador debería recordar para futuras conversaciones, como lesiones recurrentes, preferencias de entrenamiento, limitaciones de horario o correcciones importantes. Los encabezados Markdown como «## Horario» o «## Historial de lesiones» son bienvenidos. Esto se guarda en tu cuenta, se usa en las peticiones al entrenador con IA y puedes editarlo en cualquier momento.",
-    "placeholder": "p. ej. 2026-07-06: Prefiere las tiradas largas los domingos.",
-    "footer": "Solo guardamos las sugerencias de la IA que decidas conservar en tus <link>conversaciones con el Entrenador IA</link>."
+    "desc": "Anota lo que tu entrenador deba recordar para futuras conversaciones: lesiones recurrentes, preferencias de entrenamiento, limitaciones de horario o correcciones importantes. Puedes usar encabezados de Markdown como «## Horario» o «## Historial de lesiones». Se guarda en tu cuenta, se incluye en las consultas al entrenador de IA y puedes editarlo cuando quieras.",
+    "placeholder": "p. ej., 2026-07-06: Prefiere las tiradas largas los domingos.",
+    "footer": "Solo se guardan las sugerencias de la IA que decidas añadir a la memoria desde tus <link>conversaciones con el entrenador de IA</link>."
   },
   "privacy": {
     "title": "Privacidad",
-    "shareLabel": "Compartir informes de uso y errores",
-    "shareAria": "Compartir informes de uso y de errores",
-    "shareDesc": "Análisis limitados de la app y diagnósticos de errores. Nunca se envían datos de carreras, rutas, muestras de frecuencia cardíaca ni mensajes del entrenador.",
-    "crashNote": "Si la app se cierra inesperadamente, se te preguntará antes de enviar cualquier informe de error.",
+    "shareLabel": "Compartir datos de uso e informes de fallos",
+    "shareAria": "Compartir datos de uso e informes de fallos",
+    "shareDesc": "Datos básicos de uso y diagnósticos de fallos. Nunca se envían tus entrenamientos, rutas, muestras de frecuencia cardíaca ni mensajes del entrenador.",
+    "crashNote": "Si la aplicación falla, se te pedirá permiso antes de enviar cualquier informe.",
     "policyLink": "Política de privacidad",
     "disclaimerLink": "Aviso de salud y seguridad",
-    "sharingOn": "Compartir activado.",
-    "sharingOff": "Compartir desactivado."
+    "sharingOn": "Envío de datos activado.",
+    "sharingOff": "Envío de datos desactivado."
   },
   "backup": {
     "title": "Copia de seguridad y restauración",
-    "desc": "Guarda una copia de tus carreras y tu plan, o recárgalos desde una copia anterior.",
+    "desc": "Guarda una copia de tus datos o restáuralos desde una copia anterior.",
     "backupBtn": "Copia de seguridad",
     "restoreBtn": "Restaurar",
     "modalTitle": "Copia de seguridad de los datos",
-    "runsCount": "{{n}} carrera(s)",
+    "runsCount": "Entrenamientos: {{n}}",
     "planSaved": "plan guardado",
     "noPlan": "sin plan",
     "coachMemory": "memoria del entrenador",
-    "routesCount": "{{n}} ruta(s)",
-    "hint": "Copia o descarga — guárdalo en Notas, correo, etc. Usa Restaurar para recargarlo tras cualquier actualización.",
+    "routesCount": "Rutas: {{n}}",
+    "hint": "Copia o descarga estos datos y guárdalos en Notas, en un correo o donde prefieras. Usa Restaurar para recuperarlos después de una actualización.",
     "download": "Descargar",
     "copied": "¡Copiado!",
     "copyJson": "Copiar JSON"
   },
   "restore": {
     "title": "Restaurar desde una copia",
-    "desc": "Pega tu JSON de copia de seguridad abajo.",
+    "desc": "Pega a continuación el JSON de tu copia de seguridad.",
     "placeholder": "Pega aquí tu JSON de copia de seguridad...",
     "invalidBackup": "No parece una copia de seguridad válida.",
-    "invalidJson": "JSON no válido — asegúrate de haber copiado la copia completa.",
+    "invalidJson": "JSON no válido. Asegúrate de haber copiado todo el contenido.",
     "submit": "Restaurar datos"
   },
   "account": {
@@ -54,88 +54,88 @@
   },
   "deleteAccount": {
     "title": "Eliminar cuenta",
-    "body": "Esto elimina permanentemente tu cuenta y todos los datos asociados — carreras, rutas GPS, plan de entrenamiento y ajustes. <bold>Esto no se puede deshacer.</bold>",
+    "body": "Esta acción eliminará permanentemente tu cuenta y todos los datos asociados: entrenamientos, rutas GPS, plan de entrenamiento y ajustes. <bold>No se puede deshacer.</bold>",
     "error": "Algo salió mal. Inténtalo de nuevo o escribe a theo.camboulive.dev@gmail.com."
   },
   "hr": {
     "title": "Frecuencia cardíaca",
     "age": "Edad",
-    "maxHr": "FC máx",
+    "maxHr": "FC máx.",
     "restHr": "FC en reposo",
     "autoPlaceholder": "auto",
-    "dontKnow": "No conozco mi frecuencia cardíaca",
+    "dontKnow": "No sé cuál es mi frecuencia cardíaca máxima",
     "enterAge": "Introduce tu edad arriba para estimarla.",
-    "estimated": "Estimada a partir de la edad (Tanaka, 208 − 0,7×edad): {{max}} ppm de FC máx, con una FC en reposo típica de 60 ppm.",
-    "fullBreakdown": "El desglose completo de zonas está en Progreso → Estadísticas."
+    "estimated": "Estimación según tu edad (Tanaka: 208 − 0,7 × edad): FC máxima de {{max}} ppm y FC en reposo típica de 60 ppm.",
+    "fullBreakdown": "Consulta el desglose completo de zonas en Progreso → Estadísticas."
   },
   "hrSensor": {
     "title": "Sensor de frecuencia cardíaca",
-    "subtitle": "Captura la frecuencia cardíaca automáticamente durante una carrera en lugar de escribirla.",
-    "betaWarning": "Es una función nueva y poco probada. El emparejamiento del sensor, las lecturas en vivo o las importaciones de Health Connect pueden fallar o llegar tarde, así que revisa la frecuencia cardíaca guardada antes de fiarte de ella.",
+    "subtitle": "Registra automáticamente tu frecuencia cardíaca durante un entrenamiento, sin tener que introducirla a mano.",
+    "betaWarning": "Esta función es nueva y se ha probado poco. El emparejamiento, las lecturas en tiempo real y las importaciones pueden fallar o tardar en aparecer. Revisa la frecuencia cardíaca guardada antes de usarla para entrenar.",
     "methods": {
       "off": "Desactivado",
       "bluetooth": "Sensor Bluetooth",
       "healthconnect": "Health Connect",
-      "healthkit": "Apple Salud"
+      "healthkit": "Salud de Apple"
     },
     "newTag": "nuevo",
     "forgetAria": "Olvidar sensor",
     "scanning": "Buscando…",
     "pairAnother": "Emparejar otro sensor",
     "pair": "Emparejar un sensor",
-    "pairHelp": "Pon tu sensor en modo de emparejamiento (o activa la difusión de frecuencia cardíaca en tu reloj) y luego busca. Algunos relojes solo emiten mientras hay un entrenamiento activo.",
-    "scanFailed": "No se pudieron buscar sensores — asegúrate de que el Bluetooth está activado.",
+    "pairHelp": "Pon el sensor en modo de emparejamiento, o activa la transmisión de frecuencia cardíaca del reloj, e inicia la búsqueda. Algunos relojes solo transmiten durante un entrenamiento.",
+    "scanFailed": "No se pudieron buscar sensores. Comprueba que Bluetooth esté activado.",
     "permissionNeeded": "Se necesita permiso de Bluetooth para emparejar un sensor.",
-    "paired": "{{name}} emparejado.",
-    "hcConnected": "Conectado — la frecuencia cardíaca se añade a tus carreras automáticamente.",
+    "paired": "Sensor {{name}} emparejado.",
+    "hcConnected": "Conectado. La frecuencia cardíaca se añade automáticamente a tus entrenamientos.",
     "hcReconnect": "Reconectar Health Connect",
     "hcConnect": "Conectar Health Connect",
-    "hcHelp": "Lee tu frecuencia cardíaca desde Android Health Connect tras una carrera — útil si tu reloj sincroniza ahí pero no emite en vivo. Puede tardar unos minutos en aparecer al terminar.",
+    "hcHelp": "Recupera tu frecuencia cardíaca de Health Connect después de cada entrenamiento. Es útil si tu reloj sincroniza los datos pero no los transmite en tiempo real. Pueden tardar unos minutos en aparecer.",
     "hcNotSupported": "Health Connect no es compatible con este dispositivo (requiere Android 8+).",
-    "hcSuccess": "Health Connect conectado — la frecuencia cardíaca se leerá tras tus carreras.",
+    "hcSuccess": "Conexión con Health Connect establecida. La frecuencia cardíaca se recuperará después de tus entrenamientos.",
     "hcInstall": "Instala Health Connect desde Google Play y luego vuelve a tocar Conectar.",
     "hcDenied": "No se concedió el acceso. En Health Connect, permite que Running Coach lea la frecuencia cardíaca.",
     "hcOpenFailed": "No se pudo abrir Health Connect. Asegúrate de que está instalado y actualizado.",
-    "hkConnected": "Conectado — la frecuencia cardíaca se añade a tus carreras automáticamente.",
-    "hkReconnect": "Reconectar Apple Salud",
-    "hkConnect": "Conectar Apple Salud",
-    "hkHelp": "Lee tu frecuencia cardíaca desde Apple Salud tras una carrera — útil si tu reloj sincroniza ahí pero no emite en vivo. Puede tardar unos minutos en aparecer al terminar.",
-    "hkNotSupported": "Apple Salud no está disponible en este dispositivo.",
-    "hkSuccess": "Apple Salud conectado — la frecuencia cardíaca se leerá tras tus carreras.",
+    "hkConnected": "Conectado. La frecuencia cardíaca se añade automáticamente a tus entrenamientos.",
+    "hkReconnect": "Reconectar Salud de Apple",
+    "hkConnect": "Conectar Salud de Apple",
+    "hkHelp": "Recupera tu frecuencia cardíaca de Salud de Apple después de cada entrenamiento. Es útil si tu reloj sincroniza los datos pero no los transmite en tiempo real. Pueden tardar unos minutos en aparecer.",
+    "hkNotSupported": "Salud de Apple no está disponible en este dispositivo.",
+    "hkSuccess": "Conexión con Salud de Apple establecida. La frecuencia cardíaca se recuperará después de tus entrenamientos.",
     "hkDenied": "No se concedió el acceso. En la app Salud, permite que Running Coach lea Frecuencia cardíaca y Entrenos.",
-    "hkOpenFailed": "No se pudo acceder a Apple Salud. Vuelve a intentarlo o revisa los ajustes de compartir de la app Salud."
+    "hkOpenFailed": "No se pudo acceder a Salud de Apple. Vuelve a intentarlo o revisa los ajustes para compartir de la app Salud."
   },
   "hrDisclosure": {
     "title": "Conectar un sensor de frecuencia cardíaca",
     "warning": "La captura de frecuencia cardíaca es nueva y todavía no está del todo probada. Las lecturas pueden retrasarse, faltar o ser incorrectas si tu sensor o reloj se desconecta.",
-    "intro": "Para leer tu frecuencia cardíaca durante una carrera, Running Coach se conecta a un <bold>sensor de frecuencia cardíaca Bluetooth</bold> cercano — una banda pectoral, un brazalete o un reloj que emita su frecuencia cardíaca.",
-    "bullet1": "El Bluetooth se usa <bold>solo para encontrar y leer tu sensor</bold> — nunca para la ubicación.",
-    "bullet2": "Tu frecuencia cardíaca se guarda en tu carrera, en tu propia cuenta.",
+    "intro": "Para leer tu frecuencia cardíaca durante un entrenamiento, Running Coach se conecta a un <bold>sensor Bluetooth de frecuencia cardíaca</bold> cercano: un sensor pectoral, un brazalete o un reloj que la transmita.",
+    "bullet1": "Bluetooth se usa <bold>solo para encontrar y leer tu sensor</bold>, nunca para la ubicación.",
+    "bullet2": "Tu frecuencia cardíaca se guarda con el entrenamiento en tu cuenta.",
     "bullet3": "No se vende ni se comparte nada con terceros.",
-    "policy": "Consulta nuestra <link>Política de privacidad</link>. Cuando toques Permitir, Android pedirá usar dispositivos Bluetooth cercanos.",
+    "policy": "Consulta nuestra <link>Política de privacidad</link>. Cuando toques Permitir, Android solicitará acceso a los dispositivos Bluetooth cercanos.",
     "accept": "Permitir y continuar"
   },
   "integrations": {
-    "title": "Carreras desde tu reloj",
-    "subtitle": "Importa carreras terminadas — distancia, tiempo, desnivel y frecuencia cardíaca — desde un reloj, para que no tengas que llevar el móvil.",
-    "connectedRow": "{{label}} — las nuevas carreras se ofrecen para importar automáticamente.",
+    "title": "Entrenamientos del reloj",
+    "subtitle": "Importa entrenamientos terminados con distancia, tiempo, desnivel y frecuencia cardíaca desde tu reloj, sin tener que llevar el teléfono.",
+    "connectedRow": "{{label}}: los nuevos entrenamientos se propondrán automáticamente para importarlos.",
     "scan30": "Buscar en los últimos 30 días",
     "turnOff": "Desactivar",
     "connect": "Conectar {{label}}",
-    "connectSuccess": "Conectado — tus carreras del reloj aparecerán aquí tras sincronizarse.",
-    "noNewRuns": "Aún no hay carreras nuevas para importar.",
+    "connectSuccess": "Conexión establecida. Los entrenamientos del reloj aparecerán aquí después de sincronizarse.",
+    "noNewRuns": "Aún no hay entrenamientos nuevos para importar.",
     "accessDenied": "No se concedió el acceso. Permite que Running Coach lea Ejercicio, Distancia, Desnivel y Frecuencia cardíaca.",
     "connectFailed": "No se pudo conectar. Asegúrate de que Health Connect está instalado y actualizado.",
-    "noRuns30": "No se encontraron carreras nuevas en los últimos 30 días.",
+    "noRuns30": "No se encontraron entrenamientos nuevos en los últimos 30 días.",
     "scanFailed": "No se pudieron leer tus fuentes conectadas.",
     "providers": {
       "healthconnect": {
         "label": "Tu reloj (Health Connect)",
-        "help": "Funciona con cualquier reloj cuya app escriba entrenamientos en Health Connect (Android 14+): Garmin Connect (Ajustes → Health Connect) o Zepp/Amazfit (Perfil → Acceso de terceros → Health Connect). Las carreras aparecen unos minutos después de que tu reloj sincronice; no se incluye ruta ni mapa."
+        "help": "Funciona con cualquier reloj cuya aplicación registre entrenamientos en Health Connect (Android 14+), como Garmin Connect o Zepp/Amazfit. Los entrenamientos aparecen unos minutos después de la sincronización; no incluyen ruta ni mapa."
       },
       "healthkit": {
-        "label": "Tu reloj (Apple Salud)",
-        "help": "Funciona con la app Entreno del Apple Watch y con cualquier reloj cuya app escriba entrenamientos en Apple Salud (Garmin Connect, Polar Flow, Zepp…). Las carreras aparecen unos minutos después de que tu reloj sincronice; no se incluye ruta ni mapa."
+        "label": "Tu reloj (Salud de Apple)",
+        "help": "Funciona con la app Entreno del Apple Watch y con cualquier reloj cuya aplicación registre entrenamientos en Salud de Apple. Aparecen unos minutos después de la sincronización; no incluyen ruta ni mapa."
       }
     }
   }

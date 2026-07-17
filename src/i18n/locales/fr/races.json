@@ -1,7 +1,7 @@
 {
   "title": "Courses",
   "fallbackName": "Course",
-  "unverifiedTag": "non vérifiée — vérifie sur le site officiel",
+  "unverifiedTag": "non vérifiée ; consulte le site officiel",
   "segments": {
     "mine": "Mes courses",
     "find": "Trouver une course"
@@ -9,10 +9,10 @@
   "toast": {
     "added": "Ajoutée à tes courses.",
     "logged": "Course enregistrée 🎉",
-    "reported": "Merci — signalée pour vérification."
+    "reported": "Merci. Le signalement a été envoyé."
   },
   "empty": {
-    "none": "Pas encore de course — choisis un objectif à viser.",
+    "none": "Pas encore de course. Choisis un objectif qui te motive.",
     "addFirst": "Ajoute ta première course objectif"
   },
   "sections": {
@@ -31,8 +31,8 @@
     "addToPlan": "Ajouter au plan"
   },
   "past": {
-    "passed": "Cette course est passée — ajoute ton temps pour garder une trace.",
-    "addTime": "Ajoute ton temps"
+    "passed": "Cette course est passée. Ajoute ton chrono pour en garder une trace.",
+    "addTime": "Ajouter ton chrono"
   },
   "completed": {
     "pb": "RP"
@@ -43,44 +43,44 @@
     "all": "Toutes",
     "nearMe": "Près de moi",
     "within": "dans un rayon de",
-    "locationDenied": "Localisation indisponible ou refusée — affichage de toutes les courses par nom.",
-    "catalogueUnavailable": "Le catalogue des courses n'a pas pu être chargé pour l'instant. Tes propres courses restent listées dans Mes courses.",
+    "locationDenied": "Localisation indisponible ou refusée. Toutes les courses sont affichées par nom.",
+    "catalogueUnavailable": "Impossible de charger le catalogue pour l'instant. Tes courses restent visibles dans Mes courses.",
     "noneInRadius": "Aucune course à moins de {{radius}} km. Essaie un rayon plus large ou désactive Près de moi.",
-    "noMatch": "Aucune course ne correspond — essaie une autre recherche.",
+    "noMatch": "Aucune course trouvée. Essaie une autre recherche.",
     "unlocatedBelow": "Aucune course à moins de {{radius}} km. Les courses sans lieu défini sont listées ci-dessous.",
     "nearestFirst": "Les plus proches d'abord",
     "locationUnknown": "Lieu inconnu",
-    "addSubtitle": "Ajoute-la — visible immédiatement par tout le monde.",
-    "userSubmittedNote": "Les courses sont ajoutées par les utilisateurs et marquées non vérifiées jusqu'à leur relecture par un mainteneur."
+    "addSubtitle": "Ajoute-la : elle sera immédiatement visible par tout le monde.",
+    "userSubmittedNote": "Les courses sont ajoutées par les utilisateurs et restent non vérifiées jusqu'à leur examen par l'équipe."
   },
   "card": {
     "onYourList": "Sur ta liste",
-    "noUpcomingDate": "pas de date<br/>à venir",
-    "unverifiedTitle": "Non vérifiée — les infos viennent des utilisateurs, vérifie sur le site officiel",
+    "noUpcomingDate": "aucune date à venir",
+    "unverifiedTitle": "Non vérifiée : informations fournies par les utilisateurs. Consulte le site officiel",
     "officialSite": "Site officiel",
     "away": "à {{dist}}",
-    "datesDisclaimer": "Les dates viennent des utilisateurs — vérifie toujours sur le site officiel avant de planifier.",
-    "elevation": "+{{elevation}}m de dénivelé",
-    "wishlist": "Liste d'envies",
+    "datesDisclaimer": "Les dates sont fournies par les utilisateurs. Vérifie toujours le site officiel avant de t'organiser.",
+    "elevation": "+{{elevation}} m de dénivelé positif",
+    "wishlist": "Ajouter à ma liste",
     "report": "Signaler cette course"
   },
   "result": {
-    "finishTime": "Temps final",
+    "finishTime": "Chrono",
     "hoursPlaceholder": "h",
     "minutesPlaceholder": "min",
     "secondsPlaceholder": "s",
     "notesPlaceholder": "Notes (facultatif)",
     "alsoLog": "Ajouter aussi à mon journal d'entraînement",
     "save": "Enregistrer le résultat",
-    "defaultNote": "{{label}} — course"
+    "defaultNote": "{{label}} (course)"
   },
   "report": {
     "title": "Signaler un problème",
     "reasons": {
-      "wrongDate": "Mauvaise date",
-      "wrongDistance": "Mauvaise distance / infos",
+      "wrongDate": "Date incorrecte",
+      "wrongDistance": "Distance ou informations incorrectes",
       "duplicate": "Doublon",
-      "spam": "N'existe pas / spam",
+      "spam": "Course inexistante ou indésirable",
       "other": "Autre"
     },
     "notePlaceholder": "Quelque chose à ajouter ? (facultatif)",
@@ -104,11 +104,11 @@
     "setLocation": "Définir le lieu sur la carte",
     "date": "Date",
     "distanceKm": "Distance (km)",
-    "distanceKmPlaceholder": "42.2",
+    "distanceKmPlaceholder": "42,2",
     "elevation": "Déniv. (m)",
     "elevationPlaceholder": "0",
     "disclaimer": "Tout le monde peut ajouter des courses ; elles restent marquées comme non vérifiées jusqu'à validation par un mainteneur. Confirme toujours la date sur le site officiel avant de planifier autour.",
-    "addedToast": "Ajoutée — merci ! Elle est en ligne pour tout le monde (non vérifiée en attendant relecture).",
+    "addedToast": "Merci ! La course est visible par tout le monde et restera non vérifiée jusqu'à sa relecture.",
     "submit": "Ajouter la course",
     "errors": {
       "dateDistance": "Une date et une distance sont requises.",
@@ -119,9 +119,9 @@
   "picker": {
     "title": "Définir le lieu de la course",
     "searchPlaceholder": "Cherche une ville ou une adresse…",
-    "noMatch": "Aucun résultat — tu peux quand même toucher la carte directement.",
-    "hint": "Touche ou fais glisser le repère jusqu'au vrai départ de la course — pas forcément là où tu te trouves.",
-    "noKey": "Le fond de carte nécessite VITE_MAPTILER_KEY — tu peux quand même toucher pour définir les coordonnées.",
+    "noMatch": "Aucun résultat. Tu peux aussi toucher directement la carte.",
+    "hint": "Touche ou fais glisser le repère jusqu'au vrai départ de la course, qui ne correspond pas forcément à ta position actuelle.",
+    "noKey": "Le fond de carte nécessite VITE_MAPTILER_KEY. Tu peux quand même toucher la carte pour définir les coordonnées.",
     "jump": "Aller à ma position actuelle"
   },
   "addCard": {

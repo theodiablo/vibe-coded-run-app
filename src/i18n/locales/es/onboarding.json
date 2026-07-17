@@ -6,51 +6,51 @@
   "skip": "Omitir",
   "welcome": {
     "title": "Te damos la bienvenida a Running Coach",
-    "subtitle": "Un entrenador en tu bolsillo — todo listo en menos de un minuto.",
+    "subtitle": "Un entrenador en tu bolsillo. Vamos a configurarlo todo en menos de un minuto.",
     "featurePlan": "Un plan de entrenamiento que se adapta a tu objetivo y a tu semana",
-    "featureGps": "Registra cada carrera en directo con GPS",
-    "featureBadges": "Gana insignias mientras construyes el hábito",
+    "featureGps": "Registra todos tus entrenamientos con GPS",
+    "featureBadges": "Gana insignias mientras consolidas el hábito",
     "namePlaceholder": "Tu nombre (opcional)"
   },
   "intent": {
     "title": "¿Qué te trae por aquí?",
     "titleNamed": "¡Hola, {{name}}! ¿Qué te trae por aquí?",
-    "subtitle": "Adaptaremos tu plan a tu medida.",
+    "subtitle": "Adaptaremos el plan a tus necesidades.",
     "race": {
       "title": "Estoy entrenando para una carrera",
-      "sub": "Elige tu carrera y crearemos un plan que alcance el pico justo ese día."
+      "sub": "Elige tu carrera y crearemos un plan que te haga llegar en tu mejor momento."
     },
     "fitness": {
       "title": "Estoy empezando",
-      "sub": "Sin carrera todavía — gana forma y crea el hábito de correr a tu ritmo."
+      "sub": "Sin carrera todavía. Mejora tu forma física y crea el hábito de correr a tu ritmo."
     }
   },
   "race": {
     "title": "Tu carrera",
     "subtitle": "Busca tu carrera en el catálogo.",
     "pickedMeta": "{{date}} · {{km}} km",
-    "pickedMetaElev": "{{date}} · {{km}} km · +{{m}}m",
+    "pickedMetaElev": "{{date}} · {{km}} km · +{{m}} m",
     "change": "Cambiar",
     "searchPlaceholder": "Busca carreras, ciudades…",
     "resultMeta": "{{place}} · {{date}} · {{km}} km",
-    "addSubtitle": "La define como tu carrera — y ayuda a que otros la encuentren.",
-    "manualLink": "Solo introducirla para mí →",
+    "addSubtitle": "La añadiremos como tu carrera objetivo y ayudarás a que otras personas la encuentren.",
+    "manualLink": "Introducirla solo para mí →",
     "dateLabel": "Fecha de la carrera",
     "distanceLabel": "Distancia de la carrera (km)",
     "distancePlaceholder": "p. ej. 21,1",
     "elevationLabel": "Desnivel positivo de la carrera (m)",
-    "elevationHint": "Subida total del recorrido — ajusta los ritmos de entrenamiento al esfuerzo equivalente en llano.",
-    "addedToast": "Añadida al catálogo — definida como tu carrera."
+    "elevationHint": "Desnivel positivo total del recorrido; se usa para ajustar los ritmos de entrenamiento al esfuerzo equivalente en llano.",
+    "addedToast": "Añadida al catálogo y definida como tu carrera objetivo."
   },
   "raceGoal": {
     "title": "Objetivo y días de entrenamiento",
-    "subtitle": "Hay un objetivo realista precargado — ajústalo si quieres."
+    "subtitle": "Te proponemos un objetivo realista. Ajústalo si quieres."
   },
   "daysLabel": "Días de entrenamiento y duraciones",
   "styleLabel": "Estilo de entrenamiento",
   "training": {
     "title": "Tu entrenamiento",
-    "subtitle": "No hace falta carrera — elige una meta hacia la que progresar.",
+    "subtitle": "No hace falta una carrera. Elige un objetivo hacia el que progresar.",
     "buildLabel": "¿Hasta dónde quieres llegar?",
     "d5": {
       "label": "5K",
@@ -61,7 +61,7 @@
       "sub": "un buen siguiente paso"
     },
     "dHalf": {
-      "label": "Media",
+      "label": "Media maratón",
       "sub": "21,1 km"
     },
     "dMore": {
@@ -74,7 +74,7 @@
   },
   "hr": {
     "title": "Frecuencia cardiaca",
-    "subtitle": "Personaliza tus objetivos de esfuerzo en cada sesión. Opcional — puedes añadirlo más tarde.",
+    "subtitle": "Personaliza tus objetivos de esfuerzo en cada sesión. Es opcional y puedes añadirlo más tarde.",
     "age": "Edad",
     "maxHR": "FC máx.",
     "restHR": "FC reposo",
@@ -90,14 +90,14 @@
     "item1": "Una afección cardiaca, o un médico te ha indicado hacer actividad física solo bajo supervisión médica",
     "item2": "Dolor en el pecho en reposo, durante la actividad diaria o durante el ejercicio físico",
     "item3": "Mareos, pérdida de equilibrio o pérdida de conocimiento durante o después del ejercicio",
-    "item4": "Un problema óseo o articular, o cualquier otra afección que correr pudiera empeorar — o cualquier otro motivo por el que no debas hacer ejercicio intenso",
+    "item4": "Un problema óseo o articular, cualquier otra afección que correr pudiera empeorar o cualquier otro motivo por el que no debas hacer ejercicio intenso",
     "no": "No, ninguna",
     "yes": "Sí, una o más",
     "doctorTitle": "Habla primero con un médico",
-    "doctorBody": "Te recomendamos encarecidamente consultar a un médico antes de empezar cualquier plan de entrenamiento de esta app. Los planes son orientación general, no consejo médico, y podrían no ser adecuados para tu condición.",
+    "doctorBody": "Te recomendamos encarecidamente consultar a un médico antes de empezar cualquier plan de entrenamiento de esta aplicación. Los planes ofrecen orientación general, no consejo médico, y podrían no ser adecuados para tu estado de salud.",
     "doctorConfirm": "Confirmo que he consultado, o consultaré, a un médico antes de empezar a entrenar con esta app.",
     "disclaimerTitle": "Aviso de salud y seguridad",
-    "disclaimerBody": "Running Coach ofrece únicamente información general de entrenamiento — no es consejo médico ni sustituye la orientación profesional. La actividad física conlleva riesgos inherentes, incluidas lesiones y, en casos raros, eventos cardiacos graves. Participas bajo tu propia responsabilidad y te corresponde entrenar dentro de tus límites y parar si te encuentras mal. Consulta a un médico antes de comenzar este o cualquier otro programa de ejercicio. Nada en este aviso excluye ni limita ninguna responsabilidad que no pueda excluirse o limitarse según la ley aplicable.",
+    "disclaimerBody": "Running Coach ofrece únicamente información general de entrenamiento. No es consejo médico ni sustituye la orientación profesional. La actividad física conlleva riesgos inherentes, incluidas lesiones y, en casos raros, eventos cardíacos graves. Participas bajo tu propia responsabilidad y te corresponde entrenar dentro de tus límites y parar si te encuentras mal. Consulta a un médico antes de comenzar este o cualquier otro programa de ejercicio. Nada en este aviso excluye ni limita ninguna responsabilidad que no pueda excluirse o limitarse según la ley aplicable.",
     "readFull": "Leer el aviso completo",
     "ack": "He leído y acepto el aviso de salud y seguridad anterior."
   },
@@ -109,15 +109,15 @@
     "fallbackRace": "Tu carrera",
     "meta": "{{km}} km · {{date}}",
     "metaGoal": "Meta {{km}} km · {{date}}",
-    "weekPlan": "semanas de plan",
+    "weekPlan": "semanas de entrenamiento",
     "sessionsPerWeek": "sesiones / semana",
-    "coachNote": "La vida pasa — una molestia, una semana perdida, un imprevisto. Tu <c>entrenador</c> puede adaptar este plan en cualquier momento, desde Plan o Inicio."
+    "coachNote": "Los imprevistos ocurren: una molestia, una semana sin entrenar o un conflicto de horarios. Tu <c>entrenador</c> puede adaptar el plan en cualquier momento desde Plan o Inicio."
   },
   "level": {
-    "label": "¿Cuánto corres actualmente?"
+    "label": "¿Con qué frecuencia corres actualmente?"
   },
   "sessions": {
-    "suggested": "Sugerido para tu objetivo — ajústalo con libertad.",
+    "suggested": "Sugerencia adaptada a tu objetivo. Puedes ajustarla como quieras.",
     "reset": "Restablecer los días sugeridos",
     "longestNote": "La sesión más larga se convierte automáticamente en tu tirada larga."
   },
@@ -125,6 +125,6 @@
     "label": "Tiempo objetivo",
     "needDistance": "Introduce primero la distancia de la carrera para fijar tu objetivo.",
     "time": "Tiempo",
-    "pace": "Ritmo /km"
+    "pace": "Ritmo (min/km)"
   }
 }

@@ -5,53 +5,53 @@
   "back": "Retour",
   "skip": "Passer",
   "welcome": {
-    "title": "Bienvenue sur Running Coach",
-    "subtitle": "Un coach dans ta poche — on te met en route en moins d'une minute.",
+    "title": "Bienvenue dans Running Coach",
+    "subtitle": "Un coach dans ta poche. Tout sera prêt en moins d'une minute.",
     "featurePlan": "Un plan d'entraînement qui s'adapte à ton objectif et à ta semaine",
-    "featureGps": "Suis chaque course en direct avec le GPS",
-    "featureBadges": "Gagne des badges en installant l'habitude",
+    "featureGps": "Suis chaque sortie en direct avec le GPS",
+    "featureBadges": "Gagne des badges au fil de tes entraînements",
     "namePlaceholder": "Ton nom (facultatif)"
   },
   "intent": {
-    "title": "Qu'est-ce qui t'amène?",
-    "titleNamed": "Salut {{name}}! Qu'est-ce qui t'amène?",
+    "title": "Qu'est-ce qui t'amène ?",
+    "titleNamed": "Salut {{name}} ! Qu'est-ce qui t'amène ?",
     "subtitle": "On adaptera ton plan en conséquence.",
     "race": {
       "title": "Je m'entraîne pour une course",
-      "sub": "Choisis ta course et on construit un plan qui culmine le jour J."
+      "sub": "Choisis ta course et on construit un plan qui t'amène au meilleur de ta forme le jour J."
     },
     "fitness": {
       "title": "Je débute",
-      "sub": "Pas encore de course — développe ta forme et l'habitude de courir à ton rythme."
+      "sub": "Pas encore de course. Développe ta forme et prends l'habitude de courir à ton rythme."
     }
   },
   "race": {
     "title": "Ta course",
     "subtitle": "Cherche ta course dans le catalogue.",
     "pickedMeta": "{{date}} · {{km}} km",
-    "pickedMetaElev": "{{date}} · {{km}} km · +{{m}}m",
+    "pickedMetaElev": "{{date}} · {{km}} km · +{{m}} m",
     "change": "Changer",
     "searchPlaceholder": "Recherche courses, villes…",
     "resultMeta": "{{place}} · {{date}} · {{km}} km",
-    "addSubtitle": "La définit comme ta course — et aide les autres à la trouver.",
+    "addSubtitle": "Cette course devient ton objectif et aide les autres à la trouver.",
     "manualLink": "La saisir juste pour moi →",
     "dateLabel": "Date de la course",
     "distanceLabel": "Distance de la course (km)",
     "distancePlaceholder": "ex. 21,1",
     "elevationLabel": "Dénivelé positif de la course (m)",
-    "elevationHint": "Montée totale du parcours — cale les allures d'entraînement sur l'effort équivalent sur plat.",
-    "addedToast": "Ajoutée au catalogue — définie comme ta course."
+    "elevationHint": "Dénivelé positif total du parcours ; il permet d'ajuster les allures d'entraînement à l'effort équivalent sur le plat.",
+    "addedToast": "Ajoutée au catalogue et définie comme ta course objectif."
   },
   "raceGoal": {
     "title": "Objectif et jours d'entraînement",
-    "subtitle": "Un objectif réaliste est prérempli — ajuste-le si tu veux."
+    "subtitle": "Un objectif réaliste est proposé. Ajuste-le si tu veux."
   },
   "daysLabel": "Jours d'entraînement et durées",
   "styleLabel": "Style d'entraînement",
   "training": {
     "title": "Ton entraînement",
-    "subtitle": "Pas besoin de course — choisis un objectif à atteindre.",
-    "buildLabel": "Jusqu'où veux-tu aller?",
+    "subtitle": "Pas besoin de course. Choisis un objectif à atteindre.",
+    "buildLabel": "Quel objectif veux-tu atteindre ?",
     "d5": {
       "label": "5 km",
       "sub": "idéal pour débuter"
@@ -65,59 +65,59 @@
       "sub": "21,1 km"
     },
     "dMore": {
-      "label": "Juste courir plus",
-      "sub": "installe l'habitude"
+      "label": "Courir davantage",
+      "sub": "prendre l'habitude"
     },
-    "horizonLabel": "Sur combien de temps?",
+    "horizonLabel": "Sur combien de temps ?",
     "weeks_one": "{{count}} semaine",
     "weeks_other": "{{count}} semaines"
   },
   "hr": {
     "title": "Fréquence cardiaque",
-    "subtitle": "Personnalise tes cibles d'effort à chaque séance. Optionnel — tu pourras l'ajouter plus tard.",
+    "subtitle": "Personnalise tes cibles d'effort à chaque séance. C'est facultatif et tu pourras l'ajouter plus tard.",
     "age": "Âge",
     "maxHR": "FC max",
     "restHR": "FC repos",
     "autoPlaceholder": "auto",
-    "dontKnow": "Je ne connais pas ma fréquence cardiaque",
+    "dontKnow": "Je ne connais pas ma FC max",
     "enterAge": "Saisis ton âge ci-dessus pour l'estimer.",
     "estimated": "Estimée à partir de l'âge (Tanaka, 208 − 0,7×âge) : {{max}} bpm de FC max, avec une FC de repos typique de 60 bpm."
   },
   "health": {
     "title": "Une dernière chose",
     "subtitle": "Un rapide point sécurité avant de commencer. Ta réponse reste sur cet appareil et n'est pas enregistrée dans ton compte.",
-    "question": "L'une de ces situations te concerne-t-elle?",
+    "question": "L'une de ces situations te concerne-t-elle ?",
     "item1": "Un problème cardiaque, ou un médecin t'a dit de ne faire de l'activité physique que sous supervision médicale",
     "item2": "Des douleurs à la poitrine au repos, pendant les activités quotidiennes ou pendant l'effort",
     "item3": "Des vertiges, une perte d'équilibre ou une perte de connaissance pendant ou après l'exercice",
-    "item4": "Un problème osseux ou articulaire, ou toute autre condition que la course pourrait aggraver — ou toute autre raison de ne pas faire d'exercice intense",
+    "item4": "Un problème osseux ou articulaire, un autre problème de santé que la course à pied pourrait aggraver ou toute autre raison de ne pas faire d'exercice intense",
     "no": "Non, aucune",
     "yes": "Oui, une ou plusieurs",
     "doctorTitle": "Parle d'abord à un médecin",
     "doctorBody": "Nous te recommandons vivement de consulter un médecin avant de commencer tout plan d'entraînement de cette app. Les plans proposés sont des repères généraux, pas un avis médical, et peuvent ne pas convenir à ta situation.",
     "doctorConfirm": "Je confirme avoir consulté, ou que je consulterai, un médecin avant de commencer à m'entraîner avec cette app.",
     "disclaimerTitle": "Avertissement santé et sécurité",
-    "disclaimerBody": "Running Coach fournit uniquement des informations générales d'entraînement — ce n'est pas un avis médical et cela ne remplace pas un accompagnement professionnel. L'activité physique comporte des risques inhérents, dont les blessures et, dans de rares cas, des accidents cardiaques graves. Tu participes à tes propres risques et il t'appartient de t'entraîner dans tes limites et de t'arrêter si tu te sens mal. Consulte un médecin avant de commencer ce programme d'exercice ou tout autre. Rien dans cet avis n'exclut ni ne limite une responsabilité qui ne peut être exclue ou limitée par la loi applicable.",
+    "disclaimerBody": "Running Coach fournit uniquement des informations générales d'entraînement. Ce n'est pas un avis médical et cela ne remplace pas un accompagnement professionnel. L'activité physique comporte des risques inhérents, dont les blessures et, dans de rares cas, des accidents cardiaques graves. Tu pratiques à tes risques et périls et dois respecter tes propres limites. Arrête-toi si tu te sens mal. Consulte un médecin avant de commencer ce programme d'exercice ou tout autre. Rien dans cet avis n'exclut ni ne limite une responsabilité qui ne peut être exclue ou limitée par la loi applicable.",
     "readFull": "Lire l'avertissement complet",
     "ack": "J'ai lu et j'accepte l'avertissement santé et sécurité ci-dessus."
   },
   "summary": {
-    "title": "Tout est prêt!",
-    "titleNamed": "Tout est prêt, {{name}}!",
+    "title": "Tout est prêt !",
+    "titleNamed": "Tout est prêt, {{name}} !",
     "subtitle": "Voici le plan qu'on a construit pour toi.",
     "fallbackFitness": "Construis ta base",
     "fallbackRace": "Ta course",
     "meta": "{{km}} km · {{date}}",
     "metaGoal": "Objectif {{km}} km · {{date}}",
-    "weekPlan": "semaines de plan",
+    "weekPlan": "semaines d'entraînement",
     "sessionsPerWeek": "séances / semaine",
-    "coachNote": "La vie ne s'arrête pas — une gêne, une semaine manquée, un emploi du temps chargé. Ton <c>coach</c> peut adapter ce plan à tout moment, depuis Plan ou Accueil."
+    "coachNote": "Les imprévus arrivent : une gêne, une semaine sans entraînement ou un emploi du temps chargé. Ton <c>coach</c> peut adapter ce plan à tout moment depuis Plan ou Accueil."
   },
   "level": {
-    "label": "Combien cours-tu en ce moment?"
+    "label": "À quelle fréquence cours-tu actuellement ?"
   },
   "sessions": {
-    "suggested": "Suggéré pour ton objectif — ajuste librement.",
+    "suggested": "Suggestion adaptée à ton objectif. Ajuste-la librement.",
     "reset": "Revenir aux jours suggérés",
     "longestNote": "La séance la plus longue devient automatiquement ta sortie longue."
   },
@@ -125,6 +125,6 @@
     "label": "Temps objectif",
     "needDistance": "Saisis d'abord la distance de la course pour définir ton objectif.",
     "time": "Temps",
-    "pace": "Allure /km"
+    "pace": "Allure (min/km)"
   }
 }

@@ -4,6 +4,8 @@ import en from "./locales/en";
 import es from "./locales/es";
 import fr from "./locales/fr";
 import marketingEn from "../marketing/marketing.en.json";
+import marketingEs from "../marketing/marketing.es.json";
+import marketingFr from "../marketing/marketing.fr.json";
 import marketingCopy from "../marketing/copy.json";
 import { detectInitialLocale, isLangId, RC_LANG_KEY } from "./detect";
 import { dayName, setLocale } from "./index";
@@ -20,6 +22,12 @@ function keyPaths(obj: Tree, prefix = ""): string[] {
     const path = prefix ? `${prefix}.${k}` : k;
     return v && typeof v === "object" && !Array.isArray(v) ? keyPaths(v as Tree, path) : [path];
   });
+}
+
+function stringValues(obj: Tree): string[] {
+  return Object.values(obj).flatMap(v =>
+    v && typeof v === "object" && !Array.isArray(v) ? stringValues(v as Tree) : typeof v === "string" ? [v] : [],
+  );
 }
 
 // Interpolation slots must survive translation — a missing {{var}} renders a
@@ -51,6 +59,13 @@ describe("locale dictionaries", () => {
     for (const [key, vars] of enSlots) {
       expect(langSlots.get(key), `interpolation vars for ${key}`).toBe(vars);
     }
+  });
+
+  it.each([
+    ["es", es, marketingEs],
+    ["fr", fr, marketingFr],
+  ] as const)("%s copy does not use English-style em dashes", (_lang, app, marketing) => {
+    expect([...stringValues(app as Tree), ...stringValues(marketing as Tree)].filter(value => value.includes("—"))).toEqual([]);
   });
 });
 

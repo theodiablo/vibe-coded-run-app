@@ -1,19 +1,19 @@
 {
   "notif": {
-    "title": "Enregistrement de la course",
+    "title": "Enregistrement de la sortie",
     "body": "Touchez pour revenir à Running Coach"
   },
   "header": {
-    "live": "Course en direct",
-    "complete": "Course terminée"
+    "live": "Sortie en cours",
+    "complete": "Sortie terminée"
   },
   "countdown": {
     "go": "Partez !"
   },
-  "discardConfirm": "Abandonner cette course ? Ton parcours enregistré sera perdu.",
-  "routeUploadFailed": "Impossible d'envoyer le parcours — enregistré sur cet appareil, la synchronisation sera retentée.",
+  "discardConfirm": "Abandonner cette sortie ? Ton parcours enregistré sera perdu.",
+  "routeUploadFailed": "Impossible d'envoyer le parcours. Il est enregistré sur cet appareil et la synchronisation sera retentée.",
   "resume": {
-    "title": "Reprendre ta course précédente ?",
+    "title": "Reprendre ta sortie précédente ?",
     "pointsSaved_one": "{{count}} point enregistré.",
     "pointsSaved_other": "{{count}} points enregistrés.",
     "resume": "Reprendre",
@@ -21,7 +21,7 @@
   },
   "stats": {
     "km": "km",
-    "time": "temps",
+    "time": "durée",
     "pace": "allure",
     "elev": "déniv."
   },
@@ -29,39 +29,39 @@
     "bpm": "bpm",
     "avgMax": "moy {{avg}} · max {{max}}",
     "connecting": "connexion…",
-    "postRun": "La fréquence cardiaque est ajoutée depuis {{store}} après ta course."
+    "postRun": "La fréquence cardiaque est ajoutée depuis {{store}} à la fin de ta sortie."
   },
   "gps": {
-    "accuracyGood": "Précision GPS ±{{acc}} m — c'est parti",
-    "accuracyWait": "Précision GPS ±{{acc}} m — attends qu'elle se stabilise pour un départ plus propre"
+    "accuracyGood": "Précision GPS de ±{{acc}} m. C'est parti",
+    "accuracyWait": "Précision GPS de ±{{acc}} m. Attends qu'elle se stabilise pour mieux enregistrer le départ"
   },
   "controls": {
-    "start": "Démarrer la course",
+    "start": "Démarrer la sortie",
     "pause": "Pause",
     "finish": "Terminer",
     "resume": "Reprendre",
     "discard": "Abandonner",
-    "save": "Enregistrer la course"
+    "save": "Enregistrer la sortie"
   },
-  "keepScreenOn": "Garde cet écran allumé pendant ta course — les navigateurs ne peuvent pas enregistrer en arrière-plan, donc l'enregistrement se met en pause si l'écran se verrouille. Une version native de l'app enregistre écran éteint (moins de batterie).",
+  "keepScreenOn": "Garde cet écran allumé pendant ta sortie. Les navigateurs ne peuvent pas enregistrer en arrière-plan, donc le suivi se met en pause si l'écran se verrouille. L'app native continue d'enregistrer écran éteint et consomme moins de batterie.",
   "hrNudge": {
     "authTitle": "Autoriser Health Connect ?",
-    "authBody": "Health Connect est sélectionné, mais ce téléphone n'a pas encore accordé l'accès. Autorise-le dans les Réglages pour ajouter la fréquence cardiaque après tes courses.",
-    "authAccept": "Ouvrir les Réglages",
-    "hkAuthTitle": "Autoriser Apple Santé ?",
-    "hkAuthBody": "Apple Santé est sélectionné, mais ce téléphone n'a pas encore accordé l'accès. Autorise-le dans les Réglages pour ajouter la fréquence cardiaque après tes courses.",
+    "authBody": "Health Connect est sélectionné, mais ce téléphone n'a pas encore accordé l'accès. Autorise-le dans les Paramètres pour ajouter la fréquence cardiaque après tes sorties.",
+    "authAccept": "Ouvrir les Paramètres",
+    "hkAuthTitle": "Autoriser l'app Santé ?",
+    "hkAuthBody": "L'app Santé est sélectionnée, mais ce téléphone n'a pas encore accordé l'accès. Autorise-la dans les Paramètres pour ajouter la fréquence cardiaque après tes sorties.",
     "pairTitle": "Associer ton capteur de fréquence cardiaque ?",
-    "pairBody": "La capture de la fréquence cardiaque par Bluetooth est sélectionnée, mais aucun capteur n'est associé sur ce téléphone. Associes-en un dans les Réglages pour enregistrer le BPM en direct.",
+    "pairBody": "La capture de la fréquence cardiaque par Bluetooth est sélectionnée, mais aucun capteur n'est associé sur ce téléphone. Associe-en un dans les Paramètres pour enregistrer la fréquence cardiaque en temps réel.",
     "pairAccept": "Associer un capteur",
     "setupTitle": "Suivre ta fréquence cardiaque ?",
-    "setupBody": "Connecte un capteur Bluetooth ou Health Connect pour capturer la fréquence cardiaque automatiquement — pas besoin de la saisir. Tu peux configurer ça plus tard dans les Réglages.",
+    "setupBody": "Connecte un capteur Bluetooth ou Health Connect pour enregistrer automatiquement la fréquence cardiaque, sans avoir à la saisir. Tu peux configurer cette option plus tard dans les Paramètres.",
     "setupAccept": "Configurer",
-    "newBeta": "Nouvelle bêta",
+    "newBeta": "Nouveauté · bêta",
     "betaWarning": "Cette fonction de capture est nouvelle et peut dysfonctionner. Vérifie les mesures enregistrées avant de les utiliser pour tes décisions d'entraînement.",
     "optOut": "Ne pas enregistrer la fréquence cardiaque"
   },
   "errors": {
-    "permissionDeniedNative": "La localisation est nécessaire pour enregistrer ta course. Vérifie que la localisation est activée sur cet appareil et autorise l'accès (« Autoriser tout le temps ») pour cette app, puis réessaie.",
+    "permissionDeniedNative": "La localisation est nécessaire pour enregistrer ta sortie. Vérifie qu'elle est activée sur cet appareil et autorise l'accès (« Autoriser tout le temps ») pour cette app. Réessaie ensuite.",
     "permissionDeniedWeb": "Autorisation de localisation refusée. Active-la pour ce site dans les réglages de ton navigateur, puis réessaie.",
     "noFix": "Impossible d'obtenir un signal GPS. Vérifie que la localisation est activée et que tu es en extérieur.",
     "timeout": "Le GPS met trop de temps à répondre. Nouvelle tentative…",
@@ -72,10 +72,10 @@
     "permissionNotGranted": "L'autorisation de localisation n'a pas été accordée."
   },
   "map": {
-    "noKey": "Les tuiles de carte nécessitent VITE_MAPTILER_KEY — le parcours s'enregistre quand même."
+    "noKey": "Le fond de carte nécessite VITE_MAPTILER_KEY. Le parcours s'enregistre quand même."
   },
   "hrTarget": {
-    "addProfile": "Ajoute ton profil FC dans les Réglages pour voir une zone cible",
+    "addProfile": "Ajoute ton profil FC dans les Paramètres pour voir une zone cible",
     "range": "❤️ {{lo}}–{{hi}} bpm"
   }
 }

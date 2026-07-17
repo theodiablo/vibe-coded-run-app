@@ -4,7 +4,7 @@
   "greetingAnon": "Qué bien verte 🏃‍♂️",
   "race": {
     "title": "Día de carrera",
-    "summary": "{{distance}}km · objetivo sub {{goal}} · {{pace}}/km",
+    "summary": "{{distance}} km · objetivo: menos de {{goal}} · {{pace}}/km",
     "daysToGo": "días restantes",
     "nextUp": "Próxima: ",
     "daysShort": "{{days}} d",
@@ -13,7 +13,7 @@
   },
   "stats": {
     "thisWeek": "Esta semana",
-    "runsRecorded": "Carreras registradas",
+    "runsRecorded": "Entrenamientos registrados",
     "total": "Total"
   },
   "nextBadge": "Próxima insignia",
@@ -30,13 +30,13 @@
   "allSessionsDone": "¡Todas las próximas sesiones completadas!",
   "coach": {
     "title": "Ajusta tu plan con tu entrenador",
-    "subtitle": "¿Una molestia, una semana perdida o un lío de agenda? Pide un ajuste."
+    "subtitle": "¿Una molestia, una semana sin entrenar o un conflicto de horarios? Pide un ajuste."
   },
-  "recentRuns": "Carreras recientes",
+  "recentRuns": "Entrenamientos recientes",
   "viewAll": "Ver todas",
   "empty": {
-    "noRuns": "Aún no hay carreras.",
-    "hint": "Toca Registrar abajo para añadir la primera.",
+    "noRuns": "Aún no hay entrenamientos registrados.",
+    "hint": "Toca Registrar abajo para añadir el primero.",
     "restore": "¿Tenías datos de una versión anterior? Abre Ajustes (engranaje, arriba a la derecha) → Restaurar."
   }
 }

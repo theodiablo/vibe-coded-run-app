@@ -401,14 +401,15 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
           const wkNumCls = isCurr ? "text-orange-400" : isPast ? "text-slate-600" : "text-slate-300";
           const wkCardCls = isCurr ? "border-orange-500/50 bg-orange-500/5" : "border-slate-700 bg-slate-800";
           const chevronCls = "text-slate-600 transition-transform flex-shrink-0 " + (isExp ? "rotate-90" : "");
+          const phaseLabel = t("common.phases." + wk.phase, { defaultValue: wk.phase });
 
           return (
             <div key={wk.weekNumber} ref={isCurr ? weekRef : null} className={"rounded-xl border overflow-hidden " + wkCardCls}>
               <button onClick={() => setExp(isExp ? null : i)} className="w-full px-4 py-3 flex items-center gap-2 text-left">
-                <span className={"text-sm font-bold flex-shrink-0 " + wkNumCls}>{"W" + wk.weekNumber}</span>
+                <span className={"text-sm font-bold flex-shrink-0 " + wkNumCls}>{t("plan.week.label", { number: wk.weekNumber })}</span>
                 <span className="text-xs text-slate-400 flex-shrink-0">{fmt.sht(wk.startDate || "")}</span>
-                <span className={"text-xs px-2 py-0.5 rounded-full flex-shrink-0 " + phaseClass(wk.phase)}>{wk.phase}</span>
-                {isCurr && <span className="text-xs text-orange-400 flex-shrink-0">now</span>}
+                <span title={phaseLabel} className={"text-xs px-2 py-0.5 rounded-full min-w-0 truncate " + phaseClass(wk.phase)}>{phaseLabel}</span>
+                {isCurr && <span className="text-xs text-orange-400 flex-shrink-0">{t("plan.week.now")}</span>}
                 <span className="flex-1"/>
                 <span className="text-xs text-slate-400">{wDone + "/" + wk.sessions.length}</span>
                 <ChevronRight size={14} className={chevronCls}/>
@@ -435,7 +436,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                               <span className={typeCls}>{t("common.types." + s.type, {defaultValue: s.type})}</span>
                               <span className="text-xs text-slate-400">{fmt.sht(s.date)}</span>
                               {isSkipped && (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">skipped</span>
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-slate-600/60 text-slate-400">{t("plan.session.skipped")}</span>
                               )}
                               <ChevronRight size={12} className={"text-slate-600 transition-transform " + (sessOpen ? "rotate-90" : "")}/>
                             </div>
@@ -458,22 +459,22 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                             <button
                               onClick={() => goLog({date: s.date, type: s.type, km: Number(s.km), pace: s.pace, wNum: wk.weekNumber, sId: s.id})}
                               className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-[background-color,transform] active:scale-95">
-                              <Plus size={13}/>Record
+                              <Plus size={13}/>{t("plan.session.record")}
                             </button>
                           )}
                           {!s.done && (
                             <button
                               onClick={() => skipSess(wk.weekNumber, s.id)}
                               className={"flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-[background-color,color,transform] active:scale-95 " + (isSkipped ? "bg-slate-600/40 text-slate-300 hover:bg-slate-600/60" : "bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200")}
-                              aria-label={isSkipped ? "Undo skip" : "Skip this session"}
-                              title={isSkipped ? "Undo skip" : "Skip this session"}>
-                              {isSkipped ? "Undo" : <X size={13}/>}
+                              aria-label={isSkipped ? t("plan.session.undoSkip") : t("plan.session.skip")}
+                              title={isSkipped ? t("plan.session.undoSkip") : t("plan.session.skip")}>
+                              {isSkipped ? t("common.undo") : <X size={13}/>}
                             </button>
                           )}
                           <button onClick={() => toggleSess(wk.weekNumber, s.id)} className={checkCls}
-                            aria-label={s.done ? "Mark session not done" : "Mark session done"}
+                            aria-label={s.done ? t("plan.session.markNotDone") : t("plan.session.markDone")}
                             aria-pressed={s.done}
-                            title={s.done ? "Mark not done" : "Mark done"}>
+                            title={s.done ? t("plan.session.markNotDone") : t("plan.session.markDone")}>
                             {s.done && <Check size={11} className="animate-pop"/>}
                           </button>
                         </div>
@@ -495,16 +496,17 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
 type PromoteBannerProps = { prefill: PlanPrefill; onCancel: () => void };
 
 function PromoteBanner({ prefill, onCancel }: PromoteBannerProps) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl p-4 mb-4 border border-orange-500/40"
       style={{ background: "linear-gradient(135deg,rgba(249,115,22,.13),rgba(220,38,38,.13))" }}>
-      <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">New training target</p>
-      <p className="font-semibold">{prefill.label || "Your race"}</p>
+      <p className="text-orange-300 text-xs font-semibold uppercase tracking-widest mb-1">{t("plan.promote.newTarget")}</p>
+      <p className="font-semibold">{prefill.label || t("plan.promote.yourRace")}</p>
       <p className="text-slate-400 text-sm mt-0.5">
         {fmt.date(prefill.raceDate) + " · " + prefill.distanceKm + " km" + (prefill.raceElevation ? " · +" + prefill.raceElevation + "m" : "")}
       </p>
-      <p className="text-slate-300 text-sm mt-2">Set your goal time below, then build your plan.</p>
-      <button onClick={onCancel} className="text-xs text-slate-400 hover:text-slate-200 mt-2 transition-colors">Cancel</button>
+      <p className="text-slate-300 text-sm mt-2">{t("plan.setup.introPromote")}</p>
+      <button onClick={onCancel} className="text-xs text-slate-400 hover:text-slate-200 mt-2 transition-colors">{t("common.cancel")}</button>
     </div>
   );
 }

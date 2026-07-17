@@ -1,5 +1,5 @@
 // One JSON file per top-level key section (t("plan.…") lives in plan.json).
-// Keep en/es/fr structurally identical — a key-parity test enforces it.
+// Keep en/es/fr structurally identical; a key-parity test enforces it.
 import common from "./common.json";
 import nav from "./nav.json";
 import dashboard from "./dashboard.json";

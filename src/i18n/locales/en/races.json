@@ -55,7 +55,7 @@
   },
   "card": {
     "onYourList": "On your list",
-    "noUpcomingDate": "no upcoming<br/>date",
+    "noUpcomingDate": "no upcoming date",
     "unverifiedTitle": "Unverified — details are user-submitted, check the official site",
     "officialSite": "Official site",
     "away": "{{dist}} away",

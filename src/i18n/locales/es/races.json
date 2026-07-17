@@ -1,7 +1,7 @@
 {
   "title": "Carreras",
   "fallbackName": "Carrera",
-  "unverifiedTag": "sin verificar — comprueba la web oficial",
+  "unverifiedTag": "sin verificar; comprueba la web oficial",
   "segments": {
     "mine": "Mis carreras",
     "find": "Buscar carrera"
@@ -9,15 +9,15 @@
   "toast": {
     "added": "Añadida a tus carreras.",
     "logged": "Carrera registrada 🎉",
-    "reported": "Gracias — enviado para revisión."
+    "reported": "Gracias. El informe se ha enviado para revisión."
   },
   "empty": {
-    "none": "Aún no hay carreras — elige una meta que perseguir.",
+    "none": "Aún no hay carreras. Elige un objetivo que te motive.",
     "addFirst": "Añade tu primera carrera objetivo"
   },
   "sections": {
     "upcoming": "Próximas",
-    "past": "¿Corriste estas?",
+    "past": "¿Participaste en alguna?",
     "completed": "Completadas"
   },
   "upcoming": {
@@ -31,7 +31,7 @@
     "addToPlan": "Añadir al plan"
   },
   "past": {
-    "passed": "Esta carrera ya pasó — añade tu tiempo para guardar el resultado.",
+    "passed": "Esta carrera ya pasó. Añade tu tiempo para guardar el resultado.",
     "addTime": "Añade tu tiempo"
   },
   "completed": {
@@ -43,42 +43,42 @@
     "all": "Todas",
     "nearMe": "Cerca de mí",
     "within": "a menos de",
-    "locationDenied": "Ubicación no disponible o denegada — se muestran todas las carreras por nombre.",
-    "catalogueUnavailable": "El catálogo de carreras no se pudo cargar ahora mismo. Tus propias carreras siguen en Mis carreras.",
+    "locationDenied": "Ubicación no disponible o denegada. Se muestran todas las carreras por nombre.",
+    "catalogueUnavailable": "No se pudo cargar el catálogo. Las carreras de tu lista siguen disponibles en Mis carreras.",
     "noneInRadius": "No hay carreras a menos de {{radius}} km. Prueba un radio mayor o desactiva Cerca de mí.",
-    "noMatch": "Ninguna carrera coincide — prueba otra búsqueda.",
+    "noMatch": "No se encontró ninguna carrera. Prueba otra búsqueda.",
     "unlocatedBelow": "No hay carreras a menos de {{radius}} km. Las carreras sin ubicación definida aparecen abajo.",
     "nearestFirst": "Más cercanas primero",
     "locationUnknown": "Ubicación desconocida",
-    "addSubtitle": "Añádela — visible al instante para todo el mundo.",
-    "userSubmittedNote": "Las carreras las envían los usuarios y se marcan como sin verificar hasta que un responsable las revisa."
+    "addSubtitle": "Añádela y aparecerá al instante para todo el mundo.",
+    "userSubmittedNote": "Las carreras son aportaciones de los usuarios y se marcan como sin verificar hasta que un responsable las revisa."
   },
   "card": {
     "onYourList": "En tu lista",
-    "noUpcomingDate": "sin fecha<br/>próxima",
-    "unverifiedTitle": "Sin verificar — los datos los envían los usuarios, comprueba la web oficial",
+    "noUpcomingDate": "sin próxima fecha",
+    "unverifiedTitle": "Sin verificar; los datos proceden de los usuarios. Comprueba la web oficial",
     "officialSite": "Web oficial",
     "away": "a {{dist}}",
-    "datesDisclaimer": "Las fechas las envían los usuarios — verifícalas siempre en la web oficial antes de planificar.",
-    "elevation": "+{{elevation}}m de desnivel",
-    "wishlist": "Lista de deseos",
+    "datesDisclaimer": "Las fechas proceden de los usuarios. Verifícalas siempre en la web oficial antes de planificar.",
+    "elevation": "+{{elevation}} m de desnivel positivo",
+    "wishlist": "Añadir a mi lista",
     "report": "Informar sobre esta carrera"
   },
   "result": {
-    "finishTime": "Tiempo final",
+    "finishTime": "Tiempo en meta",
     "hoursPlaceholder": "h",
     "minutesPlaceholder": "min",
     "secondsPlaceholder": "seg",
     "notesPlaceholder": "Notas (opcional)",
     "alsoLog": "Añadir también a mi diario de entrenamiento",
     "save": "Guardar resultado",
-    "defaultNote": "{{label}} — carrera"
+    "defaultNote": "{{label}} (carrera)"
   },
   "report": {
     "title": "Informar de un problema",
     "reasons": {
       "wrongDate": "Fecha incorrecta",
-      "wrongDistance": "Distancia / datos incorrectos",
+      "wrongDistance": "Distancia o datos incorrectos",
       "duplicate": "Duplicada",
       "spam": "No existe / spam",
       "other": "Otro"
@@ -91,7 +91,7 @@
     "addingDateTo": "Añadiendo una fecha a",
     "change": "Cambiar",
     "name": "Nombre de la carrera",
-    "namePlaceholder": "p. ej. Lyon Marathon",
+    "namePlaceholder": "p. ej., Maratón de Madrid",
     "alreadyListed": "¿Ya está en la lista? Añade tu fecha a una carrera existente:",
     "city": "Ciudad",
     "cityPlaceholder": "Madrid",
@@ -104,14 +104,14 @@
     "setLocation": "Fijar ubicación en el mapa",
     "date": "Fecha",
     "distanceKm": "Distancia (km)",
-    "distanceKmPlaceholder": "42.2",
+    "distanceKmPlaceholder": "42,2",
     "elevation": "Desnivel (m)",
     "elevationPlaceholder": "0",
-    "disclaimer": "Cualquiera puede añadir carreras y quedan como enviadas por usuarios hasta que un responsable las verifica. Confirma siempre la fecha en la web oficial antes de planificar en torno a ella.",
-    "addedToast": "Añadida — ¡gracias! Ya está disponible para todo el mundo (sin verificar hasta su revisión).",
+    "disclaimer": "Cualquiera puede añadir carreras. Se consideran aportaciones de usuarios hasta que un responsable las verifique. Confirma siempre la fecha en la web oficial antes de planificar.",
+    "addedToast": "¡Gracias! La carrera ya está disponible para todo el mundo y figurará sin verificar hasta su revisión.",
     "submit": "Añadir carrera",
     "errors": {
-      "dateDistance": "Se necesitan una fecha y una distancia.",
+      "dateDistance": "La fecha y la distancia son obligatorias.",
       "name": "Se necesita el nombre de la carrera.",
       "save": "No se pudo guardar la carrera. Inténtalo de nuevo."
     }
@@ -119,9 +119,9 @@
   "picker": {
     "title": "Fijar ubicación de la carrera",
     "searchPlaceholder": "Busca una ciudad o dirección…",
-    "noMatch": "Sin resultados — aún puedes tocar el mapa directamente.",
-    "hint": "Toca o arrastra el pin hasta donde empieza realmente la carrera — no necesariamente donde estás ahora.",
-    "noKey": "El mapa necesita VITE_MAPTILER_KEY — aún puedes tocar para fijar las coordenadas.",
+    "noMatch": "No se encontraron resultados. También puedes tocar directamente el mapa.",
+    "hint": "Toca o arrastra el marcador hasta el punto donde empieza realmente la carrera, que no tiene por qué coincidir con tu ubicación actual.",
+    "noKey": "El mapa necesita VITE_MAPTILER_KEY. Aun así, puedes tocarlo para fijar las coordenadas.",
     "jump": "Ir a mi ubicación actual"
   },
   "addCard": {

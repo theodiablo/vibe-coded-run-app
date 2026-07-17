@@ -2,23 +2,23 @@
   "meta": {
     "balanced": {
       "label": "Equilibrado",
-      "blurb": "Progresión clásica: una tirada larga semanal más días alternos de tempo e intervalos."
+      "blurb": "Progresión clásica: una tirada larga semanal y sesiones alternas de tempo y series."
     },
     "polarized": {
       "label": "Polarizado 80/20",
-      "blurb": "Mayormente rodajes realmente suaves con una sesión dura a la semana — ideal si tiendes a correr todo a ritmo moderadamente fuerte."
+      "blurb": "Principalmente rodajes realmente suaves y una sesión exigente por semana. Es ideal si sueles correr todo a intensidad media-alta."
     },
     "runwalk": {
       "label": "Correr/Caminar",
-      "blurb": "Intervalos suaves de correr/caminar y sin series — termina sintiéndote fuerte. Ideal para empezar o volver a correr."
+      "blurb": "Intervalos suaves de carrera y caminata, sin series. Termina con buenas sensaciones. Ideal para empezar o volver a correr."
     },
     "lowfreq": {
       "label": "Calidad en 3 días",
-      "blurb": "Tres carreras con propósito a la semana — intervalos, tempo, tirada larga — los demás días, entrenamiento cruzado opcional. Óptimo con exactamente 3 días de carrera."
+      "blurb": "Tres sesiones específicas por semana: series, tempo y tirada larga. Puedes añadir entrenamiento cruzado los demás días. Funciona mejor con tres días de entrenamiento."
     },
     "hansons": {
       "label": "Estilo Hansons",
-      "blurb": "Mayor frecuencia, tirada larga moderada y limitada, y tempo a ritmo de carrera objetivo. Óptimo con 5–6 días para media o maratón."
+      "blurb": "Mayor frecuencia, una tirada larga moderada y limitada, y tempo al ritmo objetivo de carrera. Funciona mejor con 5 o 6 días de entrenamiento para media maratón o maratón."
     }
   },
   "levels": {
@@ -28,11 +28,11 @@
     },
     "occasional": {
       "label": "De vez en cuando",
-      "sub": "Una carrera cada semana o dos"
+      "sub": "Una salida cada una o dos semanas"
     },
     "regular": {
       "label": "2–3× por semana",
-      "sub": "Corredor habitual"
+      "sub": "Corro con regularidad"
     },
     "frequent": {
       "label": "4+× por semana",
