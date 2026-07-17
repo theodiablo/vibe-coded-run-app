@@ -268,9 +268,15 @@ and delete anything that becomes stale.
   source of truth is `localStorage` (`rc_telemetry_consent_v2`), **per-device** (NOT
   the synced blob — a fresh browser re-asks) and tri-state (`"1"`/`"0"`/absent =
   granted/denied/undecided; see `getConsentDecision`). The `ErrorBoundary`
-  (`src/components/ErrorBoundary.tsx`, wraps `<App/>` in `main.tsx`) auto-reports
-  on web but, on **native, prompts per-crash before sending**. `track`/
-  `identifyUser` are consent-gated; `captureError` is gated by its call sites.
+  (`src/components/ErrorBoundary.tsx`, wraps `<App/>` in `main.tsx`) **auto-reports
+  crashes on both web and native** whenever analytics consent is granted (the old
+  native per-crash "Send report" prompt was removed); it still shows a crash
+  screen with reload + copy/email-trace. `track`/`identifyUser` are consent-gated;
+  `captureError` is gated by its call sites. **Standard web events: `$pageview` +
+  `$pageleave` are ON** (core-bundled, CSP-safe, fire in the native WebView too);
+  **autocapture, `capture_exceptions`, and session recording stay OFF** — the
+  latter two lazy-load remote bundles our CSP blocks (crashes use the bundled
+  `captureException`), and autocapture would leak race names/notes via `$el_text`.
   See `docs/telemetry.md` before adding/swapping a provider or an event.
 - **Layout:** views in `src/views/`, modals/full-screen flows in `src/modals/`,
   reusable widgets in `src/components/`, pure helpers in `src/utils/`.

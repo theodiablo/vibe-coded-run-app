@@ -37,9 +37,6 @@
     "copyTrace": "Copier la trace",
     "copied": "Copié",
     "emailTrace": "Envoyer la trace par e-mail",
-    "askSend": "Envoyer un rapport de plantage limité pour aider à corriger le problème ?",
-    "dontSend": "Ne pas envoyer",
-    "sendReport": "Envoyer le rapport",
     "sent": "Rapport de plantage envoyé. Merci.",
     "reload": "Recharger"
   },

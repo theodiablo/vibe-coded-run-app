@@ -22,9 +22,32 @@ Set at build time (e.g. `.env.local`), same pattern as `VITE_MAPTILER_KEY`:
 | `VITE_POSTHOG_HOST`  | no       | `https://eu.i.posthog.com`    | EU Cloud by default (privacy hosting). Use `https://us.i.posthog.com` or a self-host URL to change region. |
 | `VITE_APP_ENV`       | no       | `development`                 | Tags every event + crash with an `environment` super property. The deploy workflows set `production`; the PR-preview workflows set `preview`; unset (local builds) is `development`. |
 
-The PostHog SDK is initialised with autocapture, pageviews, pageleave and
-session recording all **off** (this is a no-router SPA — we send a small curated
-set of explicit events) and `person_profiles: 'identified_only'`.
+The PostHog SDK is initialised with **pageviews and pageleaves ON** — the
+standard web-analytics events that drive visitor/session counts and PostHog's
+**Web Analytics** tab. Both are part of the core bundle (no remote fetch), so
+they satisfy our CSP and also fire inside the native WebView (one `$pageview`
+per app open — there's no router). Alongside them the app still sends its small
+curated set of explicit events (`run_logged`, `plan_generated`, …).
+
+Three capture features are deliberately **off**, each for a concrete reason —
+don't flip them without reading this:
+
+- **`autocapture`** — records the visible text of clicked elements (`$el_text`),
+  which in this app can include race names and run details. That's exactly the
+  free text the telemetry policy never sends, so autocapture stays off. (If you
+  ever need it, strip text via `sanitize_properties` first.)
+- **`capture_exceptions`** (PostHog's *automatic* exception capture) — lazy-loads
+  `exception-autocapture.js` from PostHog's asset host, which
+  `disable_external_dependency_loading` + our CSP (`script-src 'self'`) block, so
+  it would silently never load. Crashes are captured with the **bundled**
+  `captureException` API instead (see *Crash reporting* below).
+- **`disable_session_recording: true`** — the recorder is another remote bundle
+  blocked by the same CSP, and recording sessions is a much larger privacy
+  surface. Enabling it would need a `script-src` relaxation and a fresh consent
+  review.
+
+`person_profiles: 'identified_only'` (anonymous events don't create Person
+profiles — count unique users by `distinct_id` instead).
 
 Every event (and every crash) carries two super properties: `environment`
 (above) and `native` (true in the Capacitor shell). **PR previews send to the
@@ -60,13 +83,18 @@ an explicit var.
   inherently per-device, so a fresh browser should ask again. `getConsent()`
   returns true only for `"1"`; `getConsentDecision()` exposes the tri-state for
   the banner's visibility.
-- **Native crashes get a second gate.** Even with analytics consent on, a native
-  crash is held by the `ErrorBoundary` and uploaded only after the user taps
-  **Send report** on the crash screen. Nothing leaves the device on a per-crash
-  basis without that in-the-moment OK.
+- **Crashes are auto-reported on both platforms, consent-gated.** A crash — a
+  React render error, or an uncaught window `error` / `unhandledrejection` — is
+  captured via the bundled `captureException` whenever the user has granted
+  analytics consent, and never otherwise. The rule is identical on web and
+  native. The `ErrorBoundary` still shows a friendly crash screen (reload +
+  copy/email-trace escape hatch); it no longer asks *per crash* whether to send
+  (that native-only "Send report" prompt was removed when native moved to
+  auto-report). PostHog's *automatic* exception capture stays off (blocked by our
+  CSP — see above), so crashes ride our own handlers, not the remote bundle.
 - `track()` / `identifyUser()` are gated on consent. `captureError()` is not —
-  its call sites are (web boundary/global handlers check consent; the native
-  crash screen calls it only on "Send"). Keep that split when extending.
+  its call sites are (the `ErrorBoundary` and the web global handlers report only
+  when `getConsent()`). Keep that split when extending.
 
 ## What's wired today
 
@@ -111,11 +139,12 @@ SDK loads in `opt_out_capturing_by_default` mode), so a single import serves bot
 states. `init`/`track`/`identify` run through a tiny queue that replays calls
 made before the dynamic import resolves.
 
-The opted-out **native per-crash** path (`captureError` while opted out) opts in
-just long enough to send the one exception and does **not** synchronously
-re-opt-out — that would risk dropping the still-queued report. It's safe because
-the app is on the crash screen (no other events firing) and the next reload
-re-reads the persisted opt-out and starts paused again.
+`captureError` carries a defensive opted-out path: if it's ever called while the
+SDK is opted out, it opts in just long enough to send the one exception and does
+**not** synchronously re-opt-out (that would risk dropping the still-queued
+report) — the next reload re-reads the persisted opt-out and starts paused again.
+In normal flow this branch is dormant: every crash call site already checks
+`getConsent()` first, so `captureError` runs only when the SDK is opted in.
 
 ## Swapping vendors
 

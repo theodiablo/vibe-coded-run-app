@@ -37,9 +37,6 @@
     "copyTrace": "Copy trace",
     "copied": "Copied",
     "emailTrace": "Email trace",
-    "askSend": "Send a limited crash report to help fix this?",
-    "dontSend": "Don't send",
-    "sendReport": "Send report",
     "sent": "Crash report sent. Thank you.",
     "reload": "Reload"
   },

@@ -10,17 +10,19 @@ const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || "";
 
 // App-wide crash guard. A render-time exception anywhere below this boundary
 // would otherwise white-screen the user; instead we show a friendly fallback
-// with a reload, and feed the crash to telemetry under the consent rules:
-//
-//   • web   — auto-report when the user hasn't opted out of analytics.
-//   • native — hold the report and ask the user, per crash, whether to send it
-//     (their explicit requirement). Nothing is uploaded until they tap "Send".
+// with a reload, and feed the crash to telemetry under the single consent rule:
+// auto-report on BOTH web and native whenever the user has granted analytics
+// consent (getConsent()), and never otherwise. Capture goes through the bundled
+// captureException API (see telemetry/posthog.ts) — PostHog's remote
+// exception-autocapture bundle is blocked by our CSP. On native this also covers
+// uncaught window errors / promise rejections via the listeners in
+// componentDidMount (on web those are handled by installGlobalErrorHandlers).
 //
 // Class component because error boundaries have no hooks equivalent.
 type ErrorBoundaryProps = { children: ReactNode };
 type ErrorBoundaryState = {
   error: Error | null;
-  decision: "sent" | "declined" | null;
+  decision: "sent" | null;
   showDetails: boolean;
   copied: boolean;
 };
@@ -46,11 +48,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(_error: Error, info: ErrorInfo) {
     this.info = info;
     this.kind = "react";
-    // Web auto-reports (consent permitting); native waits for the user.
-    if (!isNative && getConsent()) {
-      this.report();
-      this.setState({ decision: "sent" });
-    }
+    // Auto-report on web and native alike, consent permitting (state.error is
+    // already set by getDerivedStateFromError before this runs).
+    this.maybeReport();
   }
 
   componentDidMount() {
@@ -58,16 +58,31 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.onWindowError = (e) => {
       this.info = null;
       this.kind = "window.error";
-      this.setState({ error: e.error || new Error(e.message || "Unknown error"), decision: null, showDetails: true, copied: false });
+      this.setState(
+        { error: e.error || new Error(e.message || "Unknown error"), decision: null, showDetails: true, copied: false },
+        () => this.maybeReport(),
+      );
     };
     this.onUnhandledRejection = (e) => {
       this.info = null;
       this.kind = "unhandledrejection";
       const err = e.reason instanceof Error ? e.reason : new Error(String(e.reason));
-      this.setState({ error: err, decision: null, showDetails: true, copied: false });
+      this.setState(
+        { error: err, decision: null, showDetails: true, copied: false },
+        () => this.maybeReport(),
+      );
     };
     window.addEventListener("error", this.onWindowError);
     window.addEventListener("unhandledrejection", this.onUnhandledRejection);
+  }
+
+  // Send the current crash once, if analytics consent is granted. Called after
+  // state.error is populated (directly in componentDidCatch, via the setState
+  // callback in the native window/rejection listeners).
+  maybeReport() {
+    if (this.state.decision === "sent" || !this.state.error || !getConsent()) return;
+    this.report();
+    this.setState({ decision: "sent" });
   }
 
   componentWillUnmount() {
@@ -103,13 +118,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     });
   }
 
-  send = () => {
-    this.report();
-    this.setState({ decision: "sent" });
-  };
-
-  decline = () => this.setState({ decision: "declined" });
-
   toggleDetails = () => this.setState(prev => ({ showDetails: !prev.showDetails }));
 
   copyTrace = () => {
@@ -135,9 +143,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (!this.state.error) return this.props.children;
-
-    // Show the per-crash report prompt only on native, only while undecided.
-    const askToSend = isNative && this.state.decision === null;
 
     return (
       <div className="h-screen bg-slate-900 text-white flex items-center justify-center p-6">
@@ -176,33 +181,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </div>
           </div>
 
-          {askToSend ? (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-400">
-                {t("app.crash.askSend")}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={this.decline}
-                  className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors">
-                  {t("app.crash.dontSend")}
-                </button>
-                <button onClick={this.send}
-                  className="py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                  {t("app.crash.sendReport")}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {this.state.decision === "sent" && (
-                <p className="text-xs text-emerald-400">{t("app.crash.sent")}</p>
-              )}
-              <button onClick={this.reload}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors">
-                {t("app.crash.reload")}
-              </button>
-            </>
+          {this.state.decision === "sent" && (
+            <p className="text-xs text-emerald-400">{t("app.crash.sent")}</p>
           )}
+          <button onClick={this.reload}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors">
+            {t("app.crash.reload")}
+          </button>
         </div>
       </div>
     );

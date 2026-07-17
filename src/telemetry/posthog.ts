@@ -40,16 +40,26 @@ function ensureLoaded() {
   loading = import("posthog-js")
     .then(({ default: posthog }) => {
       posthog.init(KEY, {
+        // Standard product-analytics web events: pageviews + pageleaves. They
+        // give visitor/session counts and populate PostHog's Web Analytics, and
+        // both are part of the core bundle (no remote fetch), so they work under
+        // our CSP. They fire on web AND inside the native WebView (one pageview
+        // per app open, since there's no router). Still consent-gated: capture
+        // stays off until opt_in_capturing (opt_out_capturing_by_default below).
         api_host: HOST,
-        // No router in this app, so capture explicit events only — no
-        // autocapture, no pageviews, no session recording. We also drive
-        // opt-in/out ourselves from user consent (opt_out_capturing_by_default)
-        // and send exceptions explicitly (capture_exceptions: false), so a
-        // crash can never ship outside the consent rules in index.js /
-        // ErrorBoundary.
+        capture_pageview: true,
+        capture_pageleave: true,
+        // Autocapture stays OFF *by design*: it records the visible text of
+        // clicked elements ($el_text), which in this app can include race names
+        // and run details — exactly the free text the telemetry policy never
+        // sends (see docs/telemetry.md). Don't flip this without revisiting that.
         autocapture: false,
-        capture_pageview: false,
-        capture_pageleave: false,
+        // Automatic exception capture (capture_exceptions) stays OFF too: it
+        // lazy-loads `exception-autocapture.js` from PostHog's asset host, which
+        // disable_external_dependency_loading + our CSP (script-src 'self')
+        // block — so it would silently never load. Crashes are captured with the
+        // BUNDLED captureException API instead, driven from our own consent-gated
+        // handlers (index.ts global handlers + ErrorBoundary).
         capture_exceptions: false,
         disable_session_recording: true,
         // Don't fetch PostHog's optional remote scripts (recorder, surveys,
