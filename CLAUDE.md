@@ -590,6 +590,23 @@ and delete anything that becomes stale.
   the real HC grant is per-install (`WATCH_HC_AUTH_KEY`, `rc_watch_hc_auth`) and
   must be present before the native bridge is touched. `scanWatchSessions` copies
   `flushPendingHr`'s guard structure (never throws, clears the marker on revoke).
+- **One Health Connect consent for both features.** HC permissions are per-*app*,
+  not per-plugin, so the post-run-HR reader (pianissimo, `HeartRateSeries`) and
+  the exercise-import plugin (`WatchImport`, Exercise/Distance/Elevation/HR) share
+  one OS grant. Both Settings entry points (HR sensor picker → `connectHc`;
+  Integrations → `healthConnectProvider.connect`) go through the single
+  coordinator `connectHealthConnect` (`src/health/connect.ts`): it asks for the
+  **full** scope set on one consent screen (via the WatchImport plugin, which
+  lists all four record types), then reconciles each feature's marker
+  independently (`healthConnectSource.checkPermissions` → `HR_HEALTH_CONNECT_AUTH_KEY`,
+  `watchImportSource.checkPermissions` → `WATCH_HC_AUTH_KEY`) so a partial grant is
+  reflected per feature. It returns `{availability, heartRate, activity}`, never
+  throws, and routes the `NotInstalled` case through the pianissimo request (the
+  only one that opens Google Play for HC). Granting the OS permission does NOT flip
+  a feature on — each entry point still sets only its own preference
+  (`hrMethod` / `watchImport`); the other feature is then one tap from ready.
+  Don't reintroduce a scope-narrow per-button HC request — route new HC entry
+  points through this coordinator.
 - **Wiring:** `RunningCoach.scanImports` (via a latest-ref, called from the
   boot `[loading]` effect + the `visibilitychange` listener, throttled to one
   auto-toast per session) drives `scanAllProviders` → **1 run** goes through

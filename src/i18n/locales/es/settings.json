@@ -90,7 +90,7 @@
     "hcConnected": "Conectado. La frecuencia cardíaca se añade automáticamente a tus entrenamientos.",
     "hcReconnect": "Reconectar Health Connect",
     "hcConnect": "Conectar Health Connect",
-    "hcHelp": "Recupera tu frecuencia cardíaca de Health Connect después de cada entrenamiento. Es útil si tu reloj sincroniza los datos pero no los transmite en tiempo real. Pueden tardar unos minutos en aparecer.",
+    "hcHelp": "Recupera tu frecuencia cardíaca de Health Connect después de cada entrenamiento. Es útil si tu reloj sincroniza los datos pero no los transmite en tiempo real. Pueden tardar unos minutos en aparecer. La misma conexión también permite importar entrenamientos completos. Actívalo en «Entrenamientos del reloj».",
     "hcNotSupported": "Health Connect no es compatible con este dispositivo (requiere Android 8+).",
     "hcSuccess": "Conexión con Health Connect establecida. La frecuencia cardíaca se recuperará después de tus entrenamientos.",
     "hcInstall": "Instala Health Connect desde Google Play y luego vuelve a tocar Conectar.",

@@ -1,5 +1,6 @@
 import { isAndroid } from "../../native";
-import { scanWatchSessions, watchImportSource, hasWatchAuthorization, setWatchAuthorization, WATCH_SCAN_DAYS } from "../../watch/import";
+import { scanWatchSessions, hasWatchAuthorization, setWatchAuthorization, WATCH_SCAN_DAYS } from "../../watch/import";
+import { connectHealthConnect } from "../../health/connect";
 import type { ImportProvider } from "../types";
 import type { Run } from "../../types";
 
@@ -16,7 +17,10 @@ export const healthConnectProvider: ImportProvider = {
   platform: "native",
   isAvailable: () => isAndroid, // Health Connect is Android-only; iOS gets the HealthKit provider
   isConnected: () => hasWatchAuthorization(),
-  connect: () => watchImportSource.requestPermissions(),
+  // Ask for every Health Connect scope on one consent screen (the same grant also
+  // authorizes the "Health Connect" heart-rate method). `activity` is true only
+  // when the exercise/distance/elevation reads this import needs were granted.
+  connect: async () => (await connectHealthConnect()).activity,
   disconnect: () => setWatchAuthorization(false),
   scan: (runs: Run[], opts?: { days?: number; now?: number }) =>
     scanWatchSessions(runs, {
