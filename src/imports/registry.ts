@@ -46,6 +46,8 @@ type ScanAllOptions = {
   // Caller-supplied preference gate (e.g. settings.watchImport for the Health
   // Connect provider). Providers themselves only check device-local state.
   enabled?: (p: ImportProvider) => boolean;
+  // Free-form label ("auto"/"manual") forwarded to providers for diagnostics.
+  trigger?: string;
 };
 
 // Run every scan-capable, available, enabled provider and return the merged,
@@ -62,7 +64,7 @@ export async function scanAllProviders(runs: Run[], opts: ScanAllOptions = {}): 
     try {
       if (!(await p.isAvailable())) continue;
       if (opts.enabled && !opts.enabled(p)) continue;
-      const candidates = await p.scan((runs || []).concat(found as Run[]), { days: opts.days, now: opts.now });
+      const candidates = await p.scan((runs || []).concat(found as Run[]), { days: opts.days, now: opts.now, trigger: opts.trigger });
       for (const cand of candidates || []) {
         // Recompute per candidate so a batch also dedupes against itself.
         if (!isDuplicateRun(cand, (runs || []).concat(found as Run[]), seenIds)) found.push(cand);

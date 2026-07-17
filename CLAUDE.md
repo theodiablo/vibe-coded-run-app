@@ -631,11 +631,35 @@ and delete anything that becomes stale.
   already tolerates).
 - **Everything interpretable is pure TS** (`src/watch/`): `plugin.ts` (lazy
   `registerPlugin` bridge, raw `WatchSessionRaw`), `mapping.ts`
-  (`sessionRunType`/`sessionLocalDate`/`sessionToRun`/`newWatchSessions` — all
-  unit-tested), `import.ts` (`scanWatchSessions` + per-device auth/seen-id
-  helpers). The native side returns **raw** metres/seconds/exercise-type ints so
-  the mapping stays testable off-device. Per-session aggregates are filtered to
-  the session's own `dataOrigin` so two apps syncing the same run can't mix.
+  (`sessionRunType`/`sessionLocalDate`/`sessionToRun`/`classifyWatchSessions`/
+  `newWatchSessions` — all unit-tested), `import.ts` (`scanWatchSessions` +
+  per-device auth/seen-id helpers). The native side returns **raw**
+  metres/seconds/exercise-type ints so the mapping stays testable off-device.
+  Per-session aggregates are filtered to the session's own `dataOrigin` so two
+  apps syncing the same run can't mix. **Fields the watch app doesn't write to
+  Health Connect stay blank, not zero** — `sessionToRun` only sets `elevation`
+  when `elevationGainM != null`, and HR (`hrAvg`/`hrMax`) is HC's own
+  BPM_AVG/BPM_MAX re-aggregated over the session window, which legitimately
+  differs by a few bpm from the source app's own displayed avg/max. Common
+  reality (seen with Zepp/Amazfit): distance + duration + HR import, **elevation
+  gain does not** (same reason there's no route) — a genuine source-data gap, not
+  a bug. `newWatchSessions` is now a thin filter over `classifyWatchSessions`,
+  which labels **every** raw session with an import outcome
+  (`imported`/`not-run-type`/`too-short`/`already-seen`/`duplicate`/`invalid`)
+  using the ONE dedupe rule set — the single source both the import and the
+  diagnostics log read from.
+- **Watch-import diagnostics (dev-only sync log):** every HC scan (including
+  skipped/failed ones) is recorded to a per-device ring buffer
+  (`src/watch/scanLog.ts`, `rc_watch_scan_log`, **never synced**, capped at
+  `WATCH_SCAN_LOG_MAX`) with per-session outcome + raw type/distance/elevation/
+  origin. `scanWatchSessions` takes a free-form `trigger` label
+  (`"auto"`/`"manual"`, threaded through `scanAllProviders` → provider `scan`
+  opts). The viewer is `src/views/WatchSyncLog.tsx`, **hidden** behind tapping the
+  Settings → Integrations section title 5× (`rc_watch_debug`); it is a raw debug
+  surface (type ids, package names) and deliberately **not** wired through i18n.
+  Use it to answer "my watch run didn't import" / "its elevation is blank": a
+  `null` elevation row means the watch app wrote none to HC. No Android rebuild is
+  needed for it — the native plugin already returns all sessions raw.
 - **ONE dedupe rule set** (`src/imports/dedupe.ts` `isDuplicateRun`, run-shaped —
   watch scans map sessions first, then dedupe once; never add a parallel
   session-shaped check, the two drifted before): (1) per-device seen-id list

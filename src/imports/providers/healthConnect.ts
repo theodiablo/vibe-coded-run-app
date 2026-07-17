@@ -22,12 +22,13 @@ export const healthConnectProvider: ImportProvider = {
   // when the exercise/distance/elevation reads this import needs were granted.
   connect: async () => (await connectHealthConnect()).activity,
   disconnect: () => setWatchAuthorization(false),
-  scan: (runs: Run[], opts?: { days?: number; now?: number }) =>
+  scan: (runs: Run[], opts?: { days?: number; now?: number; trigger?: string }) =>
     scanWatchSessions(runs, {
       enabled: true, // the synced preference gate is applied by the caller (registry `enabled` predicate)
       allowNativeRead: hasWatchAuthorization(),
       days: opts?.days ?? WATCH_SCAN_DAYS,
       ...(opts?.now ? { now: opts.now } : {}),
+      ...(opts?.trigger ? { trigger: opts.trigger } : {}),
     }),
   help:
     "Works with any watch whose app writes workouts to Health Connect (Android 14+): " +

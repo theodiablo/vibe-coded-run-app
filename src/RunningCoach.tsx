@@ -635,6 +635,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     watchLastScanRef.current = Date.now();
     const scanned = await scanAllProviders(runsRef.current, {
       ...(days ? { days } : {}),
+      trigger: manual ? "manual" : "auto", // diagnostics label for the sync-log
       // The synced preference gates the health-store providers (watchImport is
       // shared by Health Connect and HealthKit); providers only check
       // device-local state (grant markers) themselves.

@@ -69,19 +69,54 @@ export function sessionToRun(s: WatchSessionRaw): Partial<Run> {
   return run;
 }
 
-// Sessions that are runnable (a run/walk type) and not already logged: map
-// first, then dedupe once through the ONE rule set (isDuplicateRun in
-// src/imports/dedupe.ts — ids, time overlap, fuzzy day+distance fallback).
-// There is deliberately no session-shaped duplicate check here: two parallel
-// implementations of the same four rules drifted on edge cases, so the mapped
-// run shape is the only thing ever deduped.
-export function newWatchSessions(sessions: WatchSessionRaw[], runs: Run[], seenIds: string[]): Partial<Run>[] {
-  const out: Partial<Run>[] = [];
+// Why a raw session did (or didn't) become an imported run. This is the single
+// vocabulary the real import AND the diagnostics sync-log share, so the log can
+// never disagree with what actually imported.
+export type SessionOutcome =
+  | "imported"      // became a new run
+  | "not-run-type"  // an exercise session, but not running/walking (cycling, swim…)
+  | "too-short"     // a run under the minimum-distance filter
+  | "already-seen"  // this device already imported/dismissed this session id
+  | "duplicate"     // matches a run already in the log (id/time/fuzzy)
+  | "invalid";      // unusable (missing id)
+
+export type ClassifiedSession = { raw: WatchSessionRaw; run: Partial<Run> | null; outcome: SessionOutcome };
+
+// Classify EVERY raw Health Connect session into an import outcome, keeping the
+// ONE dedupe rule set (isDuplicateRun in src/imports/dedupe.ts — ids, time
+// overlap, fuzzy day+distance fallback). This is the single source both the real
+// import (newWatchSessions) and the sync-log read from — there is deliberately no
+// second session-shaped duplicate check (two parallel implementations of the same
+// rules drifted on edge cases before). `minKm` mirrors the scan's short-run
+// filter; pass 0 to disable it. `already-seen` is reported separately from
+// `duplicate` for the diagnostics log, but both are excluded from the import.
+export function classifyWatchSessions(
+  sessions: WatchSessionRaw[],
+  runs: Run[],
+  seenIds: string[],
+  minKm = 0,
+): ClassifiedSession[] {
+  const out: ClassifiedSession[] = [];
+  const accepted: Partial<Run>[] = [];
   for (const s of sessions || []) {
-    if (!s || !s.id || sessionRunType(s.exerciseType) == null) continue;
+    if (!s || !s.id) { if (s) out.push({ raw: s, run: null, outcome: "invalid" }); continue; }
+    if (sessionRunType(s.exerciseType) == null) { out.push({ raw: s, run: null, outcome: "not-run-type" }); continue; }
     const run = sessionToRun(s);
-    // Dedupe against the log AND earlier candidates in this same batch.
-    if (!isDuplicateRun(run, (runs || []).concat(out as Run[]), seenIds)) out.push(run);
+    if ((Number(run.km) || 0) < minKm) { out.push({ raw: s, run, outcome: "too-short" }); continue; }
+    if (seenIds.includes(s.id)) { out.push({ raw: s, run, outcome: "already-seen" }); continue; }
+    // Dedupe against the log AND earlier accepted candidates in this same batch.
+    // seenIds handled above, so pass [] here to keep the two reasons distinct.
+    if (isDuplicateRun(run, (runs || []).concat(accepted as Run[]), [])) { out.push({ raw: s, run, outcome: "duplicate" }); continue; }
+    accepted.push(run);
+    out.push({ raw: s, run, outcome: "imported" });
   }
   return out;
+}
+
+// Sessions that are runnable and not already logged, as plain runs. Thin wrapper
+// over classifyWatchSessions so there is exactly one import code path.
+export function newWatchSessions(sessions: WatchSessionRaw[], runs: Run[], seenIds: string[]): Partial<Run>[] {
+  return classifyWatchSessions(sessions, runs, seenIds, 0)
+    .filter(c => c.outcome === "imported")
+    .map(c => c.run as Partial<Run>);
 }

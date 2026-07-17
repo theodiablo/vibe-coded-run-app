@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Watch, Loader, Check, RefreshCw } from "lucide-react";
 import { connectableProviders, healthStoreProviderIds, providerEnabledInSettings } from "../imports/registry";
 import { BetaBadge } from "../components/BetaBadge";
+import { isWatchDebugEnabled, setWatchDebug } from "../watch/scanLog";
+import { WatchSyncLog } from "./WatchSyncLog";
 import type { ImportProvider } from "../imports/types";
 import type { SettingsState } from "../types";
 
@@ -38,6 +40,18 @@ export function Integrations({ settings, saveSettings, showToast, scanImportsNow
   const [connected, setConnected] = useState<Record<string, boolean>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  // Hidden developer sync-log: tap the section title 5× to toggle it.
+  const [debug, setDebug] = useState(isWatchDebugEnabled());
+  const tapsRef = useRef(0);
+  const revealTap = () => {
+    tapsRef.current += 1;
+    if (tapsRef.current < 5) return;
+    tapsRef.current = 0;
+    const next = !isWatchDebugEnabled();
+    setWatchDebug(next);
+    setDebug(next);
+    showToast?.(next ? "Developer sync log enabled" : "Developer sync log hidden");
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +113,7 @@ export function Integrations({ settings, saveSettings, showToast, scanImportsNow
     <div className="space-y-3 pt-2 border-t border-slate-700/60">
       <div className="flex items-center gap-2 pt-1">
         <Watch size={14} className="text-orange-400" />
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{t("settings.integrations.title")}</p>
+        <p onClick={revealTap} className="text-xs font-semibold text-slate-400 uppercase tracking-wide select-none">{t("settings.integrations.title")}</p>
         <BetaBadge label={t("settings.newBeta")} />
       </div>
       <p className="text-xs text-slate-500 -mt-1">
@@ -141,6 +155,8 @@ export function Integrations({ settings, saveSettings, showToast, scanImportsNow
           </div>
         );
       })}
+
+      {debug && <WatchSyncLog onHide={() => setDebug(false)} />}
     </div>
   );
 }

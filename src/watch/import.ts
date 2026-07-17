@@ -1,7 +1,8 @@
 import { isAndroid } from "../native";
 import { WATCH_HC_AUTH_KEY, WATCH_SEEN_HC_IDS_KEY, WATCH_SEEN_MAX } from "../constants";
 import { getWatchImportPlugin, type WatchImportAvailability } from "./plugin";
-import { newWatchSessions } from "./mapping";
+import { classifyWatchSessions } from "./mapping";
+import { appendScanLog, toLogSessions } from "./scanLog";
 import type { Run } from "../types";
 
 // Default rolling window scanned on each app open/foreground. No sync cursor:
@@ -85,27 +86,49 @@ async function requestPermissions(): Promise<boolean> {
   } catch { setWatchAuthorization(false); return false; }
 }
 
-type ScanOptions = { enabled?: boolean; allowNativeRead?: boolean; days?: number; now?: number };
+type ScanOptions = { enabled?: boolean; allowNativeRead?: boolean; days?: number; now?: number; trigger?: string };
 
 // Read finished exercise sessions from Health Connect over the last `days`, map
 // them to runs, and drop anything already logged. Never throws and returns [] on
 // any failure, mirroring flushPendingHr's guard structure: it only touches the
 // native bridge when enabled AND this device holds the local grant marker (a
 // synced preference alone is not enough — Android grants are per-install).
+//
+// Every attempt is recorded in the per-device diagnostics ring buffer (scanLog)
+// — including skipped/failed ones — so the hidden Settings sync-log panel can
+// show why a watch run did or didn't import. Recording is best-effort and never
+// affects the return value.
 export async function scanWatchSessions(
   runs: Run[],
-  { enabled = true, allowNativeRead = true, days = WATCH_SCAN_DAYS, now = Date.now() }: ScanOptions = {},
+  { enabled = true, allowNativeRead = true, days = WATCH_SCAN_DAYS, now = Date.now(), trigger = "auto" }: ScanOptions = {},
 ): Promise<Partial<Run>[]> {
-  if (!enabled || !allowNativeRead || !isAndroid || !hasWatchAuthorization()) return [];
+  if (!isAndroid) return []; // web / iOS: nothing to scan or log
+  if (!enabled || !allowNativeRead || !hasWatchAuthorization()) {
+    // Preference on but this device not authorized (or reads deferred): log it so
+    // "I connected but nothing imports" is diagnosable, then bail before the bridge.
+    appendScanLog({ at: now, trigger, days, availability: "skipped", permission: false, rawCount: 0, importedCount: 0, sessions: [] });
+    return [];
+  }
   try {
-    if (!(await isAvailable()) || !(await checkPermissions())) return [];
+    const avail = await availability();
+    const perm = avail === "Available" ? await checkPermissions() : false;
+    if (!perm) {
+      appendScanLog({ at: now, trigger, days, availability: avail, permission: false, rawCount: 0, importedCount: 0, sessions: [] });
+      return [];
+    }
     const res = await getWatchImportPlugin().readExerciseSessions({
       startTime: new Date(now - days * DAY_MS).toISOString(),
       endTime: new Date(now).toISOString(),
     });
-    return newWatchSessions(res?.sessions || [], runs || [], getSeenIds())
-      .filter(r => (Number(r.km) || 0) >= WATCH_MIN_KM);
-  } catch { return []; }
+    const raw = res?.sessions || [];
+    const classified = classifyWatchSessions(raw, runs || [], getSeenIds(), WATCH_MIN_KM);
+    const imported = classified.filter(c => c.outcome === "imported").map(c => c.run as Partial<Run>);
+    appendScanLog({ at: now, trigger, days, availability: avail, permission: true, rawCount: raw.length, importedCount: imported.length, sessions: toLogSessions(classified) });
+    return imported;
+  } catch (e) {
+    appendScanLog({ at: now, trigger, days, availability: "skipped", permission: false, rawCount: 0, importedCount: 0, error: String((e as { message?: string })?.message || e), sessions: [] });
+    return [];
+  }
 }
 
 // Surface for the Settings UI (connect flow + status), mirroring healthConnectSource.
