@@ -411,6 +411,20 @@ and delete anything that becomes stale.
   uses `checkPermissions()` only as a fast-path "already granted" check and falls
   back to a real `getCurrentPosition()` probe — the one call that can actually
   show both dialogs — whenever that check doesn't succeed.
+- **Gotcha — precise vs approximate location hinges on `enableHighAccuracy`.**
+  On Android 12+ the `@capacitor/geolocation` plugin picks the runtime permission
+  from `enableHighAccuracy`: `false` requests the COARSE-only alias, so the OS
+  dialog never shows the "Precise" toggle and the user can only grant
+  *Approximate* — the "can't request precise location" bug. Run tracking needs
+  FINE GPS, so `ensureForegroundPermission(highAccuracy)` defaults to `true` and
+  the run-tracking call sites (`requestPermissions`, the background watcher) pass
+  `true`; only Discover's "races near me" one-off passes `false` (approximate is
+  enough — don't over-ask). The fast-path "already granted" check is
+  accuracy-aware (`isFineGranted` for a precise ask, `isGranted` for coarse) so a
+  user who previously granted only Approximate is routed back through the probe to
+  re-offer precise instead of being pinned to approximate forever. A resolved
+  probe still returns `true` even if the user picks Approximate — choosing it
+  degrades accuracy, it never blocks the run.
 - **Foreground location only — no `ACCESS_BACKGROUND_LOCATION`.** Screen-off
   recording works via the background-geolocation **foreground service** (started
   while the app is visible) under the "while using the app" grant, so the app
