@@ -5,6 +5,7 @@ import { hrMethodsForPlatform } from "../hr/source";
 import { bleSource } from "../hr/ble";
 import { healthConnectSource } from "../hr/healthconnect";
 import { healthKitSource } from "../hr/healthkit";
+import { connectHealthConnect } from "../health/connect";
 import { getPairedDevice, setPairedDevice, forgetPairedDevice } from "../hr/device";
 import { HrSensorDisclosure } from "../modals/HrSensorDisclosure";
 import { HR_BLE_DISCLOSED_KEY } from "../constants";
@@ -111,20 +112,22 @@ export function HrSensor({ settings, saveSettings, showToast }: HrSensorProps) {
   const connectHc = async () => {
     setHcBusy(true);
     try {
-      const status = await healthConnectSource.availability();
-      if (status === "NotSupported") {
+      // One consent for everything the app reads from Health Connect (heart rate
+      // + exercise/distance/elevation), so this same grant also powers watch run
+      // import under "Runs from your watch" — the user never has to grant twice.
+      // "NotInstalled" opens Google Play so they can install Health Connect first.
+      const grant = await connectHealthConnect();
+      if (grant.availability === "NotSupported") {
         showToast?.(t("settings.hrSensor.hcNotSupported"), "err");
         return;
       }
-      // "Available" → the OS shows the permission screen. "NotInstalled" → the plugin
-      // opens Google Play so the user can install Health Connect first.
-      const ok = await healthConnectSource.requestPermissions();
+      const ok = grant.heartRate;
       setHcConnected(ok);
       if (ok) { setSetupMethod(null); setMethod("healthconnect"); }
       else if (persistedMethod === "healthconnect") setMethod("off");
       showToast?.(
         ok ? t("settings.hrSensor.hcSuccess")
-          : status === "NotInstalled"
+          : grant.availability === "NotInstalled"
             ? t("settings.hrSensor.hcInstall")
             : t("settings.hrSensor.hcDenied"),
         ok ? "ok" : "err");

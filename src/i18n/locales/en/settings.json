@@ -90,7 +90,7 @@
     "hcConnected": "Connected — heart rate is added to your runs automatically.",
     "hcReconnect": "Reconnect Health Connect",
     "hcConnect": "Connect Health Connect",
-    "hcHelp": "Reads your heart rate from Android Health Connect after a run — useful if your watch syncs there but doesn't broadcast live. It may take a few minutes to appear after you finish.",
+    "hcHelp": "Reads your heart rate from Android Health Connect after a run — useful if your watch syncs there but doesn't broadcast live. It may take a few minutes to appear after you finish. The same connection also unlocks importing full runs — turn that on under \"Runs from your watch\".",
     "hcNotSupported": "Health Connect isn't supported on this device (needs Android 8+).",
     "hcSuccess": "Health Connect connected — heart rate will be read after your runs.",
     "hcInstall": "Install Health Connect from Google Play, then tap Connect again.",

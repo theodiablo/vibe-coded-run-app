@@ -90,7 +90,7 @@
     "hcConnected": "Connexion établie. La fréquence cardiaque est ajoutée automatiquement à tes sorties.",
     "hcReconnect": "Reconnecter Health Connect",
     "hcConnect": "Connecter Health Connect",
-    "hcHelp": "Récupère ta fréquence cardiaque dans Health Connect après chaque sortie. C'est utile si ta montre y synchronise ses données sans les diffuser en direct. Les données peuvent mettre quelques minutes à apparaître.",
+    "hcHelp": "Récupère ta fréquence cardiaque dans Health Connect après chaque sortie. C'est utile si ta montre y synchronise ses données sans les diffuser en direct. Les données peuvent mettre quelques minutes à apparaître. La même connexion permet aussi d'importer tes sorties complètes. Active-le dans « Sorties de ta montre ».",
     "hcNotSupported": "Health Connect n'est pas pris en charge sur cet appareil (nécessite Android 8+).",
     "hcSuccess": "Connexion à Health Connect établie. La fréquence cardiaque sera récupérée après tes sorties.",
     "hcInstall": "Installe Health Connect depuis Google Play, puis touche à nouveau Connecter.",
