@@ -7,7 +7,8 @@
   "watchBanner": "Sortie importée depuis ta montre. Vérifie les données (aucun tracé ni aucune carte ne sont inclus), choisis un type, puis enregistre.",
   "import": {
     "title": "Importer un fichier d’activité",
-    "gpx": "<0>GPX / TCX :</0> une activité avec son tracé. Exporte-la depuis Garmin Connect, Strava ou la plupart des plateformes",
+    "gpx": "<0>FIT / GPX / TCX :</0> une activité avec son tracé, son dénivelé et sa fréquence cardiaque",
+    "perActivity": "<0>Récupérer une sortie depuis Strava :</0> sur strava.com, ouvre l’activité, puis ••• → Exporter l’original (le fichier .fit) ou Exporter en GPX, et importe le fichier ici",
     "zepp": "<0>CSV Zepp :</0> Profil → Centre de confidentialité → Exporter les données personnelles",
     "strava": "<0>CSV Strava :</0> Paramètres → Mon compte → Télécharger ou supprimer → Demander une archive",
     "chooseFile": "Choisir un fichier",

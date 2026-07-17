@@ -7,7 +7,8 @@
   "watchBanner": "Imported from your watch — check the details (there's no route/map), pick a type, then save.",
   "import": {
     "title": "Import an activity file",
-    "gpx": "<0>GPX / TCX:</0> one activity with its route map — export from Garmin Connect, Strava and most platforms",
+    "gpx": "<0>FIT / GPX / TCX:</0> one activity with its route map, elevation and heart rate",
+    "perActivity": "<0>Get one run from Strava:</0> on strava.com open the activity, then ••• → Export Original (the .fit file) or Export GPX, and import the file here",
     "zepp": "<0>Zepp CSV:</0> Profile → Privacy Center → Export Personal Data",
     "strava": "<0>Strava CSV:</0> Settings → My Account → Download or Delete → Request Archive",
     "chooseFile": "Choose file",

@@ -595,8 +595,16 @@ and delete anything that becomes stale.
   **healthConnect** (wraps `src/watch/`, deliberately brand-agnostic — one
   "Watch" entry for Garmin/Zepp/etc., brand stamped into run notes via
   `dataOrigin.ts`), **file** (CSV via `parseRunsCsv` + GPX/TCX via
-  `src/utils/gpx.ts`, works on web, GPX/TCX return route `points` → LogView
-  saves them so imported files get maps), **cloud scaffold** (`providers/cloud.ts`
+  `src/utils/gpx.ts` + **FIT** via `src/utils/fit.ts`, works on web; GPX/TCX/FIT
+  return route `points` → LogView saves them so imported files get maps).
+  **FIT is binary**, so `LogView.handleFile` reads a `.fit` as an ArrayBuffer and
+  passes `bytes` (not `text`) into the provider `parse`; `fit.ts` is a
+  dependency-free decoder (like `gpx.ts`) that pulls `record` messages and reuses
+  the shared `activityToRun` reducer so a FIT map/stats agree with a GPX one. FIT
+  is the recommended full-fidelity path for Zepp runs (HC drops route/elevation):
+  export the activity from Strava's "Export Original" (the .fit Zepp uploaded) or
+  Export GPX — the in-app import help (`log.import.perActivity`) spells this out.
+  **cloud scaffold** (`providers/cloud.ts`
   — interface only, `isAvailable()→false` so **never user-visible**; a real one
   needs server-side OAuth/webhooks in an edge function. **Strava API is
   deliberately excluded**: its agreement bans AI-model use of API data and the
