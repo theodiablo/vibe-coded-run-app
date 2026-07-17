@@ -50,6 +50,12 @@ export const HR_HEALTH_CONNECT_AUTH_KEY = "rc_hr_healthconnect_auth"; // local H
 export const WATCH_HC_AUTH_KEY = "rc_watch_hc_auth";        // local exercise-read permission was granted
 export const WATCH_SEEN_HC_IDS_KEY = "rc_watch_seen_hc_ids"; // JSON array of already-handled HC session ids
 export const WATCH_SEEN_MAX = 200;                          // cap on the seen-ids list (FIFO)
+// Developer diagnostics: a per-device ring buffer of recent import scans (what
+// Health Connect returned and why each session was kept/dropped) plus the hidden
+// reveal flag for the Settings sync-log panel. Dev-only, never synced.
+export const WATCH_SCAN_LOG_KEY = "rc_watch_scan_log";     // JSON ring buffer of recent import scans
+export const WATCH_SCAN_LOG_MAX = 25;                      // cap on stored scan-log entries (FIFO)
+export const WATCH_DEBUG_KEY = "rc_watch_debug";           // "1" reveals the hidden sync-log diagnostics panel
 
 // ── HealthKit (iOS) — PER-DEVICE, never in the synced blob ──
 // One marker covers both HR reads and workout import (a single HealthKit
