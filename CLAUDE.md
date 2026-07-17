@@ -443,6 +443,16 @@ and delete anything that becomes stale.
   (`REC_NOTIF_ASKED_KEY`) the first time a run starts — wired into
   `LiveRunTracker`'s `guardedStart` + `acceptDisclosure`, before the service starts.
   Below Android 13 it's a no-op (no such runtime permission).
+- **Every native Start/Resume is gated on a live location check** (`guardedStart`
+  in `LiveRunTracker`): after the disclosure, it `await`s `rt.requestPermissions()`
+  (→ `ensureForegroundPermission`) and aborts if it returns false, so a run never
+  enters the "tracking" state with a running clock and a blank map. That one call
+  covers BOTH failure causes — permission not granted (OS prompt) and the device's
+  Location Services switched off (the `getCurrentPosition` probe surfaces the "turn
+  on location" dialog) — and on denial sets `tracker.errors.permissionDeniedNative`,
+  which tells the user to do both. For a granted user with location on it fast-paths
+  (a bare `checkPermissions()`, no dialog), so it's not a per-run nag. Don't drop
+  this gate back to "start and hope" — the silent blank-map run was the bug.
 - **npm dependency patches (`patches/`, applied by `postinstall` → `patch-package`):**
   native plugin modules compile straight out of `node_modules`
   (`android/capacitor.settings.gradle`), so a committed patch reaches every

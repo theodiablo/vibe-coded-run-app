@@ -171,6 +171,21 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
       setShowDisclosure(true);
       return;
     }
+    // Native: confirm location is actually usable — permission granted AND the
+    // device's Location Services switched on — BEFORE entering the recording
+    // state, so a run never starts silently with a running clock and a blank map
+    // and the user left guessing why. requestPermissions surfaces the OS
+    // permission prompt and/or the "turn on location" dialog and, on denial, sets
+    // an actionable error (tracker.errors.permissionDeniedNative, which explains
+    // both fixes) and returns false — abort rather than start a location-less run.
+    // The first-ever run takes the disclosure branch above, which already requests
+    // permission in acceptDisclosure, so this guards every subsequent Start/Resume
+    // (including after the user revokes access or turns Location off in Settings).
+    if (isNative) {
+      const granted = await rt.requestPermissions();
+      if (!mountedRef.current) return;
+      if (!granted) return;
+    }
     // Ask once (Android 13+) for notification permission so the recording
     // foreground-service notification is visible — before the watch/service
     // starts. Never blocks: no-op after the first ask or off-Android.
