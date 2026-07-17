@@ -348,6 +348,14 @@ jobs:
       ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
       APPLE_DIST_CERT_P12_BASE64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      # App bundle id + the App Store provisioning-profile name. The archive is
+      # manually distribution-signed with this profile (created fresh each run by
+      # the "Create App Store provisioning profile" step), so CI never touches
+      # Xcode's automatic-development-signing path that mints a throwaway,
+      # certificate-capped Apple Development cert per run. Keep these two in sync
+      # with PRODUCT_BUNDLE_IDENTIFIER and the script's PROFILE_NAME default.
+      IOS_BUNDLE_ID: solutions.camboulive.run
+      APPSTORE_PROFILE_NAME: Running Coach App Store CI
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -429,16 +437,16 @@ jobs:
       # embeds frameworks — and Capacitor apps always embed Capacitor.framework
       # + Cordova.framework (known defect: developer.apple.com/forums/thread/815235).
       # The reliable fix is a MANUALLY created Apple Distribution certificate
-      # imported into a throwaway keychain: exportArchive re-signs with the
-      # local cert, while -allowProvisioningUpdates still creates/refreshes the
-      # App Store profile via the ASC API key (profiles stay maintenance-free;
-      # only the .p12 is a secret). Mint/renew the cert with
-      # `npm run ios:dist-cert` (scripts/ios-dist-cert.mjs — uses the same ASC
-      # .p8, needs no Mac; certs last 1 year and expiry only blocks NEW
-      # uploads), then set the APPLE_DIST_CERT_P12_BASE64 +
-      # APPLE_DIST_CERT_PASSWORD secrets it prints. Required on a real release
-      # (the upload would fail without it); skippable on a dry-run dispatch,
-      # which never uploads.
+      # imported into a throwaway keychain: BOTH the archive and the export
+      # re-sign with this local cert (manual distribution signing — see the
+      # Archive step for why the archive no longer uses automatic development
+      # signing). Mint/renew the cert with `npm run ios:dist-cert`
+      # (scripts/ios-dist-cert.mjs — uses the same ASC .p8, needs no Mac; certs
+      # last 1 year and expiry only blocks NEW uploads), then set the
+      # APPLE_DIST_CERT_P12_BASE64 + APPLE_DIST_CERT_PASSWORD secrets it prints.
+      # Imported on every run (the archive signs with it even on a dry-run, which
+      # is how a dry-run dispatch smoke-tests signing); the upload is what needs a
+      # real release, gated separately below.
       - name: Install Apple Distribution certificate
         env:
           APPLE_DIST_CERT_PASSWORD: ${{ secrets.APPLE_DIST_CERT_PASSWORD }}
@@ -464,11 +472,31 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
           security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
 
-      # The archive itself stays on plain automatic signing (development cert +
-      # profile — needs >=1 registered device on the team); distribution
-      # signing happens at export. Do NOT override CODE_SIGN_IDENTITY here:
-      # automatic signing hard-fails with "App has conflicting provisioning
-      # settings" when an identity is forced.
+      # Create/refresh the App Store provisioning profile the archive is signed
+      # with, and install it locally. This is what lets the archive use MANUAL
+      # distribution signing (see the Archive step) instead of Xcode's automatic
+      # development signing — the latter minted a throwaway Apple DEVELOPMENT
+      # certificate on every ephemeral runner, and those piled up until the team
+      # hit Apple's certificate cap and the archive failed ("reached the maximum
+      # number of certificates"). App Store profiles are NOT capped, so
+      # regenerating one each run is free and keeps it bound to the current
+      # distribution cert(s). No new secrets — reuses the ASC API key.
+      - name: Create App Store provisioning profile
+        run: node scripts/ios-appstore-profile.mjs
+        env:
+          BUNDLE_ID: ${{ env.IOS_BUNDLE_ID }}
+          PROFILE_NAME: ${{ env.APPSTORE_PROFILE_NAME }}
+
+      # Archive with MANUAL Apple Distribution signing against the profile the
+      # step above installed. This deliberately replaces the old automatic
+      # development signing: automatic signing on an ephemeral runner created a
+      # fresh Apple Development certificate every run (the keychain starts empty),
+      # which accumulated to Apple's cap. Manual distribution signing reuses the
+      # imported .p12 and never creates a certificate. Because signing is fully
+      # manual here (style + identity + profile all pinned), there is no
+      # "conflicting provisioning settings" clash — that error only happens when
+      # an identity is forced while the style stays Automatic. No
+      # -allowProvisioningUpdates: nothing to provision at build time now.
       - name: Archive
         run: |
           set -o pipefail
@@ -483,16 +511,20 @@ jobs:
             MARKETING_VERSION="${{ steps.ver.outputs.name }}" \
             CURRENT_PROJECT_VERSION="${{ steps.ver.outputs.build }}" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8 \
-            -authenticationKeyID "$ASC_API_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$APPSTORE_PROFILE_NAME" \
             | xcbeautify --renderer github-actions
 
       # Export + upload in one step: destination "upload" hands the build to
       # App Store Connect / TestFlight processing directly (xcodebuild's
       # supported upload path; altool is deprecated). Only on a real release —
       # a dry-run dispatch stops after proving the archive builds and signs.
+      # Manual signing here too, using the same imported distribution cert +
+      # App Store profile as the archive — so export never falls back to
+      # cloud-managed signing either. -authenticationKey* still authenticates the
+      # UPLOAD to App Store Connect (destination "upload"), which is separate from
+      # signing.
       - name: Write export options
         run: |
           cat > build/exportOptions.plist <<EOF
@@ -502,8 +534,12 @@ jobs:
           <dict>
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${IOS_BUNDLE_ID}</key><string>${APPSTORE_PROFILE_NAME}</string>
+            </dict>
           </dict>
           </plist>
           EOF
@@ -517,7 +553,6 @@ jobs:
             -archivePath build/App.xcarchive \
             -exportOptionsPlist build/exportOptions.plist \
             -exportPath build/export \
-            -allowProvisioningUpdates \
             -authenticationKeyPath ~/private_keys/AuthKey_"$ASC_API_KEY_ID".p8 \
             -authenticationKeyID "$ASC_API_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \

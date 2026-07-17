@@ -207,26 +207,44 @@ and delete anything that becomes stale.
   reading `needs.prepare.outputs.is_release`, and the version name for every job
   comes from `needs.prepare.outputs.version` (don't reintroduce per-job ref
   parsing). The rest of the pipeline is unchanged: the `android` job (AAB → Play
-  internal track) and the `ios` job (xcodebuild archive → TestFlight; profiles are
-  cloud-managed via an App Store Connect API key — `ASC_API_KEY_P8_BASE64` /
-  `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var —
-  but the distribution CERTIFICATE is a manually created .p12 imported into a
+  internal track) and the `ios` job (xcodebuild archive → TestFlight). iOS uses
+  **fully MANUAL distribution signing** — both the archive and the export sign
+  with a manually created Apple Distribution certificate (a .p12 imported into a
   temp keychain: `APPLE_DIST_CERT_P12_BASE64` / `APPLE_DIST_CERT_PASSWORD`
-  secrets. Mint/renew it Mac-free with `npm run ios:dist-cert` — creates the
-  cert via the ASC API using the same .p8 and prints the two secret values;
-  certs last 1 year, expiry only blocks new uploads).
-  iOS signing gotchas, all hit in practice: the ASC key must have the **Admin**
-  role (App Manager fails with "Cloud signing permission error" at export); the
-  team needs ≥1 registered device or dev-profile creation fails ("team has no
-  devices" — a Mac's Provisioning UDID registered as a device satisfies it);
-  Apple's cloud-managed "Distribution Managed" certificate is REJECTED by App
-  Store Connect ("Invalid Signature") on apps with embedded frameworks (all
-  Capacitor apps — hence the manual .p12; and don't force
-  `CODE_SIGN_IDENTITY="Apple Distribution"` on the archive either, automatic
-  signing hard-fails with "conflicting provisioning settings"); and upload
-  validation demands `NSHealthUpdateUsageDescription` in Info.plist even
-  though the app never writes to Health — HealthKit framework presence alone
-  triggers it, so keep that key when touching Info.plist.
+  secrets; mint/renew it Mac-free with `npm run ios:dist-cert`, certs last 1 year
+  and expiry only blocks new uploads) against an **App Store provisioning profile
+  regenerated on every run** by `scripts/ios-appstore-profile.mjs`
+  (`npm run ios:appstore-profile`; step "Create App Store provisioning profile").
+  That script uses the SAME ASC API key (`ASC_API_KEY_P8_BASE64` /
+  `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var) to
+  create an `IOS_APP_STORE` profile bound to the team's live distribution certs
+  and installs it locally; the archive then pins
+  `CODE_SIGN_STYLE=Manual` / `CODE_SIGN_IDENTITY="Apple Distribution"` /
+  `PROVISIONING_PROFILE_SPECIFIER="Running Coach App Store CI"`
+  (`IOS_BUNDLE_ID` + `APPSTORE_PROFILE_NAME` job envs are the single source —
+  keep them in sync with `PRODUCT_BUNDLE_IDENTIFIER` and the script default).
+  **Why manual, not Xcode automatic signing (the bug that broke a release):**
+  automatic signing on an ephemeral runner has an empty keychain, so
+  `-allowProvisioningUpdates` minted a fresh **Apple Development** certificate on
+  EVERY archive; those accumulated until the team hit Apple's certificate cap and
+  the archive failed with "reached the maximum number of certificates" →
+  "No profiles … found". Manual distribution signing reuses the imported .p12 and
+  never creates a certificate; App Store profiles are NOT capped, so regenerating
+  one per run is free. Do NOT reintroduce automatic signing /
+  `-allowProvisioningUpdates` on the archive. (The old "don't force
+  `CODE_SIGN_IDENTITY` — conflicting provisioning settings" gotcha only applied to
+  forcing an identity while the STYLE stayed Automatic; with the style also pinned
+  to Manual there is no conflict.) A dry-run dispatch (`dry_run: true`) exercises
+  the whole archive+signing path but skips the upload, so it's the cheap way to
+  validate a signing change.
+  Other iOS signing gotchas, all hit in practice: the ASC key must have the
+  **Admin** role (App Manager fails with "Cloud signing permission error"); Apple's
+  cloud-managed "Distribution Managed" certificate is REJECTED by App Store
+  Connect ("Invalid Signature") on apps with embedded frameworks (all Capacitor
+  apps — hence the manual .p12); and upload validation demands
+  `NSHealthUpdateUsageDescription` in Info.plist even though the app never writes
+  to Health — HealthKit framework presence alone triggers it, so keep that key
+  when touching Info.plist.
   Build version is NOT in the DB — versionCode/CFBundleVersion is
   `run_number*1000 + run_attempt`, versionName/MARKETING_VERSION is the `v*` tag
   (`android/app/build.gradle` reads env; iOS gets xcodebuild command-line
