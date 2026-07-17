@@ -61,7 +61,7 @@
     "optOut": "Ne pas enregistrer la fréquence cardiaque"
   },
   "errors": {
-    "permissionDeniedNative": "La localisation est nécessaire pour enregistrer ta sortie. Vérifie qu'elle est activée sur cet appareil et autorise l'accès (« Autoriser tout le temps ») pour cette app. Réessaie ensuite.",
+    "permissionDeniedNative": "La localisation est nécessaire pour enregistrer ta sortie. Vérifie qu'elle est activée sur cet appareil et autorise l'accès (« Pendant l'utilisation de l'appli ») pour cette app. Réessaie ensuite.",
     "permissionDeniedWeb": "Autorisation de localisation refusée. Active-la pour ce site dans les réglages de ton navigateur, puis réessaie.",
     "noFix": "Impossible d'obtenir un signal GPS. Vérifie que la localisation est activée et que tu es en extérieur.",
     "timeout": "Le GPS met trop de temps à répondre. Nouvelle tentative…",

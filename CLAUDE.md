@@ -405,6 +405,24 @@ and delete anything that becomes stale.
   uses `checkPermissions()` only as a fast-path "already granted" check and falls
   back to a real `getCurrentPosition()` probe — the one call that can actually
   show both dialogs — whenever that check doesn't succeed.
+- **Foreground location only — no `ACCESS_BACKGROUND_LOCATION`.** Screen-off
+  recording works via the background-geolocation **foreground service** (started
+  while the app is visible) under the "while using the app" grant, so the app
+  deliberately does NOT declare or request `ACCESS_BACKGROUND_LOCATION`: the
+  plugin never requests it (its `@Permission` alias is COARSE+FINE only), and on
+  Android 11+ (~90% of users) it can only be granted via a Settings round-trip
+  anyway — declaring it would just trigger Google Play's background-location
+  review for no functional gain. Keep the "while using the app" wording in the
+  disclosure/permission copy; don't reintroduce "Allow all the time".
+- **`POST_NOTIFICATIONS` (Android 13+) is requested by the local `RunPermissions`
+  plugin** (`android/.../RunPermissionsPlugin.kt`, registered in `MainActivity.java`),
+  because neither geolocation plugin requests it and without it the foreground
+  service's ongoing "recording run" notification is silently suppressed (the
+  service still runs — recording is never blocked). The JS seam is
+  `src/geo/notifications.ts`: `requestRunNotificationsOnce()` asks once per install
+  (`REC_NOTIF_ASKED_KEY`) the first time a run starts — wired into
+  `LiveRunTracker`'s `guardedStart` + `acceptDisclosure`, before the service starts.
+  Below Android 13 it's a no-op (no such runtime permission).
 - **npm dependency patches (`patches/`, applied by `postinstall` → `patch-package`):**
   native plugin modules compile straight out of `node_modules`
   (`android/capacitor.settings.gradle`), so a committed patch reaches every

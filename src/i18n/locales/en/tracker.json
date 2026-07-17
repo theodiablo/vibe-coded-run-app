@@ -61,7 +61,7 @@
     "optOut": "Don't record heart rate"
   },
   "errors": {
-    "permissionDeniedNative": "Location is needed to record your run. Make sure Location is turned on for this device and allow access (“Allow all the time”) for this app, then try again.",
+    "permissionDeniedNative": "Location is needed to record your run. Make sure Location is turned on for this device and allow access (“While using the app”) for this app, then try again.",
     "permissionDeniedWeb": "Location permission denied. Enable it for this site in your browser settings, then try again.",
     "noFix": "Couldn't get a GPS fix. Make sure location is on and you're outdoors.",
     "timeout": "GPS is taking too long to respond. Trying again…",

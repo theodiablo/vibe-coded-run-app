@@ -27,6 +27,11 @@ export const LIVE_RUN_KEY = "rc_live_run";
 // before the first OS permission prompt but don't nag on every run.
 export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
 
+// localStorage flag: we've asked once for the POST_NOTIFICATIONS runtime permission
+// (Android 13+) so the foreground-service "recording run" notification can show.
+// Once per install — asked the first time a run starts, never re-nagged.
+export const REC_NOTIF_ASKED_KEY = "rc_rec_notif_asked";
+
 // ── Heart-rate sensor (native) — all PER-DEVICE, never in the synced blob ──
 // The *method* preference (off/bluetooth/healthconnect) lives in synced settings
 // (settings.hrMethod); the concrete paired device and one-shot UI flags are local

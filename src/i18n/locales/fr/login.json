@@ -15,11 +15,11 @@
   "privacy": "Confidentialité",
   "bgLocation": {
     "title": "Localisation en arrière-plan",
-    "body": "Pour enregistrer ta sortie avec précision, Running Coach collecte ta <strong>position en arrière-plan</strong>, y compris <strong>quand l'appli est fermée ou l'écran éteint</strong>.",
+    "body": "Pour enregistrer ta sortie avec précision, Running Coach collecte ta <strong>position en arrière-plan</strong>, y compris <strong>quand l'appli est en arrière-plan ou l'écran éteint</strong>.",
     "bulletRecording": "Elle est collectée <strong>uniquement pendant l'enregistrement d'une sortie</strong>, jamais à un autre moment.",
     "bulletRoute": "Utilisée pour tracer ton parcours et calculer la distance, l’allure et le dénivelé.",
     "bulletStored": "Stockée sur ton propre compte ; jamais vendue ni partagée avec des tiers.",
-    "privacyNote": "Consulte notre <privacy>Politique de confidentialité</privacy>. Quand tu appuies sur Autoriser, Android te demande d'utiliser ta position. Choisis <strong>« Toujours autoriser »</strong> pour le suivi écran éteint.",
+    "privacyNote": "Consulte notre <privacy>Politique de confidentialité</privacy>. Quand tu appuies sur Autoriser, Android te demande d'utiliser ta position. Choisis <strong>« Pendant l'utilisation de l'appli »</strong> ; l'enregistrement continue même écran éteint.",
     "allowContinue": "Autoriser et continuer"
   }
 }

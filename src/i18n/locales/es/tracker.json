@@ -61,7 +61,7 @@
     "optOut": "No registrar la frecuencia cardíaca"
   },
   "errors": {
-    "permissionDeniedNative": "La ubicación es necesaria para registrar tu entrenamiento. Asegúrate de que esté activada en este dispositivo y permite el acceso («Permitir siempre») para esta aplicación. Después, vuelve a intentarlo.",
+    "permissionDeniedNative": "La ubicación es necesaria para registrar tu entrenamiento. Asegúrate de que esté activada en este dispositivo y permite el acceso («Mientras usas la aplicación») para esta aplicación. Después, vuelve a intentarlo.",
     "permissionDeniedWeb": "Permiso de ubicación denegado. Actívalo para este sitio en los ajustes de tu navegador y vuelve a intentarlo.",
     "noFix": "No se pudo obtener una señal GPS. Asegúrate de que la ubicación esté activada y de estar al aire libre.",
     "timeout": "El GPS está tardando demasiado en responder. Reintentando…",

@@ -6,9 +6,11 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // Local plugin: post-run watch import from Health Connect. Must be
-        // registered before super.onCreate so the bridge picks it up.
+        // Local plugins. Must be registered before super.onCreate so the bridge
+        // picks them up: WatchImport (post-run exercise import from Health Connect)
+        // and RunPermissions (POST_NOTIFICATIONS for the recording-run notification).
         registerPlugin(WatchImportPlugin.class);
+        registerPlugin(RunPermissionsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
