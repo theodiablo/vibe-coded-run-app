@@ -7,7 +7,8 @@
   "watchBanner": "Entrenamiento importado desde tu reloj. Revisa los datos (no incluye ruta ni mapa), elige un tipo y guarda.",
   "import": {
     "title": "Importar un archivo de actividad",
-    "gpx": "<0>GPX / TCX:</0> una actividad con el mapa de su ruta. Expórtala desde Garmin Connect, Strava o la mayoría de plataformas",
+    "gpx": "<0>FIT / GPX / TCX:</0> una actividad con el mapa de su ruta, el desnivel y la frecuencia cardíaca",
+    "perActivity": "<0>Obtener una actividad desde Strava:</0> en strava.com abre la actividad, luego ••• → Exportar original (el archivo .fit) o Exportar GPX, e importa el archivo aquí",
     "zepp": "<0>CSV de Zepp:</0> Perfil → Centro de privacidad → Exportar datos personales",
     "strava": "<0>CSV de Strava:</0> Ajustes → Mi cuenta → Descargar o eliminar → Solicitar archivo",
     "chooseFile": "Elegir archivo",

@@ -1,5 +1,6 @@
 import { parseRunsCsv } from "../../utils/csv";
 import { parseActivityFile } from "../../utils/gpx";
+import { parseFitFile } from "../../utils/fit";
 import type { ImportProvider, ImportParseResult } from "../types";
 
 // Activity-file import: the universal path that needs no vendor cooperation and
@@ -18,24 +19,29 @@ function ext(name: string): string {
 
 export const fileProvider: ImportProvider = {
   id: "file",
-  label: "Activity file (CSV, GPX, TCX)",
+  label: "Activity file (CSV, GPX, TCX, FIT)",
   kind: "file",
   platform: "both",
   isAvailable: () => true,
-  fileAccept: ".csv,.gpx,.tcx",
-  parse: ({ name, text }): ImportParseResult => {
+  fileAccept: ".csv,.gpx,.tcx,.fit",
+  parse: ({ name, text, bytes }): ImportParseResult => {
     const e = ext(name);
     if (e === "gpx" || e === "tcx") {
       const res = parseActivityFile(text, e);
+      return res.run ? { runs: [res.run] } : { runs: [], error: res.error };
+    }
+    if (e === "fit") {
+      if (!bytes) return { runs: [], error: "Couldn't read that FIT file." };
+      const res = parseFitFile(bytes);
       return res.run ? { runs: [res.run] } : { runs: [], error: res.error };
     }
     if (e === "csv") {
       const { runs, error } = parseRunsCsv(text);
       return { runs, error };
     }
-    return { runs: [], error: "Unsupported file type — use a CSV, GPX or TCX export." };
+    return { runs: [], error: "Unsupported file type — use a CSV, GPX, TCX or FIT export." };
   },
   help:
-    "Export a single activity as GPX/TCX (includes the route map), or your whole " +
-    "history as CSV from Zepp or Strava.",
+    "Export a single activity as FIT/GPX/TCX (includes the route map), or your " +
+    "whole history as CSV from Zepp or Strava.",
 };

@@ -105,10 +105,18 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
       showMsg(t("log.import.tooLarge"));
       return;
     }
+    // FIT is a binary format — read it as bytes; text formats (CSV/GPX/TCX) as text.
+    const isFit = /\.fit$/i.test(file.name);
     const reader = new FileReader();
     reader.onerror = () => showMsg(t("log.import.readError"));
     reader.onload = async ev => {
-      const { runs: parsed, error } = fileProvider.parse!({ name: file.name, text: String(ev.target?.result || "") });
+      const result = ev.target?.result;
+      const bytes = isFit && result instanceof ArrayBuffer ? new Uint8Array(result) : undefined;
+      const { runs: parsed, error } = fileProvider.parse!({
+        name: file.name,
+        text: isFit ? "" : String(result || ""),
+        bytes,
+      });
       if (!parsed.length) {
         showMsg(error || t("log.import.noRuns"));
         return;
@@ -133,7 +141,8 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
         : t("log.import.imported", { count: fresh.length }), true);
       setTimeout(() => onDone(), 1500);
     };
-    reader.readAsText(file);
+    if (isFit) reader.readAsArrayBuffer(file);
+    else reader.readAsText(file);
   };
 
   const impBtnCls = "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors " +
@@ -180,7 +189,8 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
         <div className="bg-slate-800 rounded-2xl p-4 mb-5 border border-slate-700 space-y-2.5">
           <p className="text-sm font-semibold text-slate-200">{t("log.import.title")}</p>
           <p className="text-xs text-slate-500">
-            <Trans i18nKey="log.import.gpx"><span className="text-slate-300">GPX / TCX:</span> one activity with its route map — export from Garmin Connect, Strava and most platforms</Trans><br/>
+            <Trans i18nKey="log.import.gpx"><span className="text-slate-300">FIT / GPX / TCX:</span> one activity with its route map, elevation and heart rate</Trans><br/>
+            <Trans i18nKey="log.import.perActivity"><span className="text-slate-300">Get one run from Strava:</span> on strava.com open the activity, then ••• → Export Original (the .fit file) or Export GPX, and import the file here</Trans><br/>
             <Trans i18nKey="log.import.zepp"><span className="text-slate-300">Zepp CSV:</span> Profile → Privacy Center → Export Personal Data</Trans><br/>
             <Trans i18nKey="log.import.strava"><span className="text-slate-300">Strava CSV:</span> Settings → My Account → Download or Delete → Request Archive</Trans>
           </p>

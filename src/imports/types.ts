@@ -39,8 +39,10 @@ export type ImportProvider = {
   // Scan-capable providers: return new (deduped) runs since `days` ago. `trigger`
   // is a free-form label ("auto"/"manual") for diagnostics only.
   scan?: (runs: Run[], opts?: { days?: number; now?: number; trigger?: string }) => Promise<ImportedRun[]>;
-  // File providers: parse one user-picked file into runs.
-  parse?: (file: { name: string; text: string }) => ImportParseResult;
+  // File providers: parse one user-picked file into runs. Text-based formats
+  // (CSV/GPX/TCX) read `text`; binary formats (FIT) read `bytes` — the caller
+  // decides which to populate from the extension (see LogView.handleFile).
+  parse?: (file: { name: string; text: string; bytes?: Uint8Array }) => ImportParseResult;
   // Short guidance copy for the UI (how to enable the source).
   help?: string;
   // File providers: the <input accept> extension list.

@@ -59,7 +59,9 @@ type NoGpsFallback = { startMs: number; endMs: number; km: number };
 // Reduce collected trackpoints + HR samples to an ImportedRun (with the trace
 // attached as transient `points` for the caller to saveRoute). A file without
 // GPS positions still imports via `fallback` — it just has no route/map.
-function toRun(
+// Exported so other activity-file parsers (fit.ts) share the one derivation, so
+// a FIT map and its stats agree with a GPX one point-for-point.
+export function activityToRun(
   points: TrackPointOrGap[],
   hr: { bpm: number; t: number }[],
   label: string,
@@ -108,7 +110,7 @@ function parseGpx(doc: Document): ActivityParseResult {
     const bpm = num(localText(el, "hr"));
     if (bpm) hr.push({ bpm, t });
   }
-  return toRun(pts, hr, "GPX import");
+  return activityToRun(pts, hr, "GPX import");
 }
 
 function parseTcx(doc: Document): ActivityParseResult {
@@ -134,7 +136,7 @@ function parseTcx(doc: Document): ActivityParseResult {
   const fallback = times.length >= 2 && lastDistM > 0
     ? { startMs: times[0], endMs: times[times.length - 1], km: lastDistM / 1000 }
     : null;
-  return toRun(pts, hr, "TCX import", fallback);
+  return activityToRun(pts, hr, "TCX import", fallback);
 }
 
 // Parse a single GPX or TCX activity export. Returns { run } (with transient
