@@ -12,6 +12,19 @@ dist
 dist-ssr
 *.local
 
+# Secrets / credentials — never commit (belt-and-suspenders; nothing is tracked today)
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.pem
+*.jks
+*.keystore
+android/app/release.keystore
+google-services.json
+GoogleService-Info.plist
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
