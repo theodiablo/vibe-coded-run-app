@@ -107,11 +107,21 @@ an explicit var.
   `plan_race_added` — a secondary race folded into the plan) —
   `src/RunningCoach.tsx`. Limited: counts/enums only, never race
   names/notes/times. `plan_race_added` carries no properties (there is no race
-  priority/tier).
-- Coach agent events: `coach_proposal` `{status:"proposed"|"no_valid_adjustment",
-  round}` when a proposal round returns, `coach_plan_applied` when the user
-  accepts one — `src/modals/CoachChat.tsx`. Limited: never the message text,
-  the plan, or the tool calls (those live server-side in `agent_rounds`).
+  priority/tier). **`run_logged` `{count, source}` is the "new run tracked"
+  signal** — `source` is `"gps"` for a live-tracked run, `"manual"` for a
+  hand-logged one, or the import provider — so filter `source = 'gps'` for runs
+  recorded with live tracking.
+- `live_run_started` `{}` — fired the moment a live GPS tracking session
+  actually begins (after the disclosure / permission / HR gates and the
+  countdown, never on Resume) — `src/modals/LiveRunTracker.tsx`. Pairs with
+  `run_logged {source:"gps"}` as a start→save funnel.
+- Coach agent events: `coach_message_sent` `{followUp}` when the user sends a
+  message to the coach (`followUp` = false on the opening message, true on a
+  follow-up to an open trajectory), `coach_proposal`
+  `{status:"proposed"|"no_valid_adjustment", round}` when a proposal round
+  returns, `coach_plan_applied` when the user accepts one —
+  `src/modals/CoachChat.tsx`. Limited: never the message text, the plan, or the
+  tool calls (those live server-side in `agent_rounds`).
 - Catalogue events (Phase 2): `race_contributed` `{kind:"race"|"edition"}` when a
   user adds to the shared catalogue (`src/modals/RaceFormModal.tsx`); `find_near_me`
   `{}` the first time the "Near me" toggle is enabled in Races → Find a race
