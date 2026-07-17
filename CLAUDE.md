@@ -441,9 +441,21 @@ and delete anything that becomes stale.
 - **Android release builds use R8:** `android/app/build.gradle` keeps
   `minifyEnabled true`, `shrinkResources true`, and the optimized default
   ProGuard file for `release`. Capacitor's consumer rules preserve annotated
-  plugin entrypoints, including local plugins; add narrow library-specific keep
-  rules only when a release build or on-device test demonstrates a reflection
-  requirement. Debug builds stay unminified; `android-pr.yml` also runs
+  plugin entrypoints (the classes), but **not the `com.getcapacitor` annotation
+  classes themselves** — and AGP 8's default R8 *full mode* strips runtime
+  annotation data unless the annotation class is kept, which broke Capacitor's
+  reflection-based permission machinery in production (NPE at
+  `Bridge.getPermissionStates`, hit both by background-geolocation's lifecycle
+  hooks — the `patches/` workaround — and by `Geolocation.checkPermissions()`/
+  `watchPosition()` when the live tracker opens). Fix is two-layer:
+  `android/app/proguard-rules.pro` keeps the Capacitor annotation classes +
+  runtime-annotation attributes, and `android/gradle.properties` sets
+  `android.enableR8.fullMode=false` as a safety net (removable only after the
+  full tracker flow is verified on-device on a full-mode build). Add further
+  narrow library-specific keep rules only when a release build or on-device
+  test demonstrates a reflection requirement (checked: the ION geolocation AAR
+  that @capacitor/geolocation 7+ wraps ships no consumer rules but does no
+  reflection). Debug builds stay unminified; `android-pr.yml` also runs
   `bundleRelease` so PR CI compiles R8 (bad keep rules / missing classes) even
   though it only uploads the debug APK — but a green build does NOT prove runtime
   correctness: R8 stripping a reflectively-used class/method still builds
