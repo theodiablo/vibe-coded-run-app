@@ -50,6 +50,33 @@ describe("ChunkLoadBoundary", () => {
     expect(screen.queryByText(/outer caught/)).not.toBeInTheDocument();
   });
 
+  it("fires onError once for a chunk-load error", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const onError = vi.fn();
+    render(
+      <Catcher>
+        <ChunkLoadBoundary fallback={<div>fallback</div>} onError={onError}>
+          <Throw error={new Error("Failed to fetch dynamically imported module: /assets/CoachChat-x.js")} />
+        </ChunkLoadBoundary>
+      </Catcher>,
+    );
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire onError for a genuine (non-chunk) render error", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const onError = vi.fn();
+    render(
+      <Catcher>
+        <ChunkLoadBoundary fallback={<div>fallback</div>} onError={onError}>
+          <Throw error={new Error("Cannot read properties of undefined (reading 'id')")} />
+        </ChunkLoadBoundary>
+      </Catcher>,
+    );
+    expect(onError).not.toHaveBeenCalled();
+    expect(screen.getByText(/outer caught/)).toBeInTheDocument();
+  });
+
   it("re-throws a genuine (non-chunk) render error to the outer boundary", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     render(

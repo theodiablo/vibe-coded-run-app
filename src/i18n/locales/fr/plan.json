@@ -1,6 +1,8 @@
 {
   "title": "Ton plan d'entraînement",
   "editPlan": "Modifier le plan",
+  "editShort": "Modifier",
+  "reassurance": "Modifier l'un ou l'autre reconstruit tes séances restantes ; les sorties terminées sont conservées.",
   "jumpToWeek": "Aller à cette semaine",
   "notConfigured": "non configuré",
   "sessionsLabel": "Séances : ",
@@ -9,9 +11,70 @@
     "label": "Sem. {{number}}",
     "now": "cette semaine"
   },
+  "edit": {
+    "goalTitle": "Ton objectif",
+    "availTitle": "Ta disponibilité",
+    "styleTitle": "Style d'entraînement"
+  },
+  "goalRow": {
+    "subtitle": "ce que tu prépares",
+    "summary": "{{dist}} km · sous {{goal}} · {{date}}{{elev}}"
+  },
+  "availRow": {
+    "subtitle": "le temps que tu peux donner",
+    "simpleSummary": "{{days}} jours · {{duration}} chacune · le coach choisit les jours"
+  },
+  "avail": {
+    "framing": "Le maximum de temps que tu pourrais donner, pas une promesse de courir aussi longtemps.",
+    "mode": {
+      "simple": "Simple",
+      "custom": "Personnalisé"
+    },
+    "simple": {
+      "daysQuestion": "Combien de jours par semaine peux-tu courir ?",
+      "daysCount": "{{n}} jours",
+      "fewerDays": "Moins de jours",
+      "moreDays": "Plus de jours",
+      "timeQuestion": "Un jour de course, combien de temps as-tu ?",
+      "summary": "On choisit les meilleurs jours pour toi : {{n}} sorties de {{duration}} chacune, avec la sortie longue le week-end.",
+      "dayHint": {
+        "few": "3 jours, c'est l'idéal pour une première course : assez pour progresser, avec du repos entre les séances.",
+        "solid": "Un bon rythme si tu as déjà couru.",
+        "lots": "5 jours ou plus conviennent aux coureurs expérimentés ; les débutants risquent des blessures à ce volume."
+      },
+      "band": {
+        "short": { "label": "Court", "sub": "~30 min", "word": "~30 min" },
+        "med": { "label": "Moyen", "sub": "45-60 min", "word": "45-60 min" },
+        "long": { "label": "Long", "sub": "1 h+", "word": "1 h+" }
+      }
+    },
+    "custom": {
+      "legend": "Suggestion du coach pour une première course de {{dist}} km : touche une pastille en pointillés pour l'accepter, ou choisis la tienne."
+    },
+    "load": {
+      "label": "Charge hebdo",
+      "total": "{{time}} / semaine",
+      "zone": {
+        "low": "trop peu",
+        "good": "bien pour un débutant sur {{dist}} km",
+        "high": "beaucoup"
+      },
+      "verdict": {
+        "low": "En dessous du minimum pour préparer un {{dist}} km : ajoute un jour ou allonge une séance.",
+        "good": "Pile dans la cible pour un premier {{dist}} km : le coach remplit avec des footings faciles, une séance de qualité et une sortie longue.",
+        "high": "Volume élevé : parfait si tu y es habitué, risqué sinon."
+      }
+    }
+  },
   "session": {
     "skipped": "ignorée",
     "record": "Enregistrer",
+    "doneIt": "Déjà faite",
+    "coachNotes": "Notes du coach",
+    "askCoach": "Demander au coach",
+    "moreActions": "Plus d'actions",
+    "doneLinkHint": "Terminée · touche pour lier une course enregistrée ›",
+    "skippedReassure": "Pas de stress, le plan s'adapte.",
     "undoSkip": "Rétablir la séance",
     "skip": "Ignorer cette séance",
     "markDone": "Marquer la séance comme terminée",
@@ -29,7 +92,12 @@
   "progress": {
     "sessions": "{{done}} / {{total}} séances",
     "goal": "{{dist}} km{{elev}} · objectif : moins de {{goal}}",
-    "race": "Course : {{date}}"
+    "race": "Course : {{date}}",
+    "weekOf": "Semaine {{n}} sur {{total}}",
+    "raceIn": "Course dans {{days}} jours"
+  },
+  "toast": {
+    "rebuilt": "Plan mis à jour : {{n}} séances reconstruites selon tes changements."
   },
   "setup": {
     "intro": "Configure ton objectif et les jours où tu peux t'entraîner.",
@@ -47,6 +115,8 @@
     "hrNudge": "Ajoute ton profil de FC dans les Paramètres pour afficher une zone cible à chaque séance.",
     "generate": "Générer mon plan d'entraînement",
     "buildMyPlan": "Créer mon plan",
+    "rebuildMyPlan": "Reconstruire mon plan",
+    "rebuildNote": "Reconstruit les séances restantes ; les courses terminées sont conservées.",
     "regenerate": "Régénérer le plan",
     "regenNote": "Reconstruit toutes les semaines à partir de tes réglages actuels ; les séances terminées et ignorées sont conservées.",
     "promoteNote": "Crée un nouveau plan pour cette course."

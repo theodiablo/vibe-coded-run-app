@@ -33,6 +33,13 @@ export type SettingsState = Record<string, unknown> & {
   // Health Connect keeps its own watchImport key above.
   imports?: Record<string, boolean>;
   planSessions: PlanSessionInput[];
+  // How the user configured their weekly availability on the Plan page. Metadata
+  // only — planSessions stays the source of truth for buildPlan. "simple" means
+  // the coach placed the days (availDays + availTime chosen); "custom" means the
+  // user picked exact days/durations. Absent ⇒ infer "custom" from planSessions.
+  availabilityMode?: "simple" | "custom";
+  availDays?: number;
+  availTime?: "short" | "med" | "long";
   targetEditionId?: string | null;
   // Training methodology style (see src/utils/planStyles.ts); absent = balanced.
   planStyle?: string;
@@ -116,6 +123,11 @@ export type PlanSession = Record<string, unknown> & {
   runId?: string | null;
   editionId?: string | null;
 };
+
+// A specific plan session handed to the coach chat so it opens "about this run"
+// (the session's week + full session row). CoachChat derives both the localized
+// display strings and the canonical-English context prefix from it.
+export type CoachSessionContext = { session: PlanSession; weekNumber: number };
 
 export type PlanWeek = Record<string, unknown> & {
   weekNumber: number;

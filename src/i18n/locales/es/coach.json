@@ -11,6 +11,12 @@
     "moveLongRun": "Mueve mi tirada larga al domingo",
     "confidence": "Ayúdame a ganar confianza para el día de la carrera"
   },
+  "sessionGreeting": "Hablemos de tu entrenamiento {{type}} del {{date}} ({{km}} km). ¿Qué te preocupa: demasiado exigente, mal día, u otra cosa? Te propondré un ajuste seguro y lo verás antes de cambiar nada.",
+  "sessionExamples": {
+    "tooHard": "Me parece demasiado exigente para mi nivel",
+    "wrongDay": "No puedo ese día",
+    "easier": "¿Podemos cambiarlo por algo más fácil?"
+  },
   "fallback": {
     "noValidAdjustment": "No encontré ningún ajuste que respete las reglas de entrenamiento de la aplicación. No se cambió nada.",
     "noChangeNeeded": "No hace falta cambiar nada del plan para eso.",

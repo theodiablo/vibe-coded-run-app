@@ -11,6 +11,12 @@
     "moveLongRun": "Move my long run to Sunday",
     "confidence": "Build confidence for race day"
   },
+  "sessionGreeting": "Let's talk about your {{type}} run on {{date}} ({{km}} km). What's on your mind — too hard, wrong day, or something else? I'll suggest a safe adjustment and you'll see it before anything changes.",
+  "sessionExamples": {
+    "tooHard": "This feels too hard for where I am",
+    "wrongDay": "I can't make it that day",
+    "easier": "Can we swap it for something easier?"
+  },
   "fallback": {
     "noValidAdjustment": "I couldn't find an adjustment that keeps your plan within the app's training rules — nothing was changed.",
     "noChangeNeeded": "Nothing in the plan needs to change for that.",

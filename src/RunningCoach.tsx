@@ -23,6 +23,7 @@ import { scanAllProviders, providerEnabledInSettings } from "./imports/registry"
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { Confetti } from "./components/Confetti";
+import { ChunkLoadBoundary } from "./components/ChunkLoadBoundary";
 import { usePresence } from "./hooks/usePresence";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -39,6 +40,7 @@ import { ProgressView } from "./views/ProgressView";
 import { BottomNav } from "./components/BottomNav";
 import type {
   CatalogueRace,
+  CoachSessionContext,
   JoinedEdition,
   Plan,
   PlanPrefill,
@@ -158,6 +160,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const [catalogue,   setCatalogue]   = useState<CatalogueRace[]>([]);
   const [showRaceForm,setShowRaceForm]= useState(false);
   const [showCoach,   setShowCoach]   = useState(false);
+  // Set when the coach is opened about a specific plan session (see openCoach) so
+  // the chat greets/steers about it and rides its context; null on a plain open.
+  const [coachSession, setCoachSession] = useState<CoachSessionContext | null>(null);
   // Stash from a "Set as target" promote → consumed by PlanView's setup form.
   const [planPrefill, setPlanPrefill] = useState<PlanPrefill | null>(null);
   // Which Progress sub-tab to open, and a nonce so navigating there again (even
@@ -663,7 +668,14 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   checkWatchRef.current = scanImports;
   const goProgress = (sub?: string) => { setProgressSub(sub === "stats" || sub === "badges" ? sub : "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
-  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true),
+  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true),
+    // A session-context object opens the coach about that session; a bare call
+    // (or an event from onClick={openCoach}) opens a fresh chat. Guard on shape
+    // so the click event never counts as a session.
+    openCoach: (session?: unknown) => {
+      const ctx = session && typeof session === "object" && "session" in session ? session as CoachSessionContext : null;
+      setCoachSession(ctx); setShowCoach(true);
+    },
     // Manual "scan older runs" for the Integrations settings panel — wider window,
     // bypasses the once-per-session auto throttle.
     scanImportsNow: () => checkWatchRef.current({ days: WATCH_MANUAL_SCAN_DAYS, manual: true })};
@@ -718,17 +730,23 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
-        onOpenCoach={plan ? () => { setShowSettings(false); setShowCoach(true); } : undefined}
+        onOpenCoach={plan ? () => { setShowSettings(false); setCoachSession(null); setShowCoach(true); } : undefined}
         onDeleteAccount={() => { setShowSettings(false); setShowDeleteAccount(true); }}
         onClose={()   => setShowSettings(false)}/>}
       {showDeleteAccount && <DeleteAccountModal
         onSignOut={onSignOut}
         onClose={() => setShowDeleteAccount(false)}/>}
       {showCoach && plan && (
-        <Suspense fallback={<div className="fixed inset-0 bg-slate-900 z-50"/>}>
-          <CoachChat plan={plan} onApplyPlan={applyCoachPlan}
-            appendUserContext={appendUserContext} showToast={showToast} onClose={() => setShowCoach(false)}/>
-        </Suspense>
+        // A stale-chunk / transient network failure loading the lazy CoachChat
+        // module must not white-screen the app: close the modal and toast instead
+        // (unmounting resets the boundary so re-opening retries the import).
+        <ChunkLoadBoundary fallback={null}
+          onError={() => { setShowCoach(false); showToast(t("coach.errors.transport.offline"), "err"); }}>
+          <Suspense fallback={<div className="fixed inset-0 bg-slate-900 z-50"/>}>
+            <CoachChat plan={plan} onApplyPlan={applyCoachPlan} sessionContext={coachSession}
+              appendUserContext={appendUserContext} showToast={showToast} onClose={() => setShowCoach(false)}/>
+          </Suspense>
+        </ChunkLoadBoundary>
       )}
       {showRaceForm && <RaceFormModal
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
