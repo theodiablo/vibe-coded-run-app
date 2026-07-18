@@ -143,7 +143,16 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   const [flagBusy, setFlagBusy] = useState(false);
   const [flaggedKeys, setFlaggedKeys] = useState<Set<string>>(() => new Set());
   const endRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+
+  // Tapping a starter chip fills the composer instead of firing straight off, so
+  // the user can tweak the phrasing before sending — the chips are prompts, not
+  // one-tap sends.
+  const fillInput = (text: string) => {
+    setInput(text);
+    inputRef.current?.focus();
+  };
 
   // Warm the edge function the moment the chat opens so the user's first message
   // lands on an already-booted isolate instead of eating the cold start (the
@@ -391,7 +400,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
         {msgs.length === 1 && !busy && (
           <div className="flex flex-wrap gap-2 pt-1">
             {(sessionContext ? COACH_SESSION_EXAMPLE_KEYS : COACH_EXAMPLE_KEYS).map(k => (
-              <button key={k} onClick={() => send(t(k))}
+              <button key={k} onClick={() => fillInput(t(k))}
                 className="text-xs text-slate-300 bg-slate-800 border border-slate-700 hover:border-orange-400/60 hover:text-white rounded-full px-3 py-1.5 transition-colors">
                 {t(k)}
               </button>
@@ -409,7 +418,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
           <Trans i18nKey="coach.footer">Your coach uses your message, plan, recent runs, and saved memory to answer. See our <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">privacy policy</a> and <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">safety note</a>.</Trans>
         </div>
         <div className="max-w-lg mx-auto flex gap-2">
-          <input id="coach-message" name="coach-message" aria-label={t("coach.input.aria")} value={input} onChange={e => setInput(e.target.value)}
+          <input id="coach-message" name="coach-message" ref={inputRef} aria-label={t("coach.input.aria")} value={input} onChange={e => setInput(e.target.value)}
             autoFocus={!!sessionContext}
             onKeyDown={e => { if (e.key === "Enter") send(); }}
             placeholder={trajectoryId ? t("coach.input.placeholderFollowUp") : t("coach.input.placeholder")}
