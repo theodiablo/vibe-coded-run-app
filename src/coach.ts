@@ -7,11 +7,32 @@ import { supabase } from "./supabase";
 import { flushNow } from "./db";
 import { FunctionsHttpError, FunctionsFetchError, FunctionsRelayError } from "@supabase/supabase-js";
 import { t } from "./i18n";
+import { track } from "./telemetry";
 import type { Plan } from "./types";
 
 // Longer than normal Supabase calls because a cold coach-agent boot may need to
 // start Deno and import the Anthropic SDK before it can send response headers.
 const COACH_INVOKE_TIMEOUT_MS = 60000;
+
+// Delivery recovery: production request logs showed the dominant coach failure
+// is the round SUCCEEDING server-side while the streamed response dies before
+// the body reaches the phone (a truncated 200 → raw JSON parse error → generic
+// "unavailable" bubble). Every propose/critique therefore carries a
+// client-generated requestId that the server stamps onto the logged round
+// together with the exact response body; when the invoke fails at the
+// transport level we poll the no-model `result` action for that id instead of
+// surfacing an error — the finished proposal is delivered on the second, warm,
+// fast connection and the model call is never re-run (no double token spend,
+// no double rate-limit charge). `found: false` means the round is still
+// running (or never started), so we poll across the window a slow round needs.
+const RESULT_POLL_INTERVAL_MS = 3000;
+const RESULT_POLL_MAX_ATTEMPTS = 15;
+// If the polls THEMSELVES keep failing at the transport level the device is
+// genuinely offline — bail out early rather than spinning for the full window.
+const RESULT_POLL_MAX_TRANSPORT_FAILURES = 3;
+const RESULT_POLL_TIMEOUT_MS = 10000;
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 // Map a functions.invoke() *transport* failure to a message that tells the user
 // what actually went wrong and what to do. This is NOT the path for app-level
@@ -28,7 +49,10 @@ const COACH_INVOKE_TIMEOUT_MS = 60000;
 //     our handler: an expired JWT (401/403 from verify_jwt) or a boot that ran
 //     long / timed out (5xx). Split those two — one needs re-auth, the other a
 //     plain retry onto a now-warm isolate.
-//   * anything else — keep the original generic line.
+//   * anything else — keep the original generic line. This includes the raw
+//     SyntaxError/TypeError functions-js lets escape when a 200 response's
+//     BODY is truncated mid-stream (it only wraps errors from the initial
+//     fetch) — the delivery failure that recoverRound() below targets.
 type CoachAction =
   | { action: "ping" }
   | { action: "propose"; message: string }
@@ -73,15 +97,54 @@ function serverMessage(data: { error?: string; code?: unknown }) {
     : fallback;
 }
 
+// Poll the `result` action for a round whose response never arrived. Resolves
+// with the recovered response, throws for a server-carried error (a real
+// answer — surface it), or resolves null when recovery is exhausted (caller
+// falls back to the original transport error message).
+async function recoverRound(requestId: string): Promise<CoachResponse | null> {
+  let transportFailures = 0;
+  for (let attempt = 0; attempt < RESULT_POLL_MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleep(RESULT_POLL_INTERVAL_MS);
+    const { data, error } = await supabase.functions.invoke("coach-agent", {
+      body: { action: "result", requestId },
+      timeout: RESULT_POLL_TIMEOUT_MS,
+    });
+    if (error) {
+      if (++transportFailures >= RESULT_POLL_MAX_TRANSPORT_FAILURES) return null;
+      continue;
+    }
+    transportFailures = 0;
+    if (data?.error) throw new Error(serverMessage(data));
+    if (data?.found) {
+      track("coach_round_recovered", { attempts: attempt + 1 });
+      const recovered = { ...data } as CoachResponse & { found?: boolean };
+      delete recovered.found;
+      return recovered;
+    }
+    // found: false — round still running (or never logged); keep polling.
+  }
+  return null;
+}
+
 async function invoke(body: CoachAction): Promise<CoachResponse> {
   // confirm reads from agent_rounds (not app_state), so no flush needed —
   // and a flush failure must not block confirming an already-proposed plan.
   if (body.action !== "confirm") await flushNow();
+  const requestId = body.action === "confirm" ? null : crypto.randomUUID();
   const { data, error } = await supabase.functions.invoke("coach-agent", {
-    body,
+    body: requestId ? { ...body, requestId } : body,
     timeout: COACH_INVOKE_TIMEOUT_MS,
   });
-  if (error) throw new Error(transportMessage(error));
+  if (error) {
+    // Transport failure — but the round may have completed server-side.
+    // Try to fetch the finished result before showing an error; only give
+    // up if recovery is exhausted too.
+    if (requestId) {
+      const recovered = await recoverRound(requestId);
+      if (recovered) return recovered;
+    }
+    throw new Error(transportMessage(error));
+  }
   if (data?.error) throw new Error(serverMessage(data));
   return data;
 }

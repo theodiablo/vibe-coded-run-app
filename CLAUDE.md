@@ -814,7 +814,19 @@ and delete anything that becomes stale.
   button); access module `src/coach.ts` (calls `flushNow()` first — the server
   reads the plan/runs from `app_state`, not the request body).
 - **Resiliency (the cold-start / transient-failure seam):** the dominant failure
-  is a *cold start* — round 0 after the isolate's been idle boots Deno + imports
+  observed in production is a *delivery* failure — the round SUCCEEDS
+  server-side but the streamed response connection dies before the body reaches
+  the client (request logs show the stream ending at the first keep-alive write
+  while the round row lands seconds later). Guard (4) below recovers it without
+  re-running the model: propose/critique carry a client-generated `requestId`;
+  the server stores the exact response body on the round
+  (`agent_rounds.client_request_id` / `.response`); on a transport failure
+  `src/coach.ts` polls the no-model `result` action (3s cadence, ~45s window,
+  early bail if the polls themselves fail — genuinely offline) and replays the
+  stored body — no second model call, no second rate-limit charge. The server
+  also pads the stream with a whitespace byte at t=0 (headers + first byte on
+  the wire immediately) and every 2s after. The older failure mode is a *cold
+  start* — round 0 after the isolate's been idle boots Deno + imports
   `npm:@anthropic-ai/sdk` before any keep-alive byte can flow, and an
   intermediary drops the connection. Three guards: (1) `coachPing()`
   (`src/coach.ts`) fires when `CoachChat` mounts — a `ping` action that returns
