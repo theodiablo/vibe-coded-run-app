@@ -32,7 +32,7 @@ type PlanViewProps = {
   toggleSess: (weekNumber: number, sessionId: string) => void;
   skipSess: (weekNumber: number, sessionId: string) => void;
   openSettings: () => void;
-  openCoach: () => void;
+  openCoach: (seed?: string) => void;
   openTracker: () => void;
   goLog: (prefill: Partial<Run>) => void;
   showToast: (msg: string, type?: string) => void;
@@ -323,7 +323,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex justify-between items-center mt-4 mb-4">
         <h2 className="text-xl font-bold">{t("plan.title")}</h2>
-        <button onClick={openCoach}
+        <button onClick={() => openCoach()}
           className="px-3.5 py-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/50 rounded-full transition-colors"
           title={t("plan.header.coachTitle")}>
           <MessageCircle size={14}/>{t("plan.header.coach")}
@@ -412,7 +412,10 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                       onDone={() => goLog({date: s.date, type: s.type, km: Number(s.km), pace: s.pace, wNum: wk.weekNumber, sId: s.id})}
                       onToggleDone={() => toggleSess(wk.weekNumber, s.id)}
                       onSkip={() => skipSess(wk.weekNumber, s.id)}
-                      onAskCoach={openCoach}
+                      onAskCoach={() => openCoach(t("plan.session.coachSeed", {
+                        type: t("common.types." + s.type, { defaultValue: s.type }),
+                        date: fmt.sht(s.date), km: s.km,
+                      }))}
                       openSettings={openSettings}/>
                   ))}
                 </div>

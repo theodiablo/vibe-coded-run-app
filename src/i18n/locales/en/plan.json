@@ -72,6 +72,7 @@
     "doneIt": "Done it",
     "coachNotes": "Coach notes",
     "askCoach": "Ask coach about this run",
+    "coachSeed": "About my {{type}} run on {{date}} ({{km}} km): ",
     "moreActions": "More actions",
     "doneLinkHint": "Done · tap to link a recorded run ›",
     "skippedReassure": "No stress — the plan adapts.",

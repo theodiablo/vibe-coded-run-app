@@ -72,6 +72,7 @@
     "doneIt": "Ya hecha",
     "coachNotes": "Notas del entrenador",
     "askCoach": "Preguntar al entrenador",
+    "coachSeed": "Sobre mi entrenamiento {{type}} del {{date}} ({{km}} km): ",
     "moreActions": "Más acciones",
     "doneLinkHint": "Completada · toca para vincular una carrera registrada ›",
     "skippedReassure": "Sin estrés, el plan se adapta.",

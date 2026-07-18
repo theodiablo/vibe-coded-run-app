@@ -72,6 +72,7 @@
     "doneIt": "Déjà faite",
     "coachNotes": "Notes du coach",
     "askCoach": "Demander au coach",
+    "coachSeed": "À propos de ma sortie {{type}} du {{date}} ({{km}} km) : ",
     "moreActions": "Plus d'actions",
     "doneLinkHint": "Terminée · touche pour lier une course enregistrée ›",
     "skippedReassure": "Pas de stress, le plan s'adapte.",

@@ -85,9 +85,13 @@ type CoachChatProps = {
   appendUserContext: (text: string) => boolean;
   showToast: (msg: string, type?: string) => void;
   onClose: () => void;
+  // Optional pre-filled draft for the input box — e.g. opening the coach from a
+  // specific plan session seeds "About my Tempo run on 23 Jul…" so the
+  // conversation is about that run. The user reviews and sends (never auto-sent).
+  initialInput?: string;
 };
 
-export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose }: CoachChatProps) {
+export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose, initialInput }: CoachChatProps) {
   const { t } = useTranslation();
   useDismissable(true, onClose);
   // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, trajectoryId?, roundIndex? }
@@ -99,7 +103,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     role: "coach",
     text: t("coach.greeting"),
   }]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialInput ?? "");
   const [busy, setBusy] = useState(false);
   const [trajectoryId, setTrajectoryId] = useState<string | null>(null);
   const [flaggingIndex, setFlaggingIndex] = useState(-1);
@@ -338,7 +342,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
             </div>
           </div>
         ))}
-        {msgs.length === 1 && !busy && (
+        {msgs.length === 1 && !busy && !initialInput && (
           <div className="flex flex-wrap gap-2 pt-1">
             {COACH_EXAMPLE_KEYS.map(k => (
               <button key={k} onClick={() => send(t(k))}
@@ -360,6 +364,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
         </div>
         <div className="max-w-lg mx-auto flex gap-2">
           <input id="coach-message" name="coach-message" aria-label={t("coach.input.aria")} value={input} onChange={e => setInput(e.target.value)}
+            autoFocus={!!initialInput}
             onKeyDown={e => { if (e.key === "Enter") send(); }}
             placeholder={trajectoryId ? t("coach.input.placeholderFollowUp") : t("coach.input.placeholder")}
             className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>

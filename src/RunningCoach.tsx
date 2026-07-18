@@ -159,6 +159,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const [catalogue,   setCatalogue]   = useState<CatalogueRace[]>([]);
   const [showRaceForm,setShowRaceForm]= useState(false);
   const [showCoach,   setShowCoach]   = useState(false);
+  // Optional pre-filled draft for the coach input — set when the coach is opened
+  // about a specific plan session (see openCoach). Cleared on a plain open.
+  const [coachSeed,   setCoachSeed]   = useState("");
   // Stash from a "Set as target" promote → consumed by PlanView's setup form.
   const [planPrefill, setPlanPrefill] = useState<PlanPrefill | null>(null);
   // Which Progress sub-tab to open, and a nonce so navigating there again (even
@@ -664,7 +667,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   checkWatchRef.current = scanImports;
   const goProgress = (sub?: string) => { setProgressSub(sub === "stats" || sub === "badges" ? sub : "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
-  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true), openCoach: () => setShowCoach(true),
+  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true),
+    // A string arg seeds the coach input about a specific session; a bare call
+    // (or an event from onClick={openCoach}) opens a fresh chat.
+    openCoach: (seed?: unknown) => { setCoachSeed(typeof seed === "string" ? seed : ""); setShowCoach(true); },
     // Manual "scan older runs" for the Integrations settings panel — wider window,
     // bypasses the once-per-session auto throttle.
     scanImportsNow: () => checkWatchRef.current({ days: WATCH_MANUAL_SCAN_DAYS, manual: true })};
@@ -719,7 +725,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         onBackup={()  => { setShowSettings(false); exportData(); }}
         onRestore={() => { setShowSettings(false); setShowRestore(true); }}
         onSignOut={onSignOut}
-        onOpenCoach={plan ? () => { setShowSettings(false); setShowCoach(true); } : undefined}
+        onOpenCoach={plan ? () => { setShowSettings(false); setCoachSeed(""); setShowCoach(true); } : undefined}
         onDeleteAccount={() => { setShowSettings(false); setShowDeleteAccount(true); }}
         onClose={()   => setShowSettings(false)}/>}
       {showDeleteAccount && <DeleteAccountModal
@@ -732,7 +738,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         <ChunkLoadBoundary fallback={null}
           onError={() => { setShowCoach(false); showToast(t("coach.errors.transport.offline"), "err"); }}>
           <Suspense fallback={<div className="fixed inset-0 bg-slate-900 z-50"/>}>
-            <CoachChat plan={plan} onApplyPlan={applyCoachPlan}
+            <CoachChat plan={plan} onApplyPlan={applyCoachPlan} initialInput={coachSeed}
               appendUserContext={appendUserContext} showToast={showToast} onClose={() => setShowCoach(false)}/>
           </Suspense>
         </ChunkLoadBoundary>
