@@ -59,12 +59,12 @@
   },
   "hr": {
     "title": "Fréquence cardiaque",
-    "age": "Âge",
+    "birthYear": "Année de naissance",
     "maxHr": "FC max",
     "restHr": "FC au repos",
     "autoPlaceholder": "auto",
     "dontKnow": "Je ne connais pas ma FC max",
-    "enterAge": "Saisis ton âge ci-dessus pour l'estimer.",
+    "enterBirthYear": "Saisis ton année de naissance ci-dessus pour l'estimer.",
     "estimated": "Estimation d'après l'âge (Tanaka : 208 − 0,7 × âge) : FC max de {{max}} bpm et FC au repos type de 60 bpm.",
     "fullBreakdown": "Retrouve le détail des zones dans Progression → Statistiques."
   },

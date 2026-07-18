@@ -4,6 +4,7 @@ import { TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, ReferenceLine } from "recharts";
 import { VERT_COST } from "../constants";
 import { fmt, ymd } from "../utils/format";
+import { effectiveMaxHR } from "../utils/hr";
 import { riegel, bestEffortAnchor, hrModelAnchor } from "../utils/predictions";
 import { PredictionsInfo } from "../components/PredictionsInfo";
 import { HRZonesCard } from "../components/HRZonesCard";
@@ -196,8 +197,7 @@ function RacePredictions({runs, settings}: StatsViewProps) {
   })();
 
   // Effective max HR: explicit setting → Tanaka from age → highest HR observed.
-  const effMax = settings.maxHR
-    || (settings.age ? Math.round(208 - 0.7 * settings.age) : 0)
+  const effMax = effectiveMaxHR(settings)
     || fRuns.reduce((m, r) => Math.max(m, r.hrMax || r.hr || 0), 0);
   const restHR = settings.restHR || 60;
 

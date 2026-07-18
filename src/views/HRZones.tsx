@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { INPUT_CLS } from "../constants";
 import { HRZoneBar } from "../components/HRZoneBar";
+import { deriveAge, runnerAge, tanakaMaxHR } from "../utils/hr";
 import type { SettingsState } from "../types";
 
 type HRZonesProps = {
@@ -14,38 +15,46 @@ type HRZonesProps = {
 // Progress → Stats (HRZonesCard).
 export function HRZones({settings, saveSettings}: HRZonesProps) {
   const { t } = useTranslation();
-  const [age,    setAge]    = useState(String(settings.age || ""));
+  const thisYear = new Date().getFullYear();
+  // Legacy-age blobs (no birthYear yet) seed a derived birth year so blurring
+  // any field lazily migrates them; ±1 yr imprecision is fine for Tanaka.
+  const legacyAge = runnerAge(settings);
+  const [birthYear, setBirthYear] = useState(
+    String(settings.birthYear || (legacyAge != null ? thisYear - legacyAge : "") || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));
   const [maxHRHint, setMaxHRHint] = useState("");
 
-  const ageN  = parseInt(age)    || 0;
+  const byN   = parseInt(birthYear) || 0;
+  const ageN  = deriveAge(byN);
   const mhrN  = parseInt(maxHR)  || 0;
   const rhrN  = parseInt(restHR) || 60;
-  const tanakaMax  = ageN ? Math.round(208 - 0.7 * ageN) : null;
+  const tanakaMax = ageN != null ? tanakaMaxHR(ageN) : null;
   const effMax = mhrN || tanakaMax || 0;
   const ready  = effMax > 0 && rhrN > 0 && effMax - rhrN > 0;
 
   // Settings fields auto-save on blur (no Save button) — commit reads the
   // coalesced numbers; estimateHR persists explicitly since setState is async.
+  // The derived age is written alongside birthYear so old app versions (which
+  // read/write only `age`) stay consistent.
   const commit = () => {
-    saveSettings({...settings, age:ageN, maxHR:mhrN||tanakaMax||0, restHR:rhrN});
+    saveSettings({...settings, birthYear:byN, age:ageN ?? 0, maxHR:mhrN||tanakaMax||0, restHR:rhrN});
   };
 
   const estimateHR = () => {
-    if (!tanakaMax) { setMaxHRHint(t("settings.hr.enterAge")); return; }
+    if (!tanakaMax) { setMaxHRHint(t("settings.hr.enterBirthYear")); return; }
     setMaxHR(String(tanakaMax));
     setRestHR("60");
     setMaxHRHint(t("settings.hr.estimated", { max: tanakaMax }));
-    saveSettings({...settings, age:ageN, maxHR:tanakaMax, restHR:60});
+    saveSettings({...settings, birthYear:byN, age:ageN ?? 0, maxHR:tanakaMax, restHR:60});
   };
 
   return (
     <div className="space-y-4">
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide pt-1">{t("settings.hr.title")}</p>
       <div className="grid grid-cols-3 gap-3">
-        <div><label className="text-xs text-slate-400 block mb-1.5">{t("settings.hr.age")}</label>
-          <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} onBlur={commit} className={INPUT_CLS}/></div>
+        <div><label className="text-xs text-slate-400 block mb-1.5">{t("settings.hr.birthYear")}</label>
+          <input type="number" min={thisYear - 90} max={thisYear - 10} placeholder="1990" value={birthYear} onChange={e => setBirthYear(e.target.value)} onBlur={commit} className={INPUT_CLS}/></div>
         <div><label className="text-xs text-slate-400 block mb-1.5">{t("settings.hr.maxHr")}</label>
           <input type="number" min="100" max="230" placeholder={t("settings.hr.autoPlaceholder")} value={maxHR} onChange={e => setMaxHR(e.target.value)} onBlur={commit} className={INPUT_CLS}/></div>
         <div><label className="text-xs text-slate-400 block mb-1.5">{t("settings.hr.restHr")}</label>

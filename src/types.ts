@@ -15,6 +15,12 @@ export type SettingsState = Record<string, unknown> & {
   distanceKm: string | number;
   raceElevation: number;
   name: string;
+  // Birth year (plain number, e.g. 1985 — deliberately not a full DOB, and no
+  // gender). Age is derived at read time via runnerAge (src/utils/hr.ts) so it
+  // never goes stale. Absent = unset.
+  birthYear?: number;
+  // Legacy static age — superseded by birthYear but still written on HR edits
+  // so old app versions (which read/write only `age`) stay consistent. 0 = unset.
   age: number;
   maxHR: number;
   restHR: number;

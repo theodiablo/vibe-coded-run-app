@@ -59,12 +59,12 @@
   },
   "hr": {
     "title": "Frecuencia cardíaca",
-    "age": "Edad",
+    "birthYear": "Año de nacimiento",
     "maxHr": "FC máx.",
     "restHr": "FC en reposo",
     "autoPlaceholder": "auto",
     "dontKnow": "No sé cuál es mi frecuencia cardíaca máxima",
-    "enterAge": "Introduce tu edad arriba para estimarla.",
+    "enterBirthYear": "Introduce tu año de nacimiento arriba para estimarla.",
     "estimated": "Estimación según tu edad (Tanaka: 208 − 0,7 × edad): FC máxima de {{max}} ppm y FC en reposo típica de 60 ppm.",
     "fullBreakdown": "Consulta el desglose completo de zonas en Progreso → Estadísticas."
   },

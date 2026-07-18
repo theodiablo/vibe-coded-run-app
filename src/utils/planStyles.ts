@@ -189,12 +189,18 @@ export function suggestPlanSessions(distanceKm: number | string, level?: unknown
 // fallback, so brand-new users (no data at all) get the current behaviour.
 type RecentRunLike = { date?: string; km?: number };
 
+// Masters threshold: from ~this age the recommendation favours recovery-rich
+// shapes (lowfreq) and avoids cumulative-fatigue ones (hansons). Age never
+// blocks a style — StylePicker still offers them all; absent age changes nothing.
+export const MASTERS_AGE = 57;
+
 export function recommendStyle(input: {
   intent?: string | null;
   planSessions?: PlanSessionInput[];
   distanceKm?: number | string;
   recentRuns?: RecentRunLike[];
   level?: unknown; // self-reported TrainingLevel; used only when no recent runs
+  age?: number | null; // derived runner age (runnerAge in src/utils/hr.ts); null = unknown
   today?: Date; // injectable for deterministic tests
 }): StyleId {
   const today = input.today ?? new Date();
@@ -217,16 +223,23 @@ export function recommendStyle(input: {
   }
   const days = input.planSessions?.length ?? 0;
   const dist = Number(input.distanceKm) || 0;
+  const masters = (input.age ?? 0) >= MASTERS_AGE;
 
   // True beginner (or long break): little recent running, and either a fitness
   // goal or a short race. Never auto-recommended for a long race — run/walk is
   // legitimate for a marathon (Galloway) but that's an explicit choice.
   if (runCount < 4 && weeklyKm < 10 && (input.intent === "fitness" || (dist > 0 && dist <= 10.5)))
     return "runwalk";
+  // Masters returning from little recent running: gentle on-ramp — run/walk for
+  // short goals, low frequency (not run/walk) for longer races.
+  if (masters && runCount < 4 && weeklyKm < 15) return dist > 10.5 ? "lowfreq" : "runwalk";
   // Time-crunched but trained: exactly 3 days with real volume behind them.
-  if (days === 3 && weeklyKm >= 20) return "lowfreq";
-  // High frequency + long race + real volume.
-  if (days >= 5 && dist >= 21 && weeklyKm >= 35) return "hansons";
+  // Masters qualify without the volume gate — the recovery-day-rich week is
+  // the point at that age, not a consolation for low mileage.
+  if (days === 3 && (weeklyKm >= 20 || masters)) return "lowfreq";
+  // High frequency + long race + real volume. Hansons' cumulative-fatigue
+  // design is the one shape deliberately not auto-recommended for masters.
+  if (!masters && days >= 5 && dist >= 21 && weeklyKm >= 35) return "hansons";
   // Decent frequency and volume: polarized is the best-evidenced default.
   if (days >= 4 && weeklyKm >= 25) return "polarized";
   return "balanced";

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowLeft, ChevronDown, MessageCircle } from "lucide-react";
 import { dayName } from "../i18n";
 import { fmt } from "../utils/format";
+import { runnerAge } from "../utils/hr";
 import { findEdition } from "../utils/races";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { PlanInfo } from "../components/PlanInfo";
@@ -104,6 +105,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   const recommendedStyle = recommendStyle({
     intent: settings.intent, planSessions: draft, distanceKm: draftDist, recentRuns: runs,
     level: settings.trainingLevel,
+    age: runnerAge(settings),
   });
   const effectiveStyle = draftStyle ?? recommendedStyle;
   // The concrete sessions the current draft resolves to (Simple mode synthesises them).

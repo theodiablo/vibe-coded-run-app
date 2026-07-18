@@ -270,6 +270,16 @@ async function handle(req: Request): Promise<any> {
     if (rateLimitError) return { error: rateLimitError, code: "RATE_LIMIT" };
   }
 
+  // Derived runner age for the model's context: birthYear wins, legacy static
+  // `age` is the fallback, implausible values (outside 10..90) read as unknown.
+  // Keep in sync with runnerAge in src/utils/hr.ts (Deno can't import it).
+  const yearNow = Number(today.slice(0, 4));
+  const birthYear = Number(settings.birthYear) || 0;
+  const byAge = yearNow - birthYear;
+  const legacyAge = Number(settings.age) || 0;
+  const runnerAge = birthYear && byAge >= 10 && byAge <= 90 ? byAge
+    : legacyAge >= 10 && legacyAge <= 90 ? legacyAge : null;
+
   // Single goal shape for every consumer (buildMessages' prompt text AND
   // assessGoalFeasibility's tool result) — was previously duplicated at a
   // nested `goal.*` and a flat top level, which could silently drift apart.
@@ -278,6 +288,7 @@ async function handle(req: Request): Promise<any> {
     recentRuns,
     today,
     report,
+    runnerAge,
     goal: {
       raceDate: settings.raceDate || workingPlan.raceDate,
       distanceKm: Number(settings.distanceKm || workingPlan.distanceKm),
