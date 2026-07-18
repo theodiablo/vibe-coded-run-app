@@ -22,10 +22,13 @@ name: Release mobile apps
 # release exactly once.
 #
 # The platform jobs are independent (each needs only prepare + web-build), so an
-# iOS failure never blocks the Android upload and vice versa; each job publishes
-# its OWN app_config version column only after its own store upload succeeds,
-# so a partial release never advertises a version to a store that didn't get
-# it. "Re-run failed jobs" re-runs only the failed platform, and the build
+# iOS failure never blocks the Android upload and vice versa; each job STAGES
+# its OWN app_config pending-version column only after its own store upload
+# succeeds. Staging does NOT show the in-app update prompt — a store upload
+# still has to clear review/rollout before the build is installable, so the
+# separate "Publish app version" workflow (publish-version.yml) is run by hand
+# to promote pending -> latest_version(_ios) once the store actually publishes.
+# "Re-run failed jobs" re-runs only the failed platform, and the build
 # number folds in run_attempt, so the retry gets a fresh store build number
 # (both Play and TestFlight permanently reject a re-used one).
 on:
@@ -304,14 +307,27 @@ jobs:
           track: internal
           status: completed
 
-      # On a real release, tell the ANDROID app the new latest version so
-      # outdated clients can be nudged to update — only after the Play upload
-      # succeeded, and never touching the *_ios columns (the ios job owns those).
+      # On a real release, STAGE the version the Play upload actually shipped —
+      # never touching the *_ios columns (the ios job owns those). Staging does
+      # NOT surface the in-app "update available" nudge: an upload still has to
+      # clear Play review/rollout before users can install it, so latest_version
+      # is only set later by the manual "Publish app version" workflow
+      # (publish-version.yml) once the build is live in the store.
       # Uses the Supabase CLI with a management access token, matching the Edge
       # Function deploy workflow; no service-role data API key is needed.
       # min_supported_version is left for you to bump by hand in Supabase when
       # you ship a breaking change.
-      - name: Publish latest Android version to Supabase
+      # The version-shape gate is single-sourced in
+      # .github/actions/validate-app-version (shared with the iOS job and
+      # publish-version.yml) so the shape the staging and publishing SQL accept
+      # can never drift apart.
+      - name: Validate version name
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
+        uses: ./.github/actions/validate-app-version
+        with:
+          version: ${{ steps.ver.outputs.name }}
+
+      - name: Stage Android version in Supabase (pending publish)
         if: ${{ needs.prepare.outputs.is_release == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -329,15 +345,10 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Refusing to publish unexpected version name: $VERSION_NAME"
-            exit 1
-          fi
-
           npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
           npx supabase db query --linked \
-            "update public.app_config set latest_version = '$VERSION_NAME', updated_at = now() where id = 1;"
-          echo "Set latest_version=$VERSION_NAME"
+            "update public.app_config set pending_version = '$VERSION_NAME', updated_at = now() where id = 1;"
+          echo "Staged pending_version=$VERSION_NAME — run the 'Publish app version' workflow once the Play rollout is live to show the update prompt."
 
   ios:
     runs-on: macos-15
@@ -558,9 +569,17 @@ jobs:
             -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \
             | xcbeautify --renderer github-actions
 
-      # The iOS twin of the Android publish step — only after the TestFlight
-      # upload succeeded, and only the *_ios column.
-      - name: Publish latest iOS version to Supabase
+      # The iOS twin of the Android staging step — only after the TestFlight
+      # upload succeeded, and only the *_ios column. As on Android, this stages
+      # the version for the manual "Publish app version" workflow; it does not
+      # show the update prompt (App Store review hasn't even started yet).
+      - name: Validate version name
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
+        uses: ./.github/actions/validate-app-version
+        with:
+          version: ${{ steps.ver.outputs.name }}
+
+      - name: Stage iOS version in Supabase (pending publish)
         if: ${{ needs.prepare.outputs.is_release == 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -578,20 +597,15 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Refusing to publish unexpected version name: $VERSION_NAME"
-            exit 1
-          fi
-
           npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
           npx supabase db query --linked \
-            "update public.app_config set latest_version_ios = '$VERSION_NAME', updated_at = now() where id = 1;"
-          echo "Set latest_version_ios=$VERSION_NAME"
+            "update public.app_config set pending_version_ios = '$VERSION_NAME', updated_at = now() where id = 1;"
+          echo "Staged pending_version_ios=$VERSION_NAME — run the 'Publish app version' workflow once the App Store release is live to show the update prompt."
 
   # Stamp the release: create the v* tag (dispatch path) and a GitHub Release
   # with auto-generated notes. Runs once at least one store shipped, so a fully
   # failed release leaves no dangling tag; a partial one is still recorded (the
-  # per-store app_config columns already reflect exactly what went out).
+  # per-store app_config pending columns already reflect exactly what went out).
   # A GITHUB_TOKEN-created tag does NOT recursively re-trigger the push: tags
   # path, so the dispatch release still runs exactly once.
   tag:
