@@ -5,7 +5,6 @@
   "reassurance": "Changing either rebuilds your remaining sessions — done runs stay.",
   "jumpToWeek": "Jump to this week",
   "notConfigured": "not configured",
-  "sessionsLabel": "Sessions: ",
   "longRunNudge": "Your goal builds long runs up to ~{{peak}}, longer than your longest training day ({{longest}}). That's expected for this distance — consider lengthening your long day in Edit plan.",
   "week": {
     "label": "W{{number}}",
@@ -18,7 +17,8 @@
   },
   "goalRow": {
     "subtitle": "what you're training for",
-    "summary": "{{dist}} km · sub {{goal}} · {{date}}{{elev}}"
+    "summary": "{{dist}} km · sub {{goal}} · {{date}}{{elev}}",
+    "summaryNoGoal": "{{dist}} km · {{date}}{{elev}}"
   },
   "availRow": {
     "subtitle": "time you can give",
@@ -73,12 +73,8 @@
     "coachNotes": "Coach notes",
     "askCoach": "Ask coach about this run",
     "moreActions": "More actions",
-    "doneLinkHint": "Done · tap to link a recorded run ›",
     "skippedReassure": "No stress — the plan adapts.",
-    "undoSkip": "Undo skip",
-    "skip": "Skip this session",
-    "markDone": "Mark session done",
-    "markNotDone": "Mark session not done"
+    "skip": "Skip this session"
   },
   "promote": {
     "newTarget": "New training target",
@@ -86,8 +82,7 @@
   },
   "header": {
     "coach": "Coach",
-    "coachTitle": "Adjust the plan with your coach",
-    "resetConfirm": "Reset ✓"
+    "coachTitle": "Adjust the plan with your coach"
   },
   "progress": {
     "sessions": "{{done}} / {{total}} sessions",
@@ -109,16 +104,12 @@
     "raceElevation": "Race elevation gain (m)",
     "elevationHelp": "Total climb on the course — sets training paces to the flat-equivalent effort.",
     "trainingDays": "Training days and durations",
-    "suggestedNote": "Suggested for your race — adjust freely.",
-    "useSuggested": "Use suggested days for this race",
     "trainingStyle": "Training style",
     "hrNudge": "Add your HR profile in Settings to unlock heart rate targets on every session.",
     "generate": "Generate My Training Plan",
     "buildMyPlan": "Build my plan",
     "rebuildMyPlan": "Rebuild my plan",
     "rebuildNote": "Rebuilds remaining sessions — completed runs stay.",
-    "regenerate": "Regenerate plan",
-    "regenNote": "Rebuilds every week from your current settings — completed and skipped sessions are kept.",
     "promoteNote": "Builds a fresh plan for this race."
   },
   "long": {

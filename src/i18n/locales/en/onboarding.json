@@ -117,8 +117,6 @@
     "label": "How much do you run right now?"
   },
   "sessions": {
-    "suggested": "Suggested for your goal — adjust freely.",
-    "reset": "Reset to suggested days",
     "longestNote": "The longest session automatically becomes your long run."
   },
   "goal": {

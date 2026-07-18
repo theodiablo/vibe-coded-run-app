@@ -10,7 +10,7 @@ import { BrandLogo } from "./components/BrandLogo";
 import { db, currentUserId } from "./db";
 import { STORAGE_KEYS, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_NOTICE_CHARS } from "./constants";
 import { track } from "./telemetry";
-import { buildPlan, findOpenPlanSession } from "./utils/plan";
+import { buildPlan, carryProgress, findOpenPlanSession } from "./utils/plan";
 import { ymd, fmt } from "./utils/format";
 import { computeBadges, unlockedIds } from "./utils/badges";
 import { detectAnyRace, findEdition, editionLabel, loadCatalogue } from "./utils/races";
@@ -44,7 +44,6 @@ import type {
   JoinedEdition,
   Plan,
   PlanPrefill,
-  PlanProgress,
   RacesState,
   RouteBackup,
   Run,
@@ -115,6 +114,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const [showDeleteAccount,setShowDeleteAccount]= useState(false);
   const [onboarding,  setOnboarding]  = useState(false);
   const [showTracker, setShowTracker] = useState(false);
+  // Plan session the tracker was opened from ("Record run" on a session card),
+  // threaded into the save prefill so LogView's onSaved auto-ticks it.
+  const [trackerLink, setTrackerLink] = useState<{ wNum: number; sId: string } | null>(null);
   const [backupRoutes,setBackupRoutes]= useState<RouteBackup[]>([]);
   // Personal races layer (wishlist / completed + seen-badge set). seenBadges is
   // null until first-run seeding so we can tell "never computed" from "none".
@@ -409,27 +411,6 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // Passed to children: persist a races change and reconcile badges off it.
   const saveRaces  = (next: RacesState) => commitRaces(reconcileBadges(runs, next));
 
-  // Re-apply done/skipped/runId from an old plan onto a freshly built one by
-  // session id (ids are stable: w{n}d{dOff} for training, race-{editionId} for
-  // races). Lets us add/remove a race without wiping weeks of progress.
-  const carryProgress = (oldPlan: Plan | null, np: Plan): Plan => {
-    if (!oldPlan) return np;
-    const flags: Record<string, PlanProgress> = {};
-    oldPlan.weeks.forEach(w => w.sessions.forEach(s => {
-      flags[s.id] = { done: s.done, skipped: s.skipped, runId: s.runId };
-    }));
-    return { ...np, weeks: np.weeks.map(w => ({ ...w,
-      sessions: w.sessions.map(s => {
-        const f = flags[s.id];
-        if (!f) return s;
-        // skipped is a union, not an overwrite: the coach's cancel_session
-        // marks skipped on the PROPOSAL, which must survive this re-stamp
-        // (and a session the user skipped while the chat was open survives
-        // the coach plan). done/runId stay client-owned overwrites.
-        return { ...s, ...f, skipped: f.skipped || s.skipped };
-      }) })) };
-  };
-
   // Apply a coach-accepted plan. carryProgress re-stamps done/skipped/runId by
   // session id, so a session ticked while the chat was open isn't lost (the
   // coach tools never edit done sessions, so this can't undo an adjustment).
@@ -668,7 +649,15 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   checkWatchRef.current = scanImports;
   const goProgress = (sub?: string) => { setProgressSub(sub === "stats" || sub === "badges" ? sub : "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
-  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openTracker: () => setShowTracker(true), openRaceForm: () => setShowRaceForm(true),
+  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openRaceForm: () => setShowRaceForm(true),
+    // A {wNum, sId} link opens the tracker from that plan session so the saved
+    // run auto-ticks it; a bare call (or an event from onClick={openTracker})
+    // opens it unlinked. Guard on shape so a click event never counts as a link.
+    openTracker: (link?: unknown) => {
+      const l = link && typeof link === "object" && "sId" in link && "wNum" in link ? link as { wNum: number; sId: string } : null;
+      setTrackerLink(l);
+      setShowTracker(true);
+    },
     // A session-context object opens the coach about that session; a bare call
     // (or an event from onClick={openCoach}) opens a fresh chat. Guard on shape
     // so the click event never counts as a session.
@@ -717,8 +706,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       {showTracker && <LiveRunTracker showToast={showToast} hrMethod={settings.hrMethod} hrOptOut={settings.hrOptOut}
         onConfigureHr={() => { setShowTracker(false); openSettings(); }}
         onDeclineHr={() => saveSettings({ ...settings, hrOptOut: true })}
-        onFinish={prefill => { setShowTracker(false); goLog(prefill); }}
-        onClose={() => setShowTracker(false)}/>}
+        onFinish={prefill => { setShowTracker(false); goLog({ ...prefill, ...(trackerLink || findOpenPlanSession(plan, prefill.date || "") || {}) }); setTrackerLink(null); }}
+        onClose={() => { setShowTracker(false); setTrackerLink(null); }}/>}
       {showBackup && <BackupModal
         data={{runs, plan, settings, races, userContext, ...(backupRoutes.length ? {routes: backupRoutes} : {})}}
         onClose={() => setShowBackup(false)}/>

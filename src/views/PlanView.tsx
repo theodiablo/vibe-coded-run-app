@@ -10,9 +10,9 @@ import { StylePicker } from "../components/StylePicker";
 import { AvailabilityEditor } from "../components/AvailabilityEditor";
 import { PlanSessionRow } from "../components/PlanSessionRow";
 import { styleMeta, isStyleId, recommendStyle, stylePacing, type StyleId } from "../utils/planStyles";
-import { sessionsFromSimple, clampDays, type AvailabilityMode, type DurationBand } from "../utils/availability";
+import { sessionsFromSimple, clampDays, isBand, type AvailabilityMode, type DurationBand } from "../utils/availability";
 import type { CoachSessionContext, Plan, PlanPrefill, RacesState, Run, SettingsState } from "../types";
-import type { PlanSessionInput } from "../utils/plan";
+import { carryProgress, type PlanSessionInput } from "../utils/plan";
 
 type PlanViewProps = {
   plan: Plan | null;
@@ -33,7 +33,7 @@ type PlanViewProps = {
   skipSess: (weekNumber: number, sessionId: string) => void;
   openSettings: () => void;
   openCoach: (session?: CoachSessionContext) => void;
-  openTracker: () => void;
+  openTracker: (link?: { wNum: number; sId: string }) => void;
   goLog: (prefill: Partial<Run>) => void;
   showToast: (msg: string, type?: string) => void;
   planPrefill?: PlanPrefill | null;
@@ -43,15 +43,13 @@ type PlanViewProps = {
 type PlanDraftValue = string | number;
 type EditSection = "goal" | "avail" | "style" | null;
 
-const isBand = (v: unknown): v is DurationBand => v === "short" || v === "med" || v === "long";
-
 export function PlanView({plan, settings, runs, races, savePlan, saveSettings, buildPlan, toggleSess, skipSess, openSettings, openCoach, openTracker, goLog, showToast, planPrefill, clearPlanPrefill}: PlanViewProps) {
   const { t } = useTranslation();
 
   // Plan-card / edit-screen summary strings. Closures so they capture `t`
   // directly rather than threading i18next's overloaded TFunction through helpers.
   const goalSummaryOf = (dist: unknown, goalSec: unknown, elev: number, date: string): string =>
-    t("plan.goalRow.summary", {
+    t(Number(goalSec) ? "plan.goalRow.summary" : "plan.goalRow.summaryNoGoal", {
       dist: Number(dist) || 0,
       goal: fmt.dur(Number(goalSec) || 0),
       date: fmt.sht(date),
@@ -174,7 +172,10 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
         elevation: p.editionId ? findEdition(p.editionId)?.edition?.elevation || 0 : 0 }));
     const built = buildPlan(date, goal, ps, dist, elev, {recentRuns: runs, races: secRaces, mainEditionId: targetEditionId, style, level: settings.trainingLevel});
     const hadPlan = !!plan;
-    savePlan(built);
+    // A rebuild keeps done/skipped progress by session id — the on-screen note
+    // promises it. A promote is deliberately fresh ("Builds a fresh plan for
+    // this race"): carrying week-positional ids across races would mis-tick.
+    savePlan(promoting ? built : carryProgress(plan, built));
     setEditing(false);
     clearPlanPrefill?.();
     if (hadPlan) showToast(t("plan.toast.rebuilt", { n: built.weeks.flatMap(w => w.sessions).length }), "ok");
@@ -250,7 +251,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
             expanded={editSection === "avail"} onToggle={() => setEditSection(editSection === "avail" ? null : "avail")}
             headerControl={modeToggle}>
             <AvailabilityEditor mode={draftMode} days={draftDays} band={draftBand} sessions={draft}
-              distanceKm={draftDist || settings.distanceKm || 20}
+              distanceKm={draftDist || settings.distanceKm || 20} trainingLevel={settings.trainingLevel}
               onDaysChange={setDraftDays} onBandChange={setDraftBand} onSessionsChange={setDraft}/>
           </AccordionSection>
 
@@ -303,7 +304,14 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
   const longRunNudge = peakLongMin > longestSessMin + 20;
 
   const weeksTotal = plan.weeks.length;
-  const curWeekNum = nowIdx >= 0 ? plan.weeks[nowIdx].weekNumber : 1;
+  // Outside every week window: before the plan starts show week 1, after it
+  // ends (race passed) show the final week — never "Week 1" of a finished plan.
+  const planEnded = plan.weeks.every(w => {
+    const s = new Date((w.startDate || "") + "T00:00:00");
+    const e = new Date(s); e.setDate(s.getDate() + 7);
+    return e <= today;
+  });
+  const curWeekNum = nowIdx >= 0 ? plan.weeks[nowIdx].weekNumber : planEnded ? plan.weeks[weeksTotal - 1]?.weekNumber ?? 1 : 1;
   const raceMs = new Date(String(plan.raceDate || "") + "T00:00:00").getTime();
   const daysToRace = Number.isFinite(raceMs) ? Math.max(0, Math.round((raceMs - today.getTime()) / 86400000)) : 0;
 
@@ -405,10 +413,10 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
               {isExp && (
                 <div className="px-3 pb-3 pt-1 space-y-2 animate-expand">
                   {wk.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).map(s => (
-                    <PlanSessionRow key={s.id} session={s} weekNumber={wk.weekNumber} settings={settings}
+                    <PlanSessionRow key={s.id} session={s} settings={settings}
                       notesOpen={openSess === s.id}
                       onToggleNotes={() => setOpenSess(openSess === s.id ? null : s.id)}
-                      onRecord={openTracker}
+                      onRecord={() => openTracker({wNum: wk.weekNumber, sId: s.id})}
                       onDone={() => goLog({date: s.date, type: s.type, km: Number(s.km), pace: s.pace, wNum: wk.weekNumber, sId: s.id})}
                       onToggleDone={() => toggleSess(wk.weekNumber, s.id)}
                       onSkip={() => skipSess(wk.weekNumber, s.id)}

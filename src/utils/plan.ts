@@ -5,7 +5,7 @@ import {
   DEFAULT_STYLE, STYLE_SHAPE, isStyleId, levelStartLongKm, pickHardDays, stylePacing,
   type StyleId,
 } from "./planStyles";
-import type { SessionSd } from "../types";
+import type { Plan, PlanProgress, SessionSd } from "../types";
 
 export type PlanSessionInput = { dayOffset: number; minutes: number };
 type PlanSession = {
@@ -555,4 +555,26 @@ export function findOpenPlanSession(plan: OpenSessionPlan | null | undefined, da
     }
   }
   return null;
+}
+
+// Re-apply done/skipped/runId from an old plan onto a freshly built one by
+// session id (ids are stable: w{n}d{dOff} for training, race-{editionId} for
+// races). Lets a rebuild (availability edit, race add/remove, coach apply)
+// keep weeks of progress. Pure.
+export function carryProgress(oldPlan: Plan | null, np: Plan): Plan {
+  if (!oldPlan) return np;
+  const flags: Record<string, PlanProgress> = {};
+  oldPlan.weeks.forEach(w => w.sessions.forEach(s => {
+    flags[s.id] = { done: s.done, skipped: s.skipped, runId: s.runId };
+  }));
+  return { ...np, weeks: np.weeks.map(w => ({ ...w,
+    sessions: w.sessions.map(s => {
+      const f = flags[s.id];
+      if (!f) return s;
+      // skipped is a union, not an overwrite: the coach's cancel_session
+      // marks skipped on the PROPOSAL, which must survive this re-stamp
+      // (and a session the user skipped while the chat was open survives
+      // the coach plan). done/runId stay client-owned overwrites.
+      return { ...s, ...f, skipped: f.skipped || s.skipped };
+    }) })) };
 }

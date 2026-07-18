@@ -3,14 +3,12 @@ import { Minus, Plus } from "lucide-react";
 import { fmt } from "../utils/format";
 import { SessionConfigurator } from "./SessionConfigurator";
 import {
-  weeklyLoad, clampDays, AVAIL_DAY_MIN, AVAIL_DAY_MAX,
-  LOAD_GOOD_LO, LOAD_GOOD_HI, LOAD_MAX_MIN,
+  weeklyLoad, loadBands, clampDays, AVAIL_DAY_MIN, AVAIL_DAY_MAX,
   type AvailabilityMode, type DurationBand,
 } from "../utils/availability";
+import { suggestPlanSessions } from "../utils/planStyles";
 import type { PlanSessionInput } from "../utils/plan";
 
-// Coach-pick recommendation for a first-race build: Wed 45 / Fri 60 / Sun 90.
-const RECOMMEND: Record<number, number> = { 2: 45, 4: 60, 6: 90 };
 const BANDS: DurationBand[] = ["short", "med", "long"];
 
 type AvailabilityEditorProps = {
@@ -19,6 +17,8 @@ type AvailabilityEditorProps = {
   band: DurationBand;
   sessions: PlanSessionInput[];
   distanceKm: number | string;
+  // Self-reported training level — sizes the Custom-mode coach-pick chips.
+  trainingLevel?: unknown;
   onDaysChange: (n: number) => void;
   onBandChange: (b: DurationBand) => void;
   onSessionsChange: (s: PlanSessionInput[]) => void;
@@ -29,18 +29,24 @@ type AvailabilityEditorProps = {
 // days + durations), both feeding a weekly-load meter that says whether the time
 // budget is sensible for the race distance.
 export function AvailabilityEditor({
-  mode, days, band, sessions, distanceKm,
+  mode, days, band, sessions, distanceKm, trainingLevel,
   onDaysChange, onBandChange, onSessionsChange,
 }: AvailabilityEditorProps) {
   const { t } = useTranslation();
   const dist = Math.round(Number(distanceKm) || 0);
   const load = mode === "simple"
-    ? weeklyLoad({ mode: "simple", days: clampDays(days), band })
-    : weeklyLoad({ mode: "custom", sessions });
+    ? weeklyLoad({ mode: "simple", days: clampDays(days), band, distanceKm })
+    : weeklyLoad({ mode: "custom", sessions, distanceKm });
+
+  // Coach-pick chips: the one distance/level-aware day-layout suggestion
+  // (suggestPlanSessions), not a fixed layout — the legend names the distance.
+  const recommend: Record<number, number> = Object.fromEntries(
+    suggestPlanSessions(distanceKm, trainingLevel).map(s => [s.dayOffset, s.minutes]));
 
   const dayHint = days <= 3 ? "few" : days === 4 ? "solid" : "lots";
-  const loPct = (LOAD_GOOD_LO / LOAD_MAX_MIN) * 100;
-  const hiPct = (LOAD_GOOD_HI / LOAD_MAX_MIN) * 100;
+  const bands = loadBands(distanceKm);
+  const loPct = (bands.goodLo / bands.maxMin) * 100;
+  const hiPct = (bands.goodHi / bands.maxMin) * 100;
   const verdictClr = load.zone === "good" ? "text-emerald-400" : "text-amber-400";
 
   return (
@@ -101,7 +107,7 @@ export function AvailabilityEditor({
         </div>
       ) : (
         <SessionConfigurator sessions={sessions} onChange={onSessionsChange}
-          recommend={RECOMMEND} legend={t("plan.avail.custom.legend", { dist })}/>
+          recommend={recommend} legend={t("plan.avail.custom.legend", { dist })}/>
       )}
 
       {/* Weekly load meter */}

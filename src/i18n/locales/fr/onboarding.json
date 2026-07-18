@@ -117,8 +117,6 @@
     "label": "À quelle fréquence cours-tu actuellement ?"
   },
   "sessions": {
-    "suggested": "Suggestion adaptée à ton objectif. Ajuste-la librement.",
-    "reset": "Revenir aux jours suggérés",
     "longestNote": "La séance la plus longue devient automatiquement ta sortie longue."
   },
   "goal": {

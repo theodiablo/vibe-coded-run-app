@@ -11,7 +11,7 @@ import {
   type StyleId, type TrainingLevel,
 } from "../utils/planStyles";
 import {
-  sessionsFromSimple, suggestSimpleAvailability, clampDays,
+  sessionsFromSimple, suggestSimpleAvailability, clampDays, isBand,
   type AvailabilityMode, type DurationBand,
 } from "../utils/availability";
 import { RaceFormModal } from "./RaceFormModal";
@@ -25,7 +25,6 @@ import type { PlanSessionInput } from "../utils/plan";
 import { addWeeks, ymd, fmt } from "../utils/format";
 import type { CatalogueEdition, CatalogueRace, HealthAck, Intent, JoinedEdition, SettingsState } from "../types";
 
-const isBand = (v: unknown): v is DurationBand => v === "short" || v === "med" || v === "long";
 
 type OnboardingStepKey = "welcome" | "intent" | "race" | "raceGoal" | "training" | "hr" | "health" | "summary";
 type OnboardingProgress = Partial<SettingsState>;
@@ -97,13 +96,16 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   // The day/band drafts start null and track a distance/level-aware suggestion
   // until the user touches them; the custom sessions draft mirrors the old
   // "untouched = live suggestion" behaviour.
-  const [availMode, setAvailMode] = useState<AvailabilityMode>(settings.availabilityMode === "custom" ? "custom" : "simple");
+  const DEFAULT_SESS = JSON.stringify([{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
+  const hasCustomSess = !!settings.planSessions?.length && JSON.stringify(settings.planSessions) !== DEFAULT_SESS;
+  // No availabilityMode saved but customized sessions present = progress written
+  // by a pre-availability-modes build; resuming in Simple would silently replace
+  // those configured days with sessionsFromSimple output on Continue.
+  const [availMode, setAvailMode] = useState<AvailabilityMode>(
+    settings.availabilityMode === "custom" || (!settings.availabilityMode && hasCustomSess) ? "custom" : "simple");
   const [availDaysDraft, setAvailDays] = useState<number | null>(typeof settings.availDays === "number" ? settings.availDays : null);
   const [availBandDraft, setAvailBand] = useState<DurationBand | null>(isBand(settings.availTime) ? settings.availTime : null);
-  const DEFAULT_SESS = JSON.stringify([{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
-  const [sessDraft, setSess] = useState<PlanSessionInput[] | null>(
-    settings.planSessions?.length && JSON.stringify(settings.planSessions) !== DEFAULT_SESS
-      ? settings.planSessions : null);
+  const [sessDraft, setSess] = useState<PlanSessionInput[] | null>(hasCustomSess ? settings.planSessions ?? null : null);
   // Methodology style: null = untouched, so the pre-selection tracks the live
   // recommendation while the user edits days/distance; a tap pins the choice.
   const [planStyle,     setPlanStyle] = useState<StyleId | null>(isStyleId(settings.planStyle) ? settings.planStyle : null);
@@ -450,7 +452,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
               <LevelTiles value={level} onChange={setLevel}/>
               <GoalConfigurator distanceKm={distanceKm} goalSec={goalSec} onChange={setGoal}/>
               <AvailabilityStep mode={availMode} setMode={setAvailMode} days={availDays} band={availBand}
-                sessions={customSessions} distanceKm={distanceKm}
+                sessions={customSessions} distanceKm={distanceKm} trainingLevel={level}
                 onDaysChange={n => setAvailDays(clampDays(n))} onBandChange={setAvailBand} onSessionsChange={setSess}/>
               <div>
                 <label className="text-xs text-slate-400 block mb-2">{t("onboarding.styleLabel")}</label>
@@ -502,7 +504,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 </div>
               </div>
               <AvailabilityStep mode={availMode} setMode={setAvailMode} days={availDays} band={availBand}
-                sessions={customSessions} distanceKm={fitDist}
+                sessions={customSessions} distanceKm={fitDist} trainingLevel={level}
                 onDaysChange={n => setAvailDays(clampDays(n))} onBandChange={setAvailBand} onSessionsChange={setSess}/>
               <div>
                 <label className="text-xs text-slate-400 block mb-2">{t("onboarding.styleLabel")}</label>
@@ -711,10 +713,11 @@ function LevelTiles({ value, onChange }: { value: TrainingLevel | null; onChange
 type AvailabilityStepProps = {
   mode: AvailabilityMode; setMode: (m: AvailabilityMode) => void;
   days: number; band: DurationBand; sessions: PlanSessionInput[]; distanceKm: number | string;
+  trainingLevel?: unknown;
   onDaysChange: (n: number) => void; onBandChange: (b: DurationBand) => void; onSessionsChange: (s: PlanSessionInput[]) => void;
 };
 
-function AvailabilityStep({ mode, setMode, days, band, sessions, distanceKm, onDaysChange, onBandChange, onSessionsChange }: AvailabilityStepProps) {
+function AvailabilityStep({ mode, setMode, days, band, sessions, distanceKm, trainingLevel, onDaysChange, onBandChange, onSessionsChange }: AvailabilityStepProps) {
   const { t } = useTranslation();
   return (
     <div>
@@ -731,6 +734,7 @@ function AvailabilityStep({ mode, setMode, days, band, sessions, distanceKm, onD
         </div>
       </div>
       <AvailabilityEditor mode={mode} days={days} band={band} sessions={sessions} distanceKm={distanceKm}
+        trainingLevel={trainingLevel}
         onDaysChange={onDaysChange} onBandChange={onBandChange} onSessionsChange={onSessionsChange}/>
     </div>
   );

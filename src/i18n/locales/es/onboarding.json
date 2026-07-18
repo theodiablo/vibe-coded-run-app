@@ -117,8 +117,6 @@
     "label": "¿Con qué frecuencia corres actualmente?"
   },
   "sessions": {
-    "suggested": "Sugerencia adaptada a tu objetivo. Puedes ajustarla como quieras.",
-    "reset": "Restablecer los días sugeridos",
     "longestNote": "La sesión más larga se convierte automáticamente en tu tirada larga."
   },
   "goal": {

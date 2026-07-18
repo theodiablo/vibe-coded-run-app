@@ -11,19 +11,35 @@
 // the weekend (Sunday, dayOffset 6) is strictly the longest, weekday minutes come
 // from the SessionConfigurator option set, and quality days sit ≥2 from Sunday so
 // the plan validator places them without demotions.
+import { suggestPlanSessions } from "./planStyles";
 import type { PlanSessionInput } from "./plan";
 
 export type DurationBand = "short" | "med" | "long";
 export type AvailabilityMode = "simple" | "custom";
 
+export const isBand = (v: unknown): v is DurationBand => v === "short" || v === "med" || v === "long";
+
 export const AVAIL_DAY_MIN = 2;
 export const AVAIL_DAY_MAX = 6;
 
-// Weekly-load meter scale (minutes). Matches the design handoff: full scale is
-// 6h/week; the "good for a first race" band is 65–225 min.
+// Weekly-load meter scale (minutes) for a short race (≤10 km). Matches the
+// design handoff: full scale is 6h/week; the "good for a first race" band is
+// 65–225 min.
 export const LOAD_MAX_MIN = 360;
 export const LOAD_GOOD_LO = 65;
 export const LOAD_GOOD_HI = 225;
+
+export type LoadBands = { goodLo: number; goodHi: number; maxMin: number };
+
+// The meter's copy claims distance-specific guidance ("Below the minimum for a
+// {{dist}} km build"), so the thresholds must actually move with the distance:
+// a half needs more than a 5K week, a marathon more still.
+export function loadBands(distanceKm?: number | string): LoadBands {
+  const d = Number(distanceKm) || 0;
+  if (d > 25) return { goodLo: 180, goodHi: 420, maxMin: 540 };
+  if (d > 12) return { goodLo: 120, goodHi: 300, maxMin: 420 };
+  return { goodLo: LOAD_GOOD_LO, goodHi: LOAD_GOOD_HI, maxMin: LOAD_MAX_MIN };
+}
 
 // Weekday vs long-run (Sunday) minutes per band. Both are option-set values and
 // long > weekday so Sunday stays strictly the longest session.
@@ -63,30 +79,33 @@ export function sessionsFromSimple(days: number, band: DurationBand): PlanSessio
 }
 
 // A sensible Simple-mode starting point from the race distance + self-reported
-// level, used by onboarding (before any runs exist). Day count mirrors
-// suggestPlanSessions (src/utils/planStyles.ts); the band scales with distance
-// and experience.
+// level, used by onboarding (before any runs exist). The day count is derived
+// from suggestPlanSessions (src/utils/planStyles.ts) — the one day-count
+// heuristic — so Simple and Custom suggestions can't drift; the band scales
+// with distance and experience.
 export function suggestSimpleAvailability(distanceKm: number | string, level?: unknown): { days: number; band: DurationBand } {
   const d = Number(distanceKm) || 5;
   const experienced = level === "regular" || level === "frequent";
-  const days = clampDays(level === "frequent" ? (d > 12 ? 5 : 4) : (level === "regular" && d > 12 ? 4 : 3));
+  const days = clampDays(suggestPlanSessions(d, level).length);
   const band: DurationBand = experienced ? (d > 15 ? "long" : "med") : (d <= 7.5 ? "short" : "med");
   return { days, band };
 }
 
 export type LoadResult = { totalMin: number; pct: number; zone: "low" | "good" | "high" };
 
-// Weekly training-time estimate + which zone it lands in. Custom sums the exact
-// per-day durations; Simple approximates as days × representative minutes.
+// Weekly training-time estimate + which zone it lands in for the race distance
+// (absent distance = the short-race bands). Custom sums the exact per-day
+// durations; Simple approximates as days × representative minutes.
 export function weeklyLoad(
   input:
-    | { mode: "custom"; sessions: PlanSessionInput[] }
-    | { mode: "simple"; days: number; band: DurationBand },
+    | { mode: "custom"; sessions: PlanSessionInput[]; distanceKm?: number | string }
+    | { mode: "simple"; days: number; band: DurationBand; distanceKm?: number | string },
 ): LoadResult {
+  const bands = loadBands(input.distanceKm);
   const totalMin = input.mode === "custom"
     ? input.sessions.reduce((sum, s) => sum + (s.minutes || 0), 0)
     : clampDays(input.days) * bandRepMinutes(input.band);
-  const pct = Math.max(0, Math.min(100, Math.round((totalMin / LOAD_MAX_MIN) * 100)));
-  const zone = totalMin < LOAD_GOOD_LO ? "low" : totalMin <= LOAD_GOOD_HI ? "good" : "high";
+  const pct = Math.max(0, Math.min(100, Math.round((totalMin / bands.maxMin) * 100)));
+  const zone = totalMin < bands.goodLo ? "low" : totalMin <= bands.goodHi ? "good" : "high";
   return { totalMin, pct, zone };
 }
