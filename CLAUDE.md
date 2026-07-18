@@ -253,10 +253,18 @@ and delete anything that becomes stale.
   exactly what happens after a partial release. Seen in practice: run 45's retry
   re-sent versionCode 45 and Play rejected it outright. The two platform jobs
   are independent, so one store's failure never blocks the other; each job
-  publishes its OWN `app_config` column (`latest_version` for Android,
-  `latest_version_ios` for iOS, via `supabase db query --linked` using
+  STAGES its OWN `app_config` pending column (`pending_version` for Android,
+  `pending_version_ios` for iOS, via `supabase db query --linked` using
   `SUPABASE_ACCESS_TOKEN`) only after its upload succeeds, so a partial release
-  never advertises a version a store didn't get. `min_supported_version` /
+  never stages a version a store didn't get. **Upload ≠ publish:** staging never
+  shows the in-app update banner (Play promotion/rollout and App Store review
+  come after upload). The maintainer runs the manual **"Publish app version"**
+  workflow (`publish-version.yml`, `workflow_dispatch`, phone-friendly) per
+  platform once the store actually publishes — it promotes pending →
+  `latest_version(_ios)` (refusing when nothing is staged; optional `version`
+  input overrides for repair/rollback), and only THAT flips the update prompt
+  on. Don't reintroduce a direct `latest_version` write in `release.yml`.
+  `min_supported_version` /
   `min_supported_version_ios` (hard gates) are bumped by hand on a breaking
   change. `App.tsx` selects all four columns and compares the installed version
   (`App.getInfo()`) against its platform's pair via `versionStatus`

@@ -212,15 +212,27 @@ tag (one tag ships both stores). Two ways to cut one:
 The app compares its installed `versionName` against the `app_config` row
 (`supabase/migrations/20260623120000_app_config.sql`) on launch:
 
-- `latest_version` / `latest_version_ios` — set **automatically** by the release
-  workflow after each store's upload succeeds (per-platform, so a partial release
-  never advertises a version a store didn't get); users on an older version see a
-  dismissible "update available" banner.
+- `latest_version` / `latest_version_ios` — what the update banner compares
+  against: users on an older version see a dismissible "update available"
+  banner. **Not set automatically.** The release workflow only *stages* the
+  uploaded version (below); you promote it when the store publishes.
+- `pending_version` / `pending_version_ios` — set **automatically** by the
+  release workflow after each store's *upload* succeeds (per-platform, so a
+  partial release never stages a version a store didn't get). Uploading is not
+  publishing — Play promotion/rollout and App Store review happen later — so
+  staging alone never shows the banner.
 - `min_supported_version` / `min_supported_version_ios` — **you bump these by
   hand** in Supabase only when you ship a breaking change; clients below them get
   a non-dismissible "update required" screen.
 
-For the workflow to write `latest_version`, configure the Supabase CLI credentials
+When a store actually publishes the build, run **Actions → "Publish app
+version"** (`publish-version.yml`, phone-friendly like the release dispatch):
+pick the platform (`android` / `ios` / `both`) and it promotes the staged
+pending version to `latest_version(_ios)` — that's the moment outdated clients
+start seeing the banner. It refuses to run if nothing is staged; an optional
+`version` input overrides the staged value for repairs/rollbacks.
+
+For the workflows to write these columns, configure the Supabase CLI credentials
 (the same values used by the Edge Function deploy workflow):
 
 | Name | Type | Value |
@@ -228,12 +240,12 @@ For the workflow to write `latest_version`, configure the Supabase CLI credentia
 | `SUPABASE_ACCESS_TOKEN` | Secret | a Supabase personal/service access token with database query rights on `run-app` |
 | `SUPABASE_PROJECT_REF` | Variable | the Supabase project ref to link/query |
 
-The release workflow uses `npx supabase db query --linked` against the project in
+Both workflows use `npx supabase db query --linked` against the project in
 repo variable `SUPABASE_PROJECT_REF` to update the `public.app_config` version
 columns. The token is a CI/server secret only: never put it in `config.ts`, the app
 bundle, or any `VITE_*` var. If either the secret or project-ref variable is
 missing, a tagged release fails after the store upload instead of silently skipping
-the in-app update prompt bump.
+the pending-version staging.
 
 ### Install a build on your phone
 
