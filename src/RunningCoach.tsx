@@ -23,6 +23,7 @@ import { scanAllProviders, providerEnabledInSettings } from "./imports/registry"
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { Confetti } from "./components/Confetti";
+import { ChunkLoadBoundary } from "./components/ChunkLoadBoundary";
 import { usePresence } from "./hooks/usePresence";
 import { OnboardingWizard } from "./modals/OnboardingWizard";
 import { BackupModal } from "./modals/BackupModal";
@@ -725,10 +726,16 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         onSignOut={onSignOut}
         onClose={() => setShowDeleteAccount(false)}/>}
       {showCoach && plan && (
-        <Suspense fallback={<div className="fixed inset-0 bg-slate-900 z-50"/>}>
-          <CoachChat plan={plan} onApplyPlan={applyCoachPlan}
-            appendUserContext={appendUserContext} showToast={showToast} onClose={() => setShowCoach(false)}/>
-        </Suspense>
+        // A stale-chunk / transient network failure loading the lazy CoachChat
+        // module must not white-screen the app: close the modal and toast instead
+        // (unmounting resets the boundary so re-opening retries the import).
+        <ChunkLoadBoundary fallback={null}
+          onError={() => { setShowCoach(false); showToast(t("coach.errors.transport.offline"), "err"); }}>
+          <Suspense fallback={<div className="fixed inset-0 bg-slate-900 z-50"/>}>
+            <CoachChat plan={plan} onApplyPlan={applyCoachPlan}
+              appendUserContext={appendUserContext} showToast={showToast} onClose={() => setShowCoach(false)}/>
+          </Suspense>
+        </ChunkLoadBoundary>
       )}
       {showRaceForm && <RaceFormModal
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
