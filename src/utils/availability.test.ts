@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  sessionsFromSimple, weeklyLoad, bandRepMinutes, clampDays, suggestSimpleAvailability,
+  sessionsFromSimple, weeklyLoad, loadBands, bandRepMinutes, clampDays, suggestSimpleAvailability,
   AVAIL_DAY_MIN, AVAIL_DAY_MAX, LOAD_GOOD_LO, LOAD_GOOD_HI,
   type DurationBand,
 } from "./availability";
+import { suggestPlanSessions } from "./planStyles";
 
 describe("clampDays", () => {
   it("clamps to the 2–6 range and rounds", () => {
@@ -80,6 +81,14 @@ describe("suggestSimpleAvailability", () => {
     const { days, band } = suggestSimpleAvailability(10, "regular");
     expect(sessionsFromSimple(days, band)).toHaveLength(days);
   });
+
+  it("agrees with suggestPlanSessions on the day count (single heuristic)", () => {
+    for (const d of [5, 10, 21.1, 42.2]) {
+      for (const lvl of ["none", "occasional", "regular", "frequent"]) {
+        expect(suggestSimpleAvailability(d, lvl).days).toBe(suggestPlanSessions(d, lvl).length);
+      }
+    }
+  });
 });
 
 describe("weeklyLoad", () => {
@@ -104,5 +113,28 @@ describe("weeklyLoad", () => {
   it("clamps pct into 0–100", () => {
     expect(weeklyLoad({ mode: "custom", sessions: [{ dayOffset: 0, minutes: 999 }] }).pct).toBe(100);
     expect(weeklyLoad({ mode: "custom", sessions: [] }).pct).toBe(0);
+  });
+
+  it("scales the good zone with race distance", () => {
+    const sessions = [{ dayOffset: 2, minutes: 45 }, { dayOffset: 6, minutes: 90 }]; // 135 min
+    expect(weeklyLoad({ mode: "custom", sessions, distanceKm: 10 }).zone).toBe("good");
+    expect(weeklyLoad({ mode: "custom", sessions, distanceKm: 42.2 }).zone).toBe("low");
+    const big = [{ dayOffset: 0, minutes: 60 }, { dayOffset: 2, minutes: 60 }, { dayOffset: 4, minutes: 60 }, { dayOffset: 6, minutes: 120 }]; // 300 min
+    expect(weeklyLoad({ mode: "custom", sessions: big, distanceKm: 5 }).zone).toBe("high");
+    expect(weeklyLoad({ mode: "custom", sessions: big, distanceKm: 42.2 }).zone).toBe("good");
+  });
+});
+
+describe("loadBands", () => {
+  it("keeps the short-race band as the default and widens with distance", () => {
+    expect(loadBands()).toEqual({ goodLo: LOAD_GOOD_LO, goodHi: LOAD_GOOD_HI, maxMin: 360 });
+    expect(loadBands(5)).toEqual(loadBands());
+    expect(loadBands(21.1).goodLo).toBeGreaterThan(LOAD_GOOD_LO);
+    expect(loadBands(42.2).goodLo).toBeGreaterThan(loadBands(21.1).goodLo);
+    for (const d of [5, 21.1, 42.2]) {
+      const b = loadBands(d);
+      expect(b.goodLo).toBeLessThan(b.goodHi);
+      expect(b.goodHi).toBeLessThan(b.maxMin);
+    }
   });
 });

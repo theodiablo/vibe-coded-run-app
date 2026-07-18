@@ -2,10 +2,9 @@
   "title": "Tu plan de entrenamiento",
   "editPlan": "Editar plan",
   "editShort": "Editar",
-  "reassurance": "Cambiar cualquiera de los dos reconstruye tus sesiones restantes; las carreras completadas se conservan.",
+  "reassurance": "Cambiar cualquiera de los dos reconstruye tus sesiones restantes; los entrenamientos completados se conservan.",
   "jumpToWeek": "Ir a esta semana",
   "notConfigured": "sin configurar",
-  "sessionsLabel": "Sesiones: ",
   "longRunNudge": "Para alcanzar tu objetivo, las tiradas largas llegan a ~{{peak}}, por encima de tu día de entrenamiento más largo ({{longest}}). Es normal para esta distancia; valora alargar ese día en Editar plan.",
   "week": {
     "label": "Sem. {{number}}",
@@ -18,7 +17,8 @@
   },
   "goalRow": {
     "subtitle": "para qué te preparas",
-    "summary": "{{dist}} km · menos de {{goal}} · {{date}}{{elev}}"
+    "summary": "{{dist}} km · menos de {{goal}} · {{date}}{{elev}}",
+    "summaryNoGoal": "{{dist}} km · {{date}}{{elev}}"
   },
   "availRow": {
     "subtitle": "el tiempo que puedes dar",
@@ -35,7 +35,7 @@
       "daysCount": "{{n}} días",
       "fewerDays": "Menos días",
       "moreDays": "Más días",
-      "timeQuestion": "En un día de carrera, ¿cuánto tiempo tienes?",
+      "timeQuestion": "En un día de entrenamiento, ¿cuánto tiempo tienes?",
       "summary": "Elegimos los mejores días para ti: {{n}} salidas de {{duration}} cada una, con la tirada larga el fin de semana.",
       "dayHint": {
         "few": "3 días es lo ideal para una primera carrera: suficiente para progresar, con descanso entre sesiones.",
@@ -73,12 +73,8 @@
     "coachNotes": "Notas del entrenador",
     "askCoach": "Preguntar al entrenador",
     "moreActions": "Más acciones",
-    "doneLinkHint": "Completada · toca para vincular una carrera registrada ›",
     "skippedReassure": "Sin estrés, el plan se adapta.",
-    "undoSkip": "Deshacer omisión",
-    "skip": "Omitir esta sesión",
-    "markDone": "Marcar sesión como completada",
-    "markNotDone": "Marcar sesión como pendiente"
+    "skip": "Omitir esta sesión"
   },
   "promote": {
     "newTarget": "Nuevo objetivo de entrenamiento",
@@ -86,8 +82,7 @@
   },
   "header": {
     "coach": "Entrenador",
-    "coachTitle": "Ajusta el plan con tu entrenador",
-    "resetConfirm": "Restablecer ✓"
+    "coachTitle": "Ajusta el plan con tu entrenador"
   },
   "progress": {
     "sessions": "{{done}} / {{total}} sesiones",
@@ -109,16 +104,12 @@
     "raceElevation": "Desnivel positivo de la carrera (m)",
     "elevationHelp": "Desnivel total del recorrido; se usa para ajustar los ritmos de entrenamiento al esfuerzo equivalente en llano.",
     "trainingDays": "Días y duraciones de entrenamiento",
-    "suggestedNote": "Sugerencia adaptada a tu carrera. Puedes ajustarla como quieras.",
-    "useSuggested": "Usar los días sugeridos para esta carrera",
     "trainingStyle": "Estilo de entrenamiento",
     "hrNudge": "Añade tu perfil de FC en Ajustes para desbloquear objetivos de frecuencia cardíaca en cada sesión.",
     "generate": "Generar mi plan de entrenamiento",
     "buildMyPlan": "Crear mi plan",
     "rebuildMyPlan": "Reconstruir mi plan",
-    "rebuildNote": "Reconstruye las sesiones restantes; las carreras completadas se conservan.",
-    "regenerate": "Regenerar plan",
-    "regenNote": "Vuelve a crear todas las semanas del plan con tus ajustes actuales; conserva las sesiones completadas y omitidas.",
+    "rebuildNote": "Reconstruye las sesiones restantes; los entrenamientos completados se conservan.",
     "promoteNote": "Crea un plan nuevo para esta carrera."
   },
   "long": {

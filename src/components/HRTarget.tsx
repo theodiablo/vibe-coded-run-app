@@ -14,7 +14,9 @@ export function HRTarget({type, settings, openSettings}: HRTargetProps) {
   const { t } = useTranslation();
   if (!settings.maxHR) {
     return (
-      <button type="button" onClick={openSettings}
+      // Stop propagation: this nudge renders inside tappable cards (plan session
+      // rows toggle their notes on body click) and must not trigger the parent.
+      <button type="button" onClick={e => { e.stopPropagation(); openSettings(); }}
         className="text-xs mt-1 flex items-center gap-1.5 text-amber-300 hover:text-amber-200 transition-colors">
         <Heart size={12}/>{t("common.hrTargetNudge")}
       </button>

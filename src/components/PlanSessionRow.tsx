@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, MessageCircle, MoreHorizontal, Play, RotateCcw, SkipForward } from "lucide-react";
 import { TCLR } from "../constants";
@@ -13,7 +13,6 @@ const typeClass = (type: PlanSession["type"]) => TCLR[(type as RunType) || "OTHE
 
 type PlanSessionRowProps = {
   session: PlanSession;
-  weekNumber: number;
   settings: SettingsState;
   notesOpen: boolean;
   onToggleNotes: () => void;
@@ -34,7 +33,6 @@ export function PlanSessionRow({
 }: PlanSessionRowProps) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   useDismissable(menuOpen, () => setMenuOpen(false));
 
   const isSkipped = !!s.skipped && !s.done;
@@ -55,7 +53,6 @@ export function PlanSessionRow({
             <span className="text-xs text-slate-500">{fmt.sht(s.date)}</span>
           </div>
           <p className="text-sm font-semibold text-slate-400 line-through leading-snug mt-0.5">{title}</p>
-          <p className="text-xs text-slate-500 mt-0.5">{t("plan.session.doneLinkHint")}</p>
         </div>
         <button onClick={onToggleDone}
           className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors flex-shrink-0 self-center">
@@ -133,8 +130,11 @@ export function PlanSessionRow({
           <MoreHorizontal size={16}/>
         </button>
 
+        {/* Invisible backdrop so a tap anywhere else closes the menu (Escape /
+            Android back go through useDismissable; iOS and mouse users need this). */}
+        {menuOpen && <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)}/>}
         {menuOpen && (
-          <div ref={menuRef}
+          <div
             className="absolute right-4 bottom-[calc(100%+6px)] z-20 w-56 rounded-xl bg-slate-800 border border-slate-600 shadow-2xl overflow-hidden animate-expand">
             <button onClick={() => { setMenuOpen(false); onAskCoach(); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors border-b border-slate-700/60">
