@@ -220,7 +220,9 @@ The app compares its installed `versionName` against the `app_config` row
   release workflow after each store's *upload* succeeds (per-platform, so a
   partial release never stages a version a store didn't get). Uploading is not
   publishing — Play promotion/rollout and App Store review happen later — so
-  staging alone never shows the banner.
+  staging alone never shows the banner. These two columns are excluded from the
+  client SELECT grant (column-level privileges), so an unreleased version
+  number is never readable by app clients.
 - `min_supported_version` / `min_supported_version_ios` — **you bump these by
   hand** in Supabase only when you ship a breaking change; clients below them get
   a non-dismissible "update required" screen.
@@ -229,8 +231,11 @@ When a store actually publishes the build, run **Actions → "Publish app
 version"** (`publish-version.yml`, phone-friendly like the release dispatch):
 pick the platform (`android` / `ios` / `both`) and it promotes the staged
 pending version to `latest_version(_ios)` — that's the moment outdated clients
-start seeing the banner. It refuses to run if nothing is staged; an optional
-`version` input overrides the staged value for repairs/rollbacks.
+start seeing the banner. A platform with nothing staged fails loudly (with
+`both`, each platform is attempted independently, so a partial release still
+publishes the store that shipped), every run ends by printing the resulting
+`app_config` row, and an optional `version` input overrides the staged value
+for repairs/rollbacks.
 
 For the workflows to write these columns, configure the Supabase CLI credentials
 (the same values used by the Edge Function deploy workflow):

@@ -317,6 +317,16 @@ jobs:
       # Function deploy workflow; no service-role data API key is needed.
       # min_supported_version is left for you to bump by hand in Supabase when
       # you ship a breaking change.
+      # The version-shape gate is single-sourced in
+      # .github/actions/validate-app-version (shared with the iOS job and
+      # publish-version.yml) so the shape the staging and publishing SQL accept
+      # can never drift apart.
+      - name: Validate version name
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
+        uses: ./.github/actions/validate-app-version
+        with:
+          version: ${{ steps.ver.outputs.name }}
+
       - name: Stage Android version in Supabase (pending publish)
         if: ${{ needs.prepare.outputs.is_release == 'true' }}
         env:
@@ -332,11 +342,6 @@ jobs:
           fi
           if [ -z "$SUPABASE_PROJECT_REF" ]; then
             echo "::error::SUPABASE_PROJECT_REF repo variable is not set."
-            exit 1
-          fi
-
-          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Refusing to stage unexpected version name: $VERSION_NAME"
             exit 1
           fi
 
@@ -568,6 +573,12 @@ jobs:
       # upload succeeded, and only the *_ios column. As on Android, this stages
       # the version for the manual "Publish app version" workflow; it does not
       # show the update prompt (App Store review hasn't even started yet).
+      - name: Validate version name
+        if: ${{ needs.prepare.outputs.is_release == 'true' }}
+        uses: ./.github/actions/validate-app-version
+        with:
+          version: ${{ steps.ver.outputs.name }}
+
       - name: Stage iOS version in Supabase (pending publish)
         if: ${{ needs.prepare.outputs.is_release == 'true' }}
         env:
@@ -583,11 +594,6 @@ jobs:
           fi
           if [ -z "$SUPABASE_PROJECT_REF" ]; then
             echo "::error::SUPABASE_PROJECT_REF repo variable is not set."
-            exit 1
-          fi
-
-          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Refusing to stage unexpected version name: $VERSION_NAME"
             exit 1
           fi
 

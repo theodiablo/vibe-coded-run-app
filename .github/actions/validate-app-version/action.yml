@@ -1,0 +1,27 @@
+name: Validate app version name
+description: >
+  Single source of the version-name shape that release.yml (Android + iOS
+  staging) and publish-version.yml enforce before interpolating a version into
+  SQL against public.app_config. Fails the job on anything that isn't a plain
+  dotted version (optionally with a -pre/+build suffix), so a malformed or
+  hostile string can never reach a query. Keep the pattern here only — the
+  workflows must not grow their own copies, or the accepted shape drifts
+  between the step that stages a version and the step that publishes it.
+inputs:
+  version:
+    description: The version name to validate (e.g. "1.6.0").
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Check version shape
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
+          echo "::error::Refusing unexpected version name: $VERSION"
+          exit 1
+        fi
+        echo "Version name OK: $VERSION"
