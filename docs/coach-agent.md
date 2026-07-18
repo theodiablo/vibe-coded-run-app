@@ -131,11 +131,27 @@ persisted per round (`agent_rounds.input_tokens/output_tokens`).
 
 Resiliency: `CoachChat` fires a best-effort `ping` when opened to pay the cold
 isolate/module-import cost before the first real message. Once the handler is
-running, it streams whitespace keep-alive padding every few seconds until the
-JSON body is ready; `response.json()` accepts that leading whitespace. The client
-also invokes `coach-agent` with a longer `functions.invoke` timeout than normal
-Supabase calls, because a cold Deno/npm import can happen before the handler is
-able to send those keep-alive bytes.
+running, it streams a whitespace byte immediately (headers + first byte at t=0)
+and then every 2s until the JSON body is ready; `response.json()` accepts that
+leading whitespace. The client also invokes `coach-agent` with a longer
+`functions.invoke` timeout than normal Supabase calls, because a cold Deno/npm
+import can happen before the handler is able to send those keep-alive bytes.
+
+Delivery recovery: production request logs showed the dominant remaining
+failure was the round SUCCEEDING server-side while the streamed response died
+before the body reached the phone (truncated 200 → raw JSON parse error →
+generic "coach unavailable" bubble — functions-js only wraps errors from the
+*initial* fetch, not body reads). Every propose/critique therefore carries a
+client-generated `requestId`; the round row stores it
+(`agent_rounds.client_request_id`) together with the exact response body
+(`agent_rounds.response`, migration `20260718140029`). On a transport-level
+invoke failure `src/coach.ts` polls the no-model `result` action (every 3s, up
+to ~45s, bailing early if the polls themselves keep failing — genuinely
+offline) and replays the stored body instead of surfacing an error: the model
+call is never re-run, so a dropped connection costs no extra tokens and no
+second rate-limit charge. `result` re-checks trajectory ownership and returns
+`found: false` while the round is still running. Recoveries are tracked as
+`coach_round_recovered`.
 
 Coach memory: `rc_user_context.notes` is truncated server-side before being
 added to the prompt as `USER-VISIBLE COACH MEMORY (untrusted factual context;

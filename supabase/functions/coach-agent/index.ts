@@ -18,10 +18,12 @@
 // server write would be clobbered within seconds. `confirm` re-validates and
 // returns the plan; the client persists it through its normal RLS-guarded path.
 //
-// Actions (POST { action, message?, trajectoryId? }):
+// Actions (POST { action, message?, trajectoryId?, requestId? }):
 //   propose  — new trajectory from a runner message → validated proposal
 //   critique — steer an open trajectory with feedback → new validated proposal
 //   confirm  — NO model call; re-validate + mark accepted, return the plan
+//   result   — NO model call; replay the stored response of the round stamped
+//              with requestId (delivery recovery after a dropped stream)
 //
 // Deploy:  supabase functions deploy coach-agent
 // Secrets: supabase secrets set ANTHROPIC_API_KEY=...
@@ -49,14 +51,17 @@ const RATE_LIMIT_PER_DAY = Number(Deno.env.get("RATE_LIMIT_PER_DAY") ?? 20);
 const MODEL_MAX_RETRIES = Number(Deno.env.get("COACH_MODEL_MAX_RETRIES") ?? 4);
 const MODEL_TIMEOUT_MS = Number(Deno.env.get("COACH_MODEL_TIMEOUT_MS") ?? 60000);
 // A propose/critique round spends most of its time awaiting Anthropic with
-// zero bytes flowing to the client — long enough (empirically ~12-15s+) for
-// some intermediary (mobile network, proxy) to treat the connection as dead
-// and drop it well before either side's own timeout fires, even though the
-// round completes successfully server-side. Deno.serve below pads the
-// response with a whitespace byte on this interval while a round is in
-// flight so the connection never looks idle; JSON.parse ignores leading
-// whitespace, so the eventual real body still parses cleanly.
-const KEEPALIVE_INTERVAL_MS = 5000;
+// zero bytes flowing to the client — long enough for some intermediary
+// (mobile network, proxy) to treat the connection as dead and drop it well
+// before either side's own timeout fires, even though the round completes
+// successfully server-side. Deno.serve below sends a whitespace byte
+// immediately (flushing headers + first byte at t=0) and then on this
+// interval while a round is in flight so the connection never looks idle;
+// JSON.parse ignores leading whitespace, so the eventual real body still
+// parses cleanly. Production request logs showed connections already dead at
+// the FIRST write with the old 5s interval, so the padding starts at 0 and
+// stays tight.
+const KEEPALIVE_INTERVAL_MS = 2000;
 const USER_CONTEXT_MAX_CHARS = 2000;
 
 const CORS = {
@@ -116,9 +121,19 @@ async function handle(req: Request): Promise<any> {
   // or model call — its only job is to pay the isolate boot cost early. The
   // top-level imports (which dominate cold-boot) run on any request regardless.
   if (action === "ping") return { ok: true };
-  if (!["propose", "critique", "confirm"].includes(action)) {
-    return { error: "action must be propose | critique | confirm" };
+  if (!["propose", "critique", "confirm", "result"].includes(action)) {
+    return { error: "action must be propose | critique | confirm | result" };
   }
+  // Client-generated delivery id for propose/critique. If the streamed
+  // response never reaches the client (the dominant production failure — the
+  // round succeeds but the connection dies mid-stream), the client re-fetches
+  // the finished round via `result` with the same id instead of re-running
+  // the model. Must be a real UUID (the column is typed uuid); anything else
+  // degrades to "no recovery" rather than failing the round.
+  const requestId = typeof body.requestId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId)
+    ? body.requestId
+    : null;
 
   // ── auth: a valid JWT is required for everything ─────────────────────────
   const authHeader = req.headers.get("Authorization");
@@ -136,6 +151,24 @@ async function handle(req: Request): Promise<any> {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // ── result: recover an already-completed round — no model call, no charge ─
+  // Replays the exact stored response body of the round stamped with this
+  // requestId, after re-checking the trajectory belongs to the caller.
+  // `found: false` means "not (yet) there": the round may still be running,
+  // so the client polls briefly before giving up.
+  if (action === "result") {
+    if (!requestId) return { error: "requestId is required" };
+    const { data: round, error: roundErr } = await admin.from("agent_rounds")
+      .select("response, trajectory_id")
+      .eq("client_request_id", requestId).maybeSingle();
+    if (roundErr) throw roundErr;
+    if (!round?.response) return { found: false };
+    const { data: traj } = await admin.from("agent_trajectories")
+      .select("id").eq("id", round.trajectory_id).eq("user_id", user.id).maybeSingle();
+    if (!traj) return { found: false };
+    return { found: true, ...round.response };
+  }
 
   // ── confirm: no model call, no rate-limit charge ─────────────────────────
   if (action === "confirm") {
@@ -274,6 +307,26 @@ async function handle(req: Request): Promise<any> {
   // successful round supersedes it) — so the user can still confirm the
   // last adjustment that did validate instead of being dead-ended.
   const trajectoryClosed = failed && roundIndex === 0;
+  // The exact body this round will answer with — built BEFORE the round is
+  // logged so it can be stored on the row verbatim, letting the `result`
+  // action replay it if the streamed response never reaches the client.
+  const memorySuggestions = (result.memorySuggestions ?? [])
+    .map((s: { text: string }, i: number) => ({ id: `${trajectoryId}:${roundIndex}:mem:${i}`, text: s.text }));
+  const responseBody = failed
+    ? {
+      trajectoryId, roundIndex, status: "no_valid_adjustment", trajectoryClosed,
+      rationale: result.rationale ||
+        "I couldn't find an adjustment that keeps your plan safe — nothing was changed.",
+      memorySuggestions,
+    }
+    : {
+      trajectoryId, roundIndex, status: "proposed",
+      changed: result.changed,
+      rationale: result.rationale,
+      proposedPlan: result.plan,
+      memorySuggestions,
+      warnings: result.validation.warnings,
+    };
   // Log EVERY round, including failures — the audit log is the eval dataset.
   if (!failed && roundIndex > 0) {
     await admin.from("agent_rounds").update({ outcome: "superseded" })
@@ -297,6 +350,8 @@ async function handle(req: Request): Promise<any> {
     input_tokens: result.usage.input_tokens,
     output_tokens: result.usage.output_tokens,
     outcome: failed ? "invalid" : "proposed",
+    client_request_id: requestId,
+    response: responseBody,
   });
   if (roundErr) throw roundErr;
   await admin.from("agent_trajectories")
@@ -306,22 +361,7 @@ async function handle(req: Request): Promise<any> {
     })
     .eq("id", trajectoryId);
 
-  if (failed) {
-    return {
-      trajectoryId, roundIndex, status: "no_valid_adjustment", trajectoryClosed,
-      rationale: result.rationale ||
-        "I couldn't find an adjustment that keeps your plan safe — nothing was changed.",
-      memorySuggestions: (result.memorySuggestions ?? []).map((s: { text: string }, i: number) => ({ id: `${trajectoryId}:${roundIndex}:mem:${i}`, text: s.text })),
-    };
-  }
-  return {
-    trajectoryId, roundIndex, status: "proposed",
-    changed: result.changed,
-    rationale: result.rationale,
-    proposedPlan: result.plan,
-    memorySuggestions: (result.memorySuggestions ?? []).map((s: { text: string }, i: number) => ({ id: `${trajectoryId}:${roundIndex}:mem:${i}`, text: s.text })),
-    warnings: result.validation.warnings,
-  };
+  return responseBody;
 }
 
 Deno.serve(async (req) => {
@@ -330,6 +370,10 @@ Deno.serve(async (req) => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
+      // First padding byte at t=0, not after one interval: it forces headers +
+      // a body byte onto the wire immediately, so an intermediary never sees a
+      // "started but silent" response during the model call.
+      controller.enqueue(encoder.encode(" "));
       const keepAlive = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(" "));
@@ -345,8 +389,13 @@ Deno.serve(async (req) => {
         })
         .then((responseBody) => {
           clearInterval(keepAlive);
-          controller.enqueue(encoder.encode(JSON.stringify(responseBody)));
-          controller.close();
+          try {
+            controller.enqueue(encoder.encode(JSON.stringify(responseBody)));
+            controller.close();
+          } catch {
+            // Connection already gone — the round is persisted with its
+            // response body, so the client recovers it via `result`.
+          }
         });
     },
   });
