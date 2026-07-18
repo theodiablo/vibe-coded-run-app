@@ -1,6 +1,8 @@
 {
   "title": "Your training plan",
   "editPlan": "Edit plan",
+  "editShort": "Edit",
+  "reassurance": "Changing either rebuilds your remaining sessions — done runs stay.",
   "jumpToWeek": "Jump to this week",
   "notConfigured": "not configured",
   "sessionsLabel": "Sessions: ",
@@ -9,9 +11,70 @@
     "label": "W{{number}}",
     "now": "now"
   },
+  "edit": {
+    "goalTitle": "Your goal",
+    "availTitle": "Your availability",
+    "styleTitle": "Training style"
+  },
+  "goalRow": {
+    "subtitle": "what you're training for",
+    "summary": "{{dist}} km · sub {{goal}} · {{date}}{{elev}}"
+  },
+  "availRow": {
+    "subtitle": "time you can give",
+    "simpleSummary": "{{days}} days · {{duration}} each · coach picks days"
+  },
+  "avail": {
+    "framing": "The most time you could give — not a promise to run that long.",
+    "mode": {
+      "simple": "Simple",
+      "custom": "Custom"
+    },
+    "simple": {
+      "daysQuestion": "How many days a week can you run?",
+      "daysCount": "{{n}} days",
+      "fewerDays": "Fewer days",
+      "moreDays": "More days",
+      "timeQuestion": "On a run day, how much time do you have?",
+      "summary": "We'll pick the best days for you — {{n}} runs of {{duration}} each — with the long run on the weekend.",
+      "dayHint": {
+        "few": "3 days is the sweet spot for a first race — enough to progress, with rest in between.",
+        "solid": "A solid rhythm if you've run before.",
+        "lots": "5+ days suits experienced runners; beginners risk injury at this volume."
+      },
+      "band": {
+        "short": { "label": "Short", "sub": "~30 min", "word": "~30 min" },
+        "med": { "label": "Medium", "sub": "45–60 min", "word": "45–60 min" },
+        "long": { "label": "Long", "sub": "1 h+", "word": "1 h+" }
+      }
+    },
+    "custom": {
+      "legend": "Coach pick for a first {{dist}} km race — tap a dashed chip to accept, or choose your own."
+    },
+    "load": {
+      "label": "Weekly load",
+      "total": "{{time}} / week",
+      "zone": {
+        "low": "too little",
+        "good": "good for a {{dist}} km beginner",
+        "high": "a lot"
+      },
+      "verdict": {
+        "low": "Below the minimum for a {{dist}} km build — add a day or lengthen one.",
+        "good": "Right in range for a first {{dist}} km — the coach fills this with easy runs, one workout, and a long run.",
+        "high": "High volume — fine if you're used to it, risky if not."
+      }
+    }
+  },
   "session": {
     "skipped": "skipped",
-    "record": "Record",
+    "record": "Record run",
+    "doneIt": "Done it",
+    "coachNotes": "Coach notes",
+    "askCoach": "Ask coach about this run",
+    "moreActions": "More actions",
+    "doneLinkHint": "Done · tap to link a recorded run ›",
+    "skippedReassure": "No stress — the plan adapts.",
     "undoSkip": "Undo skip",
     "skip": "Skip this session",
     "markDone": "Mark session done",
@@ -29,7 +92,12 @@
   "progress": {
     "sessions": "{{done}} / {{total}} sessions",
     "goal": "{{dist}}km{{elev}} · sub {{goal}}",
-    "race": "Race: {{date}}"
+    "race": "Race: {{date}}",
+    "weekOf": "Week {{n}} of {{total}}",
+    "raceIn": "Race in {{days}} days"
+  },
+  "toast": {
+    "rebuilt": "Plan updated — {{n}} sessions rebuilt around your changes."
   },
   "setup": {
     "intro": "Configure your goal and available training days.",
@@ -47,6 +115,8 @@
     "hrNudge": "Add your HR profile in Settings to unlock heart rate targets on every session.",
     "generate": "Generate My Training Plan",
     "buildMyPlan": "Build my plan",
+    "rebuildMyPlan": "Rebuild my plan",
+    "rebuildNote": "Rebuilds remaining sessions — completed runs stay.",
     "regenerate": "Regenerate plan",
     "regenNote": "Rebuilds every week from your current settings — completed and skipped sessions are kept.",
     "promoteNote": "Builds a fresh plan for this race."

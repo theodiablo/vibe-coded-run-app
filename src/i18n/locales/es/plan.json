@@ -1,6 +1,8 @@
 {
   "title": "Tu plan de entrenamiento",
   "editPlan": "Editar plan",
+  "editShort": "Editar",
+  "reassurance": "Cambiar cualquiera de los dos reconstruye tus sesiones restantes; las carreras completadas se conservan.",
   "jumpToWeek": "Ir a esta semana",
   "notConfigured": "sin configurar",
   "sessionsLabel": "Sesiones: ",
@@ -9,9 +11,70 @@
     "label": "Sem. {{number}}",
     "now": "esta semana"
   },
+  "edit": {
+    "goalTitle": "Tu objetivo",
+    "availTitle": "Tu disponibilidad",
+    "styleTitle": "Estilo de entrenamiento"
+  },
+  "goalRow": {
+    "subtitle": "para qué te preparas",
+    "summary": "{{dist}} km · menos de {{goal}} · {{date}}{{elev}}"
+  },
+  "availRow": {
+    "subtitle": "el tiempo que puedes dar",
+    "simpleSummary": "{{days}} días · {{duration}} cada una · el entrenador elige los días"
+  },
+  "avail": {
+    "framing": "El máximo de tiempo que podrías dar, no una promesa de correr tanto.",
+    "mode": {
+      "simple": "Simple",
+      "custom": "Personalizado"
+    },
+    "simple": {
+      "daysQuestion": "¿Cuántos días a la semana puedes correr?",
+      "daysCount": "{{n}} días",
+      "fewerDays": "Menos días",
+      "moreDays": "Más días",
+      "timeQuestion": "En un día de carrera, ¿cuánto tiempo tienes?",
+      "summary": "Elegimos los mejores días para ti: {{n}} salidas de {{duration}} cada una, con la tirada larga el fin de semana.",
+      "dayHint": {
+        "few": "3 días es lo ideal para una primera carrera: suficiente para progresar, con descanso entre sesiones.",
+        "solid": "Un buen ritmo si ya has corrido antes.",
+        "lots": "5 días o más son para corredores con experiencia; en principiantes hay riesgo de lesión con este volumen."
+      },
+      "band": {
+        "short": { "label": "Corto", "sub": "~30 min", "word": "~30 min" },
+        "med": { "label": "Medio", "sub": "45-60 min", "word": "45-60 min" },
+        "long": { "label": "Largo", "sub": "1 h+", "word": "1 h+" }
+      }
+    },
+    "custom": {
+      "legend": "Sugerencia del entrenador para una primera carrera de {{dist}} km: toca una ficha punteada para aceptarla, o elige la tuya."
+    },
+    "load": {
+      "label": "Carga semanal",
+      "total": "{{time}} / semana",
+      "zone": {
+        "low": "muy poco",
+        "good": "bien para principiante en {{dist}} km",
+        "high": "mucho"
+      },
+      "verdict": {
+        "low": "Por debajo del mínimo para preparar un {{dist}} km: añade un día o alarga alguno.",
+        "good": "Justo en el rango para un primer {{dist}} km: el entrenador lo llena con rodajes suaves, una sesión de calidad y una tirada larga.",
+        "high": "Volumen alto: perfecto si estás acostumbrado, arriesgado si no."
+      }
+    }
+  },
   "session": {
     "skipped": "omitida",
     "record": "Registrar",
+    "doneIt": "Ya hecha",
+    "coachNotes": "Notas del entrenador",
+    "askCoach": "Preguntar al entrenador",
+    "moreActions": "Más acciones",
+    "doneLinkHint": "Completada · toca para vincular una carrera registrada ›",
+    "skippedReassure": "Sin estrés, el plan se adapta.",
     "undoSkip": "Deshacer omisión",
     "skip": "Omitir esta sesión",
     "markDone": "Marcar sesión como completada",
@@ -29,7 +92,12 @@
   "progress": {
     "sessions": "{{done}} / {{total}} sesiones",
     "goal": "{{dist}} km{{elev}} · objetivo: menos de {{goal}}",
-    "race": "Carrera: {{date}}"
+    "race": "Carrera: {{date}}",
+    "weekOf": "Semana {{n}} de {{total}}",
+    "raceIn": "Carrera en {{days}} días"
+  },
+  "toast": {
+    "rebuilt": "Plan actualizado: {{n}} sesiones reconstruidas según tus cambios."
   },
   "setup": {
     "intro": "Configura tu objetivo y los días que puedes entrenar.",
@@ -47,6 +115,8 @@
     "hrNudge": "Añade tu perfil de FC en Ajustes para desbloquear objetivos de frecuencia cardíaca en cada sesión.",
     "generate": "Generar mi plan de entrenamiento",
     "buildMyPlan": "Crear mi plan",
+    "rebuildMyPlan": "Reconstruir mi plan",
+    "rebuildNote": "Reconstruye las sesiones restantes; las carreras completadas se conservan.",
     "regenerate": "Regenerar plan",
     "regenNote": "Vuelve a crear todas las semanas del plan con tus ajustes actuales; conserva las sesiones completadas y omitidas.",
     "promoteNote": "Crea un plan nuevo para esta carrera."

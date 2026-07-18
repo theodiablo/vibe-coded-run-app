@@ -33,6 +33,13 @@ export type SettingsState = Record<string, unknown> & {
   // Health Connect keeps its own watchImport key above.
   imports?: Record<string, boolean>;
   planSessions: PlanSessionInput[];
+  // How the user configured their weekly availability on the Plan page. Metadata
+  // only — planSessions stays the source of truth for buildPlan. "simple" means
+  // the coach placed the days (availDays + availTime chosen); "custom" means the
+  // user picked exact days/durations. Absent ⇒ infer "custom" from planSessions.
+  availabilityMode?: "simple" | "custom";
+  availDays?: number;
+  availTime?: "short" | "med" | "long";
   targetEditionId?: string | null;
   // Training methodology style (see src/utils/planStyles.ts); absent = balanced.
   planStyle?: string;
