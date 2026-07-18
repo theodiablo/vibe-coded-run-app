@@ -3,13 +3,17 @@ import { useTranslation, Trans } from "react-i18next";
 import { Activity, ChevronLeft, ShieldAlert, AlertTriangle, Search, Check, Target, Sparkles, MapPin, MessageCircle, Trophy } from "lucide-react";
 import { INPUT_CLS, DISCLAIMER_VERSION, DISCLAIMER_URL } from "../constants";
 import { LANGS, setLocale, currentLang, isLangId, type LangId } from "../i18n";
-import { SessionConfigurator } from "../components/SessionConfigurator";
+import { AvailabilityEditor } from "../components/AvailabilityEditor";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { StylePicker } from "../components/StylePicker";
 import {
   trainingLevels, isStyleId, isTrainingLevel, recommendStyle, suggestPlanSessions,
   type StyleId, type TrainingLevel,
 } from "../utils/planStyles";
+import {
+  sessionsFromSimple, suggestSimpleAvailability, clampDays,
+  type AvailabilityMode, type DurationBand,
+} from "../utils/availability";
 import { RaceFormModal } from "./RaceFormModal";
 import { AddRaceCard } from "../components/AddRaceCard";
 import { Confetti } from "../components/Confetti";
@@ -20,6 +24,8 @@ import { buildPlan } from "../utils/plan";
 import type { PlanSessionInput } from "../utils/plan";
 import { addWeeks, ymd, fmt } from "../utils/format";
 import type { CatalogueEdition, CatalogueRace, HealthAck, Intent, JoinedEdition, SettingsState } from "../types";
+
+const isBand = (v: unknown): v is DurationBand => v === "short" || v === "med" || v === "long";
 
 type OnboardingStepKey = "welcome" | "intent" | "race" | "raceGoal" | "training" | "hr" | "health" | "summary";
 type OnboardingProgress = Partial<SettingsState>;
@@ -34,6 +40,9 @@ type OnboardingCompletePayload = {
     targetEditionId: string | null;
     planStyle: StyleId;
     trainingLevel: TrainingLevel | null;
+    availabilityMode: AvailabilityMode;
+    availDays: number;
+    availTime: DurationBand;
   };
   hr: Pick<SettingsState, "age" | "maxHR" | "restHR"> | null;
   healthAck: NonNullable<HealthAck>;
@@ -82,10 +91,15 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const [distanceKm,    setDist] = useState<string | number>(settings.distanceKm || "");
   const [raceElevation, setElev] = useState<string | number>(settings.raceElevation || 0);
   const [goalSec,       setGoal] = useState<string | number>(settings.goalSec || "");
-  // Training days: null = untouched, tracking the live suggestion for the
-  // picked distance and self-reported level; any SessionConfigurator edit pins
-  // it. The stock Wed/Sun default in fresh settings counts as "untouched" —
-  // only values that differ from it (a resumed mid-onboarding save) stick.
+  // Availability. Simple mode (day count + duration band, coach places the days)
+  // is the beginner default; Custom is the exact days/durations editor. Both feed
+  // the same weekly-load meter and resolve to concrete planSessions on save.
+  // The day/band drafts start null and track a distance/level-aware suggestion
+  // until the user touches them; the custom sessions draft mirrors the old
+  // "untouched = live suggestion" behaviour.
+  const [availMode, setAvailMode] = useState<AvailabilityMode>(settings.availabilityMode === "custom" ? "custom" : "simple");
+  const [availDaysDraft, setAvailDays] = useState<number | null>(typeof settings.availDays === "number" ? settings.availDays : null);
+  const [availBandDraft, setAvailBand] = useState<DurationBand | null>(isBand(settings.availTime) ? settings.availTime : null);
   const DEFAULT_SESS = JSON.stringify([{dayOffset:2,minutes:30},{dayOffset:6,minutes:60}]);
   const [sessDraft, setSess] = useState<PlanSessionInput[] | null>(
     settings.planSessions?.length && JSON.stringify(settings.planSessions) !== DEFAULT_SESS
@@ -132,9 +146,16 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const canPassHealth = answered && ackChecked && (!flagged || medConfirm);
 
   const effectiveDist = intent === "fitness" ? fitDist : distanceKm;
-  const suggestedSessions = suggestPlanSessions(effectiveDist || 10, level);
-  const planSessions = sessDraft ?? suggestedSessions;
-  const sessionsPinned = sessDraft != null && JSON.stringify(sessDraft) !== JSON.stringify(suggestedSessions);
+  // Simple-mode day/band, tracking a suggestion until the user pins one.
+  const availSuggestion = suggestSimpleAvailability(effectiveDist || 10, level);
+  const availDays = availDaysDraft ?? availSuggestion.days;
+  const availBand = availBandDraft ?? availSuggestion.band;
+  // Custom-mode sessions, tracking the day/duration suggestion until edited.
+  const customSessions = sessDraft ?? suggestPlanSessions(effectiveDist || 10, level);
+  const planSessions = availMode === "custom" ? customSessions : sessionsFromSimple(availDays, availBand);
+  const availMeta = availMode === "custom"
+    ? { availabilityMode: "custom" as const, availDays: customSessions.length, availTime: availBand }
+    : { availabilityMode: "simple" as const, availDays, availTime: availBand };
 
   const recommendedStyle = recommendStyle({
     intent, planSessions,
@@ -206,7 +227,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     const g = suggestedGoalSec(fitDist) || "";
     const rd = addWeeks(horizon);
     setRaceDate(rd); setDist(fitDist); setGoal(g); setElev(0); setTargetEditionId(undefined); setPickedLabel("");
-    go("hr", {raceDate: rd, distanceKm: fitDist, goalSec: g, raceElevation: 0, targetEditionId: null, planSessions, planStyle: effectiveStyle, trainingLevel: level});
+    go("hr", {raceDate: rd, distanceKm: fitDist, goalSec: g, raceElevation: 0, targetEditionId: null, planSessions, planStyle: effectiveStyle, trainingLevel: level, ...availMeta});
   };
 
   // Complete from the summary. HR is included only if the user entered any.
@@ -214,7 +235,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     const mhrN = parseInt(maxHR) || 0;
     const hasHR = ageN > 0 || mhrN > 0;
     const hr = hasHR ? {age: ageN, maxHR: mhrN || tanakaMax || 0, restHR: parseInt(restHR) || 60} : null;
-    const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null, planStyle: effectiveStyle, trainingLevel: level};
+    const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null, planStyle: effectiveStyle, trainingLevel: level, ...availMeta};
     onComplete({name: trimmedName, plan, hr, healthAck: {v: DISCLAIMER_VERSION, at: new Date().toISOString()}});
   };
 
@@ -428,16 +449,14 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
               </div>
               <LevelTiles value={level} onChange={setLevel}/>
               <GoalConfigurator distanceKm={distanceKm} goalSec={goalSec} onChange={setGoal}/>
-              <div>
-                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.daysLabel")}</label>
-                <SessionConfigurator sessions={planSessions} onChange={setSess}/>
-                <SessionSuggestionHint pinned={sessionsPinned} onReset={() => setSess(null)}/>
-              </div>
+              <AvailabilityStep mode={availMode} setMode={setAvailMode} days={availDays} band={availBand}
+                sessions={customSessions} distanceKm={distanceKm}
+                onDaysChange={n => setAvailDays(clampDays(n))} onBandChange={setAvailBand} onSessionsChange={setSess}/>
               <div>
                 <label className="text-xs text-slate-400 block mb-2">{t("onboarding.styleLabel")}</label>
                 <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
               </div>
-              <button onClick={() => go("hr", {goalSec, planSessions, planStyle: effectiveStyle, trainingLevel: level})}
+              <button onClick={() => go("hr", {goalSec, planSessions, planStyle: effectiveStyle, trainingLevel: level, ...availMeta})}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
                 {t("onboarding.continue")}
               </button>
@@ -482,11 +501,9 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                   ))}
                 </div>
               </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-2">{t("onboarding.daysLabel")}</label>
-                <SessionConfigurator sessions={planSessions} onChange={setSess}/>
-                <SessionSuggestionHint pinned={sessionsPinned} onReset={() => setSess(null)}/>
-              </div>
+              <AvailabilityStep mode={availMode} setMode={setAvailMode} days={availDays} band={availBand}
+                sessions={customSessions} distanceKm={fitDist}
+                onDaysChange={n => setAvailDays(clampDays(n))} onBandChange={setAvailBand} onSessionsChange={setSess}/>
               <div>
                 <label className="text-xs text-slate-400 block mb-2">{t("onboarding.styleLabel")}</label>
                 <StylePicker value={effectiveStyle} onChange={setPlanStyle} recommended={recommendedStyle}/>
@@ -688,15 +705,33 @@ function LevelTiles({ value, onChange }: { value: TrainingLevel | null; onChange
   );
 }
 
-// Footer under SessionConfigurator: while untouched, says the days are a live
-// suggestion; once the user diverges, offers the way back.
-function SessionSuggestionHint({ pinned, onReset }: { pinned: boolean; onReset: () => void }) {
+// Availability picker for onboarding: a Simple/Custom toggle above the shared
+// AvailabilityEditor (day count + duration band, or exact days, with a weekly-load
+// meter). Mirrors the Plan page's edit screen so the two never drift.
+type AvailabilityStepProps = {
+  mode: AvailabilityMode; setMode: (m: AvailabilityMode) => void;
+  days: number; band: DurationBand; sessions: PlanSessionInput[]; distanceKm: number | string;
+  onDaysChange: (n: number) => void; onBandChange: (b: DurationBand) => void; onSessionsChange: (s: PlanSessionInput[]) => void;
+};
+
+function AvailabilityStep({ mode, setMode, days, band, sessions, distanceKm, onDaysChange, onBandChange, onSessionsChange }: AvailabilityStepProps) {
   const { t } = useTranslation();
-  if (!pinned) return <p className="text-xs text-slate-500 mt-1.5">{t("onboarding.sessions.suggested")}</p>;
   return (
-    <button type="button" onClick={onReset}
-      className="text-xs text-orange-300/80 hover:text-orange-300 mt-1.5 transition-colors">
-      {t("onboarding.sessions.reset")}
-    </button>
+    <div>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <label className="text-xs text-slate-400">{t("onboarding.daysLabel")}</label>
+        <div className="flex bg-slate-800 rounded-lg p-0.5 gap-0.5 flex-shrink-0">
+          {(["simple", "custom"] as AvailabilityMode[]).map(m => (
+            <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m}
+              className={"px-3 py-1 rounded-md text-xs font-semibold transition-colors " +
+                (mode === m ? "bg-orange-500 text-slate-900" : "text-slate-400 hover:text-slate-200")}>
+              {t("plan.avail.mode." + m)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <AvailabilityEditor mode={mode} days={days} band={band} sessions={sessions} distanceKm={distanceKm}
+        onDaysChange={onDaysChange} onBandChange={onBandChange} onSessionsChange={onSessionsChange}/>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  sessionsFromSimple, weeklyLoad, bandRepMinutes, clampDays,
+  sessionsFromSimple, weeklyLoad, bandRepMinutes, clampDays, suggestSimpleAvailability,
   AVAIL_DAY_MIN, AVAIL_DAY_MAX, LOAD_GOOD_LO, LOAD_GOOD_HI,
   type DurationBand,
 } from "./availability";
@@ -55,6 +55,30 @@ describe("sessionsFromSimple", () => {
   it("clamps out-of-range day counts", () => {
     expect(sessionsFromSimple(0, "med")).toHaveLength(AVAIL_DAY_MIN);
     expect(sessionsFromSimple(99, "med")).toHaveLength(AVAIL_DAY_MAX);
+  });
+});
+
+describe("suggestSimpleAvailability", () => {
+  it("returns a clamped day count and a valid band", () => {
+    const r = suggestSimpleAvailability(10, "occasional");
+    expect(r.days).toBeGreaterThanOrEqual(AVAIL_DAY_MIN);
+    expect(r.days).toBeLessThanOrEqual(AVAIL_DAY_MAX);
+    expect(["short", "med", "long"]).toContain(r.band);
+  });
+
+  it("scales days up for frequent runners on longer races", () => {
+    expect(suggestSimpleAvailability(21, "frequent").days).toBe(5);
+    expect(suggestSimpleAvailability(5, "none").days).toBe(3);
+  });
+
+  it("picks a shorter band for short-race beginners, longer for experienced long races", () => {
+    expect(suggestSimpleAvailability(5, "none").band).toBe("short");
+    expect(suggestSimpleAvailability(21, "frequent").band).toBe("long");
+  });
+
+  it("resolves to option-set sessions", () => {
+    const { days, band } = suggestSimpleAvailability(10, "regular");
+    expect(sessionsFromSimple(days, band)).toHaveLength(days);
   });
 });
 

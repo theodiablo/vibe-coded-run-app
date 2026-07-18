@@ -62,6 +62,18 @@ export function sessionsFromSimple(days: number, band: DurationBand): PlanSessio
   }));
 }
 
+// A sensible Simple-mode starting point from the race distance + self-reported
+// level, used by onboarding (before any runs exist). Day count mirrors
+// suggestPlanSessions (src/utils/planStyles.ts); the band scales with distance
+// and experience.
+export function suggestSimpleAvailability(distanceKm: number | string, level?: unknown): { days: number; band: DurationBand } {
+  const d = Number(distanceKm) || 5;
+  const experienced = level === "regular" || level === "frequent";
+  const days = clampDays(level === "frequent" ? (d > 12 ? 5 : 4) : (level === "regular" && d > 12 ? 4 : 3));
+  const band: DurationBand = experienced ? (d > 15 ? "long" : "med") : (d <= 7.5 ? "short" : "med");
+  return { days, band };
+}
+
 export type LoadResult = { totalMin: number; pct: number; zone: "low" | "good" | "high" };
 
 // Weekly training-time estimate + which zone it lands in. Custom sums the exact
