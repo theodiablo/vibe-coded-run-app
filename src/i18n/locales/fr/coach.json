@@ -11,6 +11,12 @@
     "moveLongRun": "Déplace ma sortie longue à dimanche",
     "confidence": "Aide-moi à prendre confiance pour le jour J"
   },
+  "sessionGreeting": "Parlons de ta sortie {{type}} du {{date}} ({{km}} km). Qu'est-ce qui te préoccupe : trop dure, mauvais jour, ou autre chose ? Je te proposerai un ajustement prudent, que tu verras avant tout changement.",
+  "sessionExamples": {
+    "tooHard": "Ça me semble trop dur pour mon niveau",
+    "wrongDay": "Je ne peux pas ce jour-là",
+    "easier": "On peut la remplacer par quelque chose de plus facile ?"
+  },
   "fallback": {
     "noValidAdjustment": "Je n'ai pas trouvé d'ajustement qui respecte les règles d'entraînement de l'app. Rien n'a été modifié.",
     "noChangeNeeded": "Rien n'a besoin de changer dans le plan pour ça.",

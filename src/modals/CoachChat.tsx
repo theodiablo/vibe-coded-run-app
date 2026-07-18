@@ -8,9 +8,11 @@ import { coachPropose, coachCritique, coachConfirm, coachPing } from "../coach";
 import { submitCoachFeedback } from "../coachFeedback";
 import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
+import { describeSession } from "../utils/sessionDesc";
+import { fmt, estMin } from "../utils/format";
 import { track } from "../telemetry";
-import { PRIVACY_URL, DISCLAIMER_URL } from "../constants";
-import type { Plan } from "../types";
+import { PRIVACY_URL, DISCLAIMER_URL, TCLR } from "../constants";
+import type { CoachSessionContext, Plan, RunType } from "../types";
 
 // The model replies in markdown (headers, bold, tables); rendered via
 // react-markdown rather than manually injecting raw HTML through a sanitizer
@@ -52,6 +54,14 @@ const COACH_EXAMPLE_KEYS = [
   "coach.examples.confidence",
 ];
 
+// Starter chips when the chat is opened about a specific session — steer at that
+// session rather than the whole week.
+const COACH_SESSION_EXAMPLE_KEYS = [
+  "coach.sessionExamples.tooHard",
+  "coach.sessionExamples.wrongDay",
+  "coach.sessionExamples.easier",
+];
+
 // Full-screen coach chat (propose-and-confirm). The user describes what
 // happened ("my knee hurts", "I missed the whole week"); the agent proposes a
 // validated adjustment to the plan; the user Accepts it or steers with a
@@ -59,10 +69,12 @@ const COACH_EXAMPLE_KEYS = [
 // accepted plan is re-validated client-side (belt and braces) before
 // applyPlan persists it through the normal savePlan path.
 type MemorySuggestion = { id: string; text: string; status: "pending" | "saved" | "dismissed" };
+type SessionCard = { typeLabel: string; typeColor: string; date: string; title: string; meta: string };
 type CoachMessage = {
   role: "user" | "coach";
   text: string;
   proposal?: { diff: { weekNumber: number; changes: string[] }[] };
+  sessionCard?: SessionCard;
   trajectoryId?: string | null;
   roundIndex?: number | null;
   memorySuggestions?: MemorySuggestion[];
@@ -85,25 +97,45 @@ type CoachChatProps = {
   appendUserContext: (text: string) => boolean;
   showToast: (msg: string, type?: string) => void;
   onClose: () => void;
-  // Optional pre-filled draft for the input box — e.g. opening the coach from a
-  // specific plan session seeds "About my Tempo run on 23 Jul…" so the
-  // conversation is about that run. The user reviews and sends (never auto-sent).
-  initialInput?: string;
+  // Opening the coach about a specific plan session: the greeting names the
+  // session, starter chips steer at it, and its details ride (invisibly) with the
+  // user's first message so the model knows exactly which session is meant.
+  sessionContext?: CoachSessionContext | null;
 };
 
-export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose, initialInput }: CoachChatProps) {
+export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onClose, sessionContext }: CoachChatProps) {
   const { t } = useTranslation();
   useDismissable(true, onClose);
+
+  // Localized display strings + a canonical-English context prefix, both derived
+  // from the same session so the bubble reads in the user's language while the
+  // model gets the stable English `desc`.
+  const s = sessionContext?.session;
+  const sessionTypeLabel = s ? t("common.types." + s.type, { defaultValue: String(s.type) }) : "";
+  const sessionPrefix = s
+    ? `[The runner is asking about this planned session — week ${sessionContext!.weekNumber}, ${s.type} on ${s.date}, ${s.km} km${s.pace ? ` @ ${fmt.pace(s.pace)}/km` : ""}: "${s.desc}"]\n\n`
+    : "";
   // msg: { role: "user"|"coach", text, proposal?: {plan, diff}, trajectoryId?, roundIndex? }
   // trajectoryId/roundIndex are stamped on every real coach answer (the ones
   // logged server-side to agent_rounds) so it can be flagged as wrong; the
   // greeting, the post-accept "Done", and error bubbles have no round behind
   // them and stay unstamped, which hides the flag affordance on them.
-  const [msgs, setMsgs] = useState<CoachMessage[]>(() => [{
-    role: "coach",
-    text: t("coach.greeting"),
-  }]);
-  const [input, setInput] = useState(initialInput ?? "");
+  const [msgs, setMsgs] = useState<CoachMessage[]>(() => [
+    s
+      ? {
+          role: "coach",
+          text: t("coach.sessionGreeting", { type: sessionTypeLabel, date: fmt.sht(s.date), km: s.km }),
+          sessionCard: {
+            typeLabel: sessionTypeLabel,
+            typeColor: TCLR[(s.type as RunType)] || "text-violet-400",
+            date: fmt.sht(s.date),
+            title: describeSession(s),
+            meta: s.km + " km · ~" + estMin(Number(s.km), s.pace) + " · " + fmt.pace(s.pace) + "/km",
+          },
+        }
+      : { role: "coach", text: t("coach.greeting") },
+  ]);
+  const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [trajectoryId, setTrajectoryId] = useState<string | null>(null);
   const [flaggingIndex, setFlaggingIndex] = useState(-1);
@@ -172,7 +204,11 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     setMsgs(m => [...m, { role: "user", text }]);
     setBusy(true);
     try {
-      const res = trajectoryId ? await coachCritique(trajectoryId, text) : await coachPropose(text);
+      // Round 0 opened about a session: prepend the (invisible) session context
+      // to what the model sees while the bubble shows only what the user typed.
+      // Follow-ups send bare text — the server keeps round 0's report in context.
+      const outbound = !trajectoryId && sessionPrefix ? sessionPrefix + text : text;
+      const res = trajectoryId ? await coachCritique(trajectoryId, text) : await coachPropose(outbound);
       applyCoachResult(res);
     } catch (err) {
       setMsgs(m => [...m, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
@@ -277,6 +313,16 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
                 ? "whitespace-pre-wrap bg-orange-500/20 border border-orange-500/30"
                 : "bg-slate-800 border border-slate-700")}>
               {m.role === "user" ? m.text : <CoachText text={m.text}/>}
+              {m.sessionCard && (
+                <div className="mt-3 pt-3 border-t border-slate-700">
+                  <div className="flex items-center gap-2">
+                    <span className={"text-xs font-bold uppercase " + m.sessionCard.typeColor}>{m.sessionCard.typeLabel}</span>
+                    <span className="text-xs text-slate-500">{m.sessionCard.date}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-200 leading-snug mt-0.5">{m.sessionCard.title}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{m.sessionCard.meta}</p>
+                </div>
+              )}
               {m.proposal && (
                 <div className="mt-3 pt-3 border-t border-slate-700 space-y-2">
                   {m.proposal.diff.map(w => (
@@ -342,9 +388,9 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
             </div>
           </div>
         ))}
-        {msgs.length === 1 && !busy && !initialInput && (
+        {msgs.length === 1 && !busy && (
           <div className="flex flex-wrap gap-2 pt-1">
-            {COACH_EXAMPLE_KEYS.map(k => (
+            {(sessionContext ? COACH_SESSION_EXAMPLE_KEYS : COACH_EXAMPLE_KEYS).map(k => (
               <button key={k} onClick={() => send(t(k))}
                 className="text-xs text-slate-300 bg-slate-800 border border-slate-700 hover:border-orange-400/60 hover:text-white rounded-full px-3 py-1.5 transition-colors">
                 {t(k)}
@@ -364,7 +410,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
         </div>
         <div className="max-w-lg mx-auto flex gap-2">
           <input id="coach-message" name="coach-message" aria-label={t("coach.input.aria")} value={input} onChange={e => setInput(e.target.value)}
-            autoFocus={!!initialInput}
+            autoFocus={!!sessionContext}
             onKeyDown={e => { if (e.key === "Enter") send(); }}
             placeholder={trajectoryId ? t("coach.input.placeholderFollowUp") : t("coach.input.placeholder")}
             className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>

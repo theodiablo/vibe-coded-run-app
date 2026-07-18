@@ -11,7 +11,7 @@ import { AvailabilityEditor } from "../components/AvailabilityEditor";
 import { PlanSessionRow } from "../components/PlanSessionRow";
 import { styleMeta, isStyleId, recommendStyle, stylePacing, type StyleId } from "../utils/planStyles";
 import { sessionsFromSimple, clampDays, type AvailabilityMode, type DurationBand } from "../utils/availability";
-import type { Plan, PlanPrefill, RacesState, Run, SettingsState } from "../types";
+import type { CoachSessionContext, Plan, PlanPrefill, RacesState, Run, SettingsState } from "../types";
 import type { PlanSessionInput } from "../utils/plan";
 
 type PlanViewProps = {
@@ -32,7 +32,7 @@ type PlanViewProps = {
   toggleSess: (weekNumber: number, sessionId: string) => void;
   skipSess: (weekNumber: number, sessionId: string) => void;
   openSettings: () => void;
-  openCoach: (seed?: string) => void;
+  openCoach: (session?: CoachSessionContext) => void;
   openTracker: () => void;
   goLog: (prefill: Partial<Run>) => void;
   showToast: (msg: string, type?: string) => void;
@@ -412,10 +412,7 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                       onDone={() => goLog({date: s.date, type: s.type, km: Number(s.km), pace: s.pace, wNum: wk.weekNumber, sId: s.id})}
                       onToggleDone={() => toggleSess(wk.weekNumber, s.id)}
                       onSkip={() => skipSess(wk.weekNumber, s.id)}
-                      onAskCoach={() => openCoach(t("plan.session.coachSeed", {
-                        type: t("common.types." + s.type, { defaultValue: s.type }),
-                        date: fmt.sht(s.date), km: s.km,
-                      }))}
+                      onAskCoach={() => openCoach({ session: s, weekNumber: wk.weekNumber })}
                       openSettings={openSettings}/>
                   ))}
                 </div>

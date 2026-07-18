@@ -124,6 +124,11 @@ export type PlanSession = Record<string, unknown> & {
   editionId?: string | null;
 };
 
+// A specific plan session handed to the coach chat so it opens "about this run"
+// (the session's week + full session row). CoachChat derives both the localized
+// display strings and the canonical-English context prefix from it.
+export type CoachSessionContext = { session: PlanSession; weekNumber: number };
+
 export type PlanWeek = Record<string, unknown> & {
   weekNumber: number;
   startDate?: string;
