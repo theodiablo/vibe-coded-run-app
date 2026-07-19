@@ -17,6 +17,7 @@ import {
   DISCLAIMER_URL,
   PLAY_STORE_BETA_URL,
   TESTFLIGHT_BETA_URL,
+  TIP_JAR_URL,
 } from "../constants";
 // Registers the web-only "marketing" i18n namespace (brand + hero come from
 // copy.json, the source shared with the OG-image generator). Importing it here
@@ -308,6 +309,11 @@ export default function MarketingGate() {
             ))}
           </div>
           <div className="flex gap-6">
+            {TIP_JAR_URL && (
+              <a href={TIP_JAR_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#FDBA74] transition-colors">
+                {t("footer.support")}
+              </a>
+            )}
             <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-[#FDBA74] transition-colors">
               {t("footer.privacy")}
             </a>

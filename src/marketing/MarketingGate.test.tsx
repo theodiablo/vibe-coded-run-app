@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import MarketingGate from "./MarketingGate";
+import { TIP_JAR_URL } from "../constants";
 
 describe("MarketingGate", () => {
   it("renders the marketing landing without a login form until asked", () => {
@@ -30,5 +31,25 @@ describe("MarketingGate", () => {
       "href",
       "https://play.google.com/apps/testing/solutions.camboulive.run",
     );
+  });
+
+  it("shows the tip-jar link in the footer", () => {
+    render(<MarketingGate />);
+    const support = screen.getByRole("link", { name: /support the app/i });
+    expect(support).toHaveAttribute("href", TIP_JAR_URL);
+    expect(support).toHaveAttribute("target", "_blank");
+  });
+
+  it("hides the tip-jar link when TIP_JAR_URL is empty", async () => {
+    vi.resetModules();
+    vi.doMock("../constants", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("../constants")>()),
+      TIP_JAR_URL: "",
+    }));
+    const { default: GateWithoutTipJar } = await import("./MarketingGate");
+    render(<GateWithoutTipJar />);
+    expect(screen.queryByRole("link", { name: /support the app/i })).toBeNull();
+    vi.doUnmock("../constants");
+    vi.resetModules();
   });
 });
