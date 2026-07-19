@@ -122,8 +122,15 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 | `ANTHROPIC_API_KEY` | — | required unless `MOCK_LLM=1` |
 | `COACH_MODEL` | `claude-sonnet-5` | coaching judgment. Upgrading is one secret change. |
 | `COACH_MODEL_LIGHT` | `claude-haiku-4-5` | reserved for the `pickModel` routing seam (Phase 5) — unused until a classifier routes trivial edits |
-| `RATE_LIMIT_PER_DAY` | `20` | model-calling rounds per user per day (confirm is free); enforced via the atomic `increment_agent_usage` SQL function |
+| `RATE_LIMIT_PER_DAY` | `5` | model-calling rounds per user per day (confirm/result/usage are free); enforced via the atomic `increment_agent_usage` SQL function. A per-user override lives in `profiles.coach_daily_limit` (nullable; NULL → this default) — the premium seam, service-role-writable only |
 | `MOCK_LLM` | unset | `1` → canned responses from `_shared/coach/mock.mjs`, zero Anthropic calls (CI, local dev) |
+
+The **`usage`** action (authed, no model call, no charge) returns
+`{ used, limit }` — today's spend vs the caller's effective daily budget, read
+from `agent_usage` via the admin client (the table has no client RLS policy).
+`propose`/`critique` responses (and the `RATE_LIMIT` error body) also carry
+`usage` so the chat's footer ring stays live after each send. Driven client-side
+by `coachUsage()` (`src/coach.ts`) on chat open; the ring is `src/modals/CoachUsageRing.tsx`.
 
 Prompt caching: one `cache_control` breakpoint on the system block caches the
 stable prefix (tool defs + system prompt) across rounds. Token usage is
@@ -162,6 +169,19 @@ stored in `agent_rounds.input_context.userContext` because it is part of what th
 model saw. Memory suggestions are logged separately in
 `input_context.memorySuggestions` and returned to the client for confirmation;
 they are not plan tool calls and do not satisfy plan-adjustment fallback logic.
+
+Conversation history: users have read-own RLS SELECT on `agent_trajectories`
+and `agent_rounds`, so the chat lists and replays past conversations as a free
+DB read — no model call. `src/coachHistory.ts` fetches the rows and
+`src/utils/coachTranscript.ts` reconstructs them into `CoachMessage[]`: each
+round's proposal card is recomputed by folding the diff base forward exactly as
+the server's `workingPlan` does (round 0's `input_context.plan`, then each
+non-invalid `proposed_plan` becomes the next round's base), so a critique shows
+only what *it* changed; the open trajectory's latest proposal instead diffs
+against the live plan (what Apply will change). Only the one `open` trajectory
+is resumable (a new `propose` abandons any other open one, and `critique`/
+`confirm` on a closed one returns `TRAJECTORY_CLOSED`); accepted/abandoned ones
+are read-only transcripts. UI: `src/modals/CoachHistorySheet.tsx`.
 
 ## Local development
 

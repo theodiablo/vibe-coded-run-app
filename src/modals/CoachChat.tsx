@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, type ComponentPropsWithoutRef } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { useDismissable } from "../hooks/useDismissable";
-import { Loader, MessageCircle, Send, X, Flag } from "lucide-react";
+import { Loader, MessageCircle, Send, X, Flag, History, ArrowLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { coachPropose, coachCritique, coachConfirm, coachPing } from "../coach";
+import { coachPropose, coachCritique, coachConfirm, coachPing, coachUsage, CoachServerError } from "../coach";
 import { submitCoachFeedback } from "../coachFeedback";
 import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
@@ -12,6 +12,11 @@ import { describeSession } from "../utils/sessionDesc";
 import { fmt, estMin } from "../utils/format";
 import { track } from "../telemetry";
 import { PRIVACY_URL, DISCLAIMER_URL, TCLR } from "../constants";
+import { usageLeft, type CoachUsage } from "../utils/coachUsage";
+import type { CoachMessage } from "../utils/coachTranscript";
+import { CoachHistorySheet } from "./CoachHistorySheet";
+import { CoachUsageRing } from "./CoachUsageRing";
+import type { CoachTrajectorySummary, TrajectoryStatus } from "../coachHistory";
 import type { CoachSessionContext, Plan, RunType } from "../types";
 
 // The model replies in markdown (headers, bold, tables); rendered via
@@ -68,18 +73,8 @@ const COACH_SESSION_EXAMPLE_KEYS = [
 // follow-up message. Nothing touches the plan until Accept — and even then the
 // accepted plan is re-validated client-side (belt and braces) before
 // applyPlan persists it through the normal savePlan path.
-type MemorySuggestion = { id: string; text: string; status: "pending" | "saved" | "dismissed" };
-type SessionCard = { typeLabel: string; typeColor: string; date: string; title: string; meta: string };
-type CoachMessage = {
-  role: "user" | "coach";
-  text: string;
-  proposal?: { diff: { weekNumber: number; changes: string[] }[] };
-  sessionCard?: SessionCard;
-  trajectoryId?: string | null;
-  roundIndex?: number | null;
-  memorySuggestions?: MemorySuggestion[];
-};
-
+// CoachMessage / SessionCard / MemorySuggestion now live in utils/coachTranscript
+// (shared with the read-only transcript reconstruction); imported above.
 type CoachResult = {
   rationale?: string;
   trajectoryId?: string | null;
@@ -89,6 +84,7 @@ type CoachResult = {
   trajectoryClosed?: boolean;
   changed?: boolean;
   proposedPlan?: Plan;
+  usage?: CoachUsage;
 };
 
 type CoachChatProps = {
@@ -120,7 +116,10 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // logged server-side to agent_rounds) so it can be flagged as wrong; the
   // greeting, the post-accept "Done", and error bubbles have no round behind
   // them and stay unstamped, which hides the flag affordance on them.
-  const [msgs, setMsgs] = useState<CoachMessage[]>(() => [
+  // The opening greeting — extracted so "Start a new conversation" (after
+  // browsing a closed transcript) can reset the chat to exactly this state,
+  // including the session card when opened about a specific session.
+  const initialMsgs = (): CoachMessage[] => [
     s
       ? {
           role: "coach",
@@ -134,7 +133,9 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
           },
         }
       : { role: "coach", text: t("coach.greeting") },
-  ]);
+  ];
+
+  const [msgs, setMsgs] = useState<CoachMessage[]>(initialMsgs);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [trajectoryId, setTrajectoryId] = useState<string | null>(null);
@@ -142,9 +143,18 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   const [flagText, setFlagText] = useState("");
   const [flagBusy, setFlagBusy] = useState(false);
   const [flaggedKeys, setFlaggedKeys] = useState<Set<string>>(() => new Set());
+  // History browsing + usage meter.
+  const [showHistory, setShowHistory] = useState(false);
+  // Non-null while a CLOSED conversation is shown read-only (no composer);
+  // holds its status so the header can label it. null = live/resumed chat.
+  const [viewingClosed, setViewingClosed] = useState<TrajectoryStatus | null>(null);
+  const [usage, setUsage] = useState<CoachUsage | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+
+  const left = usage ? usageLeft(usage) : null;
+  const exhausted = left === 0;
 
   // Tapping a starter chip fills the composer instead of firing straight off, so
   // the user can tweak the phrasing before sending — the chips are prompts, not
@@ -157,8 +167,50 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // Warm the edge function the moment the chat opens so the user's first message
   // lands on an already-booted isolate instead of eating the cold start (the
   // failure mode where round 0 alone times out). Fire-and-forget; coachPing
-  // never throws.
-  useEffect(() => { coachPing(); }, []);
+  // never throws. Also read today's usage for the ring — best-effort, null on an
+  // old function / offline, in which case the ring just doesn't render.
+  useEffect(() => {
+    coachPing();
+    let alive = true;
+    coachUsage().then(u => { if (alive) setUsage(u); });
+    return () => { alive = false; };
+  }, []);
+
+  // Absorb a server-carried error onto UI state: refresh the ring if the error
+  // carried usage, and drop a stale trajectory so the next send starts fresh
+  // (a resumed conversation the server has since abandoned, or a vanished one).
+  const absorbServerError = (err: unknown) => {
+    if (err instanceof CoachServerError) {
+      if (err.usage) setUsage(err.usage);
+      if (err.code === "TRAJECTORY_CLOSED" || err.code === "TRAJECTORY_NOT_FOUND") setTrajectoryId(null);
+    }
+  };
+
+  // Load a conversation picked from the history sheet. An open one resumes in
+  // place (composer live); a closed one shows as a read-only transcript.
+  const openFromHistory = (traj: CoachTrajectorySummary, messages: CoachMessage[]) => {
+    setShowHistory(false);
+    setFlaggingIndex(-1);
+    setFlagText("");
+    setMsgs(messages);
+    if (traj.status === "open") {
+      setTrajectoryId(traj.id);
+      setViewingClosed(null);
+      track("coach_history_resumed", {});
+    } else {
+      setTrajectoryId(null);
+      setViewingClosed(traj.status);
+    }
+  };
+
+  // Leave a read-only transcript and return to a fresh chat.
+  const startNewChat = () => {
+    setMsgs(initialMsgs());
+    setTrajectoryId(null);
+    setViewingClosed(null);
+    setFlaggingIndex(-1);
+    setFlagText("");
+  };
 
   // Only the most recent proposal is ever confirmable, and only while its
   // trajectory is still open — derived at render (not a per-message flag
@@ -186,6 +238,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
 
   const applyCoachResult = (res: CoachResult) => {
     track("coach_proposal", { status: res.status, round: res.roundIndex });
+    if (res.usage) setUsage(res.usage);
     if (res.status === "no_valid_adjustment") {
       setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId ?? null);
       setMsgs(m => [...m, coachMsg(res, t("coach.fallback.noValidAdjustment"))]);
@@ -204,7 +257,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     // `preset` comes from an example chip; a bare click/keydown passes an event,
     // so only treat a real string as an override and otherwise read the input.
     const text = (typeof preset === "string" ? preset : input).trim();
-    if (!text || busy) return;
+    if (!text || busy || exhausted) return;
     // Count genuine coach interactions — a user actually sending a message.
     // Never the message text; just whether it opens a chat or follows up on an
     // already-open trajectory (a proposal round). Consent-gated in track().
@@ -220,6 +273,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       const res = trajectoryId ? await coachCritique(trajectoryId, text) : await coachPropose(outbound);
       applyCoachResult(res);
     } catch (err) {
+      absorbServerError(err);
       setMsgs(m => [...m, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
     } finally {
       setBusy(false);
@@ -247,6 +301,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       setMsgs(m => [...m, { role: "coach", text: t("coach.fallback.applied") }]);
       showToast(t("coach.toast.planAdjusted"));
     } catch (err) {
+      absorbServerError(err);
       setMsgs(m => [...m, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
     } finally {
       setBusy(false);
@@ -281,6 +336,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       const res = await coachCritique(m.trajectoryId, correction);
       applyCoachResult(res);
     } catch (err) {
+      absorbServerError(err);
       setMsgs(cur => [...cur, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
     } finally {
       setBusy(false);
@@ -305,13 +361,26 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-slide-up">
-      <div className="flex justify-between items-center px-4 border-b border-slate-800 flex-shrink-0"
+      <div className="flex justify-between items-center px-2 border-b border-slate-800 flex-shrink-0"
         style={{height:"calc(44px + var(--safe-top))", paddingTop:"var(--safe-top)"}}>
-        <div className="flex items-center gap-1.5">
-          <MessageCircle size={15} className="text-orange-400"/>
-          <span className="text-sm font-semibold">{t("coach.title")}</span>
+        {viewingClosed ? (
+          <div className="flex items-center gap-1 min-w-0">
+            <button onClick={() => setShowHistory(true)} aria-label={t("common.back")} className="text-slate-400 hover:text-white p-1.5"><ArrowLeft size={18}/></button>
+            <span className="text-[10px] font-bold uppercase tracking-wide"
+              style={{ color: viewingClosed === "accepted" ? "#34d399" : "#64748b" }}>
+              {t("coach.history.status." + viewingClosed)}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 pl-1.5">
+            <MessageCircle size={15} className="text-orange-400"/>
+            <span className="text-sm font-semibold">{t("coach.title")}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-0.5">
+          <button onClick={() => setShowHistory(true)} aria-label={t("coach.history.aria")} className="text-slate-400 hover:text-white p-1.5"><History size={17}/></button>
+          <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18}/></button>
         </div>
-        <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18}/></button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3 max-w-lg w-full mx-auto">
@@ -397,7 +466,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
             </div>
           </div>
         ))}
-        {msgs.length === 1 && !busy && (
+        {msgs.length === 1 && !busy && !exhausted && (
           <div className="flex flex-wrap gap-2 pt-1">
             {(sessionContext ? COACH_SESSION_EXAMPLE_KEYS : COACH_EXAMPLE_KEYS).map(k => (
               <button key={k} onClick={() => fillInput(t(k))}
@@ -412,23 +481,46 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       </div>
 
       <div className="border-t border-slate-800 p-3 flex-shrink-0" style={{paddingBottom:"calc(0.75rem + var(--safe-bottom))"}}>
-        <div className="max-w-lg mx-auto text-[11px] text-slate-500 mb-2">
-          {/* Children stay in one text flow so the <1>/<3> element indices in the
-              dictionary string line up with the two anchors. */}
-          <Trans i18nKey="coach.footer">Your coach uses your message, plan, recent runs, and saved memory to answer. See our <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">privacy policy</a> and <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">safety note</a>.</Trans>
+        <div className="max-w-lg mx-auto flex items-end gap-2 mb-2">
+          <div className="flex-1 text-[11px] text-slate-500">
+            {/* Children stay in one text flow so the <1>/<3> element indices in the
+                dictionary string line up with the two anchors. */}
+            <Trans i18nKey="coach.footer">Your coach uses your message, plan, recent runs, and saved memory to answer. See our <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">privacy policy</a> and <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">safety note</a>.</Trans>
+          </div>
+          {usage && <CoachUsageRing usage={usage}/>}
         </div>
-        <div className="max-w-lg mx-auto flex gap-2">
-          <input id="coach-message" name="coach-message" ref={inputRef} aria-label={t("coach.input.aria")} value={input} onChange={e => setInput(e.target.value)}
-            autoFocus={!!sessionContext}
-            onKeyDown={e => { if (e.key === "Enter") send(); }}
-            placeholder={trajectoryId ? t("coach.input.placeholderFollowUp") : t("coach.input.placeholder")}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500"/>
-          <button onClick={send} disabled={busy || !input.trim()} aria-label={t("coach.send")}
-            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 rounded-xl transition-colors">
-            <Send size={16}/>
-          </button>
-        </div>
+        {viewingClosed ? (
+          <div className="max-w-lg mx-auto">
+            <p className="text-[11px] text-slate-500 mb-2 text-center">{t("coach.history.readOnly")}</p>
+            <button onClick={startNewChat}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+              {t("coach.history.startNew")}
+            </button>
+          </div>
+        ) : (
+          <>
+            {exhausted && (
+              <p className="max-w-lg mx-auto text-[11px] text-amber-400 mb-2">{t("coach.usage.limitReached")}</p>
+            )}
+            <div className="max-w-lg mx-auto flex gap-2">
+              <input id="coach-message" name="coach-message" ref={inputRef} aria-label={t("coach.input.aria")} value={input} onChange={e => setInput(e.target.value)}
+                autoFocus={!!sessionContext}
+                disabled={exhausted}
+                onKeyDown={e => { if (e.key === "Enter") send(); }}
+                placeholder={trajectoryId ? t("coach.input.placeholderFollowUp") : t("coach.input.placeholder")}
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-orange-400 placeholder-slate-500 disabled:opacity-50"/>
+              <button onClick={send} disabled={busy || !input.trim() || exhausted} aria-label={t("coach.send")}
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 rounded-xl transition-colors">
+                <Send size={16}/>
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {showHistory && (
+        <CoachHistorySheet currentPlan={plan} onClose={() => setShowHistory(false)} onOpen={openFromHistory} showToast={showToast}/>
+      )}
     </div>
   );
 }

@@ -50,7 +50,38 @@
     "planAdjusted": "Plan ajustado por tu entrenador ✓",
     "feedbackFailed": "No se pudo enviar tu comentario. Inténtalo de nuevo en un momento",
     "feedbackSent": "Gracias. Tu comentario se ha enviado.",
-    "memoryDuplicate": "Ya está en la memoria del entrenador."
+    "memoryDuplicate": "Ya está en la memoria del entrenador.",
+    "historyLoadFailed": "No se pudo abrir esa conversación. Inténtalo de nuevo."
+  },
+  "history": {
+    "aria": "Historial de conversaciones",
+    "title": "Conversaciones",
+    "window": "últimos 30 días",
+    "loading": "Cargando conversaciones…",
+    "empty": "Aún no tienes conversaciones con el entrenador. Pregunta sobre tu plan y aparecerán aquí.",
+    "loadFailed": "No se pudieron cargar tus conversaciones.",
+    "retry": "Reintentar",
+    "readOnly": "Esta conversación está cerrada. Puedes leerla pero no responder.",
+    "startNew": "Iniciar una nueva conversación",
+    "status": {
+      "open": "Continuar",
+      "accepted": "Aplicado",
+      "abandoned": "Cerrada",
+      "no_valid_adjustment": "Sin cambios"
+    }
+  },
+  "usage": {
+    "left": "quedan {{left}} hoy",
+    "resets": "se restablece mañana",
+    "ringAria": "Uso del entrenador: {{used}} de {{limit}} solicitudes diarias usadas",
+    "limitReached": "Has usado tus solicitudes del entrenador por hoy. Tu cupo se restablece mañana.",
+    "detail": {
+      "title": "Uso del entrenador",
+      "resets": "se restablece a medianoche",
+      "dailyRequests": "Solicitudes diarias",
+      "used": "{{used}} de {{limit}} usadas",
+      "freeActions": "Aplicar cambios, revisar el historial y señalar respuestas no cuentan."
+    }
   },
   "week": "Semana {{num}}",
   "apply": "Aplicar este ajuste",

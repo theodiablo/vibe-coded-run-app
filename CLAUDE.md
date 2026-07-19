@@ -897,6 +897,31 @@ and delete anything that becomes stale.
   `docs/coach-agent.md`, run ad hoc. `notifyContribution` was extracted from
   `src/races.ts` into `src/notify.ts` (generic, not race-specific) so
   `coachFeedback.ts` doesn't import a races module.
+- **Usage meter & daily limit:** the free budget is **5 rounds/day**
+  (`RATE_LIMIT_PER_DAY` default, dropped from 20) with a **per-user override**
+  in `profiles.coach_daily_limit` (nullable, NULL → env default) — the premium
+  seam, service-role-writable only. That override column is why the migration
+  `20260719120000_coach_daily_limit.sql` **narrows the `authenticated`
+  insert/update grants on `profiles` to specific columns**: the table had
+  blanket own-row insert/update RLS + table-level grants, so a bare column would
+  be user-writable (mint unlimited requests). Keep new user-writable profile
+  columns in that column-grant list; keep coach_daily_limit out of it. The edge
+  function exposes usage via a free authed **`usage`** action + a `usage:{used,
+  limit}` field on propose/critique/RATE_LIMIT bodies (`agent_usage` has no
+  client RLS, so the count must come from the function, not a client read). The
+  chat's footer ring is `src/modals/CoachUsageRing.tsx`; thresholds are
+  **fractions of the limit** (`src/utils/coachUsage.ts`) so an override keeps
+  sensible escalation.
+- **Conversation history/resume:** past conversations are listed + replayed
+  purely from the `agent_trajectories`/`agent_rounds` read-own RLS (a free DB
+  read, no model call) via `src/coachHistory.ts`; `src/utils/coachTranscript.ts`
+  is the **pure** reconstruction (also the home of the shared `CoachMessage`
+  types, imported back by `CoachChat`). Its diff-base **fold** mirrors the
+  server's `workingPlan` (round 0 baseline → each non-invalid `proposed_plan`
+  becomes the next base), so critique cards are incremental; the **open**
+  trajectory's latest proposal diffs vs the live plan instead. Only the single
+  `open` trajectory resumes (server abandons others on `propose`); closed ones
+  are read-only transcripts (`src/modals/CoachHistorySheet.tsx` bottom sheet).
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`
