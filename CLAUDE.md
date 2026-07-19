@@ -84,7 +84,10 @@ and delete anything that becomes stale.
   marketing chunk (web-only by construction): Apple rejects external payment
   links in the iOS app, so never surface it in native UIs. Marketing copy uses
   formal `vous` in French (the app-copy informal-`tu` rule applies to
-  `src/i18n/` locales, not `src/marketing/`). CTAs open
+  `src/i18n/` locales, not `src/marketing/`) — the ONE exception is the
+  tip-jar link (`footer.support`, "Paye-moi un café"), deliberately informal
+  `tu` because it's the developer's personal aside, not product copy; don't
+  "correct" it back to `vous`. CTAs open
   `LoginScreen`; a secondary CTA links to the Play Store closed test
   (`PLAY_STORE_BETA_URL`); iOS beta CTAs use the public TestFlight opt-in
   (`TESTFLIGHT_BETA_URL`).
