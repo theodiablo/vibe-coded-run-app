@@ -1,0 +1,17 @@
+-- Grant service_role base privileges on profiles.
+--
+-- 20260607165159 granted table privileges on profiles to `authenticated` only;
+-- service_role never got any (unlike the agent_* tables, whose migration
+-- granted it explicitly). That was invisible until 20260719120000's
+-- coach_daily_limit: the coach-agent edge function's admin client
+-- (service_role) now reads profiles.coach_daily_limit on EVERY authed action
+-- (usage / propose / critique), and each read failed with 42501 "permission
+-- denied for table profiles" -- surfaced to users as COACH_UNAVAILABLE and a
+-- hidden usage ring. RLS is not the issue (service_role bypasses it); the
+-- table-level grant is the missing half, same failure mode 20260607165159
+-- fixed for `authenticated`.
+--
+-- Full CRUD, not just select: profiles.coach_daily_limit is documented as
+-- service-role-writable (the premium seam), and service_role having all
+-- privileges matches the Supabase default this table missed out on.
+grant select, insert, update, delete on public.profiles to service_role;
