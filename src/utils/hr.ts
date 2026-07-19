@@ -23,6 +23,36 @@ export const SESSION_ZONES = {
 type SessionZoneType = keyof typeof SESSION_ZONES;
 type HrSample = { bpm: number; t: number };
 
+// Tanaka max-HR estimate (208 − 0.7 × age) — the one fallback used whenever
+// the user hasn't entered a measured max HR.
+export const tanakaMaxHR = (age: number) => Math.round(208 - 0.7 * age);
+
+// Age at `today` from a plain birth year (e.g. 1985). Null when absent or when
+// the derived age is implausible (outside 10..90, mirroring the input bounds).
+// `today` is injectable for deterministic tests.
+export function deriveAge(birthYear: number | null | undefined, today: Date = new Date()): number | null {
+  if (!birthYear) return null;
+  const age = today.getFullYear() - birthYear;
+  return age >= 10 && age <= 90 ? age : null;
+}
+
+// Runner age from settings: birthYear wins; the legacy static `age` field
+// (written by older app versions and pre-birthYear blobs) is the fallback.
+// Null = unknown.
+export function runnerAge(s: Partial<Pick<SettingsState, "birthYear" | "age">>, today?: Date): number | null {
+  const fromYear = deriveAge(s.birthYear, today);
+  if (fromYear != null) return fromYear;
+  const legacy = Number(s.age) || 0;
+  return legacy >= 10 && legacy <= 90 ? legacy : null;
+}
+
+// Effective max HR for zone math: explicit maxHR → Tanaka from runnerAge → 0.
+export function effectiveMaxHR(s: Partial<Pick<SettingsState, "maxHR" | "birthYear" | "age">>, today?: Date): number {
+  if (s.maxHR) return s.maxHR;
+  const age = runnerAge(s, today);
+  return age != null ? tanakaMaxHR(age) : 0;
+}
+
 // Compute the bpm range for a zone using the Karvonen (heart-rate reserve)
 // method — it accounts for resting HR, so it's more accurate than plain % of
 // MaxHR.

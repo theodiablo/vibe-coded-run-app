@@ -75,12 +75,12 @@
   "hr": {
     "title": "Heart rate",
     "subtitle": "Personalize your effort targets on every session. Optional — you can add this later.",
-    "age": "Age",
+    "birthYear": "Birth year",
     "maxHR": "Max HR",
     "restHR": "Rest HR",
     "autoPlaceholder": "auto",
     "dontKnow": "I don't know my heart rate",
-    "enterAge": "Enter your age above to estimate it.",
+    "enterBirthYear": "Enter your birth year above to estimate it.",
     "estimated": "Estimated from age (Tanaka, 208 − 0.7×age): {{max}} bpm max HR, with a typical 60 bpm resting HR."
   },
   "health": {

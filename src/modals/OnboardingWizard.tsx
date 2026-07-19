@@ -20,6 +20,7 @@ import { Confetti } from "../components/Confetti";
 import { onboardingSteps } from "../utils/onboarding";
 import { searchEditions, editionLabel, findEdition } from "../utils/races";
 import { suggestedGoalSec } from "../utils/goal";
+import { deriveAge, runnerAge, tanakaMaxHR } from "../utils/hr";
 import { buildPlan } from "../utils/plan";
 import type { PlanSessionInput } from "../utils/plan";
 import { addWeeks, ymd, fmt } from "../utils/format";
@@ -43,7 +44,7 @@ type OnboardingCompletePayload = {
     availDays: number;
     availTime: DurationBand;
   };
-  hr: Pick<SettingsState, "age" | "maxHR" | "restHR"> | null;
+  hr: Pick<SettingsState, "birthYear" | "age" | "maxHR" | "restHR"> | null;
   healthAck: NonNullable<HealthAck>;
 };
 type OnboardingWizardProps = {
@@ -130,8 +131,12 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const [selKey,  setSelKey]  = useState("5");
   const [horizon, setHorizon] = useState(12);
 
-  // Heart rate (optional).
-  const [age,    setAge]    = useState(String(settings.age || ""));
+  // Heart rate (optional). Birth year, not age, so it never goes stale; a
+  // legacy-age resume seeds a derived year (±1 yr is fine for Tanaka).
+  const thisYear = new Date().getFullYear();
+  const legacyAge = runnerAge(settings);
+  const [birthYear, setBirthYear] = useState(
+    String(settings.birthYear || (legacyAge != null ? thisYear - legacyAge : "") || ""));
   const [maxHR,  setMaxHR]  = useState(String(settings.maxHR || ""));
   const [restHR, setRestHR] = useState(String(settings.restHR || 60));
   const [maxHRHint, setMaxHRHint] = useState("");
@@ -159,17 +164,21 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
     ? { availabilityMode: "custom" as const, availDays: customSessions.length, availTime: availBand }
     : { availabilityMode: "simple" as const, availDays, availTime: availBand };
 
+  // Age from the HR draft when entered, else settings (resumed onboarding);
+  // usually null on a first run since the HR step comes after the style picker.
   const recommendedStyle = recommendStyle({
     intent, planSessions,
     distanceKm: effectiveDist,
     recentRuns: [],
     level,
+    age: deriveAge(parseInt(birthYear) || 0) ?? runnerAge(settings),
   });
   const effectiveStyle = planStyle ?? recommendedStyle;
 
   const trimmedName = name.trim();
-  const ageN = parseInt(age) || 0;
-  const tanakaMax = ageN ? Math.round(208 - 0.7 * ageN) : null;
+  const byN = parseInt(birthYear) || 0;
+  const ageN = deriveAge(byN);
+  const tanakaMax = ageN != null ? tanakaMaxHR(ageN) : null;
 
   // Navigate to a step by key. Persisted `onboardStep` is capped at the health
   // gate so `summary` is never persisted — a refresh on it resumes at the gate
@@ -187,7 +196,7 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   const skip = () => go("health");
 
   const estimateHR = () => {
-    if (!tanakaMax) { setMaxHRHint(t("onboarding.hr.enterAge")); return; }
+    if (!tanakaMax) { setMaxHRHint(t("onboarding.hr.enterBirthYear")); return; }
     setMaxHR(String(tanakaMax));
     setRestHR("60");
     setMaxHRHint(t("onboarding.hr.estimated", { max: tanakaMax }));
@@ -233,10 +242,11 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
   };
 
   // Complete from the summary. HR is included only if the user entered any.
+  // The derived age rides along so old app versions keep a consistent `age`.
   const complete = () => {
     const mhrN = parseInt(maxHR) || 0;
-    const hasHR = ageN > 0 || mhrN > 0;
-    const hr = hasHR ? {age: ageN, maxHR: mhrN || tanakaMax || 0, restHR: parseInt(restHR) || 60} : null;
+    const hasHR = ageN != null || mhrN > 0;
+    const hr = hasHR ? {birthYear: byN, age: ageN ?? 0, maxHR: mhrN || tanakaMax || 0, restHR: parseInt(restHR) || 60} : null;
     const plan = {raceDate, goalSec, distanceKm, raceElevation: Number(raceElevation) || 0, planSessions, targetEditionId: targetEditionId || null, planStyle: effectiveStyle, trainingLevel: level, ...availMeta};
     onComplete({name: trimmedName, plan, hr, healthAck: {v: DISCLAIMER_VERSION, at: new Date().toISOString()}});
   };
@@ -524,8 +534,8 @@ export function OnboardingWizard({settings, onSaveProgress, onComplete, catalogu
                 <p className="text-sm text-slate-400 mt-1">{t("onboarding.hr.subtitle")}</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div><label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.hr.age")}</label>
-                  <input type="number" min="10" max="90" placeholder="35" value={age} onChange={e => setAge(e.target.value)} className={INPUT_CLS}/></div>
+                <div><label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.hr.birthYear")}</label>
+                  <input type="number" min={thisYear - 90} max={thisYear - 10} placeholder="1990" value={birthYear} onChange={e => setBirthYear(e.target.value)} className={INPUT_CLS}/></div>
                 <div><label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.hr.maxHR")}</label>
                   <input type="number" min="100" max="230" placeholder={t("onboarding.hr.autoPlaceholder")} value={maxHR} onChange={e => setMaxHR(e.target.value)} className={INPUT_CLS}/></div>
                 <div><label className="text-xs text-slate-400 block mb-1.5">{t("onboarding.hr.restHR")}</label>

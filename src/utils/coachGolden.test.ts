@@ -182,6 +182,14 @@ describe("golden cases (MOCK_LLM)", () => {
     expect(messages[0].content).toContain("Avoids downhill repeats");
   });
 
+  it("buildMessages includes the runner's age only when known", () => {
+    const withAge = buildMessages({ ...makeContext("my knee hurts"), runnerAge: 61 }, [], null);
+    expect(withAge[0].content).toContain("RUNNER AGE: 61");
+    // Ageless contexts (all pre-existing fixtures) stay byte-identical.
+    const without = buildMessages(makeContext("my knee hurts"), [], null);
+    expect(without[0].content).not.toContain("RUNNER AGE");
+  });
+
   it("system prompt asks about resolved memory pain before increasing load", () => {
     expect(SYSTEM_PROMPT).toContain("ask whether the pain has gone away");
     expect(SYSTEM_PROMPT).toContain("before increasing load");

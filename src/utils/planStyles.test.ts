@@ -137,6 +137,50 @@ describe("recommendStyle with a self-reported level (no run history)", () => {
   });
 });
 
+describe("recommendStyle for masters runners (age ≥ MASTERS_AGE)", () => {
+  const lotsOfRuns = (perWeekKm: number, count = 12) =>
+    Array.from({ length: count }, (_, i) => ({
+      date: raceDateInDays(-(i * 2 + 1)),
+      km: (perWeekKm * 5) / count,
+    }));
+
+  it("steers an unfit masters half-marathoner to lowfreq (was balanced)", () => {
+    expect(recommendStyle({ intent: "race", planSessions: DAYS3, distanceKm: 21.1, age: 60 }))
+      .toBe("lowfreq");
+  });
+
+  it("keeps runwalk for a masters beginner with a short goal", () => {
+    expect(recommendStyle({ intent: "fitness", planSessions: DAYS3, distanceKm: 5, age: 60 }))
+      .toBe("runwalk");
+  });
+
+  it("steers an unfit masters marathoner to lowfreq, never runwalk", () => {
+    expect(recommendStyle({ intent: "race", planSessions: DAYS3, distanceKm: 42.2, age: 60 }))
+      .toBe("lowfreq");
+  });
+
+  it("relaxes the 3-day lowfreq volume gate for a trained-but-light masters runner", () => {
+    // 10 km/week fails the ≥20 gate for younger runners (balanced), passes for masters.
+    expect(recommendStyle({ intent: "race", planSessions: DAYS3, distanceKm: 21.1, recentRuns: lotsOfRuns(10), age: 60 }))
+      .toBe("lowfreq");
+    expect(recommendStyle({ intent: "race", planSessions: DAYS3, distanceKm: 21.1, recentRuns: lotsOfRuns(10), age: 40 }))
+      .toBe("balanced");
+  });
+
+  it("never auto-recommends hansons' cumulative-fatigue shape for masters", () => {
+    const input = { intent: "race", planSessions: DAYS5, distanceKm: 42.2, recentRuns: lotsOfRuns(40) };
+    expect(recommendStyle({ ...input, age: 60 })).toBe("polarized");
+    expect(recommendStyle({ ...input, age: 40 })).toBe("hansons"); // unchanged below the threshold
+  });
+
+  it("changes nothing when age is unknown", () => {
+    expect(recommendStyle({ intent: "race", planSessions: DAYS5, distanceKm: 42.2, recentRuns: lotsOfRuns(40), age: null }))
+      .toBe("hansons");
+    expect(recommendStyle({ intent: "race", planSessions: DAYS3, distanceKm: 21.1, age: undefined }))
+      .toBe("balanced");
+  });
+});
+
 describe("suggestPlanSessions", () => {
   const ALLOWED = [20, 30, 45, 60, 75, 90, 120, 150, 180];
   const cases: [number, string | undefined][] = [

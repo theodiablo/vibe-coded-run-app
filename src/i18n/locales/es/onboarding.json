@@ -75,12 +75,12 @@
   "hr": {
     "title": "Frecuencia cardiaca",
     "subtitle": "Personaliza tus objetivos de esfuerzo en cada sesión. Es opcional y puedes añadirlo más tarde.",
-    "age": "Edad",
+    "birthYear": "Año de nacimiento",
     "maxHR": "FC máx.",
     "restHR": "FC reposo",
     "autoPlaceholder": "auto",
     "dontKnow": "No conozco mi frecuencia cardiaca",
-    "enterAge": "Introduce tu edad arriba para estimarla.",
+    "enterBirthYear": "Introduce tu año de nacimiento arriba para estimarla.",
     "estimated": "Estimada a partir de la edad (Tanaka, 208 − 0,7×edad): {{max}} ppm de FC máxima, con una FC en reposo típica de 60 ppm."
   },
   "health": {

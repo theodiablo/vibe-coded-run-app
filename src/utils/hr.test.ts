@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { hrZoneBpm, sessionHR, runZoneIndex, parseHrMeasurement, hrSummary, HR_ZONES, SESSION_ZONES } from "./hr";
+import {
+  hrZoneBpm, sessionHR, runZoneIndex, parseHrMeasurement, hrSummary, HR_ZONES, SESSION_ZONES,
+  tanakaMaxHR, deriveAge, runnerAge, effectiveMaxHR,
+} from "./hr";
 
 type HrSample = { bpm: number; t: number };
 
@@ -7,6 +10,62 @@ const summarize = hrSummary as (samples?: HrSample[]) => { hr: number | null; hr
 
 // Build a DataView the way Web Bluetooth / the BLE plugin deliver a characteristic.
 const dv = (bytes: number[]) => new DataView(Uint8Array.from(bytes).buffer);
+
+// Fixed clock so birth-year derivations don't drift as real years pass.
+const TODAY = new Date("2026-07-18T00:00:00");
+
+describe("deriveAge", () => {
+  it("derives age from a birth year", () => {
+    expect(deriveAge(1985, TODAY)).toBe(41);
+  });
+  it("accepts the 10..90 boundary ages", () => {
+    expect(deriveAge(2016, TODAY)).toBe(10);
+    expect(deriveAge(1936, TODAY)).toBe(90);
+  });
+  it("returns null for absent or implausible years", () => {
+    expect(deriveAge(undefined, TODAY)).toBeNull();
+    expect(deriveAge(0, TODAY)).toBeNull();
+    expect(deriveAge(1900, TODAY)).toBeNull(); // age 126
+    expect(deriveAge(2025, TODAY)).toBeNull(); // age 1
+  });
+});
+
+describe("runnerAge", () => {
+  it("prefers birthYear over the legacy static age", () => {
+    expect(runnerAge({birthYear: 1985, age: 30}, TODAY)).toBe(41);
+  });
+  it("falls back to a plausible legacy age (pre-birthYear blobs)", () => {
+    expect(runnerAge({age: 41}, TODAY)).toBe(41);
+  });
+  it("returns null when both are unset or implausible", () => {
+    expect(runnerAge({}, TODAY)).toBeNull();
+    expect(runnerAge({age: 0}, TODAY)).toBeNull();
+    expect(runnerAge({age: 200}, TODAY)).toBeNull();
+  });
+});
+
+describe("effectiveMaxHR", () => {
+  it("prefers an explicit max HR over any estimate", () => {
+    expect(effectiveMaxHR({maxHR: 192, birthYear: 1985}, TODAY)).toBe(192);
+  });
+  it("estimates via Tanaka from birthYear", () => {
+    // age 41 → 208 − 0.7×41 = 179.3 → 179
+    expect(effectiveMaxHR({maxHR: 0, birthYear: 1985}, TODAY)).toBe(179);
+  });
+  it("estimates via Tanaka from the legacy age", () => {
+    expect(effectiveMaxHR({maxHR: 0, age: 41}, TODAY)).toBe(179);
+  });
+  it("returns 0 with no usable profile", () => {
+    expect(effectiveMaxHR({}, TODAY)).toBe(0);
+  });
+});
+
+describe("tanakaMaxHR", () => {
+  it("rounds 208 − 0.7 × age", () => {
+    expect(tanakaMaxHR(20)).toBe(194);
+    expect(tanakaMaxHR(60)).toBe(166);
+  });
+});
 
 describe("hrZoneBpm", () => {
   it("computes Karvonen (heart-rate reserve) ranges", () => {

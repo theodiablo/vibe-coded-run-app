@@ -91,6 +91,10 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
   style field gets byte-identical paces/descriptions to pre-styles behaviour.
   Deploy note: `styles.mjs` is part of the six-file MCP deploy recipe in
   CLAUDE.md — omitting it breaks the function at boot.
+  `buildMessages` also adds a `RUNNER AGE:` line (derived server-side in
+  `index.ts` from `settings.birthYear`, legacy `settings.age` fallback) so
+  advice can be age-aware; it is omitted when unknown, keeping ageless
+  contexts — including all golden/eval fixtures — byte-identical.
 - **A trajectory only closes (`no_valid_adjustment`) when there's nothing to
   fall back on** — round 0 failing (nothing was ever proposed). A failed
   *critique* on an otherwise-open trajectory leaves it `open`: the prior round

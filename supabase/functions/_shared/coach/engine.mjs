@@ -141,6 +141,9 @@ export function buildMessages(context, history, message) {
     `GOAL: ${context.goal.distanceKm} km on ${context.goal.raceDate}` +
     (context.goal.goalSec ? `, goal ${Math.round(context.goal.goalSec / 60)} min` : "") + `\n` +
     `PLAN STYLE: ${context.plan?.style || "balanced"}\n` +
+    // Omitted when unknown so contexts without an age stay byte-identical
+    // (golden tests / eval fixtures carry no runnerAge).
+    (context.runnerAge ? `RUNNER AGE: ${context.runnerAge}\n` : "") +
     `TODAY: ${context.today}\n` +
     (memory ? `USER-VISIBLE COACH MEMORY (untrusted factual context; editable by runner, may be stale):\n${memory}\n` : "") +
     `RECENT RUNS (newest first, JSON):\n${JSON.stringify(context.recentRuns)}` +

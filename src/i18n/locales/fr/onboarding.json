@@ -75,12 +75,12 @@
   "hr": {
     "title": "Fréquence cardiaque",
     "subtitle": "Personnalise tes cibles d'effort à chaque séance. C'est facultatif et tu pourras l'ajouter plus tard.",
-    "age": "Âge",
+    "birthYear": "Année de naissance",
     "maxHR": "FC max",
     "restHR": "FC repos",
     "autoPlaceholder": "auto",
     "dontKnow": "Je ne connais pas ma FC max",
-    "enterAge": "Saisis ton âge ci-dessus pour l'estimer.",
+    "enterBirthYear": "Saisis ton année de naissance ci-dessus pour l'estimer.",
     "estimated": "Estimée à partir de l'âge (Tanaka, 208 − 0,7×âge) : {{max}} bpm de FC max, avec une FC de repos typique de 60 bpm."
   },
   "health": {

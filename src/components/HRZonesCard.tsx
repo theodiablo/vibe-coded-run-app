@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { fmt } from "../utils/format";
-import { HR_ZONES, hrZoneBpm, runZoneIndex } from "../utils/hr";
+import { HR_ZONES, effectiveMaxHR, hrZoneBpm, runZoneIndex } from "../utils/hr";
 import { HRZoneBar } from "./HRZoneBar";
 import type { Run, SettingsState } from "../types";
 
@@ -11,7 +11,7 @@ type HRZonesCardProps = { runs: Run[]; settings: SettingsState };
 // Profile); renders nothing until a usable profile exists.
 export function HRZonesCard({runs, settings}: HRZonesCardProps) {
   const { t } = useTranslation();
-  const effMax = settings.maxHR || (settings.age ? Math.round(208 - 0.7 * settings.age) : 0);
+  const effMax = effectiveMaxHR(settings);
   const restHR = settings.restHR || 60;
   const hrr    = effMax - restHR;
   if (!(effMax > 0 && hrr > 0)) return null;
