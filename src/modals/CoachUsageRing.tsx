@@ -11,6 +11,14 @@ import {
 // "resets tomorrow" in red (the composer-disabled banner is rendered by
 // CoachChat). Tapping opens a small usage breakdown. `usage === null` is handled
 // by the caller (the ring simply isn't rendered).
+//
+// The unfilled TRACK is a visible muted slate (not the near-black footer) so the
+// ring reads as a greyed donut even at 0 used today — otherwise the empty state
+// (no colour arc yet) is invisible against the dark footer. The proportional
+// colour fill (usageTone) still layers on top as usage climbs.
+const TRACK = "#48566b";
+const HOLE = "#0f172a"; // matches the footer bg (slate-900) → the donut hole
+
 export function CoachUsageRing({ usage }: { usage: CoachUsage }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -38,9 +46,9 @@ export function CoachUsageRing({ usage }: { usage: CoachUsage }) {
         aria-label={t("coach.usage.ringAria", { used: usage.used, limit: usage.limit })}
         aria-expanded={open}
         className="relative rounded-full shrink-0"
-        style={{ width: 18, height: 18, background: `conic-gradient(${color} ${deg}deg, #26334a ${deg}deg)` }}
+        style={{ width: 18, height: 18, background: `conic-gradient(${color} ${deg}deg, ${TRACK} ${deg}deg)` }}
       >
-        <span className="absolute rounded-full" style={{ inset: 4, background: "#0f172a" }} />
+        <span className="absolute rounded-full" style={{ inset: 4, background: HOLE }} />
       </button>
 
       {open && (
