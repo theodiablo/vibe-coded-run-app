@@ -1,23 +1,22 @@
 import { useState, useRef, useEffect, type ComponentPropsWithoutRef } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { useDismissable } from "../hooks/useDismissable";
-import { Loader, MessageCircle, Send, X, Flag, History, ArrowLeft } from "lucide-react";
+import { Loader, MessageCircle, MessageSquarePlus, Send, X, Flag, History, ArrowLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { coachPropose, coachCritique, coachConfirm, coachPing, coachUsage, CoachServerError } from "../coach";
 import { submitCoachFeedback } from "../coachFeedback";
 import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
-import { describeSession } from "../utils/sessionDesc";
-import { fmt, estMin } from "../utils/format";
+import { fmt } from "../utils/format";
 import { track } from "../telemetry";
-import { PRIVACY_URL, DISCLAIMER_URL, TCLR } from "../constants";
+import { PRIVACY_URL, DISCLAIMER_URL } from "../constants";
 import { usageLeft, type CoachUsage } from "../utils/coachUsage";
-import type { CoachMessage } from "../utils/coachTranscript";
+import { buildSessionCard, type CoachMessage } from "../utils/coachTranscript";
 import { CoachHistorySheet } from "./CoachHistorySheet";
-import { CoachUsageRing } from "./CoachUsageRing";
+import { CoachUsageRing, CoachUsageRingSkeleton } from "./CoachUsageRing";
 import type { CoachTrajectorySummary, CoachTranscript, TrajectoryStatus } from "../coachHistory";
-import type { CoachSessionContext, Plan, RunType } from "../types";
+import type { CoachSessionContext, Plan } from "../types";
 
 // The model replies in markdown (headers, bold, tables); rendered via
 // react-markdown rather than manually injecting raw HTML through a sanitizer
@@ -107,7 +106,6 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // from the same session so the bubble reads in the user's language while the
   // model gets the stable English `desc`.
   const s = sessionContext?.session;
-  const sessionTypeLabel = s ? t("common.types." + s.type, { defaultValue: String(s.type) }) : "";
   const sessionPrefix = s
     ? `[The runner is asking about this planned session — week ${sessionContext!.weekNumber}, ${s.type} on ${s.date}, ${s.km} km${s.pace ? ` @ ${fmt.pace(s.pace)}/km` : ""}: "${s.desc}"]\n\n`
     : "";
@@ -119,21 +117,13 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // The opening greeting — extracted so "Start a new conversation" (after
   // browsing a closed transcript) can reset the chat to exactly this state,
   // including the session card when opened about a specific session.
-  const initialMsgs = (): CoachMessage[] => [
-    s
-      ? {
-          role: "coach",
-          text: t("coach.sessionGreeting", { type: sessionTypeLabel, date: fmt.sht(s.date), km: s.km }),
-          sessionCard: {
-            typeLabel: sessionTypeLabel,
-            typeColor: TCLR[(s.type as RunType)] || "text-violet-400",
-            date: fmt.sht(s.date),
-            title: describeSession(s),
-            meta: s.km + " km · ~" + estMin(Number(s.km), s.pace) + " · " + fmt.pace(s.pace) + "/km",
-          },
-        }
-      : { role: "coach", text: t("coach.greeting") },
-  ];
+  const initialMsgs = (): CoachMessage[] => {
+    if (!s) return [{ role: "coach", text: t("coach.greeting") }];
+    // Same builder reconstructed transcripts use, so live and history renderings
+    // of the session opener can't drift.
+    const { greeting, card } = buildSessionCard(s);
+    return [{ role: "coach", text: greeting, sessionCard: card }];
+  };
 
   const [msgs, setMsgs] = useState<CoachMessage[]>(initialMsgs);
   const [input, setInput] = useState("");
@@ -149,6 +139,9 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // holds its status so the header can label it. null = live/resumed chat.
   const [viewingClosed, setViewingClosed] = useState<TrajectoryStatus | null>(null);
   const [usage, setUsage] = useState<CoachUsage | null>(null);
+  // True until the mount-time usage fetch settles: the footer shows a skeleton
+  // in the ring's slot so the ring doesn't pop out of nowhere seconds later.
+  const [usageLoading, setUsageLoading] = useState(true);
   // True after resuming an open trajectory whose baseline drifted from the live
   // plan: Apply would clobber intervening edits, so it is hidden (the user is
   // told to start a new conversation to adjust the current plan).
@@ -176,7 +169,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   useEffect(() => {
     coachPing();
     let alive = true;
-    coachUsage().then(u => { if (alive) setUsage(u); });
+    coachUsage().then(u => { if (alive) { setUsage(u); setUsageLoading(false); } });
     return () => { alive = false; };
   }, []);
 
@@ -185,7 +178,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // (a resumed conversation the server has since abandoned, or a vanished one).
   const absorbServerError = (err: unknown) => {
     if (err instanceof CoachServerError) {
-      if (err.usage) setUsage(err.usage);
+      if (err.usage) { setUsage(err.usage); setUsageLoading(false); }
       if (err.code === "TRAJECTORY_CLOSED" || err.code === "TRAJECTORY_NOT_FOUND") setTrajectoryId(null);
     }
   };
@@ -236,7 +229,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
 
   const applyCoachResult = (res: CoachResult) => {
     track("coach_proposal", { status: res.status, round: res.roundIndex });
-    if (res.usage) setUsage(res.usage);
+    if (res.usage) { setUsage(res.usage); setUsageLoading(false); }
     if (res.status === "no_valid_adjustment") {
       setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId ?? null);
       setMsgs(m => [...m, coachMsg(res, t("coach.fallback.noValidAdjustment"))]);
@@ -366,6 +359,14 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
           </div>
         )}
         <div className="flex items-center gap-0.5">
+          {/* Back to a fresh chat from any ongoing conversation — a resumed OPEN
+              trajectory otherwise has no way out (the closed-transcript footer
+              button doesn't render there, and closing the whole coach is the
+              only reset). Hidden on the untouched initial state, where it
+              would be a no-op. */}
+          {(viewingClosed !== null || trajectoryId !== null || msgs.length > 1) && (
+            <button onClick={startNewChat} aria-label={t("coach.history.startNew")} className="text-slate-400 hover:text-white p-1.5"><MessageSquarePlus size={17}/></button>
+          )}
           <button onClick={() => setShowHistory(true)} aria-label={t("coach.history.aria")} className="text-slate-400 hover:text-white p-1.5"><History size={17}/></button>
           <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18}/></button>
         </div>
@@ -479,7 +480,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
                 dictionary string line up with the two anchors. */}
             <Trans i18nKey="coach.footer">Your coach uses your message, plan, recent runs, and saved memory to answer. See our <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">privacy policy</a> and <a href={DISCLAIMER_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-orange-300 underline underline-offset-2">safety note</a>.</Trans>
           </div>
-          {usage && <CoachUsageRing usage={usage}/>}
+          {usageLoading ? <CoachUsageRingSkeleton/> : usage && <CoachUsageRing usage={usage}/>}
         </div>
         {viewingClosed ? (
           <div className="max-w-lg mx-auto">
