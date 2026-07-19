@@ -50,7 +50,39 @@
     "planAdjusted": "Plan adjusted by your coach ✓",
     "feedbackFailed": "Couldn't send feedback — try again in a moment",
     "feedbackSent": "Thanks — your feedback was sent.",
-    "memoryDuplicate": "Already in coach memory."
+    "memoryDuplicate": "Already in coach memory.",
+    "historyLoadFailed": "Couldn't open that conversation — try again."
+  },
+  "history": {
+    "aria": "Conversation history",
+    "title": "Conversations",
+    "window": "last 30 days",
+    "loading": "Loading conversations…",
+    "empty": "No coach conversations yet. Ask about your plan and they'll show up here.",
+    "loadFailed": "Couldn't load your conversations.",
+    "retry": "Retry",
+    "readOnly": "This conversation is closed — you can read it but not reply.",
+    "startNew": "Start a new conversation",
+    "planChanged": "Your plan has changed since this was suggested. Start a new conversation to adjust your current plan.",
+    "status": {
+      "open": "Continue",
+      "accepted": "Applied",
+      "abandoned": "Closed",
+      "no_valid_adjustment": "No change"
+    }
+  },
+  "usage": {
+    "left": "{{left}} left today",
+    "resets": "resets tomorrow",
+    "ringAria": "Coach usage: {{used}} of {{limit}} daily requests used",
+    "limitReached": "You've used today's coach requests. Your allowance resets tomorrow.",
+    "detail": {
+      "title": "Coach usage",
+      "resets": "resets at midnight",
+      "dailyRequests": "Daily requests",
+      "used": "{{used}} of {{limit}} used",
+      "freeActions": "Applying changes, browsing history, and flagging answers don't count."
+    }
   },
   "week": "Week {{num}}",
   "apply": "Apply this adjustment",

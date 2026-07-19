@@ -9,6 +9,34 @@ import { FunctionsHttpError, FunctionsFetchError, FunctionsRelayError } from "@s
 import { t } from "./i18n";
 import { track } from "./telemetry";
 import type { Plan } from "./types";
+import type { CoachUsage } from "./utils/coachUsage";
+
+// A server-carried application error (rate limit, closed trajectory, …). Unlike
+// a bare Error it preserves the stable `code` (so callers can react to
+// TRAJECTORY_CLOSED etc.) and any `usage` the server attached (so the ring can
+// update even on a RATE_LIMIT rejection). `message` is already localized.
+export class CoachServerError extends Error {
+  code?: string;
+  usage?: CoachUsage;
+  constructor(message: string, code?: unknown, usage?: unknown) {
+    super(message);
+    this.name = "CoachServerError";
+    if (typeof code === "string") this.code = code;
+    this.usage = coerceUsage(usage);
+  }
+}
+
+// Accept a server `usage` payload only when both fields are finite numbers;
+// anything else (old function, malformed) becomes undefined so the ring hides.
+function coerceUsage(value: unknown): CoachUsage | undefined {
+  if (value && typeof value === "object") {
+    const { used, limit } = value as { used?: unknown; limit?: unknown };
+    if (typeof used === "number" && Number.isFinite(used) && typeof limit === "number" && Number.isFinite(limit)) {
+      return { used, limit };
+    }
+  }
+  return undefined;
+}
 
 // Longer than normal Supabase calls because a cold coach-agent boot may need to
 // start Deno and import the Anthropic SDK before it can send response headers.
@@ -65,6 +93,7 @@ export type CoachResponse = {
   trajectoryId?: string;
   roundIndex?: number;
   text?: string;
+  usage?: CoachUsage;
   [key: string]: unknown;
 };
 
@@ -114,7 +143,7 @@ async function recoverRound(requestId: string): Promise<CoachResponse | null> {
       continue;
     }
     transportFailures = 0;
-    if (data?.error) throw new Error(serverMessage(data));
+    if (data?.error) throw new CoachServerError(serverMessage(data), data.code, data.usage);
     if (data?.found) {
       track("coach_round_recovered", { attempts: attempt + 1 });
       const recovered = { ...data } as CoachResponse & { found?: boolean };
@@ -145,7 +174,7 @@ async function invoke(body: CoachAction): Promise<CoachResponse> {
     }
     throw new Error(transportMessage(error));
   }
-  if (data?.error) throw new Error(serverMessage(data));
+  if (data?.error) throw new CoachServerError(serverMessage(data), data.code, data.usage);
   return data;
 }
 
@@ -163,6 +192,25 @@ export async function coachPing() {
     });
   } catch {
     // warming is an optimization, not a requirement — ignore all failures.
+  }
+}
+
+// Read today's coach spend vs the daily budget for the usage ring. Deliberately
+// NOT routed through invoke(): that flushes the app_state blob and, on a
+// transport failure, polls the `result` action for ~45s with a requestId this
+// read never stamps — all wrong for a cheap counter read. Best-effort: any
+// failure (offline, or an OLD deployed function that rejects the `usage`
+// action) resolves to null, and the caller simply hides the ring.
+export async function coachUsage(): Promise<CoachUsage | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke("coach-agent", {
+      body: { action: "usage" },
+      timeout: COACH_INVOKE_TIMEOUT_MS,
+    });
+    if (error || !data || data.error) return null;
+    return coerceUsage(data) ?? null;
+  } catch {
+    return null;
   }
 }
 

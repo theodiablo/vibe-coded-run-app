@@ -50,7 +50,39 @@
     "planAdjusted": "Plan ajusté par ton coach ✓",
     "feedbackFailed": "Impossible d'envoyer ton signalement. Réessaie dans un instant",
     "feedbackSent": "Merci. Ton signalement a bien été envoyé.",
-    "memoryDuplicate": "Déjà dans la mémoire du coach."
+    "memoryDuplicate": "Déjà dans la mémoire du coach.",
+    "historyLoadFailed": "Impossible d'ouvrir cette conversation. Réessaie."
+  },
+  "history": {
+    "aria": "Historique des conversations",
+    "title": "Conversations",
+    "window": "30 derniers jours",
+    "loading": "Chargement des conversations…",
+    "empty": "Aucune conversation avec le coach pour l'instant. Pose une question sur ton plan et elle apparaîtra ici.",
+    "loadFailed": "Impossible de charger tes conversations.",
+    "retry": "Réessayer",
+    "readOnly": "Cette conversation est close. Tu peux la lire mais pas y répondre.",
+    "startNew": "Démarrer une nouvelle conversation",
+    "planChanged": "Ton plan a changé depuis cette suggestion. Démarre une nouvelle conversation pour ajuster ton plan actuel.",
+    "status": {
+      "open": "Continuer",
+      "accepted": "Appliqué",
+      "abandoned": "Close",
+      "no_valid_adjustment": "Aucun changement"
+    }
+  },
+  "usage": {
+    "left": "il reste {{left}} aujourd'hui",
+    "resets": "réinitialisation demain",
+    "ringAria": "Utilisation du coach : {{used}} sur {{limit}} requêtes quotidiennes utilisées",
+    "limitReached": "Tu as utilisé tes requêtes du coach pour aujourd'hui. Ton quota se réinitialise demain.",
+    "detail": {
+      "title": "Utilisation du coach",
+      "resets": "réinitialisation à minuit",
+      "dailyRequests": "Requêtes quotidiennes",
+      "used": "{{used}} sur {{limit}} utilisées",
+      "freeActions": "Appliquer des changements, parcourir l'historique et signaler des réponses ne comptent pas."
+    }
   },
   "week": "Semaine {{num}}",
   "apply": "Appliquer cet ajustement",

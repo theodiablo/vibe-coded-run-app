@@ -28,7 +28,8 @@
 // Deploy:  supabase functions deploy coach-agent
 // Secrets: supabase secrets set ANTHROPIC_API_KEY=...
 //   Optional: COACH_MODEL (default claude-sonnet-5), COACH_MODEL_LIGHT
-//   (routing seam, default claude-haiku-4-5), RATE_LIMIT_PER_DAY (default 20),
+//   (routing seam, default claude-haiku-4-5), RATE_LIMIT_PER_DAY (default 5;
+//   a per-user override lives in profiles.coach_daily_limit),
 //   MOCK_LLM=1 (canned responses, zero Anthropic calls — CI / local dev).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -40,7 +41,7 @@ import { createMockModel } from "../_shared/coach/mock.mjs";
 const MOCK = Boolean(Deno.env.get("MOCK_LLM"));
 const DEFAULT_MODEL = Deno.env.get("COACH_MODEL") ?? "claude-sonnet-5";
 const LIGHT_MODEL = Deno.env.get("COACH_MODEL_LIGHT") ?? "claude-haiku-4-5";
-const RATE_LIMIT_PER_DAY = Number(Deno.env.get("RATE_LIMIT_PER_DAY") ?? 20);
+const RATE_LIMIT_PER_DAY = Number(Deno.env.get("RATE_LIMIT_PER_DAY") ?? 5);
 // The Anthropic SDK retries transient failures (429, 5xx incl. 529 overloaded,
 // and connection errors) with exponential backoff on its own. We set these
 // explicitly rather than leaning on the library default (maxRetries: 2) so a
@@ -83,6 +84,19 @@ function cleanUserContext(value: unknown): { notes: string } {
   return { notes: notes.replace(/\r\n?/g, "\n").slice(0, USER_CONTEXT_MAX_CHARS) };
 }
 
+// The caller's effective daily coach budget: a per-user override in
+// profiles.coach_daily_limit (the premium seam — service-role-writable only)
+// or the env default when unset/invalid. Read via the admin client so RLS on
+// profiles is irrelevant here.
+// deno-lint-ignore no-explicit-any
+async function getDailyLimit(admin: any, userId: string): Promise<number> {
+  const { data, error } = await admin.from("profiles")
+    .select("coach_daily_limit").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  const n = Number(data?.coach_daily_limit);
+  return Number.isFinite(n) && n > 0 ? n : RATE_LIMIT_PER_DAY;
+}
+
 // deno-lint-ignore no-explicit-any
 function makeCallModel(context: any, message: string) {
   if (MOCK) return { model: "mock", callModel: createMockModel(context) };
@@ -121,8 +135,8 @@ async function handle(req: Request): Promise<any> {
   // or model call — its only job is to pay the isolate boot cost early. The
   // top-level imports (which dominate cold-boot) run on any request regardless.
   if (action === "ping") return { ok: true };
-  if (!["propose", "critique", "confirm", "result"].includes(action)) {
-    return { error: "action must be propose | critique | confirm | result" };
+  if (!["propose", "critique", "confirm", "result", "usage"].includes(action)) {
+    return { error: "action must be propose | critique | confirm | result | usage" };
   }
   // Client-generated delivery id for propose/critique. If the streamed
   // response never reaches the client (the dominant production failure — the
@@ -151,6 +165,22 @@ async function handle(req: Request): Promise<any> {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // ── usage: report today's spend vs the caller's daily budget ─────────────
+  // No model call, no charge — a plain read of the atomic counter (agent_usage
+  // has no client RLS policy, so this must go through the admin client, not a
+  // direct client query). `used` is clamped to `limit` for display because the
+  // counter keeps incrementing past the cap on rejected attempts (charge-then-
+  // check). Drives the chat's usage ring; entirely optional to the client.
+  if (action === "usage") {
+    const day = new Date().toISOString().slice(0, 10);
+    const [usageRes, limit] = await Promise.all([
+      admin.from("agent_usage").select("count").eq("user_id", user.id).eq("day", day).maybeSingle(),
+      getDailyLimit(admin, user.id),
+    ]);
+    if (usageRes.error) throw usageRes.error;
+    return { used: Math.min(usageRes.data?.count ?? 0, limit), limit };
+  }
 
   // ── result: recover an already-completed round — no model call, no charge ─
   // Replays the exact stored response body of the round stamped with this
@@ -199,10 +229,14 @@ async function handle(req: Request): Promise<any> {
 
   // The plan + run history come from the user's own app_state blob (RLS via
   // the caller's JWT) — the server-side source of truth, not the request body.
-  const { data: stateRow, error: stateErr } = await userClient
-    .from("app_state").select("data").eq("user_id", user.id).maybeSingle();
-  if (stateErr) throw stateErr;
-  const blob = stateRow?.data ?? {};
+  // The daily budget (env default or per-user override) is fetched in parallel
+  // so exposing it adds no latency to the hot path.
+  const [stateResult, dailyLimit] = await Promise.all([
+    userClient.from("app_state").select("data").eq("user_id", user.id).maybeSingle(),
+    getDailyLimit(admin, user.id),
+  ]);
+  if (stateResult.error) throw stateResult.error;
+  const blob = stateResult.data?.data ?? {};
   const plan = blob.rc_plan;
   const settings = blob.rc_settings ?? {};
   const userContext = cleanUserContext(blob.rc_user_context);
@@ -212,17 +246,22 @@ async function handle(req: Request): Promise<any> {
   }));
   // Per-user daily budget; charge only after cheap request/state validation and
   // before any trajectory mutation. The increment is atomic (SQL function) so
-  // concurrent requests can't slip past the limit.
-  const checkRateLimit = async () => {
+  // concurrent requests can't slip past the limit. Returns the post-charge
+  // usage either way (clamped to the limit on rejection — the counter keeps
+  // climbing past the cap) so the client's ring reflects the spend after this
+  // send, not just on a fresh `usage` read.
+  const checkRateLimit = async (): Promise<{ error?: string; usage: { used: number; limit: number } }> => {
     const { data: count, error: usageErr } = await admin.rpc("increment_agent_usage", {
       p_user_id: user.id, p_day: today,
     });
     if (usageErr) throw usageErr;
-    if (count > RATE_LIMIT_PER_DAY) return "daily coach limit reached — try again tomorrow";
-    return null;
+    return count > dailyLimit
+      ? { error: "daily coach limit reached — try again tomorrow", usage: { used: dailyLimit, limit: dailyLimit } }
+      : { usage: { used: count, limit: dailyLimit } };
   };
 
   let trajectoryId: string;
+  let usage: { used: number; limit: number };
   let history: unknown[] = [];
   let roundIndex = 0;
   let report = message;
@@ -230,8 +269,9 @@ async function handle(req: Request): Promise<any> {
   let workingPlan = plan;
 
   if (action === "propose") {
-    const rateLimitError = await checkRateLimit();
-    if (rateLimitError) return { error: rateLimitError, code: "RATE_LIMIT" };
+    const rl = await checkRateLimit();
+    if (rl.error) return { error: rl.error, code: "RATE_LIMIT", usage: rl.usage };
+    usage = rl.usage;
     // One live conversation at a time: anything still open is now abandoned
     // (feedback given but never accepted — a distinct fate in the metrics).
     await admin.from("agent_trajectories")
@@ -266,8 +306,9 @@ async function handle(req: Request): Promise<any> {
       .order("round_index", { ascending: false }).limit(1).maybeSingle();
     if (latestErr) throw latestErr;
     workingPlan = latestProposal?.proposed_plan ?? baselinePlan;
-    const rateLimitError = await checkRateLimit();
-    if (rateLimitError) return { error: rateLimitError, code: "RATE_LIMIT" };
+    const rl = await checkRateLimit();
+    if (rl.error) return { error: rl.error, code: "RATE_LIMIT", usage: rl.usage };
+    usage = rl.usage;
   }
 
   // Derived runner age for the model's context: birthYear wins, legacy static
@@ -329,6 +370,7 @@ async function handle(req: Request): Promise<any> {
       rationale: result.rationale ||
         "I couldn't find an adjustment that keeps your plan safe — nothing was changed.",
       memorySuggestions,
+      usage,
     }
     : {
       trajectoryId, roundIndex, status: "proposed",
@@ -337,6 +379,7 @@ async function handle(req: Request): Promise<any> {
       proposedPlan: result.plan,
       memorySuggestions,
       warnings: result.validation.warnings,
+      usage,
     };
   // Log EVERY round, including failures — the audit log is the eval dataset.
   if (!failed && roundIndex > 0) {
