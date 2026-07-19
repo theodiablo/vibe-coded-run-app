@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ComponentPropsWithoutRef } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { useDismissable } from "../hooks/useDismissable";
-import { Loader, MessageCircle, Send, X, Flag, History, ArrowLeft } from "lucide-react";
+import { Loader, MessageCircle, MessageSquarePlus, Send, X, Flag, History, ArrowLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { coachPropose, coachCritique, coachConfirm, coachPing, coachUsage, CoachServerError } from "../coach";
@@ -359,6 +359,14 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
           </div>
         )}
         <div className="flex items-center gap-0.5">
+          {/* Back to a fresh chat from any ongoing conversation — a resumed OPEN
+              trajectory otherwise has no way out (the closed-transcript footer
+              button doesn't render there, and closing the whole coach is the
+              only reset). Hidden on the untouched initial state, where it
+              would be a no-op. */}
+          {(viewingClosed !== null || trajectoryId !== null || msgs.length > 1) && (
+            <button onClick={startNewChat} aria-label={t("coach.history.startNew")} className="text-slate-400 hover:text-white p-1.5"><MessageSquarePlus size={17}/></button>
+          )}
           <button onClick={() => setShowHistory(true)} aria-label={t("coach.history.aria")} className="text-slate-400 hover:text-white p-1.5"><History size={17}/></button>
           <button onClick={onClose} aria-label={t("common.close")} className="text-slate-400 hover:text-white p-1.5"><X size={18}/></button>
         </div>
