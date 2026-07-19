@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { reconstructTranscript, stripSessionPrefix, type TranscriptRound } from "./coachTranscript";
+import { reconstructTranscript, stripSessionPrefix, plansDiffer, type TranscriptRound } from "./coachTranscript";
 import type { Plan } from "../types";
 
 // Minimal single-week plans; diffPlans matches sessions by id and compares
@@ -27,6 +27,27 @@ describe("stripSessionPrefix", () => {
   });
   it("only strips at the start, not a mid-text bracket", () => {
     expect(stripSessionPrefix("Swap [tempo] for easy")).toBe("Swap [tempo] for easy");
+  });
+});
+
+describe("plansDiffer (drift guard for resume + Apply)", () => {
+  const withDone = (km: number, done: boolean) =>
+    ({ weeks: [{ weekNumber: 1, startDate: "2026-07-06", phase: "BUILD", sessions: [{ id: "s1", date: "2026-07-08", type: "EASY", km, done }] }] }) as unknown as Plan;
+
+  it("is false for identical plans (ignoring session order)", () => {
+    expect(plansDiffer(P0, P0)).toBe(false);
+    const reordered = plan([{ id: "s2", date: "2026-07-10", type: "TEMPO", km: 5 }, { id: "s1", date: "2026-07-08", type: "EASY", km: 10 }]);
+    expect(plansDiffer(P0, reordered)).toBe(false);
+  });
+  it("is true when a coach-editable field changed (km)", () => {
+    expect(plansDiffer(P0, PROP0)).toBe(true);
+  });
+  it("is true when a session was added or removed", () => {
+    const oneLess = plan([{ id: "s1", date: "2026-07-08", type: "EASY", km: 10 }]);
+    expect(plansDiffer(P0, oneLess)).toBe(true);
+  });
+  it("ignores progress-only changes (logging a run must not block Apply)", () => {
+    expect(plansDiffer(withDone(10, false), withDone(10, true))).toBe(false);
   });
 });
 

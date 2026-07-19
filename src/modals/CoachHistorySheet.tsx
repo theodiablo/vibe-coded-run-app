@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader, MessageSquareText } from "lucide-react";
 import { useDismissable } from "../hooks/useDismissable";
-import { listCoachTrajectories, fetchCoachTranscript, type CoachTrajectorySummary, type TrajectoryStatus } from "../coachHistory";
-import type { CoachMessage } from "../utils/coachTranscript";
+import { listCoachTrajectories, fetchCoachTranscript, type CoachTrajectorySummary, type CoachTranscript, type TrajectoryStatus } from "../coachHistory";
 import { fmt } from "../utils/format";
 import { track } from "../telemetry";
 import type { Plan } from "../types";
@@ -20,7 +19,7 @@ const STATUS_STYLE: Record<TrajectoryStatus, { color: string; row: string }> = {
 type Props = {
   currentPlan: Plan;
   onClose: () => void;
-  onOpen: (traj: CoachTrajectorySummary, messages: CoachMessage[]) => void;
+  onOpen: (traj: CoachTrajectorySummary, transcript: CoachTranscript) => void;
   showToast: (msg: string, type?: string) => void;
 };
 
@@ -50,11 +49,11 @@ export function CoachHistorySheet({ currentPlan, onClose, onOpen, showToast }: P
     if (openingId) return;
     setOpeningId(traj.id);
     try {
-      const messages = await fetchCoachTranscript(traj.id, {
+      const transcript = await fetchCoachTranscript(traj.id, {
         isOpen: traj.status === "open",
         currentPlan,
       });
-      onOpen(traj, messages);
+      onOpen(traj, transcript);
     } catch {
       showToast(t("coach.toast.historyLoadFailed"));
     } finally {

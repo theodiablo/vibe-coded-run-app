@@ -63,6 +63,7 @@
     "retry": "Reintentar",
     "readOnly": "Esta conversación está cerrada. Puedes leerla pero no responder.",
     "startNew": "Iniciar una nueva conversación",
+    "planChanged": "Tu plan ha cambiado desde esta sugerencia. Inicia una nueva conversación para ajustar tu plan actual.",
     "status": {
       "open": "Continuar",
       "accepted": "Aplicado",

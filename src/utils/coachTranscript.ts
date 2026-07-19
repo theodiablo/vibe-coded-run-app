@@ -29,6 +29,28 @@ export type TranscriptRound = {
   proposed_plan: Plan;
 };
 
+// Content signature of a plan for drift detection: every session's id + the
+// fields a coach proposal can change (type/date/km/pace), order-independent.
+// Progress fields (done/skipped/runId) are excluded — logging a run must not
+// count as a plan edit. Used to decide whether a resumed open trajectory's
+// stored baseline still matches the live plan (see plansDiffer).
+function planSignature(plan: Plan | null | undefined): string {
+  const rows: string[] = [];
+  for (const w of plan?.weeks ?? []) {
+    for (const s of (w.sessions ?? [])) {
+      rows.push(`${s.id}|${s.type}|${s.date}|${s.km}|${s.pace ?? ""}`);
+    }
+  }
+  return rows.sort().join("\n");
+}
+
+// True when two plans differ in any coach-editable session content (add, remove,
+// or change) — i.e. applying a proposal built on `a` onto `b` would clobber
+// intervening edits.
+export function plansDiffer(a: Plan | null | undefined, b: Plan | null | undefined): boolean {
+  return planSignature(a) !== planSignature(b);
+}
+
 // Round 0's model message is prefixed with an invisible session-context block
 // (see CoachChat's sessionPrefix) when the chat was opened about a specific
 // session. Strip a single leading "[...]" run so the transcript shows only what

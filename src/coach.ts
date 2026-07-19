@@ -174,7 +174,7 @@ async function invoke(body: CoachAction): Promise<CoachResponse> {
     }
     throw new Error(transportMessage(error));
   }
-  if (data?.error) throw new Error(serverMessage(data));
+  if (data?.error) throw new CoachServerError(serverMessage(data), data.code, data.usage);
   return data;
 }
 

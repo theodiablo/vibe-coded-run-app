@@ -4,7 +4,7 @@
 // users have read-own RLS SELECT on both (added with those tables), so no
 // server round-trip or new grant is needed to list or replay a conversation.
 import { supabase } from "./supabase";
-import { reconstructTranscript, type CoachMessage, type TranscriptRound } from "./utils/coachTranscript";
+import { reconstructTranscript, plansDiffer, type CoachMessage, type TranscriptRound } from "./utils/coachTranscript";
 import type { Plan } from "./types";
 
 export type TrajectoryStatus = "open" | "accepted" | "abandoned" | "no_valid_adjustment";
@@ -58,13 +58,21 @@ export async function listCoachTrajectories(limit = 50): Promise<CoachTrajectory
   }));
 }
 
+export type CoachTranscript = {
+  messages: CoachMessage[];
+  // True only for a resumed OPEN trajectory whose stored baseline no longer
+  // matches the live plan: the proposal would apply a snapshot built on a stale
+  // baseline and silently clobber intervening edits, so CoachChat hides Apply.
+  applyBlocked: boolean;
+};
+
 // Reconstruct a conversation's messages for display / resume. Two slim queries:
 // the rounds (only the columns the transcript needs) and round 0's report +
 // baseline plan (JSON-path selects, so recentRuns never ships to the client).
 export async function fetchCoachTranscript(
   trajectoryId: string,
   opts: { isOpen: boolean; currentPlan?: Plan },
-): Promise<CoachMessage[]> {
+): Promise<CoachTranscript> {
   const [roundsRes, r0Res] = await Promise.all([
     supabase
       .from("agent_rounds")
@@ -83,12 +91,15 @@ export async function fetchCoachTranscript(
   const rounds = roundsRes.data ?? [];
   if (!rounds.length || !r0Res.data) throw new Error("conversation not found");
 
-  return reconstructTranscript({
+  const baseline = ((r0Res.data as { baseline?: Plan | null }).baseline) ?? null;
+  const messages = reconstructTranscript({
     trajectoryId,
     report: String((r0Res.data as { report?: unknown }).report ?? ""),
-    baseline: ((r0Res.data as { baseline?: Plan | null }).baseline) ?? null,
+    baseline,
     rounds: rounds as unknown as TranscriptRound[],
     isOpen: opts.isOpen,
     currentPlan: opts.currentPlan,
   });
+  const applyBlocked = opts.isOpen && !!baseline && !!opts.currentPlan && plansDiffer(baseline, opts.currentPlan);
+  return { messages, applyBlocked };
 }

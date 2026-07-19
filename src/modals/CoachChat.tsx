@@ -16,7 +16,7 @@ import { usageLeft, type CoachUsage } from "../utils/coachUsage";
 import type { CoachMessage } from "../utils/coachTranscript";
 import { CoachHistorySheet } from "./CoachHistorySheet";
 import { CoachUsageRing } from "./CoachUsageRing";
-import type { CoachTrajectorySummary, TrajectoryStatus } from "../coachHistory";
+import type { CoachTrajectorySummary, CoachTranscript, TrajectoryStatus } from "../coachHistory";
 import type { CoachSessionContext, Plan, RunType } from "../types";
 
 // The model replies in markdown (headers, bold, tables); rendered via
@@ -149,6 +149,10 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // holds its status so the header can label it. null = live/resumed chat.
   const [viewingClosed, setViewingClosed] = useState<TrajectoryStatus | null>(null);
   const [usage, setUsage] = useState<CoachUsage | null>(null);
+  // True after resuming an open trajectory whose baseline drifted from the live
+  // plan: Apply would clobber intervening edits, so it is hidden (the user is
+  // told to start a new conversation to adjust the current plan).
+  const [applyBlocked, setApplyBlocked] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
@@ -188,18 +192,20 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
 
   // Load a conversation picked from the history sheet. An open one resumes in
   // place (composer live); a closed one shows as a read-only transcript.
-  const openFromHistory = (traj: CoachTrajectorySummary, messages: CoachMessage[]) => {
+  const openFromHistory = (traj: CoachTrajectorySummary, transcript: CoachTranscript) => {
     setShowHistory(false);
     setFlaggingIndex(-1);
     setFlagText("");
-    setMsgs(messages);
+    setMsgs(transcript.messages);
     if (traj.status === "open") {
       setTrajectoryId(traj.id);
       setViewingClosed(null);
+      setApplyBlocked(transcript.applyBlocked);
       track("coach_history_resumed", {});
     } else {
       setTrajectoryId(null);
       setViewingClosed(traj.status);
+      setApplyBlocked(false);
     }
   };
 
@@ -208,6 +214,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     setMsgs(initialMsgs());
     setTrajectoryId(null);
     setViewingClosed(null);
+    setApplyBlocked(false);
     setFlaggingIndex(-1);
     setFlagText("");
   };
@@ -218,15 +225,6 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // append path that forgets to reset it.
   let lastProposalIndex = -1;
   for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].proposal) { lastProposalIndex = i; break; }
-  let lastOpenAnswerIndex = -1;
-  if (trajectoryId) {
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i].role === "coach" && msgs[i].trajectoryId === trajectoryId && msgs[i].roundIndex != null) {
-        lastOpenAnswerIndex = i;
-        break;
-      }
-    }
-  }
 
   const coachMsg = (res: CoachResult, fallbackText: string): CoachMessage => ({
     role: "coach",
@@ -308,38 +306,28 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
     }
   };
 
-  const submitFlag = async (m: CoachMessage, index: number) => {
+  // Flagging is FREE and only records feedback (an insert into coach_feedback) —
+  // it never fires a billable critique round. That keeps the usage popover's
+  // promise ("flagging answers don't count") honest and can't be used to spend a
+  // round while the composer is disabled at the daily limit. A user who wants the
+  // coach to actually revise the answer types a follow-up in the composer, which
+  // visibly counts.
+  const submitFlag = async (m: CoachMessage) => {
     const correction = flagText.trim();
     if (!correction || flagBusy) return;
-    const canCritique = index === lastOpenAnswerIndex && trajectoryId === m.trajectoryId;
     setFlagBusy(true);
     try {
       if (!m.trajectoryId || m.roundIndex == null) throw new Error(t("coach.errors.noResponseToFlag"));
       await submitCoachFeedback({ trajectoryId: m.trajectoryId, roundIndex: m.roundIndex, correction });
       track("coach_feedback_submitted", { roundIndex: m.roundIndex });
       setFlaggedKeys(prev => new Set(prev).add(`${m.trajectoryId}:${m.roundIndex}`));
+      showToast(t("coach.toast.feedbackSent"));
     } catch {
       showToast(t("coach.toast.feedbackFailed"));
     } finally {
       setFlagBusy(false);
-    }
-    setFlaggingIndex(-1);
-    setFlagText("");
-    if (!canCritique) {
-      showToast(t("coach.toast.feedbackSent"));
-      return;
-    }
-    setMsgs(cur => [...cur, { role: "user", text: correction }]);
-    setBusy(true);
-    try {
-      if (!m.trajectoryId) throw new Error(t("coach.errors.noConversation"));
-      const res = await coachCritique(m.trajectoryId, correction);
-      applyCoachResult(res);
-    } catch (err) {
-      absorbServerError(err);
-      setMsgs(cur => [...cur, { role: "coach", text: err instanceof Error ? err.message : String(err) }]);
-    } finally {
-      setBusy(false);
+      setFlaggingIndex(-1);
+      setFlagText("");
     }
   };
 
@@ -410,10 +398,14 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
                     </div>
                   ))}
                   {i === lastProposalIndex && trajectoryId && (
-                    <button onClick={accept} disabled={busy}
-                      className="w-full mt-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
-                      {t("coach.apply")}
-                    </button>
+                    applyBlocked ? (
+                      <p className="mt-1 text-xs text-amber-400/90 leading-relaxed">{t("coach.history.planChanged")}</p>
+                    ) : (
+                      <button onClick={accept} disabled={busy}
+                        className="w-full mt-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2 rounded-xl text-sm font-semibold transition-colors">
+                        {t("coach.apply")}
+                      </button>
+                    )
                   )}
                 </div>
               )}
@@ -446,7 +438,7 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
                       placeholder={t("coach.flag.placeholder")} rows={2} autoFocus
                       className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-400 placeholder-slate-500 resize-none"/>
                     <div className="flex gap-2">
-                      <button onClick={() => submitFlag(m, i)} disabled={flagBusy || busy || !flagText.trim()}
+                      <button onClick={() => submitFlag(m)} disabled={flagBusy || busy || !flagText.trim()}
                         className="text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-2.5 py-1 rounded-lg transition-colors">
                         {t("coach.send")}
                       </button>
