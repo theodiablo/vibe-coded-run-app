@@ -14,7 +14,7 @@
     "body": "Choisissez votre course, fixez le chrono visé et obtenez un plan d'entraînement semaine par semaine. En cas d'imprévu, demandez à votre coach : il propose un ajustement prudent en quelques secondes et rien ne change tant que vous ne l'avez pas approuvé.",
     "ctaPrimary": "Commencer gratuitement",
     "ctaSecondary": "J'ai déjà un compte",
-    "freeNote": "La version gratuite inclut tout : plans, suivi GPS, courses et coach, avec une limite d'usage raisonnable par jour afin de préserver la gratuité du service.",
+    "freeNote": "Tout ce qu'il vous faut pour vous entraîner est gratuit : plans, suivi GPS, courses et coach, avec une limite d'usage raisonnable par jour afin de préserver la gratuité du service.",
     "iosBeta": "Rejoindre la bêta iOS",
     "androidBeta": "Rejoindre la bêta Android"
   },
@@ -66,12 +66,13 @@
   },
   "cta": {
     "heading": "Prêt à réaliser votre meilleure course ?",
-    "body": "Créez un compte gratuit et obtenez votre plan d'entraînement en quelques minutes. Tout est inclus, avec une limite d'usage raisonnable par jour pour le coach. Les applications iOS et Android sont en bêta.",
+    "body": "Créez un compte gratuit et obtenez votre plan d'entraînement en quelques minutes. Tout ce qu'il vous faut pour vous entraîner est inclus, avec une limite d'usage raisonnable par jour pour le coach. Les applications iOS et Android sont en bêta.",
     "primary": "Commencer gratuitement",
     "iosBeta": "Rejoindre la bêta iOS",
     "androidBeta": "Rejoindre la bêta Android"
   },
   "footer": {
+    "support": "Paye-moi un café ☕",
     "privacy": "Politique de confidentialité",
     "safety": "Note de sécurité"
   },

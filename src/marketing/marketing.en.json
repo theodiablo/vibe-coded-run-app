@@ -11,7 +11,7 @@
     "body": "Pick your race, set your goal time, and get a week-by-week training plan. When life gets in the way, ask your coach — it proposes a safe adjustment in seconds, and nothing changes until you approve it.",
     "ctaPrimary": "Get started — it's free",
     "ctaSecondary": "I already have an account",
-    "freeNote": "Free includes everything — plans, GPS tracking, races, and the coach (with a daily fair-use limit so it stays free).",
+    "freeNote": "Everything you need to train is free — plans, GPS tracking, races, and the coach (with a daily fair-use limit so it stays free).",
     "iosBeta": "Join the iOS beta",
     "androidBeta": "Join the Android beta"
   },
@@ -63,12 +63,13 @@
   },
   "cta": {
     "heading": "Ready to run your best race?",
-    "body": "Create a free account and get your training plan in minutes — everything's included, with a daily fair-use limit on the coach. iOS and Android apps in beta.",
+    "body": "Create a free account and get your training plan in minutes — everything you need to train is included, with a daily fair-use limit on the coach. iOS and Android apps in beta.",
     "primary": "Get started — it's free",
     "iosBeta": "Join the iOS beta",
     "androidBeta": "Join the Android beta"
   },
   "footer": {
+    "support": "Buy me a coffee ☕",
     "privacy": "Privacy policy",
     "safety": "Safety note"
   },

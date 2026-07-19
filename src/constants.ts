@@ -98,6 +98,11 @@ export const PLAY_STORE_BETA_URL =
 // Public TestFlight opt-in for the iOS beta, surfaced on the marketing landing.
 export const TESTFLIGHT_BETA_URL = "https://testflight.apple.com/join/T73yu15A";
 
+// Tip jar (Buy Me a Coffee). Rendered ONLY inside the web-only marketing chunk
+// (MarketingGate footer) — never in native surfaces: Apple rejects external
+// payment links inside the iOS app. Empty string hides the link.
+export const TIP_JAR_URL = "https://buymeacoffee.com/theo.camboulive";
+
 // Map basemap. A keyed free-tier provider (MapTiler) — raw OSM tiles aren't
 // allowed for a multi-user app under the OSMF tile policy. Set VITE_MAPTILER_KEY
 // (a publishable, domain-restricted client key) at build. No default key is

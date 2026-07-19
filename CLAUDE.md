@@ -75,7 +75,19 @@ and delete anything that becomes stale.
   methodology names on the plan card, the "no black box" session-breakdown
   line, the import strip (Strava/Garmin/Zepp via GPX/TCX/CSV *files* — never
   the Strava API), and the free-tier "daily fair-use limit" phrasing
-  (deliberately non-numeric; `RATE_LIMIT_PER_DAY` is env-configurable). CTAs open
+  (deliberately non-numeric; `RATE_LIMIT_PER_DAY` is env-configurable). The
+  free wording is "everything you need to train is free" — deliberately NOT
+  "free includes everything", so a future premium tier of *new* features never
+  contradicts the page; don't reintroduce the absolute phrasing. The footer
+  carries a tip-jar link (`TIP_JAR_URL` in `src/constants.ts`, Buy Me a
+  Coffee; empty string hides it) — it must only ever render inside the
+  marketing chunk (web-only by construction): Apple rejects external payment
+  links in the iOS app, so never surface it in native UIs. Marketing copy uses
+  formal `vous` in French (the app-copy informal-`tu` rule applies to
+  `src/i18n/` locales, not `src/marketing/`) — the ONE exception is the
+  tip-jar link (`footer.support`, "Paye-moi un café"), deliberately informal
+  `tu` because it's the developer's personal aside, not product copy; don't
+  "correct" it back to `vous`. CTAs open
   `LoginScreen`; a secondary CTA links to the Play Store closed test
   (`PLAY_STORE_BETA_URL`); iOS beta CTAs use the public TestFlight opt-in
   (`TESTFLIGHT_BETA_URL`).
