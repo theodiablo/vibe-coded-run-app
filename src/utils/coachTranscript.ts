@@ -4,8 +4,11 @@
 // is unit-testable over fixtures. src/coachHistory.ts fetches the rows and
 // feeds them here; CoachChat.tsx imports the message types back.
 import { diffPlans } from "./coachDiff";
+import { describeSession } from "./sessionDesc";
+import { fmt, estMin, parseDur } from "./format";
+import { TCLR } from "../constants";
 import { t } from "../i18n";
-import type { Plan } from "../types";
+import type { Plan, PlanSession } from "../types";
 
 // ── shared chat message shape (the single source; CoachChat imports these) ──
 export type MemorySuggestion = { id: string; text: string; status: "pending" | "saved" | "dismissed" };
@@ -59,6 +62,48 @@ export function stripSessionPrefix(report: string): string {
   return report.replace(/^\[[^\]]*\]\s*/, "");
 }
 
+// The session fields a chat card needs — a full PlanSession qualifies, and so
+// does the pseudo-session parseSessionPrefix recovers from a stored report.
+export type SessionCardSource = Pick<PlanSession, "type" | "date" | "km" | "desc"> &
+  { pace?: number | null; sd?: PlanSession["sd"] };
+
+// The single builder for the "about this session" chat card, shared by the live
+// chat's opening message (CoachChat) and reconstructed transcripts so the two
+// renderings can't drift. Pace is optional: a session recovered from a stored
+// prefix may not carry one, in which case the estimate/pace slots are omitted
+// rather than rendered as "--:--".
+export function buildSessionCard(s: SessionCardSource): { greeting: string; card: SessionCard } {
+  const typeLabel = t("common.types." + s.type, { defaultValue: String(s.type) });
+  const est = estMin(Number(s.km), Number(s.pace ?? 0));
+  return {
+    greeting: t("coach.sessionGreeting", { type: typeLabel, date: fmt.sht(s.date), km: s.km }),
+    card: {
+      typeLabel,
+      typeColor: (TCLR as Record<string, string>)[String(s.type)] || "text-violet-400",
+      date: fmt.sht(s.date),
+      title: describeSession(s as PlanSession),
+      meta: [s.km + " km", est && "~" + est, s.pace ? fmt.pace(s.pace) + "/km" : ""]
+        .filter(Boolean).join(" · "),
+    },
+  };
+}
+
+// Recover the session a conversation was opened about from round 0's stored
+// report. The canonical prefix CoachChat prepends is
+//   [The runner is asking about this planned session — week N, TYPE on
+//    YYYY-MM-DD, K km @ M:SS/km: "desc"]
+// and it is persisted verbatim in agent_rounds.input_context, so a historical
+// transcript can rebuild the same opening card the live chat showed. Returns
+// null for plain conversations (no prefix) or an unrecognized prefix shape —
+// the transcript then just starts with the user's message as before.
+export function parseSessionPrefix(report: string): SessionCardSource | null {
+  const m = report.match(
+    /^\[The runner is asking about this planned session — week \d+, (\S+) on (\d{4}-\d{2}-\d{2}), ([\d.]+) km(?: @ (\d+:\d{2})\/km)?: "([^\]]*)"\]/,
+  );
+  if (!m) return null;
+  return { type: m[1], date: m[2], km: Number(m[3]), pace: m[4] ? parseDur(m[4]) : null, desc: m[5] };
+}
+
 // Rebuild the conversation. Rules mirror the live flow:
 //  - user bubble per round (round 0 = the report, later rounds = user_feedback)
 //  - coach bubble per round (rationale, or the matching fallback string)
@@ -83,6 +128,20 @@ export function reconstructTranscript(input: {
   })();
 
   const out: CoachMessage[] = [];
+
+  // A conversation opened about a specific plan session gets its opening coach
+  // message (greeting + session card) back, rebuilt from the stored prefix —
+  // without it the transcript starts mid-conversation ("Move it earlier" with
+  // no clue what "it" is). Plain conversations start with the user's message;
+  // their generic greeting adds nothing and stays out of history. Unstamped
+  // (no trajectoryId/roundIndex), so the flag affordance stays hidden on it,
+  // matching the live greeting.
+  const sessionSource = parseSessionPrefix(report);
+  if (sessionSource) {
+    const { greeting, card } = buildSessionCard(sessionSource);
+    out.push({ role: "coach", text: greeting, sessionCard: card });
+  }
+
   let base: Plan | null | undefined = baseline;
 
   ordered.forEach((round, i) => {

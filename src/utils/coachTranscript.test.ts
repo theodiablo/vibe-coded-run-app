@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { reconstructTranscript, stripSessionPrefix, plansDiffer, type TranscriptRound } from "./coachTranscript";
+import { reconstructTranscript, stripSessionPrefix, parseSessionPrefix, plansDiffer, type TranscriptRound } from "./coachTranscript";
 import type { Plan } from "../types";
 
 // Minimal single-week plans; diffPlans matches sessions by id and compares
@@ -27,6 +27,24 @@ describe("stripSessionPrefix", () => {
   });
   it("only strips at the start, not a mid-text bracket", () => {
     expect(stripSessionPrefix("Swap [tempo] for easy")).toBe("Swap [tempo] for easy");
+  });
+});
+
+// The exact prefix CoachChat prepends (see its sessionPrefix template).
+const SESSION_PREFIX = `[The runner is asking about this planned session — week 3, LONG on 2026-07-26, 18 km @ 5:30/km: "Long steady run"]\n\n`;
+
+describe("parseSessionPrefix", () => {
+  it("recovers the session from a full prefix, pace in seconds", () => {
+    expect(parseSessionPrefix(SESSION_PREFIX + "Move it earlier")).toEqual({
+      type: "LONG", date: "2026-07-26", km: 18, pace: 330, desc: "Long steady run",
+    });
+  });
+  it("handles a pace-less prefix", () => {
+    const report = `[The runner is asking about this planned session — week 1, WALK on 2026-07-08, 3 km: "Brisk walk"]\n\nIs this enough?`;
+    expect(parseSessionPrefix(report)).toMatchObject({ type: "WALK", km: 3, pace: null });
+  });
+  it("returns null for a plain report", () => {
+    expect(parseSessionPrefix("Help me feel fresh")).toBeNull();
   });
 });
 
@@ -112,6 +130,30 @@ describe("reconstructTranscript", () => {
     // Open with the live plan already equal to the proposal → nothing to apply, no card.
     const open = reconstructTranscript({ trajectoryId: "t1", report: "x", baseline: P0, rounds, isOpen: true, currentPlan: PROP0 });
     expect(open[1].proposal).toBeUndefined();
+  });
+
+  it("restores the session opener (greeting + card) for a session-seeded conversation", () => {
+    const msgs = reconstructTranscript({
+      trajectoryId: "t1", report: SESSION_PREFIX + "Move it earlier", baseline: P0,
+      rounds: [round({ round_index: 0, rationale: "Moved it", proposed_plan: PROP0 })],
+      isOpen: false,
+    });
+    // opener, user, coach — opener unstamped so it can't be flagged.
+    expect(msgs.map(m => m.role)).toEqual(["coach", "user", "coach"]);
+    expect(msgs[0].trajectoryId).toBeUndefined();
+    expect(msgs[0].sessionCard).toMatchObject({ title: "Long steady run" });
+    expect(msgs[0].sessionCard!.meta).toContain("18 km");
+    expect(msgs[0].sessionCard!.meta).toContain("5:30/km");
+    expect(msgs[1]).toMatchObject({ role: "user", text: "Move it earlier" });
+  });
+
+  it("starts a plain conversation at the user's message (no greeting in history)", () => {
+    const msgs = reconstructTranscript({
+      trajectoryId: "t1", report: "Help me feel fresh", baseline: P0,
+      rounds: [round({ round_index: 0, rationale: "OK", proposed_plan: PROP0 })],
+      isOpen: false,
+    });
+    expect(msgs[0]).toMatchObject({ role: "user", text: "Help me feel fresh" });
   });
 
   it("omits the proposal card when a proposal changed nothing", () => {
