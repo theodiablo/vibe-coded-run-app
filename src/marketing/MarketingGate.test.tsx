@@ -35,7 +35,7 @@ describe("MarketingGate", () => {
 
   it("shows the tip-jar link in the footer", () => {
     render(<MarketingGate />);
-    const support = screen.getByRole("link", { name: /support the app/i });
+    const support = screen.getByRole("link", { name: /buy me a coffee/i });
     expect(support).toHaveAttribute("href", TIP_JAR_URL);
     expect(support).toHaveAttribute("target", "_blank");
   });
@@ -48,7 +48,7 @@ describe("MarketingGate", () => {
     }));
     const { default: GateWithoutTipJar } = await import("./MarketingGate");
     render(<GateWithoutTipJar />);
-    expect(screen.queryByRole("link", { name: /support the app/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /buy me a coffee/i })).toBeNull();
     vi.doUnmock("../constants");
     vi.resetModules();
   });
