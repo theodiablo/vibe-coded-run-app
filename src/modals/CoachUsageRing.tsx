@@ -5,12 +5,30 @@ import {
   usageLeft, usageFraction, usageTone, USAGE_COLORS, type CoachUsage,
 } from "../utils/coachUsage";
 
+// The ring's grey track. Deliberately lighter than the old #26334a: at 0 used
+// the colour arc is 0°, so the track alone must stay visible against the
+// footer's #0f172a or a fresh day shows nothing at all.
+const TRACK = "#48566b";
+
+// Placeholder shown in the ring's slot while the usage fetch is in flight —
+// same 18px footprint so the real ring pops in without a layout shift.
+// Decorative only (the fetch may still resolve to "hide the ring").
+export function CoachUsageRingSkeleton() {
+  return (
+    <div className="relative rounded-full shrink-0 animate-pulse" aria-hidden="true"
+      style={{ width: 18, height: 18, background: TRACK }}>
+      <span className="absolute rounded-full" style={{ inset: 4, background: "#0f172a" }} />
+    </div>
+  );
+}
+
 // The daily-usage donut ring shown at the bottom-right of the coach footer, plus
 // its tap popover. Subtle (ring only, slate) while there's plenty of budget;
 // gains a coloured "N left today" label as it fills; at the limit it shows
 // "resets tomorrow" in red (the composer-disabled banner is rendered by
 // CoachChat). Tapping opens a small usage breakdown. `usage === null` is handled
-// by the caller (the ring simply isn't rendered).
+// by the caller (the ring simply isn't rendered). Mounts once, when the fetch
+// replaces the skeleton, so the enter `animate-pop` fires exactly then.
 export function CoachUsageRing({ usage }: { usage: CoachUsage }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -30,7 +48,7 @@ export function CoachUsageRing({ usage }: { usage: CoachUsage }) {
       : t("coach.usage.left", { left });
 
   return (
-    <div className="relative flex items-center gap-1.5">
+    <div className="relative flex items-center gap-1.5 animate-pop">
       {label && <span className="text-[11px] font-medium" style={{ color }}>{label}</span>}
       <button
         type="button"
@@ -38,7 +56,7 @@ export function CoachUsageRing({ usage }: { usage: CoachUsage }) {
         aria-label={t("coach.usage.ringAria", { used: usage.used, limit: usage.limit })}
         aria-expanded={open}
         className="relative rounded-full shrink-0"
-        style={{ width: 18, height: 18, background: `conic-gradient(${color} ${deg}deg, #26334a ${deg}deg)` }}
+        style={{ width: 18, height: 18, background: `conic-gradient(${color} ${deg}deg, ${TRACK} ${deg}deg)` }}
       >
         <span className="absolute rounded-full" style={{ inset: 4, background: "#0f172a" }} />
       </button>
