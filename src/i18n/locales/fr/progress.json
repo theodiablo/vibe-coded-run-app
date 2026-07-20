@@ -20,7 +20,9 @@
     "pendingSync": "Enregistrée sur cet appareil. Elle sera synchronisée avec ton compte dès que possible.",
     "viewRoute": "Voir l'itinéraire",
     "editRun": "Modifier la sortie",
-    "deleteRun": "Supprimer la sortie"
+    "deleteRun": "Supprimer la sortie",
+    "newBadge": "Nouveau",
+    "hrBadge": "❤ ajoutée"
   },
   "stats": {
     "title": "Statistiques",

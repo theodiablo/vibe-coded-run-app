@@ -6,7 +6,10 @@
   "beta": "Bêta",
   "toasts": {
     "memoryFull": "La mémoire du coach est presque pleine. Passe-la en revue dans les Paramètres.",
-    "hrAdded": "Fréquence cardiaque ajoutée à une sortie depuis Health Connect ❤",
+    "hrAdded_one": "Fréquence cardiaque ajoutée à ta sortie ❤",
+    "hrAdded_other": "Fréquence cardiaque ajoutée à {{count}} sorties ❤",
+    "viewRuns_one": "Voir la sortie",
+    "viewRuns_other": "Voir les sorties",
     "contributionVerified_one": "Ta contribution de course a été vérifiée. Merci ! 🎉",
     "contributionVerified_other": "{{count}} de tes contributions de courses ont été vérifiées. Merci ! 🎉",
     "badgeUnlocked_one": "Badge débloqué : {{label}} 🏅",

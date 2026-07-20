@@ -6,7 +6,10 @@
   "beta": "Beta",
   "toasts": {
     "memoryFull": "Coach memory is getting full — review it in Settings.",
-    "hrAdded": "Heart rate added to a run from Health Connect ❤",
+    "hrAdded_one": "Heart rate added to your run ❤",
+    "hrAdded_other": "Heart rate added to {{count}} runs ❤",
+    "viewRuns_one": "View run",
+    "viewRuns_other": "View runs",
     "contributionVerified_one": "Your race contribution was verified — thanks! 🎉",
     "contributionVerified_other": "{{count}} of your race contributions were verified — thanks! 🎉",
     "badgeUnlocked_one": "Badge unlocked: {{label}} 🏅",

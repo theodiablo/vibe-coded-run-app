@@ -20,7 +20,9 @@
     "pendingSync": "Saved on this device — will sync to the cloud when possible.",
     "viewRoute": "View route",
     "editRun": "Edit run",
-    "deleteRun": "Delete run"
+    "deleteRun": "Delete run",
+    "newBadge": "New",
+    "hrBadge": "❤ added"
   },
   "stats": {
     "title": "Stats",

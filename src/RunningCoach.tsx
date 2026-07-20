@@ -47,6 +47,7 @@ import type {
   RacesState,
   RouteBackup,
   Run,
+  RunHighlight,
   RunPatch,
   SettingsState,
   ToastAction,
@@ -171,6 +172,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // to the same sub-tab) re-applies it.
   const [progressSub,  setProgressSub]  = useState<ProgressSub>("log");
   const [progressNonce,setProgressNonce]= useState(0);
+  // Runs to scroll to + flag in History after an async change (HR relink, watch
+  // import). Set by goToRuns from a toast action; auto-cleared on a timeout.
+  const [highlight,    setHighlight]    = useState<RunHighlight | null>(null);
 
   // An optional `action` ({label, onClick}) turns the toast into an undoable one.
   const showToast = (msg: string, type = "ok", action?: ToastAction) =>
@@ -184,10 +188,29 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     return { ...ctx, lastLimitNoticeAt: new Date().toISOString() };
   };
 
-  // Shared by both Health Connect HR retry points (boot + foreground) below, so
-  // the relink logic can't drift between the two call sites. Applies the fetched
-  // HR (or, for a run resolved some other way, just clears the marker) and
-  // toasts only when a run actually gets filled in.
+  // Navigate to History and flag the given runs (scroll to the first, ring +
+  // pill on each). The single seam behind the async-HR and watch-import toasts.
+  const goToRuns = (ids: string[], label: string) => {
+    const list = (ids || []).filter((id): id is string => !!id);
+    if (!list.length) return;
+    setHighlight({ ids: list, label });
+    setProgressSub("log"); setProgressNonce(n => n + 1); setTab("progress");
+  };
+  // One toast when async HR relink fills in one or more runs (boot + foreground),
+  // with a link that jumps to and flags those runs so the change is visible —
+  // the relink lands minutes after the run, often on a screen the user isn't on.
+  const notifyHrAdded = (ids: string[]) => {
+    if (!ids.length) return;
+    showToast(t("app.toasts.hrAdded", { count: ids.length }), "ok",
+      { label: t("app.toasts.viewRuns", { count: ids.length }),
+        onClick: () => goToRuns(ids, t("progress.history.hrBadge")) });
+  };
+
+  // Shared by both Health Connect / HealthKit HR retry points (boot + foreground)
+  // below, so the relink logic can't drift between the two call sites. Applies
+  // the fetched HR (or, for a run resolved some other way, just clears the
+  // marker). The caller batches a single notifyHrAdded toast once its flush
+  // settles, so this stays a pure state update.
   const patchRunHr = (runId: string, patch: RunPatch) => {
     setRuns(prev => {
       // A run carries at most ONE pending marker (hrPending on Android,
@@ -197,7 +220,6 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       db.set(STORAGE_KEYS.RUNS, next);
       return next;
     });
-    if (patch.hr != null) showToast(t("app.toasts.hrAdded"));
   };
 
   useEffect(() => {
@@ -267,20 +289,25 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       // setRuns(prev => ...): React may not have committed setRuns(r) yet.
       // Actual relinks still run on foreground and when a run is saved.
       let bootRuns: Run[] = r || [];
+      const bootHrFilled: string[] = [];
       const patchBootRunHr = (runId: string, patch: RunPatch) => {
         bootRuns = bootRuns.map(x => x.id === runId ? { ...x, ...patch, hrPending: undefined, hrPendingHk: undefined } : x);
         setRuns(bootRuns);
         db.set(STORAGE_KEYS.RUNS, bootRuns);
+        if (patch.hr != null) bootHrFilled.push(runId);
       };
-      flushPendingHr(bootRuns, patchBootRunHr, {
-        enabled: s?.hrMethod === "healthconnect",
-        allowNativeRead: hasHealthConnectAuthorization(),
-      }).catch(() => {});
-      // The iOS sibling — each flusher only resolves (and only clears) its own
-      // source's markers, so running both here is safe on either platform.
-      flushPendingHkHr(bootRuns, patchBootRunHr, {
-        enabled: s?.hrMethod === "healthkit",
-      }).catch(() => {});
+      // The iOS sibling runs alongside — each flusher only resolves (and only
+      // clears) its own source's markers, so both are safe on either platform.
+      // Notify once, after both settle, with a link to the filled-in runs.
+      Promise.all([
+        flushPendingHr(bootRuns, patchBootRunHr, {
+          enabled: s?.hrMethod === "healthconnect",
+          allowNativeRead: hasHealthConnectAuthorization(),
+        }).catch(() => {}),
+        flushPendingHkHr(bootRuns, patchBootRunHr, {
+          enabled: s?.hrMethod === "healthkit",
+        }).catch(() => {}),
+      ]).then(() => notifyHrAdded(bootHrFilled));
     })();
     // Boot-once load: `t` is stable and must not re-trigger the whole boot on a
     // language switch, so it is intentionally omitted from the deps.
@@ -295,6 +322,14 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
     const t = setTimeout(() => setToast(null), toast.action ? 6000 : 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Fade the run highlight (ring + "New"/"❤" pills) after a while so it doesn't
+  // linger as a stale marker. Timer callback, not a sync setState in the effect.
+  useEffect(() => {
+    if (!highlight) return;
+    const to = setTimeout(() => setHighlight(null), 12000);
+    return () => clearTimeout(to);
+  }, [highlight]);
 
   // Global back/Escape handling: the Android hardware back button and the web
   // Escape key close the topmost open overlay (via the useDismissable stack);
@@ -334,13 +369,20 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState !== "visible") return;
-      flushPendingHr(runsRef.current, patchRunHr, {
-        enabled: settingsRef.current.hrMethod === "healthconnect",
-        allowNativeRead: hasHealthConnectAuthorization(),
-      }).catch(() => {});
-      flushPendingHkHr(runsRef.current, patchRunHr, {
-        enabled: settingsRef.current.hrMethod === "healthkit",
-      }).catch(() => {});
+      const filled: string[] = [];
+      const collect = (runId: string, patch: RunPatch) => {
+        patchRunHr(runId, patch);
+        if (patch.hr != null) filled.push(runId);
+      };
+      Promise.all([
+        flushPendingHr(runsRef.current, collect, {
+          enabled: settingsRef.current.hrMethod === "healthconnect",
+          allowNativeRead: hasHealthConnectAuthorization(),
+        }).catch(() => {}),
+        flushPendingHkHr(runsRef.current, collect, {
+          enabled: settingsRef.current.hrMethod === "healthkit",
+        }).catch(() => {}),
+      ]).then(() => notifyHrAdded(filled));
       // A watch run often lands in Health Connect minutes after the run (once the
       // watch syncs to Garmin Connect), so re-scan on foreground too.
       checkWatchRef.current().catch(() => {});
@@ -520,6 +562,8 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       showToast(t("app.toasts.loggedAsRace", { label: det.label }), "ok",
         { label: t("common.undo"), onClick: () => commitRaces(reconcileBadges(nextRuns, { ...merged, participations: det.undoParts })) });
     }
+    // Return the runs as stored (with generated ids) so a caller can flag them.
+    return added;
   };
 
   const toggleSess = (wNum: number, sId: string) => {
@@ -639,7 +683,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         { label: t("app.toasts.review"), onClick: () => goLog({ ...r, ...(findOpenPlanSession(planRef.current, r.date || "") || {}) }) });
     } else {
       showToast(t("app.toasts.foundRuns", { n: found.length }), "ok",
-        { label: t("app.toasts.importAll"), onClick: () => addRuns(found) });
+        { label: t("app.toasts.importAll"), onClick: () => {
+          const added = addRuns(found);
+          // Jump to History and flag the freshly imported runs as "New".
+          goToRuns(added.map(a => a.id).filter((id): id is string => !!id), t("progress.history.newBadge"));
+        } });
     }
     return found.length;
   };
@@ -649,7 +697,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   checkWatchRef.current = scanImports;
   const goProgress = (sub?: string) => { setProgressSub(sub === "stats" || sub === "badges" ? sub : "log"); setProgressNonce(n => n + 1); setTab("progress"); };
   const openSettings = () => { saveUserContext(userContextRef.current); setShowSettings(true); };
-  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, openSettings, openRaceForm: () => setShowRaceForm(true),
+  const shared = {runs, plan, settings, races, catalogue, userContext, addRuns, savePlan, saveSettings, saveUserContext, saveRaces, setRaceInPlan, promoteEdition, toggleSess, skipSess, buildPlan, exportData, deleteRun, updateRun, showToast, goTab: setTab, goLog, goProgress, goToRuns, highlight, openSettings, openRaceForm: () => setShowRaceForm(true),
     // A {wNum, sId} link opens the tracker from that plan session so the saved
     // run auto-ticks it; a bare call (or an event from onClick={openTracker})
     // opens it unlinked. Guard on shape so a click event never counts as a link.
