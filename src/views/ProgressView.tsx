@@ -4,7 +4,7 @@ import { HistoryView } from "./HistoryView";
 import { StatsView } from "./StatsView";
 import { Badge } from "../components/Badge";
 import { computeBadges } from "../utils/badges";
-import type { RacesState, Run, SettingsState, RunPatch } from "../types";
+import type { RacesState, Run, SettingsState, RunPatch, RunHighlight } from "../types";
 
 // "Progress" merges the former History + Stats tabs and adds Badges, under a
 // segmented toggle. Each sub-view is the existing component, unchanged.
@@ -19,6 +19,7 @@ type ProgressViewProps = {
   deleteRun: (id: string) => void;
   updateRun: (id: string, patch: RunPatch) => void;
   goTab?: (tab: string) => void;
+  highlight?: RunHighlight | null;
 };
 
 export function ProgressView(props: ProgressViewProps) {

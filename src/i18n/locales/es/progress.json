@@ -20,7 +20,9 @@
     "pendingSync": "Guardado en este dispositivo. Se sincronizará con tu cuenta cuando sea posible.",
     "viewRoute": "Ver la ruta",
     "editRun": "Editar el entrenamiento",
-    "deleteRun": "Eliminar el entrenamiento"
+    "deleteRun": "Eliminar el entrenamiento",
+    "newBadge": "Nuevo",
+    "hrBadge": "❤ añadida"
   },
   "stats": {
     "title": "Estadísticas",

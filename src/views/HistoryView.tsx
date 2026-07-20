@@ -9,7 +9,7 @@ import type { TrackPoint } from "../components/RouteMap";
 import { getRoute, getPendingRoute } from "../routes";
 import { EditRunModal } from "../modals/EditRunModal";
 import type { ReactNode } from "react";
-import type { Run, RunPatch } from "../types";
+import type { Run, RunPatch, RunHighlight } from "../types";
 
 type RouteData = { points: (TrackPoint | null)[]; stats?: Record<string, unknown> } | null | undefined;
 type RouteMapLoaderProps = { run: Run };
@@ -18,6 +18,9 @@ type HistoryViewProps = {
   deleteRun: (id: string) => void;
   updateRun: (id: string, patch: RunPatch) => void;
   goTab?: (tab: string) => void;
+  // Runs to scroll to and flag (async HR relink / watch import); cleared by the
+  // hub on a timeout, so it's transient.
+  highlight?: RunHighlight | null;
 };
 type RunGroup = { key: string; items: Run[] };
 
@@ -48,11 +51,20 @@ function RouteMapLoader({run}: RouteMapLoaderProps) {
 }
 
 // The full run log, newest first, grouped by month.
-export function HistoryView({runs, deleteRun, updateRun, goTab}: HistoryViewProps) {
+export function HistoryView({runs, deleteRun, updateRun, goTab, highlight}: HistoryViewProps) {
   const { t } = useTranslation();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editRun,   setEditRun]   = useState<Run | null>(null);
   const [mapId,     setMapId]     = useState<string | null>(null);
+
+  // Scroll the first flagged run into view when we're navigated here from an HR /
+  // import toast. Keyed on the id list so re-navigating to the same runs re-fires.
+  const highlightKey = (highlight?.ids || []).join(",");
+  useEffect(() => {
+    if (!highlightKey) return;
+    const el = document.getElementById("run-" + highlightKey.split(",")[0]);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightKey]);
 
   if (!runs.length) return (
     <div className="max-w-lg mx-auto flex flex-col items-center justify-center pt-24 text-center gap-3 p-4">
@@ -90,8 +102,11 @@ export function HistoryView({runs, deleteRun, updateRun, goTab}: HistoryViewProp
             <p className="text-slate-400 text-xs uppercase tracking-widest mb-2">{g.key}</p>
             <div className="space-y-2">
               {g.items.map(r => (
-                <div key={r.id} className="space-y-2">
-                  <RunRow run={r} dateFmt={fmt.date} showNotes actions={
+                <div key={r.id} id={"run-" + r.id} className="space-y-2 scroll-mt-20">
+                  <RunRow run={r} dateFmt={fmt.date} showNotes
+                    highlight={!!(r.id && highlight?.ids.includes(r.id))}
+                    badgeLabel={highlight?.label}
+                    actions={
                     confirmId === r.id ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button onClick={() => { if (r.id) deleteRun(r.id); setConfirmId(null); setMapId(m => m === r.id ? null : m); }}

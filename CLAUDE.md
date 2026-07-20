@@ -1004,7 +1004,18 @@ and delete anything that becomes stale.
 - A logged run renders as `RunRow` (`src/components/RunRow.tsx`) — the shared
   card used by both the dashboard's recent-runs list and the History view. Pass
   `dateFmt` (`fmt.sht` vs `fmt.date`), `showNotes`, and an `actions` slot rather
-  than re-rolling the markup, so the two lists never drift.
+  than re-rolling the markup, so the two lists never drift. `highlight` +
+  `badgeLabel` add an orange ring and a small pill to flag a run that just
+  changed.
+- **Surfacing an async run change (HR relink, watch import):** go through
+  `goToRuns(ids, label)` (`RunningCoach.tsx`) — it flags those runs via the
+  transient `highlight` state (`RunHighlight`, auto-cleared on a ~12s timeout),
+  navigates to Progress → History, and `HistoryView` scrolls the first flagged
+  run (`id="run-<id>"`) into view. Both the post-run HR toast (`notifyHrAdded`,
+  fired once after **both** boot and foreground flushes settle — the boot path
+  is no longer silent) and the multi-run watch-import toast link to it. Reuse
+  this seam for any future "these runs updated in the background" notice rather
+  than a bare text toast.
 - Show a whole-minute duration with `fmt.mins` (`30min` / `1h` / `1h50`), never a
   bare `minutes / 60` — that prints `1.8333333333333335h`.
 - **Icon-only / glyph-only controls need an `aria-label`** — a `title` alone is
