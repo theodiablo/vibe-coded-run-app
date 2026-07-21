@@ -1,6 +1,7 @@
 import { supabase } from "../../supabase";
 import { isNative } from "../../native";
 import { parseActivityFile } from "../../utils/gpx";
+import { POLAR_STATE, POLAR_CODE_KEY } from "../../polarPreinit";
 import type { ImportProvider, ImportedRun } from "../types";
 
 // Polar (AccessLink) cloud import — the first real vendor-cloud provider, for
@@ -20,7 +21,8 @@ import type { ImportProvider, ImportedRun } from "../types";
 
 const POLAR_CLIENT_ID = import.meta.env?.VITE_POLAR_CLIENT_ID as string | undefined;
 const POLAR_AUTH_URL = "https://flow.polar.com/oauth2/authorization";
-const POLAR_STATE = "polar_import"; // distinguishes our OAuth return from Supabase's own ?code= flow
+// POLAR_STATE distinguishes our OAuth return from Supabase's own ?code= flow; it
+// and POLAR_CODE_KEY live in polarPreinit (the one place that reads the return).
 export const polarEnabled = !!POLAR_CLIENT_ID;
 
 // Where Polar sends the browser back after authorization — must exactly match the
@@ -118,24 +120,19 @@ async function connect(): Promise<boolean> {
   return false;
 }
 
-// Called once at app boot: if this load is a Polar OAuth return (state marker +
-// code), exchange the code server-side and strip the params. Gated so it's a
-// no-op on every normal load and when Polar is unconfigured. Returns true when a
-// connection was just established (caller can toast / trigger a scan).
+// Called once at app boot: if this load was a Polar OAuth return, polarPreinit
+// has already stashed the code in sessionStorage (and stripped the URL before
+// Supabase could touch it). Exchange it server-side for a stored token. Gated so
+// it's a no-op on every normal load and when Polar is unconfigured. Returns true
+// when a connection was just established (caller can toast / trigger a scan).
 export async function completePolarAuth(): Promise<boolean> {
   if (!polarEnabled || typeof window === "undefined") return false;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("state") !== POLAR_STATE) return false;
-  const code = params.get("code");
-  // Always strip our params so a reload can't re-trigger the exchange.
-  const clean = () => {
-    const u = new URL(window.location.href);
-    ["code", "state"].forEach(k => u.searchParams.delete(k));
-    window.history.replaceState({}, "", u.pathname + u.search + u.hash);
-  };
-  if (!code) { clean(); return false; }
+  let code: string | null = null;
+  try { code = sessionStorage.getItem(POLAR_CODE_KEY); } catch { code = null; }
+  if (!code) return false;
+  // Consume it once so a reload can't re-trigger the exchange.
+  try { sessionStorage.removeItem(POLAR_CODE_KEY); } catch { /* ignore */ }
   const res = await invoke<{ connected?: boolean }>({ action: "exchange", code, redirectUri: redirectUri() });
-  clean();
   return !!res?.connected;
 }
 

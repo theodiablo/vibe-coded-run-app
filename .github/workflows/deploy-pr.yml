@@ -85,6 +85,11 @@ jobs:
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           # Public support address for crash trace mailto links. Set as a repo variable.
           VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          # Polar OAuth client id (public). NB: previews get an ephemeral origin, so
+          # the OAuth redirect only completes if that exact URL is also registered
+          # in the Polar app — production (run.camboulive.solutions) is the real
+          # test target. See docs/integrations-polar.md.
+          VITE_POLAR_CLIENT_ID: ${{ vars.VITE_POLAR_CLIENT_ID }}
           VITE_APP_ENV: preview
 
       - name: Configure AWS credentials
