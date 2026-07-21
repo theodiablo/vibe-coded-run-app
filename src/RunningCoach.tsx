@@ -32,6 +32,7 @@ import { SettingsModal } from "./modals/SettingsModal";
 import { DeleteAccountModal } from "./modals/DeleteAccountModal";
 import { RaceFormModal } from "./modals/RaceFormModal";
 import { LiveRunTracker } from "./modals/LiveRunTracker";
+import { RunDetailModal } from "./modals/RunDetailModal";
 import { Dashboard } from "./views/Dashboard";
 import { PlanView } from "./views/PlanView";
 import { LogView } from "./views/LogView";
@@ -162,6 +163,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // failed fetch — the app renders regardless.
   const [catalogue,   setCatalogue]   = useState<CatalogueRace[]>([]);
   const [showRaceForm,setShowRaceForm]= useState(false);
+  const [detailRun,   setDetailRun]   = useState<Run | null>(null);
   const [showCoach,   setShowCoach]   = useState(false);
   // Set when the coach is opened about a specific plan session (see openCoach) so
   // the chat greets/steers about it and rides its context; null on a plain open.
@@ -706,6 +708,12 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       setTrackerLink(l);
       setShowTracker(true);
     },
+    // Open the full-screen per-run analytics view. Guard on shape so a click
+    // event (onClick={openRunDetail}) never counts as a run.
+    openRunDetail: (run?: unknown) => {
+      const r = run && typeof run === "object" && "km" in run ? run as Run : null;
+      if (r) setDetailRun(r);
+    },
     // A session-context object opens the coach about that session; a bare call
     // (or an event from onClick={openCoach}) opens a fresh chat. Guard on shape
     // so the click event never counts as a session.
@@ -789,6 +797,7 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
         catalogue={catalogue} addRace={addRace} addEdition={addEdition}
         onContributed={refreshCatalogue} showToast={showToast} onCreated={undefined}
         onClose={() => setShowRaceForm(false)}/>}
+      {detailRun && <RunDetailModal run={detailRun} settings={settings} onClose={() => setDetailRun(null)}/>}
 
       <header className="fixed top-0 inset-x-0 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-20"
         style={{height:"calc(44px + var(--safe-top))", paddingTop:"var(--safe-top)"}}>

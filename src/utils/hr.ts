@@ -114,6 +114,30 @@ export function hrSummary(samples?: HrSample[] | null) {
   return { hr: samples[samples.length - 1].bpm, hrAvg: Math.round(sum / samples.length), hrMax: max };
 }
 
+// Time spent in each HR zone (seconds), from a raw { bpm, t } stream — the
+// time-in-zone card in RunDetailModal (BLE runs only). Accumulates the gap
+// between consecutive samples into the earlier sample's zone; each gap is CAPPED
+// (default 10s) so a paused stretch or a dropped connection can't inflate a zone.
+// Returns one entry per zone 1..5, or [] when the profile can't classify (no
+// maxHR / unusable reserve) or there's nothing to measure — so the card hides.
+export function timeInZones(
+  samples: HrSample[] | null | undefined,
+  maxHR: number,
+  restHR: number,
+  opts?: { capSec?: number },
+): { zone: number; sec: number }[] {
+  if (!maxHR || !samples || samples.length < 2) return [];
+  const capMs = (opts?.capSec ?? 10) * 1000;
+  const sec = [0, 0, 0, 0, 0]; // zones 1..5
+  let any = false;
+  for (let i = 1; i < samples.length; i++) {
+    const dt = Math.min(Math.max(0, samples[i].t - samples[i - 1].t), capMs);
+    const z = runZoneIndex(samples[i - 1].bpm, maxHR, restHR);
+    if (z) { sec[z - 1] += dt / 1000; any = true; }
+  }
+  return any ? sec.map((s, i) => ({ zone: i + 1, sec: s })) : [];
+}
+
 // Resolve a session type's target bpm range from settings.
 export function sessionHR(type: RunType | string, settings: Partial<Pick<SettingsState, "maxHR" | "restHR">>) {
   const key = type in SESSION_ZONES ? type as SessionZoneType : "EASY";

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { TCLR, runBarColor } from "../constants";
 import { fmt } from "../utils/format";
-import type { ReactNode } from "react";
+import type { ReactNode, KeyboardEvent } from "react";
 import type { Run, RunType } from "../types";
 
 type RunRowProps = {
@@ -9,6 +9,10 @@ type RunRowProps = {
   dateFmt?: (date: string) => string;
   showNotes?: boolean;
   actions?: ReactNode;
+  // When set, the row's main content area becomes a button that opens the run's
+  // detail view. Attached to the left content region only, so the `actions` slot
+  // (map/edit/delete in History) keeps its own independent click targets.
+  onClick?: () => void;
   // When set, the row gets an orange ring and shows `badgeLabel` as a small
   // pill — used to point out a run that just changed (async HR relink, watch
   // import) after navigating here from its toast.
@@ -22,13 +26,17 @@ const typeClass = (type: Run["type"]) => TCLR[(type as RunType) || "OTHER"] || T
 // sub-line (date · pace · HR · elevation), the type badge, and an optional
 // right-side `actions` slot. Shared by the dashboard's recent-runs list and the
 // full History view so the two never drift apart.
-export function RunRow({run, dateFmt = fmt.sht, showNotes = false, actions = null, highlight = false, badgeLabel}: RunRowProps) {
+export function RunRow({run, dateFmt = fmt.sht, showNotes = false, actions = null, onClick, highlight = false, badgeLabel}: RunRowProps) {
   const { t } = useTranslation();
   const pace = run.km && run.durationSec ? run.durationSec / run.km : 0;
+  const clickProps = onClick
+    ? { role: "button", tabIndex: 0, onClick,
+        onKeyDown: (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } }
+    : {};
   return (
     <div className={"bg-slate-800 rounded-xl p-3 flex items-center gap-3 transition-shadow" + (highlight ? " ring-2 ring-orange-400/70" : "")}>
       <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(run.type || "OTHER")}/>
-      <div className="flex-1 min-w-0">
+      <div className={"flex-1 min-w-0" + (onClick ? " cursor-pointer" : "")} {...clickProps}>
         <p className="text-white text-sm font-medium flex items-center gap-1.5">
           <span className="truncate">{run.km + " km · " + fmt.dur(run.durationSec)}</span>
           {highlight && badgeLabel && (

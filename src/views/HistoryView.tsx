@@ -5,19 +5,19 @@ import { currentLocaleTag } from "../i18n";
 import { fmt } from "../utils/format";
 import { RunRow } from "../components/RunRow";
 import { RouteMap } from "../components/RouteMap";
-import type { TrackPoint } from "../components/RouteMap";
-import { getRoute, getPendingRoute } from "../routes";
+import { useRouteTrace } from "../hooks/useRouteTrace";
 import { EditRunModal } from "../modals/EditRunModal";
 import type { ReactNode } from "react";
 import type { Run, RunPatch, RunHighlight } from "../types";
 
-type RouteData = { points: (TrackPoint | null)[]; stats?: Record<string, unknown> } | null | undefined;
 type RouteMapLoaderProps = { run: Run };
 type HistoryViewProps = {
   runs: Run[];
   deleteRun: (id: string) => void;
   updateRun: (id: string, patch: RunPatch) => void;
   goTab?: (tab: string) => void;
+  // Open the full-screen per-run analytics view (map + charts + splits).
+  openRunDetail?: (run: Run) => void;
   // Runs to scroll to and flag (async HR relink / watch import); cleared by the
   // hub on a timeout, so it's transient.
   highlight?: RunHighlight | null;
@@ -29,13 +29,7 @@ type RunGroup = { key: string; items: Run[] };
 // straight from the offline queue so it's viewable before it syncs.
 function RouteMapLoader({run}: RouteMapLoaderProps) {
   const { t } = useTranslation();
-  const [route, setRoute] = useState<RouteData>(() => run.routeId ? undefined : getPendingRoute(run.routeTmp));
-  useEffect(() => {
-    if (!run.routeId) return; // pending route already pulled from localStorage
-    let on = true;
-    getRoute(run.routeId).then(r => on && setRoute(r as RouteData)).catch(() => on && setRoute(null));
-    return () => { on = false; };
-  }, [run.routeId]);
+  const { route } = useRouteTrace(run);
   if (route === undefined)
     return <div className="h-20 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 text-sm">{t("progress.history.loadingRoute")}</div>;
   if (!route)
@@ -51,7 +45,7 @@ function RouteMapLoader({run}: RouteMapLoaderProps) {
 }
 
 // The full run log, newest first, grouped by month.
-export function HistoryView({runs, deleteRun, updateRun, goTab, highlight}: HistoryViewProps) {
+export function HistoryView({runs, deleteRun, updateRun, goTab, openRunDetail, highlight}: HistoryViewProps) {
   const { t } = useTranslation();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editRun,   setEditRun]   = useState<Run | null>(null);
@@ -104,6 +98,7 @@ export function HistoryView({runs, deleteRun, updateRun, goTab, highlight}: Hist
               {g.items.map(r => (
                 <div key={r.id} id={"run-" + r.id} className="space-y-2 scroll-mt-20">
                   <RunRow run={r} dateFmt={fmt.date} showNotes
+                    onClick={openRunDetail ? () => openRunDetail(r) : undefined}
                     highlight={!!(r.id && highlight?.ids.includes(r.id))}
                     badgeLabel={highlight?.label}
                     actions={

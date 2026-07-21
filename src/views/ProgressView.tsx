@@ -19,6 +19,7 @@ type ProgressViewProps = {
   deleteRun: (id: string) => void;
   updateRun: (id: string, patch: RunPatch) => void;
   goTab?: (tab: string) => void;
+  openRunDetail?: (run: Run) => void;
   highlight?: RunHighlight | null;
 };
 
