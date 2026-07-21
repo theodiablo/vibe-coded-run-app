@@ -45,6 +45,13 @@ describe("parseActivityFile — GPX", () => {
     expect(run.startedAt).toBe("2026-07-10T08:00:00.000Z");
     expect(run.points).toHaveLength(3);
     expect(run.points![0]).toEqual([45, 5, Date.parse("2026-07-10T08:00:00Z"), 200]);
+    // The raw HR stream is kept (not just avg/max) so the import powers the
+    // detail HR chart + time-in-zone card, folded into stats.hrSamples on save.
+    expect(run.hrSamples).toEqual([
+      { bpm: 140, t: Date.parse("2026-07-10T08:00:00Z") },
+      { bpm: 150, t: Date.parse("2026-07-10T08:05:00Z") },
+      { bpm: 160, t: Date.parse("2026-07-10T08:10:00Z") },
+    ]);
   });
 
   it("tolerates missing elevation and HR", () => {

@@ -2,6 +2,7 @@ import { healthConnectProvider } from "./providers/healthConnect";
 import { healthKitProvider } from "./providers/healthkit";
 import { fileProvider } from "./providers/file";
 import { garminCloudProvider } from "./providers/cloud";
+import { polarProvider } from "./providers/polar";
 import { getSeenIds } from "../watch/import";
 import { isDuplicateRun } from "./dedupe";
 import type { ImportProvider, ImportedRun } from "./types";
@@ -14,6 +15,7 @@ export const importProviders: ImportProvider[] = [
   healthConnectProvider, // Android
   healthKitProvider,     // iOS — never both: each isAvailable() checks its platform
   fileProvider,
+  polarProvider,       // web cloud: isAvailable() is false until VITE_POLAR_CLIENT_ID is set
   garminCloudProvider, // scaffold: isAvailable() is false until actually wired
 ];
 

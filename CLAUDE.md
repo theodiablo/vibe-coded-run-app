@@ -396,13 +396,24 @@ and delete anything that becomes stale.
   restore include routes. Offline saves queue in `localStorage` and relink on next
   load via `flushPendingRoutes` (run carries a temp `routeTmp`/`routePending`).
   The `run_routes.stats` JSONB is a free-form sidecar: besides the summary
-  `{km,durationSec,elevation,avgPace}`, a BLE-strap run also stores its **raw
+  `{km,durationSec,elevation,avgPace}`, a run also stores its **raw
   ~1Hz HR stream** there as `stats.hrSamples: {bpm,t}[]` (kept raw, NOT projected
   onto GPS points, so HR fidelity is decoupled from `simplify()`'s point
-  thinning). Added in `LiveRunTracker.handleSave` from `rt.hrSamples` (the tracker
-  now exposes it); unknown JSONB key → forward/backward safe, and backup/restore/
-  pending-queue carry it free. Only web/post-run-HR runs lack it. To store more
-  per-run series later, extend this sidecar rather than widening the 4-tuple.
+  thinning). Sources: a BLE-strap run (`LiveRunTracker.handleSave` from
+  `rt.hrSamples`), a HealthKit import (Apple Watch route + HR series), a Health
+  Connect import (HR series, no route), and file imports (GPX/TCX/FIT HR). All
+  imports funnel through `persistImportedRoute` (`src/imports/persistRoutes.ts`),
+  which folds `ImportedRun.hrSamples` into the sidecar; the two pure cleaners for
+  raw native payloads are `normalizeRoutePoints`/`normalizeHrSamples`
+  (`src/imports/series.ts`). **A run with GPS points rides `routeId`; an HR-only
+  sidecar (HR but no route — the common Health Connect case) rides a SEPARATE
+  `hrRouteId`** so History's map button (gated on `routeId`) never offers a blank
+  map, while `RunDetailModal` still fetches it (`useRouteTrace` resolves
+  `routeId ?? hrRouteId`) to draw the HR chart + time-in-zone card (that card is
+  NOT gated on GPS). `deleteRun` cascades both; `LogView` prefill carries
+  `hrRouteId`. Unknown JSONB key → forward/backward safe, and backup/restore/
+  pending-queue carry it free. To store more per-run series later, extend this
+  sidecar rather than widening the 4-tuple.
   Because that stream can be hundreds of KB on a long run, `getRoute(id,
   withStats)` / `useRouteTrace(run, {withStats})` gate the `stats` fetch:
   map-only surfaces (History's route preview) pass `false`, only `RunDetailModal`
@@ -680,13 +691,26 @@ and delete anything that becomes stale.
   is the recommended full-fidelity path for Zepp runs (HC drops route/elevation):
   export the activity from Strava's "Export Original" (the .fit Zepp uploaded) or
   Export GPX — the in-app import help (`log.import.perActivity`) spells this out.
-  **cloud scaffold** (`providers/cloud.ts`
-  — interface only, `isAvailable()→false` so **never user-visible**; a real one
-  needs server-side OAuth/webhooks in an edge function. **Strava API is
-  deliberately excluded**: its agreement bans AI-model use of API data and the
-  coach reads runs — users' own CSV/GPX exports are fine, that's data
-  portability, not the API. There is **no usable Zepp cloud API**; password-based
-  scraping libs are ToS-violating — Amazfit rides Health Connect or files).
+  **cloud** — vendor cloud APIs (OAuth + server-side pull). **Polar**
+  (`providers/polar.ts`, the first real one — `docs/integrations-polar.md`) is
+  **web-only** (its OAuth is a full-page redirect that would navigate a native
+  webview off the app; native deep-link is a follow-up with Suunto) and **dormant
+  until configured**: the secret half lives in the `polar-import` edge function +
+  `polar_tokens` table (service-role-only, token never reaches the client), and
+  the provider's `isAvailable()` is false without `VITE_POLAR_CLIENT_ID` — so it
+  ships as a safe no-op, like `garminCloudProvider` (`providers/cloud.ts`, still
+  scaffold-only). The edge function returns each exercise's raw **GPX**, parsed
+  **client-side** by the app's existing `parseActivityFile` so a Polar run gets
+  the same detail a user-picked `.gpx` does. `completePolarAuth()` (RunningCoach
+  boot) finishes the OAuth return, gated on a `state` marker so it never collides
+  with Supabase's own `?code=` PKCE flow. Provider order for the next cloud
+  integrations (Suunto, COROS): reuse this seam. **Strava API is deliberately
+  excluded**: its agreement bans AI-model use of API data and the coach reads
+  runs — users' own CSV/GPX exports are fine, that's data portability, not the
+  API. Polar's agreement has no such clause (the reason it's the pilot). There is
+  **no usable Zepp cloud API** for indies (official one is corporate-partner
+  only); password-based scraping libs are ToS-violating — Amazfit rides Health
+  Connect or files.
   Settings UI is `src/views/Integrations.tsx` (registry-driven, connectable
   providers only; file import lives in LogView's "Import file"). Whether Zepp
   writes exercise *sessions with distance* to HC (vs wellness only) is
@@ -712,7 +736,18 @@ and delete anything that becomes stale.
   scopes need a Play health-data declaration update before release. **Garmin →
   HC is one-way, Android-14+, opt-in inside Garmin Connect, and carries NO GPS
   route** — imported runs have no map (`routeId` stays absent, which the app
-  already tolerates).
+  already tolerates). They DO carry an HR series: `readHeartRateSeries`
+  (`WatchImportPlugin.kt`) reads `HeartRateRecord` samples over the session
+  window, origin-filtered to the writer, attached as `ImportedRun.hrSamples` by
+  `scanWatchSessions` → the HR-only `hrRouteId` sidecar (detail time-in-zone
+  card). It reuses the already-granted `HeartRateRecord` read permission, so it
+  needs **no** new manifest scope or Play re-declaration. Deliberately no route
+  read on HC (no writer provides `ExerciseRoute`; `READ_EXERCISE_ROUTES` would
+  force a Play re-declaration for data that doesn't exist — revisit if that
+  changes). HealthKit is the opposite: `readWorkoutDetail` (Swift) imports the
+  Apple Watch **route** (`HKWorkoutRoute`) AND per-sample HR for one workout
+  (lazy, new workouts only), so an Apple Watch run gets a full map + pace + HR
+  chart. Third-party watches on HealthKit still import totals only.
 - **Everything interpretable is pure TS** (`src/watch/`): `plugin.ts` (lazy
   `registerPlugin` bridge, raw `WatchSessionRaw`), `mapping.ts`
   (`sessionRunType`/`sessionLocalDate`/`sessionToRun`/`classifyWatchSessions`/

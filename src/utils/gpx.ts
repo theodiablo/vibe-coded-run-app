@@ -94,6 +94,11 @@ export function activityToRun(
     const elevation = elevGainM(points);
     if (elevation > 0) run.elevation = Math.round(elevation);
   }
+  // Keep the raw HR stream (not just the avg/max aggregates) so an imported file
+  // — like a live BLE run or a HealthKit import — powers RunDetailModal's HR
+  // chart and time-in-zone card. persistImportedRoute folds it into the
+  // stats.hrSamples sidecar (with GPS → routeId, HR-only → hrRouteId).
+  if (hr.length) run.hrSamples = hr;
   return { run };
 }
 

@@ -20,6 +20,7 @@ import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnec
 import { flushPendingHkHr } from "./hr/healthkit";
 import { markSeen, WATCH_MANUAL_SCAN_DAYS, WATCH_AUTO_SCAN_COOLDOWN_MS } from "./watch/import";
 import { scanAllProviders, providerEnabledInSettings } from "./imports/registry";
+import { completePolarAuth } from "./imports/providers/polar";
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { Confetti } from "./components/Confetti";
@@ -405,6 +406,24 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
   const savePlan     = (p: Plan) => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated", {}); };
   const saveSettings = (s: SettingsState) => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };
+
+  // Complete a Polar OAuth return (a no-op on every normal load and when Polar is
+  // unconfigured — gated on the state marker inside). On success, flip the
+  // provider's enable flag on and scan straight away for anything already synced.
+  useEffect(() => {
+    if (loading) return;
+    completePolarAuth().then(connected => {
+      if (!connected) return;
+      const s = settingsRef.current;
+      saveSettings({ ...s, imports: { ...s.imports, polar: true } });
+      showToast(t("settings.integrations.connectSuccess"));
+      checkWatchRef.current({ manual: true }).catch(() => {});
+    }).catch(() => {});
+    // Boot-once on the loading→false transition: t/saveSettings/showToast are
+    // stable enough that re-running on their identity would just re-scan; only
+    // the loading edge should trigger this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
   const saveUserContext = (next: Partial<UserContextState>) => {
     const clean = withLimitNotice({ notes: String(next?.notes || "").slice(0, USER_CONTEXT_MAX_CHARS), lastLimitNoticeAt: next?.lastLimitNoticeAt || null });
     userContextRef.current = clean;
