@@ -68,6 +68,9 @@ describe("polarExerciseToRun", () => {
       { bpm: 160, t: Date.parse("2026-07-10T08:10:00Z") },
     ]);
     expect(run).toMatchObject({ type: "EASY", source: "watch", notes: "Imported from Polar", extId: "polar:g1" });
+    // startedAt must be the GPX's UTC instant, NOT the summary's naive local
+    // "start-time" — otherwise time-overlap dedupe against a CSV/GPX copy breaks.
+    expect(run!.startedAt).toBe("2026-07-10T08:00:00.000Z");
   });
 
   it("returns null when there is neither a route nor a usable distance", () => {

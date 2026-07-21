@@ -39,9 +39,19 @@ export async function availability(): Promise<HealthKitAvailability> {
 
 export async function isAvailable() { return (await availability()) === "Available"; }
 
-// Show the HealthKit read-authorization sheet (heart rate + workouts +
-// running/walking distance in one ask). granted:true means the flow completed;
-// whether reads actually return data is only learnable by reading.
+// Show the HealthKit read-authorization sheet (heart rate + workouts + workout
+// route + running/walking distance in one ask). granted:true means the flow
+// completed; whether reads actually return data is only learnable by reading.
+//
+// KNOWN LIMITATION (follow-up): the workout-route read scope was added in the
+// route-import change, but an EXISTING user who granted HealthKit before that
+// keeps a valid local marker, so scanHealthKitWorkouts fast-paths past this
+// re-request and their new-scope grant never happens — their Apple Watch runs
+// import totals-only until they toggle the integration off/on in Settings (which
+// re-invokes this). We deliberately DON'T invalidate the marker (that gates
+// post-run HR too, so it would regress that feature) and DON'T prompt during a
+// passive scan (an unexpected permission sheet). A proper fix is a one-time
+// "re-authorize for routes" nudge at an interactive touchpoint.
 export async function requestHealthKitPermissions(): Promise<boolean> {
   try {
     if (!(await isAvailable())) { setHealthKitAuthorization(false); return false; }

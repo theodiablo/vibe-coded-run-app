@@ -1,7 +1,7 @@
 import { supabase } from "../../supabase";
 import { isNative } from "../../native";
 import { parseActivityFile } from "../../utils/gpx";
-import { POLAR_STATE, POLAR_CODE_KEY } from "../../polarPreinit";
+import { POLAR_STATE_PREFIX, POLAR_CODE_KEY, POLAR_RETURNED_STATE_KEY, POLAR_NONCE_KEY } from "../../polarPreinit";
 import type { ImportProvider, ImportedRun } from "../types";
 
 // Polar (AccessLink) cloud import — the first real vendor-cloud provider, for
@@ -21,9 +21,16 @@ import type { ImportProvider, ImportedRun } from "../types";
 
 const POLAR_CLIENT_ID = import.meta.env?.VITE_POLAR_CLIENT_ID as string | undefined;
 const POLAR_AUTH_URL = "https://flow.polar.com/oauth2/authorization";
-// POLAR_STATE distinguishes our OAuth return from Supabase's own ?code= flow; it
-// and POLAR_CODE_KEY live in polarPreinit (the one place that reads the return).
 export const polarEnabled = !!POLAR_CLIENT_ID;
+
+// Random per-connect nonce for the OAuth `state` (CSRF guard). crypto.randomUUID
+// needs a secure context (prod/preview are https); the fallback is only a
+// defensive last resort — the security property is that the value lives in this
+// browser's sessionStorage and an attacker can't read or set it.
+function newNonce(): string {
+  try { if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID(); } catch { /* fall through */ }
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
 
 // Where Polar sends the browser back after authorization — must exactly match the
 // redirect URL registered in the Polar app. The app root; the return is detected
@@ -72,13 +79,16 @@ export function polarExerciseToRun(ex: PolarExercise): ImportedRun | null {
   if (ex.gpx) {
     const res = parseActivityFile(ex.gpx, "gpx");
     if ("run" in res && res.run) {
+      // Keep the parser's startedAt: GPX times are UTC ("Z"-suffixed), the
+      // authoritative instant. Do NOT overwrite it with the summary's
+      // `start-time`, which is timezone-naive local time (no offset) and would
+      // shift the epoch — breaking time-overlap dedupe against a CSV/GPX copy.
       return {
         ...res.run,
         type,
         source: "watch",
         notes: "Imported from Polar",
         extId,
-        ...(startedAt ? { startedAt } : {}),
       };
     }
     // GPX unparseable — fall through to the summary.
@@ -105,33 +115,51 @@ export function polarExerciseToRun(ex: PolarExercise): ImportedRun | null {
   };
 }
 
-// Kick off the OAuth authorization redirect (full-page). Completion happens on
-// return via completePolarAuth() at app boot. Returns false because the page
-// navigates away — the Integrations UI reflects isConnected() after the return.
+// Kick off the OAuth authorization redirect (full-page). A per-connect nonce is
+// saved so the return can be CSRF-validated. Completion happens on return via
+// completePolarAuth() at app boot.
 async function connect(): Promise<boolean> {
   if (!polarEnabled || typeof window === "undefined") return false;
+  const nonce = newNonce();
+  try { sessionStorage.setItem(POLAR_NONCE_KEY, nonce); } catch { /* storage unavailable — the return's state check will just fail closed */ }
   const url = new URL(POLAR_AUTH_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", POLAR_CLIENT_ID!);
   url.searchParams.set("redirect_uri", redirectUri());
   url.searchParams.set("scope", "accesslink.read_all");
-  url.searchParams.set("state", POLAR_STATE);
+  url.searchParams.set("state", POLAR_STATE_PREFIX + ":" + nonce);
   window.location.assign(url.toString());
-  return false;
+  // The page is navigating to Polar; the real result arrives after the OAuth
+  // return (completePolarAuth at boot). Never resolve, so the Integrations
+  // handler doesn't flash a false "access denied" toast before the page unloads.
+  return new Promise<boolean>(() => {});
 }
 
 // Called once at app boot: if this load was a Polar OAuth return, polarPreinit
-// has already stashed the code in sessionStorage (and stripped the URL before
-// Supabase could touch it). Exchange it server-side for a stored token. Gated so
-// it's a no-op on every normal load and when Polar is unconfigured. Returns true
-// when a connection was just established (caller can toast / trigger a scan).
+// has already stashed the code + returned state in sessionStorage (and stripped
+// the URL before Supabase could touch it). Validate the state against this
+// browser's connect-time nonce (CSRF guard), then exchange the code server-side
+// for a stored token. Gated so it's a no-op on every normal load and when Polar
+// is unconfigured. Returns true when a connection was just established.
 export async function completePolarAuth(): Promise<boolean> {
   if (!polarEnabled || typeof window === "undefined") return false;
-  let code: string | null = null;
-  try { code = sessionStorage.getItem(POLAR_CODE_KEY); } catch { code = null; }
+  let code: string | null = null, returnedState: string | null = null, nonce: string | null = null;
+  try {
+    code = sessionStorage.getItem(POLAR_CODE_KEY);
+    returnedState = sessionStorage.getItem(POLAR_RETURNED_STATE_KEY);
+    nonce = sessionStorage.getItem(POLAR_NONCE_KEY);
+  } catch { /* storage unavailable */ }
+  // One-shot: clear everything so a reload can't replay the exchange.
+  try {
+    sessionStorage.removeItem(POLAR_CODE_KEY);
+    sessionStorage.removeItem(POLAR_RETURNED_STATE_KEY);
+    sessionStorage.removeItem(POLAR_NONCE_KEY);
+  } catch { /* ignore */ }
   if (!code) return false;
-  // Consume it once so a reload can't re-trigger the exchange.
-  try { sessionStorage.removeItem(POLAR_CODE_KEY); } catch { /* ignore */ }
+  // CSRF: the returned state MUST equal the nonce this browser generated at
+  // connect() time. A forged link carrying an attacker's code won't match, so
+  // it's never exchanged into the victim's account.
+  if (!nonce || returnedState !== POLAR_STATE_PREFIX + ":" + nonce) return false;
   const res = await invoke<{ connected?: boolean }>({ action: "exchange", code, redirectUri: redirectUri() });
   return !!res?.connected;
 }

@@ -8,6 +8,7 @@
 // math as live GPS runs, so an imported map and its stats agree.
 import { distanceKm, elevGainM, type TrackPointOrGap } from "./geo";
 import { hrSummary } from "./hr";
+import { normalizeHrSamples } from "../imports/series";
 import type { ImportedRun } from "../imports/types";
 
 export const MAX_GPX_BYTES = 20 * 1024 * 1024; // 20 MB — GPX is verbose
@@ -97,8 +98,11 @@ export function activityToRun(
   // Keep the raw HR stream (not just the avg/max aggregates) so an imported file
   // — like a live BLE run or a HealthKit import — powers RunDetailModal's HR
   // chart and time-in-zone card. persistImportedRoute folds it into the
-  // stats.hrSamples sidecar (with GPS → routeId, HR-only → hrRouteId).
-  if (hr.length) run.hrSamples = hr;
+  // stats.hrSamples sidecar (with GPS → routeId, HR-only → hrRouteId). Run it
+  // through the shared normalizer (round bpm, drop zero/NaN) so every import
+  // source lands the same sanitized shape in the sidecar.
+  const cleanHr = normalizeHrSamples(hr);
+  if (cleanHr.length) run.hrSamples = cleanHr;
   return { run };
 }
 

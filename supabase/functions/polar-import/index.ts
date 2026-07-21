@@ -112,16 +112,26 @@ async function pullExercises(token: string, polarUserId: string) {
   const txUrl = `${base}/${txId}`;
 
   const listRes = await fetch(txUrl, { headers: { ...auth, "Accept": "application/json" } });
-  const list = listRes.ok ? await listRes.json() as { exercises?: string[] } : { exercises: [] };
+  // If the LIST fails, do NOT commit — that would advance Polar's cursor past
+  // exercises we never fetched, losing them forever. Leave the transaction open;
+  // the next sync re-creates it with the same exercises.
+  if (!listRes.ok) return [];
+  const list = await listRes.json() as { exercises?: string[] };
   const uris = Array.isArray(list.exercises) ? list.exercises : [];
 
   const exercises: Array<{ id: string; summary: unknown; gpx: string | null }> = [];
+  let allFetched = true;
   for (const uri of uris) {
     const ex = await fetchExercise(token, uri).catch(() => null);
     if (ex && ex.id) exercises.push(ex);
+    else allFetched = false; // a transient per-exercise failure — don't commit yet
   }
-  // Commit so these exercises aren't re-listed next time.
-  await fetch(txUrl, { method: "PUT", headers: auth }).catch(() => {});
+  // Only commit (advance Polar's "new" cursor) when EVERY listed exercise came
+  // back. On a partial fetch we leave the transaction open so the missed ones are
+  // re-offered next sync; client-side extId dedupe drops the ones already saved,
+  // so re-listing is harmless — but committing on a partial fetch would silently
+  // lose the un-fetched runs.
+  if (allFetched) await fetch(txUrl, { method: "PUT", headers: auth }).catch(() => {});
   return exercises;
 }
 
