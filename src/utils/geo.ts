@@ -45,6 +45,26 @@ export function distanceKm(points: TrackPointOrGap[], minM = 3) {
   return m / 1000;
 }
 
+// One real point of a track, flattened for per-point analytics: coordinates,
+// timestamp, altitude, the running cumulative distance from the start (km, NOT
+// bridged across gaps — a per-point chart shouldn't invent a straight jump), and
+// `segStart` marking the first point of each gap-free segment. The ONE shared
+// jitter-gated, gap-aware distance walk — buildRunSeries and buildSplits both
+// consume this so their distance axes can't drift.
+export type FlatPoint = { lat: number; lng: number; t: number; alt: number | null; cumKm: number; segStart: boolean };
+
+export function flattenTrack(points: TrackPointOrGap[], jitterM = 3): FlatPoint[] {
+  const out: FlatPoint[] = [];
+  let cumM = 0, prev: TrackPoint | null = null, newSeg = true;
+  for (const p of points) {
+    if (!p) { prev = null; newSeg = true; continue; } // gap: break segment, don't add distance
+    if (prev) { const d = haversineM(prev, p); if (d >= jitterM) cumM += d; }
+    out.push({ lat: Number(p[0]), lng: Number(p[1]), t: Number(p[2]), alt: p[3] == null ? null : Number(p[3]), cumKm: cumM / 1000, segStart: newSeg });
+    prev = p; newSeg = false;
+  }
+  return out;
+}
+
 // Cumulative positive elevation gain (metres). Counts only ascents above `minM`
 // (hysteresis band that filters GPS/barometric noise) and ignores points whose
 // altitude is null — many phones don't report it. Gap markers reset the band.

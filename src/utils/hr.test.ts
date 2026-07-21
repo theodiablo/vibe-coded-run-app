@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   hrZoneBpm, sessionHR, runZoneIndex, parseHrMeasurement, hrSummary, HR_ZONES, SESSION_ZONES,
-  tanakaMaxHR, deriveAge, runnerAge, effectiveMaxHR,
+  tanakaMaxHR, deriveAge, runnerAge, effectiveMaxHR, timeInZones,
 } from "./hr";
 
 type HrSample = { bpm: number; t: number };
@@ -164,5 +164,38 @@ describe("HR_ZONES", () => {
   it("defines five contiguous zones", () => {
     expect(HR_ZONES).toHaveLength(5);
     expect(HR_ZONES.map(z => z.n)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe("timeInZones", () => {
+  // maxHR 200, restHR 50 ⇒ reserve 150. Karvonen bands:
+  // Z1 125-140, Z2 140-155, Z3 155-170, Z4 170-185, Z5 185-200.
+  const MAX = 200, REST = 50;
+
+  it("accumulates the gap between samples into the earlier sample's zone", () => {
+    const samples = [{ bpm: 130, t: 0 }, { bpm: 150, t: 1000 }, { bpm: 160, t: 2000 }];
+    const z = timeInZones(samples, MAX, REST);
+    expect(z).toHaveLength(5);
+    expect(z[0]).toEqual({ zone: 1, sec: 1 }); // 130 bpm held for 1 s
+    expect(z[1]).toEqual({ zone: 2, sec: 1 }); // 150 bpm held for 1 s
+    expect(z[2].sec).toBe(0);
+  });
+
+  it("caps a long gap so a paused stretch can't inflate a zone", () => {
+    const samples = [{ bpm: 130, t: 0 }, { bpm: 130, t: 100_000 }]; // 100 s gap
+    const z = timeInZones(samples, MAX, REST, { capSec: 10 });
+    expect(z[0].sec).toBe(10); // capped, not 100
+  });
+
+  it("returns [] for an empty, single, or absent stream", () => {
+    expect(timeInZones([], MAX, REST)).toEqual([]);
+    expect(timeInZones([{ bpm: 130, t: 0 }], MAX, REST)).toEqual([]);
+    expect(timeInZones(undefined, MAX, REST)).toEqual([]);
+  });
+
+  it("returns [] when the profile can't classify (no maxHR / no reserve)", () => {
+    const samples = [{ bpm: 130, t: 0 }, { bpm: 150, t: 1000 }];
+    expect(timeInZones(samples, 0, REST)).toEqual([]);
+    expect(timeInZones(samples, 100, 100)).toEqual([]); // reserve 0
   });
 });

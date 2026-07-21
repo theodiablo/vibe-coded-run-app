@@ -23,11 +23,12 @@ type DashboardProps = {
   skipSess: (weekNumber: number, sessionId: string) => void;
   openSettings: () => void;
   openCoach: () => void;
+  openRunDetail?: (run: Run) => void;
 };
 
 const sessionTypeClass = (type: PlanSession["type"], classes: Record<string, string>) => classes[(type as RunType) || "OTHER"] || classes.OTHER;
 
-export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach}: DashboardProps) {
+export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog, toggleSess, skipSess, openSettings, openCoach, openRunDetail}: DashboardProps) {
   const { t } = useTranslation();
   // "How it unfolds" breakdown on the next-session card (collapsed by default).
   const [showSteps, setShowSteps] = useState(false);
@@ -226,7 +227,7 @@ export function Dashboard({runs, plan, settings, races, goTab, goProgress, goLog
             )}
           </div>
           <div className="space-y-2">
-            {runs.slice(0, 3).map(r => <RunRow key={r.id} run={r}/>)}
+            {runs.slice(0, 3).map(r => <RunRow key={r.id} run={r} onClick={openRunDetail ? () => openRunDetail(r) : undefined}/>)}
           </div>
         </div>
       )}

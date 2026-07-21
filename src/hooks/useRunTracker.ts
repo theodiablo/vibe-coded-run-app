@@ -486,7 +486,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   const stats = useMemo(() => ({ ...gpsStats, ...hrSummary(hrSamples) }), [gpsStats, hrSamples]);
 
   return {
-    state, points, stats, error, pending, location,
+    state, points, stats, error, pending, location, hrSamples,
     // Wall-clock run window, read on demand from an event handler (never during
     // render) — used by handleSave to scope the Health Connect HR fetch.
     runWindow: () => ({ startedAt: runStartRef.current, stoppedAt: runEndRef.current }),

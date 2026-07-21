@@ -61,6 +61,40 @@
       "perKm": "{{v}}/km"
     }
   },
+  "detail": {
+    "series": {
+      "elevation": "Elevation",
+      "pace": "Pace",
+      "heartRate": "Heart rate"
+    },
+    "tooltip": {
+      "km": "{{v}} km",
+      "elevation": "{{v}} m",
+      "pace": "{{pace}}/km",
+      "hr": "{{bpm}} bpm"
+    },
+    "noRoute": "No route was recorded for this run.",
+    "zones": {
+      "title": "Time in heart-rate zones",
+      "zone": "Zone {{n}}"
+    },
+    "splits": {
+      "title": "Splits",
+      "km": "Km",
+      "pace": "Pace",
+      "elevation": "Elev",
+      "hr": "HR",
+      "partial": "{{km}} km"
+    },
+    "tiles": {
+      "distance": "Distance",
+      "duration": "Duration",
+      "avgPace": "Avg pace",
+      "elevation": "Elevation",
+      "avgHr": "Avg HR",
+      "maxHr": "Max HR"
+    }
+  },
   "predictions": {
     "title": "Race predictions",
     "subtitle": "Projected from your strongest run in the selected window",

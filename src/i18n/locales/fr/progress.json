@@ -61,6 +61,40 @@
       "perKm": "{{v}}/km"
     }
   },
+  "detail": {
+    "series": {
+      "elevation": "Dénivelé",
+      "pace": "Allure",
+      "heartRate": "Fréquence cardiaque"
+    },
+    "tooltip": {
+      "km": "{{v}} km",
+      "elevation": "{{v}} m",
+      "pace": "{{pace}}/km",
+      "hr": "{{bpm}} bpm"
+    },
+    "noRoute": "Aucun tracé n'a été enregistré pour cette sortie.",
+    "zones": {
+      "title": "Temps par zone de fréquence cardiaque",
+      "zone": "Zone {{n}}"
+    },
+    "splits": {
+      "title": "Temps au km",
+      "km": "Km",
+      "pace": "Allure",
+      "elevation": "Déniv.",
+      "hr": "FC",
+      "partial": "{{km}} km"
+    },
+    "tiles": {
+      "distance": "Distance",
+      "duration": "Durée",
+      "avgPace": "Allure moy.",
+      "elevation": "Dénivelé",
+      "avgHr": "FC moy.",
+      "maxHr": "FC max"
+    }
+  },
   "predictions": {
     "title": "Prévisions de course",
     "subtitle": "Calculées à partir de ta meilleure sortie sur la période sélectionnée",

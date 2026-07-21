@@ -395,6 +395,40 @@ and delete anything that becomes stale.
   stores a `routeId` reference. `deleteRun` cascades to `deleteRoute`; backup/
   restore include routes. Offline saves queue in `localStorage` and relink on next
   load via `flushPendingRoutes` (run carries a temp `routeTmp`/`routePending`).
+  The `run_routes.stats` JSONB is a free-form sidecar: besides the summary
+  `{km,durationSec,elevation,avgPace}`, a BLE-strap run also stores its **raw
+  ~1Hz HR stream** there as `stats.hrSamples: {bpm,t}[]` (kept raw, NOT projected
+  onto GPS points, so HR fidelity is decoupled from `simplify()`'s point
+  thinning). Added in `LiveRunTracker.handleSave` from `rt.hrSamples` (the tracker
+  now exposes it); unknown JSONB key → forward/backward safe, and backup/restore/
+  pending-queue carry it free. Only web/post-run-HR runs lack it. To store more
+  per-run series later, extend this sidecar rather than widening the 4-tuple.
+  Because that stream can be hundreds of KB on a long run, `getRoute(id,
+  withStats)` / `useRouteTrace(run, {withStats})` gate the `stats` fetch:
+  map-only surfaces (History's route preview) pass `false`, only `RunDetailModal`
+  passes `true`. Keep new map-only consumers on `withStats:false`.
+- **Per-run analytics (`src/modals/RunDetailModal.tsx`):** tap a run in History or
+  the Dashboard recent-runs list (`RunRow` gained an optional `onClick`; hub seam
+  `shared.openRunDetail`, guarded on arg shape) → full-screen map + a combined
+  elevation/pace/HR `ComposedChart` (toggleable series) + per-km split table + HR
+  time-in-zone card + stat tiles. All chart/table data is derived at render by
+  **pure, tested helpers**: `buildRunSeries` (`src/utils/runSeries.ts`, cumulative
+  distance + smoothed pace + timestamp-aligned HR), `buildSplits`
+  (`src/utils/runSplits.ts`), and `timeInZones` (`src/utils/hr.ts`, reuses
+  `runZoneIndex`/`HR_ZONES`). Both series helpers share ONE gap-aware
+  cumulative-distance walk, `flattenTrack` (`src/utils/geo.ts`) — don't re-roll a
+  third. **Pace smoothing uses a rolling ~200m DISTANCE window, not a time window:**
+  stored points are Douglas-Peucker-thinned so they're sparse/uneven in time, and a
+  fixed time window left pace null (an intermittent line) on straight sparsely
+  sampled stretches. The trace is fetched via the shared `useRouteTrace` hook
+  (`src/hooks/`, extracted from History's `RouteMapLoader`). The derived
+  chart/table/zone data is `useMemo`'d on the trace (the modal re-renders on
+  unrelated hub state + every toggle click).
+  **Chart gotchas:** the distance x-axis MUST be `type="number"` (post-`simplify`
+  points are unevenly km-spaced; a categorical axis misplaces them), and every
+  series needs its own `yAxisId` matching a `<YAxis>` (recharts errors otherwise)
+  — both guarded by the render test in `RunDetailModal.test.tsx`. HR series/cards
+  render only when `stats.hrSamples` is present (degrade gracefully otherwise).
 - **Geo math:** `src/utils/geo.ts` (haversine, jitter-gated `distanceKm`,
   hysteresis `elevGainM`, Douglas–Peucker `simplify`, `segments`). A point is the
   tuple `[lat, lng, tEpochMs, alt|null]`; a `null` entry is a GAP marker (don't

@@ -61,6 +61,40 @@
       "perKm": "{{v}}/km"
     }
   },
+  "detail": {
+    "series": {
+      "elevation": "Desnivel",
+      "pace": "Ritmo",
+      "heartRate": "Frecuencia cardíaca"
+    },
+    "tooltip": {
+      "km": "{{v}} km",
+      "elevation": "{{v}} m",
+      "pace": "{{pace}}/km",
+      "hr": "{{bpm}} ppm"
+    },
+    "noRoute": "No se registró ninguna ruta para este entrenamiento.",
+    "zones": {
+      "title": "Tiempo por zona de frecuencia cardíaca",
+      "zone": "Zona {{n}}"
+    },
+    "splits": {
+      "title": "Parciales por km",
+      "km": "Km",
+      "pace": "Ritmo",
+      "elevation": "Desn.",
+      "hr": "FC",
+      "partial": "{{km}} km"
+    },
+    "tiles": {
+      "distance": "Distancia",
+      "duration": "Duración",
+      "avgPace": "Ritmo medio",
+      "elevation": "Desnivel",
+      "avgHr": "FC media",
+      "maxHr": "FC máx"
+    }
+  },
   "predictions": {
     "title": "Predicciones de carrera",
     "subtitle": "Calculadas a partir de tu mejor entrenamiento del periodo seleccionado",

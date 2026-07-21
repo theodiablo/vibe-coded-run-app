@@ -242,7 +242,13 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
     setBusy(true);
     const simplified = simplify(points, 5);
     const km = +stats.km.toFixed(2);
-    const statObj = { km, durationSec: stats.movingSec, elevation: stats.elevation, avgPace: Math.round(stats.avgPace) };
+    // Persist the raw ~1Hz HR stream as a sidecar on the route stats (BLE runs
+    // only — post-run HR sources and web runs leave hrSamples empty). Kept raw,
+    // not projected onto GPS points, so HR fidelity doesn't depend on how
+    // aggressively simplify() thinned the track; RunDetailModal aligns it to
+    // points by timestamp at render. Unknown JSONB key → ignored by old clients.
+    const statObj = { km, durationSec: stats.movingSec, elevation: stats.elevation, avgPace: Math.round(stats.avgPace),
+      ...(rt.hrSamples?.length ? { hrSamples: rt.hrSamples } : {}) };
     const date = ymd(new Date(points.find(Boolean)?.[2] || Date.now()));
     let routeId = null, routeTmp = null;
     try {
