@@ -62,7 +62,7 @@
   },
   "import": {
     "title": "Conserva tu historial de entrenamientos",
-    "body": "Importa tus entrenamientos desde Strava, Garmin, Zepp o cualquier otro servicio mediante archivos GPX, TCX o CSV. En Android, los entrenamientos terminados también pueden sincronizarse directamente desde tu reloj."
+    "body": "Importa tus entrenamientos desde Strava, Garmin, Zepp o cualquier otro servicio mediante archivos GPX, TCX y CSV. También puedes sincronizar tus entrenamientos terminados directamente desde tu reloj: con Apple Health en iPhone, Health Connect en Android o conectando tu cuenta de Polar."
   },
   "cta": {
     "heading": "¿Listo para correr tu mejor carrera?",

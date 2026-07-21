@@ -62,7 +62,7 @@
   },
   "import": {
     "title": "Emportez votre historique de sorties avec vous",
-    "body": "Importez vos sorties depuis Strava, Garmin, Zepp ou ailleurs grâce aux fichiers GPX, TCX ou CSV. Sur Android, les sorties terminées peuvent aussi se synchroniser directement depuis votre montre."
+    "body": "Importez vos sorties depuis Strava, Garmin, Zepp ou ailleurs grâce aux fichiers GPX, TCX et CSV. Vous pouvez aussi synchroniser vos sorties terminées directement depuis votre montre : via Apple Health sur iPhone, Health Connect sur Android, ou en connectant votre compte Polar."
   },
   "cta": {
     "heading": "Prêt à réaliser votre meilleure course ?",

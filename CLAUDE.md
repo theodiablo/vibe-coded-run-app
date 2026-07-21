@@ -74,7 +74,9 @@ and delete anything that becomes stale.
   stays an extracted shared component.) Copy commitments to keep true:
   methodology names on the plan card, the "no black box" session-breakdown
   line, the import strip (Strava/Garmin/Zepp via GPX/TCX/CSV *files* — never
-  the Strava API), and the free-tier "daily fair-use limit" phrasing
+  the Strava API; watch sync via Apple Health / Health Connect; **Polar** is the
+  one direct *account* connect — keep Strava on the file side of that line), and
+  the free-tier "daily fair-use limit" phrasing
   (deliberately non-numeric; `RATE_LIMIT_PER_DAY` is env-configurable). The
   free wording is "everything you need to train is free" — deliberately NOT
   "free includes everything", so a future premium tier of *new* features never

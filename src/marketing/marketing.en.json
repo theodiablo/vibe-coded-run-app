@@ -59,7 +59,7 @@
   },
   "import": {
     "title": "Bring your running history with you",
-    "body": "Import your runs from Strava, Garmin, Zepp or anywhere else — GPX, TCX or CSV exports all work. On Android, finished runs can also sync straight from your watch."
+    "body": "Import your runs from Strava, Garmin, Zepp or anywhere else — GPX, TCX and CSV exports all work. Or sync finished runs straight from your watch: Apple Health on iPhone, Health Connect on Android, or connect your Polar account."
   },
   "cta": {
     "heading": "Ready to run your best race?",
