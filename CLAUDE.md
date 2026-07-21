@@ -78,7 +78,11 @@ and delete anything that becomes stale.
   (deliberately non-numeric; `RATE_LIMIT_PER_DAY` is env-configurable). The
   free wording is "everything you need to train is free" — deliberately NOT
   "free includes everything", so a future premium tier of *new* features never
-  contradicts the page; don't reintroduce the absolute phrasing. The footer
+  contradicts the page; don't reintroduce the absolute phrasing. See
+  `docs/monetization.md` for the monetization direction — durably: the app
+  stays free; a future paid tier comes from *new* proactive-coach features,
+  never from gating an existing free feature or lowering `RATE_LIMIT_PER_DAY`
+  (the daily limit is cost-insurance, not a paywall lever). The footer
   carries a tip-jar link (`TIP_JAR_URL` in `src/constants.ts`, Buy Me a
   Coffee; empty string hides it) — it must only ever render inside the
   marketing chunk (web-only by construction): Apple rejects external payment
