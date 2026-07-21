@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import HealthKit
+import CoreLocation
 
 // The iOS mirror of the Android WatchImportPlugin + the pianissimo Health
 // Connect HR reads, folded into one local plugin (HealthKit serves both roles):
@@ -29,6 +30,7 @@ public class HealthKitBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readHeartRate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readWorkouts", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readWorkoutDetail", returnType: CAPPluginReturnPromise),
     ]
 
     private let store = HKHealthStore()
@@ -75,6 +77,9 @@ public class HealthKitBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             heartRateType,
             HKObjectType.workoutType(),
             HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+            // GPS route of location-based workouts (Apple Watch outdoor runs) —
+            // its own "Workout Routes" toggle in the Health permission sheet.
+            HKSeriesType.workoutRoute(),
         ]
         // Read-only: toShare is nil, matching the Info.plist promise that we
         // never write to Apple Health.
@@ -182,5 +187,75 @@ public class HealthKitBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }
         store.execute(query)
+    }
+
+    // Full detail for ONE workout (looked up by UUID) → the GPS route and the raw
+    // per-sample HR stream, so an imported Apple Watch run gets a map + pace curve
+    // + HR chart/zones, not just totals. Called lazily by the TS import layer for
+    // NEW workouts only (post-dedupe), because a route can be thousands of points
+    // and re-reading every already-seen workout's route would be wasteful.
+    //   { id } → { route: [[lat,lng,tEpochMs,alt|null]...], hrSamples: [{bpm,t}...] }
+    // Both degrade to [] independently: an indoor run has HR but no route; a
+    // third-party workout may have neither. HR uses a time-window predicate over
+    // the workout (predicateForObjects(from:) misses samples the recorder didn't
+    // associate); the route rides predicateForObjects(from:) which is correct for
+    // the workout-owned route series.
+    @objc func readWorkoutDetail(_ call: CAPPluginCall) {
+        guard let idStr = call.getString("id"), let uuid = UUID(uuidString: idStr) else {
+            call.reject("id (workout UUID) is required")
+            return
+        }
+        let workoutPredicate = HKQuery.predicateForObject(with: uuid)
+        let lookup = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: workoutPredicate,
+                                   limit: 1, sortDescriptors: nil) { _, results, error in
+            if let error = error {
+                call.reject("HealthKit workout lookup failed: \(error.localizedDescription)")
+                return
+            }
+            guard let workout = (results as? [HKWorkout])?.first else {
+                call.resolve(["route": [], "hrSamples": []])
+                return
+            }
+
+            // 1) HR samples over the workout's own window.
+            let hrPredicate = HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate,
+                                                          options: .strictStartDate)
+            let hrSort = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            let hrQuery = HKSampleQuery(sampleType: self.heartRateType, predicate: hrPredicate,
+                                        limit: HKObjectQueryNoLimit, sortDescriptors: hrSort) { _, hrResults, _ in
+                let hrSamples: [[String: Any]] = (hrResults as? [HKQuantitySample] ?? []).map { s in
+                    ["bpm": s.quantity.doubleValue(for: self.bpmUnit),
+                     "t": s.startDate.timeIntervalSince1970 * 1000]
+                }
+
+                // 2) The workout's route series (0 or 1 for a normal run), then
+                //    stream its CLLocations in batches.
+                let routeQuery = HKSampleQuery(sampleType: HKSeriesType.workoutRoute(),
+                                               predicate: HKQuery.predicateForObjects(from: workout),
+                                               limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, routeResults, _ in
+                    guard let routeSample = (routeResults as? [HKWorkoutRoute])?.first else {
+                        call.resolve(["route": [], "hrSamples": hrSamples])
+                        return
+                    }
+                    var locations: [CLLocation] = []
+                    let streamer = HKWorkoutRouteQuery(route: routeSample) { _, batch, done, _ in
+                        if let batch = batch { locations.append(contentsOf: batch) }
+                        guard done else { return } // more batches coming
+                        let pts: [[Any]] = locations.map { loc in
+                            [loc.coordinate.latitude,
+                             loc.coordinate.longitude,
+                             loc.timestamp.timeIntervalSince1970 * 1000,
+                             // negative vertical accuracy = no valid altitude fix
+                             loc.verticalAccuracy >= 0 ? loc.altitude : NSNull()]
+                        }
+                        call.resolve(["route": pts, "hrSamples": hrSamples])
+                    }
+                    self.store.execute(streamer)
+                }
+                self.store.execute(routeQuery)
+            }
+            self.store.execute(hrQuery)
+        }
+        store.execute(lookup)
     }
 }

@@ -96,6 +96,13 @@ export type Run = Record<string, unknown> & {
   routeId?: string;
   routeTmp?: string;
   routePending?: boolean;
+  // A run_routes row that holds ONLY a raw HR series (stats.hrSamples) with no
+  // GPS points — the common watch-import case where the health store has HR but
+  // no route (Garmin/Samsung on Health Connect). Kept SEPARATE from routeId so
+  // History's "view route" map button (gated on routeId) never offers a blank
+  // map, while RunDetailModal still fetches it for the HR chart/time-in-zone
+  // card. Old clients ignore the unknown field; deleteRun cascades it like routeId.
+  hrRouteId?: string;
   hrPending?: HrPending | null;
   // The HealthKit twin of hrPending, deliberately a SEPARATE field: shipped
   // Android builds' flushPendingHr clears any hrPending whose source isn't

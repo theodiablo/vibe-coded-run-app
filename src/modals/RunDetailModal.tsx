@@ -92,7 +92,7 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
   const [show, setShow] = useState({ elev: true, pace: true, hr: true });
   useDismissable(true, onClose);
 
-  const hasTrace = !!(run.routeId || run.routeTmp);
+  const hasTrace = !!(run.routeId || run.routeTmp || run.hrRouteId);
   const maxHR = effectiveMaxHR(settings);
   const restHR = settings.restHR || 60; // match every other zone call site's fallback
 
@@ -174,63 +174,66 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
               </div>
               <RunChart series={series} show={show} hasElev={hasElev} hasHr={hasHr} />
             </div>
-
-            {/* HR time-in-zone (BLE runs only) */}
-            {zoneTotal > 0 && (
-              <div className="bg-slate-800 rounded-2xl p-4">
-                <p className="text-slate-400 text-sm font-medium mb-3">{t("progress.detail.zones.title")}</p>
-                <div className="flex rounded-lg overflow-hidden h-4 mb-3">
-                  {zones.map(z => z.sec > 0 && (
-                    <div key={z.zone} style={{ background: HR_ZONES[z.zone - 1].clr, width: (z.sec / zoneTotal * 100) + "%" }} />
-                  ))}
-                </div>
-                <div className="space-y-1">
-                  {zones.filter(z => z.sec > 0).map(z => (
-                    <div key={z.zone} className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-2 text-slate-300">
-                        <span className="w-2.5 h-2.5 rounded-sm" style={{ background: HR_ZONES[z.zone - 1].clr }} />
-                        {t("progress.detail.zones.zone", { n: z.zone })}
-                      </span>
-                      <span className="text-slate-400 tabular-nums">{fmt.mins(Math.round(z.sec / 60))}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Per-km splits */}
-            {splits.length > 0 && (
-              <div className="bg-slate-800 rounded-2xl p-4">
-                <p className="text-slate-400 text-sm font-medium mb-3">{t("progress.detail.splits.title")}</p>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-slate-500 text-xs text-left">
-                      <th className="font-medium pb-2">{t("progress.detail.splits.km")}</th>
-                      <th className="font-medium pb-2 text-right">{t("progress.detail.splits.pace")}</th>
-                      <th className="font-medium pb-2 text-right">{t("progress.detail.splits.elevation")}</th>
-                      {hasHr && <th className="font-medium pb-2 text-right">{t("progress.detail.splits.hr")}</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {splits.map(s => (
-                      <tr key={s.km} className={"tabular-nums " + (s.fastest ? "text-emerald-400" : s.slowest ? "text-amber-400" : "text-slate-200")}>
-                        <td className="py-1">{s.distKm >= 0.999 ? s.km : t("progress.detail.splits.partial", { km: s.distKm.toFixed(2) })}</td>
-                        <td className="py-1 text-right">{fmt.pace(s.paceSecPerKm)}</td>
-                        <td className="py-1 text-right text-slate-400">{s.elevGainM > 0 ? "+" + s.elevGainM + " m" : "—"}</td>
-                        {hasHr && <td className="py-1 text-right text-slate-400">{s.avgHr != null ? s.avgHr : "—"}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </>
         )}
 
-        {/* Resolved but nothing to chart: a failed/absent fetch, OR a route that
-            exists yet has no usable points (e.g. Stop tapped before any GPS fix).
-            Without this, that empty-points case rendered a blank gap. */}
-        {route !== undefined && !hasPoints && (
+        {/* HR time-in-zone. Rendered on the raw HR stream ALONE, not gated on GPS,
+            so a watch import with HR but no route (Garmin/Samsung on Health
+            Connect) still gets its zone breakdown; the distance-based chart/splits
+            above stay GPS-only because they need a distance axis. */}
+        {route && zoneTotal > 0 && (
+          <div className="bg-slate-800 rounded-2xl p-4">
+            <p className="text-slate-400 text-sm font-medium mb-3">{t("progress.detail.zones.title")}</p>
+            <div className="flex rounded-lg overflow-hidden h-4 mb-3">
+              {zones.map(z => z.sec > 0 && (
+                <div key={z.zone} style={{ background: HR_ZONES[z.zone - 1].clr, width: (z.sec / zoneTotal * 100) + "%" }} />
+              ))}
+            </div>
+            <div className="space-y-1">
+              {zones.filter(z => z.sec > 0).map(z => (
+                <div key={z.zone} className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-slate-300">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ background: HR_ZONES[z.zone - 1].clr }} />
+                    {t("progress.detail.zones.zone", { n: z.zone })}
+                  </span>
+                  <span className="text-slate-400 tabular-nums">{fmt.mins(Math.round(z.sec / 60))}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Per-km splits (GPS only — needs a distance axis) */}
+        {hasPoints && route && splits.length > 0 && (
+          <div className="bg-slate-800 rounded-2xl p-4">
+            <p className="text-slate-400 text-sm font-medium mb-3">{t("progress.detail.splits.title")}</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-slate-500 text-xs text-left">
+                  <th className="font-medium pb-2">{t("progress.detail.splits.km")}</th>
+                  <th className="font-medium pb-2 text-right">{t("progress.detail.splits.pace")}</th>
+                  <th className="font-medium pb-2 text-right">{t("progress.detail.splits.elevation")}</th>
+                  {hasHr && <th className="font-medium pb-2 text-right">{t("progress.detail.splits.hr")}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {splits.map(s => (
+                  <tr key={s.km} className={"tabular-nums " + (s.fastest ? "text-emerald-400" : s.slowest ? "text-amber-400" : "text-slate-200")}>
+                    <td className="py-1">{s.distKm >= 0.999 ? s.km : t("progress.detail.splits.partial", { km: s.distKm.toFixed(2) })}</td>
+                    <td className="py-1 text-right">{fmt.pace(s.paceSecPerKm)}</td>
+                    <td className="py-1 text-right text-slate-400">{s.elevGainM > 0 ? "+" + s.elevGainM + " m" : "—"}</td>
+                    {hasHr && <td className="py-1 text-right text-slate-400">{s.avgHr != null ? s.avgHr : "—"}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Resolved but nothing to show: a failed/absent fetch, OR a route that
+            exists yet has no usable points AND no HR stream (e.g. Stop tapped
+            before any GPS fix). Without this, that empty case rendered a blank gap. */}
+        {route !== undefined && !hasPoints && !hasHr && (
           <p className="text-slate-500 text-sm text-center">
             {t(hasTrace ? "progress.history.routeUnavailable" : "progress.detail.noRoute")}
           </p>

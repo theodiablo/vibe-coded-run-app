@@ -84,6 +84,9 @@ export function LogView({addRuns, onDone, onSaved, prefill, openTracker, runs}: 
       ...(prefill?.source   ? { source: prefill.source } : {}),
       ...(prefill?.routeId  ? { routeId: prefill.routeId } : {}),
       ...(prefill?.routeTmp ? { routeTmp: prefill.routeTmp, routePending: true } : {}),
+      // HR-only sidecar (health-store import with HR but no GPS) — powers the
+      // detail HR chart/zones; see the hrRouteId note in src/types.ts.
+      ...(prefill?.hrRouteId ? { hrRouteId: prefill.hrRouteId } : {}),
       // Health-store HR wasn't ready at save — relink on next load (RunningCoach).
       // Two fields, one per platform: see the hrPendingHk note in src/types.ts.
       ...(prefill?.hrPending ? { hrPending: prefill.hrPending } : {}),

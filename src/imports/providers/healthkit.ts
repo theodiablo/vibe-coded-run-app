@@ -38,5 +38,6 @@ export const healthKitProvider: ImportProvider = {
   help:
     "Works with the Apple Watch Workout app and any watch whose companion app writes " +
     "workouts to Apple Health (Garmin Connect, Polar Flow, Zepp…). Runs appear a few " +
-    "minutes after your watch syncs; no route/map is included.",
+    "minutes after your watch syncs. Apple Watch outdoor runs import the full route, " +
+    "pace and heart-rate trace; most third-party watches import totals only.",
 };

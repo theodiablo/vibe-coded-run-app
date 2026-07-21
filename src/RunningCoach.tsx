@@ -603,10 +603,12 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const deleteRun = (id: string) => {
     setRuns(prev => {
       const r = prev.find(x => x.id === id);
-      // Drop the GPS trace too (privacy) — whether already synced (routeId) or
-      // still waiting in the offline queue (routeTmp), so a deleted run never
-      // leaks its route to the cloud on a later flush.
+      // Drop the trace too (privacy) — whether already synced (routeId, or an
+      // HR-only sidecar under hrRouteId) or still waiting in the offline queue
+      // (routeTmp), so a deleted run never leaks its route/HR to the cloud on a
+      // later flush.
       if (r?.routeId) deleteRoute(r.routeId);
+      if (r?.hrRouteId) deleteRoute(r.hrRouteId);
       if (r?.routeTmp) removePendingRoute(r.routeTmp);
       const next = prev.filter(x => x.id !== id);
       db.set(STORAGE_KEYS.RUNS, next);
@@ -673,9 +675,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       // device-local state (grant markers) themselves.
       enabled: p => providerEnabledInSettings(settingsRef.current, p.id) || !p.connect,
     });
-    // Persist any route traces a provider returned and swap them for routeId —
-    // transient `points` never belong in the stored run (blob bloat). HC has no
-    // routes today; this is for file-like/cloud providers that do.
+    // Persist any route trace / raw HR series a provider returned and swap them
+    // for a routeId (GPS) or hrRouteId (HR-only) — the transient points/hrSamples
+    // never belong in the stored run (blob bloat). HealthKit imports Apple Watch
+    // routes + HR; Health Connect imports HR series (no routes exist there yet).
     const found = scanned.length ? await persistImportedRoutes(scanned) : [];
     if (!found.length) return 0;
     if (!manual) watchAutoShownRef.current = true;

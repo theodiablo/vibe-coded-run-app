@@ -1,11 +1,13 @@
 import { isIos } from "../native";
 import { HK_AUTH_KEY } from "../constants";
 import { getHealthKitPlugin, type HealthKitAvailability } from "./plugin";
-import { newHkWorkouts } from "./mapping";
+import { newHkWorkouts, hkId } from "./mapping";
+import { normalizeRoutePoints, normalizeHrSamples } from "../imports/series";
 // Reuse the watch-import seen-ids list and window/threshold constants so the
 // two health-store providers can't drift; on an iPhone the per-device list only
 // ever holds "hk:"-prefixed ids.
 import { getSeenIds, WATCH_SCAN_DAYS, WATCH_MIN_KM } from "../watch/import";
+import type { ImportedRun } from "../imports/types";
 import type { Run } from "../types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -61,7 +63,7 @@ type ScanOptions = { enabled?: boolean; allowNativeRead?: boolean; days?: number
 export async function scanHealthKitWorkouts(
   runs: Run[],
   { enabled = true, allowNativeRead = true, days, now = Date.now() }: ScanOptions = {},
-): Promise<Partial<Run>[]> {
+): Promise<ImportedRun[]> {
   const windowDays = days ?? WATCH_SCAN_DAYS;
   if (!enabled || !allowNativeRead || !isIos || !hasHealthKitAuthorization()) return [];
   try {
@@ -70,7 +72,30 @@ export async function scanHealthKitWorkouts(
       startTime: new Date(now - windowDays * DAY_MS).toISOString(),
       endTime: new Date(now).toISOString(),
     });
-    return newHkWorkouts(res?.sessions || [], runs || [], getSeenIds())
+    const raws = res?.sessions || [];
+    const news = newHkWorkouts(raws, runs || [], getSeenIds())
       .filter(r => (Number(r.km) || 0) >= WATCH_MIN_KM);
+    if (!news.length) return [];
+    // Fetch the GPS route + raw HR series for each NEW run only (post-dedupe), so
+    // an imported Apple Watch run gets a map/pace curve/HR chart instead of just
+    // totals. A failed or empty detail read degrades to totals-only. hcId ("hk:"+
+    // uuid) links a mapped run back to its raw workout for the by-UUID lookup.
+    const byHcId = new Map(raws.map(w => [hkId(w.id), w] as const));
+    return await Promise.all(news.map(async (run): Promise<ImportedRun> => {
+      const w = run.hcId ? byHcId.get(run.hcId) : undefined;
+      if (!w) return run;
+      try {
+        const d = await getHealthKitPlugin().readWorkoutDetail({
+          id: w.id, startTime: w.startTime, endTime: w.endTime,
+        });
+        const points = normalizeRoutePoints(d?.route);
+        const hrSamples = normalizeHrSamples(d?.hrSamples);
+        return {
+          ...run,
+          ...(points.length ? { points } : {}),
+          ...(hrSamples.length ? { hrSamples } : {}),
+        };
+      } catch { return run; }
+    }));
   } catch { return []; }
 }

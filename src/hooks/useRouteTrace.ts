@@ -15,12 +15,17 @@ export type RouteData = { points: (TrackPoint | null)[]; stats?: Record<string, 
 // stream) — the map-only preview leaves it false to skip that payload.
 export function useRouteTrace(run: Run, opts?: { withStats?: boolean }): { route: RouteData } {
   const withStats = opts?.withStats ?? false;
-  const [route, setRoute] = useState<RouteData>(() => run.routeId ? undefined : getPendingRoute(run.routeTmp) as RouteData);
+  // A GPS trace lives on routeId; an HR-only sidecar (no GPS) on hrRouteId. Both
+  // are run_routes rows, so either resolves the same {points, stats} shape —
+  // points is simply empty for an HR-only row (RunDetailModal renders the HR
+  // chart/zones; History never mounts this hook for an hrRouteId-only run).
+  const traceId = run.routeId ?? run.hrRouteId;
+  const [route, setRoute] = useState<RouteData>(() => traceId ? undefined : getPendingRoute(run.routeTmp) as RouteData);
   useEffect(() => {
-    if (!run.routeId) return; // pending route already pulled from localStorage
+    if (!traceId) return; // pending route already pulled from localStorage
     let on = true;
-    getRoute(run.routeId, withStats).then(r => on && setRoute(r as RouteData)).catch(() => on && setRoute(null));
+    getRoute(traceId, withStats).then(r => on && setRoute(r as RouteData)).catch(() => on && setRoute(null));
     return () => { on = false; };
-  }, [run.routeId, withStats]);
+  }, [traceId, withStats]);
   return { route };
 }
