@@ -42,8 +42,6 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
-type Admin = ReturnType<typeof createClient>;
-
 // ── Polar AccessLink calls ─────────────────────────────────────────────────
 
 // Exchange an authorization code for a long-lived access token (+ x_user_id).
@@ -117,7 +115,7 @@ async function pullExercises(token: string, polarUserId: string) {
   const list = listRes.ok ? await listRes.json() as { exercises?: string[] } : { exercises: [] };
   const uris = Array.isArray(list.exercises) ? list.exercises : [];
 
-  const exercises = [];
+  const exercises: Array<{ id: string; summary: unknown; gpx: string | null }> = [];
   for (const uri of uris) {
     const ex = await fetchExercise(token, uri).catch(() => null);
     if (ex && ex.id) exercises.push(ex);
@@ -149,7 +147,7 @@ Deno.serve(async (req) => {
 
     if (!hasPolarCreds) return json({ skipped: "polar not configured", connected: false });
 
-    const admin: Admin = createClient(
+    const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
