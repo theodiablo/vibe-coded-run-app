@@ -709,9 +709,11 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       setShowTracker(true);
     },
     // Open the full-screen per-run analytics view. Guard on shape so a click
-    // event (onClick={openRunDetail}) never counts as a run.
+    // event (onClick={openRunDetail}) never counts as a run. Keys on `durationSec`
+    // (a Run field) rather than `km`, which a PlanSession also has — so a
+    // plan-session card wired bare here can't slip through as a Run.
     openRunDetail: (run?: unknown) => {
-      const r = run && typeof run === "object" && "km" in run ? run as Run : null;
+      const r = run && typeof run === "object" && "durationSec" in run ? run as Run : null;
       if (r) setDetailRun(r);
     },
     // A session-context object opens the coach about that session; a bare call

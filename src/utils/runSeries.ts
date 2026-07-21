@@ -9,7 +9,7 @@
 // (nearest raw sample within a small window) so HR fidelity is decoupled from how
 // aggressively simplify() thinned the track.
 
-import { haversineM } from "./geo";
+import { flattenTrack } from "./geo";
 import type { TrackPointOrGap } from "./geo";
 
 export type HrSample = { bpm: number; t: number };
@@ -23,7 +23,7 @@ export type RunSeriesRow = {
 };
 
 export type RunSeriesOpts = {
-  paceWindowSec?: number; // rolling look-back for pace smoothing
+  paceWindowM?: number;   // rolling DISTANCE look-back (m) for pace smoothing
   jitterM?: number;       // legs shorter than this are treated as GPS jitter
   hrWindowMs?: number;    // max |Δt| between a point and the HR sample matched to it
 };
@@ -53,47 +53,43 @@ export function buildRunSeries(
   hrSamples?: HrSample[] | null,
   opts?: RunSeriesOpts,
 ): RunSeriesRow[] {
-  const paceWindowMs = (opts?.paceWindowSec ?? 20) * 1000;
+  const paceWindowM = opts?.paceWindowM ?? 200;
   const jitterM = opts?.jitterM ?? 3;
   const hrWindowMs = opts?.hrWindowMs ?? 4000;
   const hr = hrSamples && hrSamples.length ? hrSamples : null;
 
+  const flat = flattenTrack(points, jitterM);
+  if (!flat.length) return [];
+  const t0 = flat[0].t;
+
   const rows: RunSeriesRow[] = [];
-  let cumM = 0;
-  let t0: number | null = null;
-  let prev: TrackPointOrGap = null;                 // previous real point (null at a gap)
-  // Real points of the CURRENT gap-free segment, with their cumulative distance,
-  // so windowed pace can look back without crossing a gap.
-  let seg: { t: number; cumM: number }[] = [];
+  let segStartIdx = 0;
+  for (let i = 0; i < flat.length; i++) {
+    const f = flat[i];
+    if (f.segStart) segStartIdx = i;
 
-  for (const p of points) {
-    if (!p) { prev = null; seg = []; continue; } // gap: break pace, don't add distance
-    const t = Number(p[2]);
-    if (t0 == null) t0 = t;
-    if (prev) {
-      const d = haversineM(prev, p);
-      if (d >= jitterM) cumM += d;
-    }
-    seg.push({ t, cumM });
-
-    // Smoothed pace: earliest same-segment sample still inside the time window.
+    // Smoothed pace over a rolling DISTANCE window (not a fixed time window):
+    // stored points are Douglas-Peucker-thinned, so they're sparse and uneven in
+    // time — a short time window finds no earlier point on straight, sparsely
+    // sampled stretches and would leave pace null there (an intermittent line).
+    // Look back over ~paceWindowM metres within the segment, but always include at
+    // least the previous point so every point past a segment's start gets a pace.
     let pace: number | null = null;
-    let j = seg.length - 1;
-    while (j > 0 && t - seg[j - 1].t <= paceWindowMs) j--;
-    if (j < seg.length - 1) {
-      const dt = (t - seg[j].t) / 1000;
-      const dkm = (cumM - seg[j].cumM) / 1000;
+    if (i > segStartIdx) {
+      let w = i - 1;
+      while (w > segStartIdx && (f.cumKm - flat[w - 1].cumKm) * 1000 <= paceWindowM) w--;
+      const dt = (f.t - flat[w].t) / 1000;
+      const dkm = f.cumKm - flat[w].cumKm;
       if (dt > 0 && dkm > 0) pace = dt / dkm;
     }
 
     rows.push({
-      distKm: cumM / 1000,
-      tSec: (t - (t0 as number)) / 1000,
-      elevM: p[3] == null ? null : Number(p[3]),
+      distKm: f.cumKm,
+      tSec: (f.t - t0) / 1000,
+      elevM: f.alt,
       paceSecPerKm: pace,
-      hr: hr ? nearestBpm(hr, t, hrWindowMs) : null,
+      hr: hr ? nearestBpm(hr, f.t, hrWindowMs) : null,
     });
-    prev = p;
   }
   return rows;
 }

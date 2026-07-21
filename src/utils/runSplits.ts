@@ -1,14 +1,12 @@
-// Per-kilometre splits for RunDetailModal's split table. Derived from the same
-// non-gap-bridging cumulative-distance walk as buildRunSeries, so the table and
-// the chart agree on where each km lands. Pure and unit-tested.
+// Per-kilometre splits for RunDetailModal's split table. Derived from the SAME
+// gap-aware cumulative-distance walk as buildRunSeries (the shared flattenTrack),
+// so the table and the chart agree on where each km lands. Pure and unit-tested.
 //
-// A point is [lat, lng, tEpochMs, alt|null]; `null` is a GAP marker. Distance is
-// accumulated without bridging gaps (matching the chart x-axis). Time at each
-// exact km mark is linearly interpolated along the track, so a split's duration
-// isn't quantised to whole GPS fixes.
+// Time at each exact km mark is linearly interpolated along the track, so a
+// split's duration isn't quantised to whole GPS fixes.
 
-import { elevGainM, haversineM } from "./geo";
-import type { TrackPointOrGap } from "./geo";
+import { elevGainM, flattenTrack } from "./geo";
+import type { FlatPoint, TrackPointOrGap } from "./geo";
 import type { HrSample } from "./runSeries";
 
 export type Split = {
@@ -24,10 +22,8 @@ export type Split = {
 
 export type SplitOpts = { jitterM?: number };
 
-type RealPoint = { cumKm: number; t: number; alt: number | null };
-
 // Linear-interpolated time (epoch ms) at a given cumulative-km mark along `pts`.
-function timeAtKm(pts: RealPoint[], km: number): number {
+function timeAtKm(pts: FlatPoint[], km: number): number {
   if (!pts.length) return 0;
   if (km <= pts[0].cumKm) return pts[0].t;
   for (let i = 1; i < pts.length; i++) {
@@ -46,29 +42,20 @@ export function buildSplits(
   hrSamples?: HrSample[] | null,
   opts?: SplitOpts,
 ): Split[] {
-  const jitterM = opts?.jitterM ?? 3;
   const hr = hrSamples && hrSamples.length ? hrSamples : null;
-
-  // Flatten to real points with cumulative (non-bridged) distance.
-  const pts: RealPoint[] = [];
-  let cumM = 0;
-  let prev: TrackPointOrGap = null;
-  for (const p of points) {
-    if (!p) { prev = null; continue; } // gap: don't add distance, don't break the km run
-    if (prev) {
-      const d = haversineM(prev, p);
-      if (d >= jitterM) cumM += d;
-    }
-    pts.push({ cumKm: cumM / 1000, t: Number(p[2]), alt: p[3] == null ? null : Number(p[3]) });
-    prev = p;
-  }
-  const totalKm = cumM / 1000;
+  const pts = flattenTrack(points, opts?.jitterM ?? 3);
+  const totalKm = pts.length ? pts[pts.length - 1].cumKm : 0;
   if (pts.length < 2 || totalKm <= 0) return [];
 
+  // Mean bpm over [t0, t1]. `hr` is time-sorted, so binary-search the lower bound
+  // and sweep forward — O(log n + window) per split, not O(n) (avoids a full scan
+  // of a multi-hour ~1Hz stream per split).
   const avgHrBetween = (t0: number, t1: number): number | null => {
     if (!hr) return null;
+    let lo = 0, hi = hr.length - 1;
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (hr[m].t < t0) lo = m + 1; else hi = m - 1; }
     let sum = 0, n = 0;
-    for (const s of hr) { if (s.t >= t0 && s.t <= t1) { sum += s.bpm; n++; } }
+    for (let i = lo; i < hr.length && hr[i].t <= t1; i++) { sum += hr[i].bpm; n++; }
     return n ? Math.round(sum / n) : null;
   };
 
@@ -95,6 +82,8 @@ export function buildSplits(
   }
 
   // Fastest / slowest among FULL kms only (a partial tail is never the winner).
+  // Skip when they'd be the same split (all-equal pace) so one km is never marked
+  // both fastest and slowest.
   const full = splits.filter(s => s.distKm >= 0.999);
   if (full.length >= 2) {
     let fast = full[0], slow = full[0];
@@ -102,8 +91,7 @@ export function buildSplits(
       if (s.paceSecPerKm < fast.paceSecPerKm) fast = s;
       if (s.paceSecPerKm > slow.paceSecPerKm) slow = s;
     }
-    fast.fastest = true;
-    slow.slowest = true;
+    if (fast !== slow) { fast.fastest = true; slow.slowest = true; }
   }
   return splits;
 }

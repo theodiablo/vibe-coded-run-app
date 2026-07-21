@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -88,20 +88,35 @@ function Tile({ label, value }: { label: string; value: string }) {
 // only), and summary tiles. Self-fetches the trace (kept out of the synced blob).
 export function RunDetailModal({ run, settings, onClose }: Props) {
   const { t } = useTranslation();
-  const { route } = useRouteTrace(run);
+  const { route } = useRouteTrace(run, { withStats: true });
   const [show, setShow] = useState({ elev: true, pace: true, hr: true });
   useDismissable(true, onClose);
 
   const hasTrace = !!(run.routeId || run.routeTmp);
-  const points = (route?.points ?? []) as unknown as TrackPointOrGap[];
-  const hrSamples = (route?.stats?.hrSamples as HrSample[] | undefined) || null;
-  const series = points.length ? buildRunSeries(points, hrSamples) : [];
-  const splits = points.length ? buildSplits(points, hrSamples) : [];
-  const hasHr = series.some(r => r.hr != null);
-  const hasElev = series.some(r => r.elevM != null);
-
   const maxHR = effectiveMaxHR(settings);
-  const zones = timeInZones(hrSamples, maxHR, settings.restHR);
+  const restHR = settings.restHR || 60; // match every other zone call site's fallback
+
+  // Derive all chart/table data once per trace change — NOT on every re-render.
+  // The modal re-renders on any hub state change (toasts, background scans) and on
+  // each toggle-chip click, and these scans are O(points)+O(HR samples); a
+  // multi-hour run has thousands of each.
+  const derived = useMemo(() => {
+    const points = (route?.points ?? []) as unknown as TrackPointOrGap[];
+    const hrSamples = (route?.stats?.hrSamples as HrSample[] | undefined) || null;
+    const series = points.length ? buildRunSeries(points, hrSamples) : [];
+    return {
+      hasPoints: points.length > 0,
+      series,
+      splits: points.length ? buildSplits(points, hrSamples) : [],
+      zones: timeInZones(hrSamples, maxHR, restHR),
+      // HR presence is the RAW stream, not per-point alignment — so the chart HR
+      // series and the time-in-zone card agree (a sparse GPS trace could otherwise
+      // hide the chart line while the zone card still rendered).
+      hasHr: !!(hrSamples && hrSamples.length),
+      hasElev: series.some(r => r.elevM != null),
+    };
+  }, [route, maxHR, restHR]);
+  const { hasPoints, series, splits, zones, hasHr, hasElev } = derived;
   const zoneTotal = zones.reduce((s, z) => s + z.sec, 0);
 
   const pace = run.km && run.durationSec ? run.durationSec / run.km : 0;
@@ -143,9 +158,9 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
           </div>
         )}
 
-        {points.length > 0 && (
+        {hasPoints && route && (
           <>
-            <RouteMap points={route!.points} interactive className="h-56 rounded-xl overflow-hidden" />
+            <RouteMap points={route.points} interactive className="h-56 rounded-xl overflow-hidden" />
 
             {/* Series toggles + combined chart */}
             <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
@@ -212,12 +227,13 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
           </>
         )}
 
-        {/* Trace failed to load, or the run never had one (manual/imported). */}
-        {route === null && hasTrace && (
-          <p className="text-slate-500 text-sm text-center">{t("progress.history.routeUnavailable")}</p>
-        )}
-        {!hasTrace && (
-          <p className="text-slate-500 text-sm text-center">{t("progress.detail.noRoute")}</p>
+        {/* Resolved but nothing to chart: a failed/absent fetch, OR a route that
+            exists yet has no usable points (e.g. Stop tapped before any GPS fix).
+            Without this, that empty-points case rendered a blank gap. */}
+        {route !== undefined && !hasPoints && (
+          <p className="text-slate-500 text-sm text-center">
+            {t(hasTrace ? "progress.history.routeUnavailable" : "progress.detail.noRoute")}
+          </p>
         )}
 
         {tiles}

@@ -48,9 +48,18 @@ describe("buildRunSeries", () => {
 
   it("computes a plausible pace over consecutive points", () => {
     // ~1.11 km between longitudes 0 and 0.01 at the equator, over 300 s ⇒ ~270 s/km.
-    const rows = buildRunSeries([p(0, 0, 0), p(0, 0.01, 300)], null, { paceWindowSec: 600 });
+    const rows = buildRunSeries([p(0, 0, 0), p(0, 0.01, 300)]);
     expect(rows[1].paceSecPerKm).toBeGreaterThan(200);
     expect(rows[1].paceSecPerKm).toBeLessThan(340);
+  });
+
+  it("computes pace even when points are sparse in time (simplified track)", () => {
+    // Points ~30 s apart — far wider than any fixed time window. A distance-window
+    // smoother must still produce a continuous pace (no null gaps mid-segment).
+    const pts = [p(0, 0, 0), p(0, 0.005, 90), p(0, 0.01, 180), p(0, 0.015, 270)];
+    const rows = buildRunSeries(pts);
+    expect(rows[0].paceSecPerKm).toBeNull();          // segment start
+    expect(rows.slice(1).every(r => r.paceSecPerKm != null)).toBe(true);
   });
 
   it("carries elevation and nulls missing altitude", () => {

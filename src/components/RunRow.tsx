@@ -33,10 +33,16 @@ export function RunRow({run, dateFmt = fmt.sht, showNotes = false, actions = nul
     ? { role: "button", tabIndex: 0, onClick,
         onKeyDown: (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } }
     : {};
+  // Whole row is the tap target when there's no `actions` slot (Dashboard), so the
+  // type badge isn't dead space; with actions (History) only the content region is
+  // clickable, leaving the map/edit/delete buttons as independent targets.
+  const rowClick = onClick && !actions;
+  const contentClick = onClick && !!actions;
   return (
-    <div className={"bg-slate-800 rounded-xl p-3 flex items-center gap-3 transition-shadow" + (highlight ? " ring-2 ring-orange-400/70" : "")}>
+    <div className={"bg-slate-800 rounded-xl p-3 flex items-center gap-3 transition-shadow" + (highlight ? " ring-2 ring-orange-400/70" : "") + (rowClick ? " cursor-pointer" : "")}
+      {...(rowClick ? clickProps : {})}>
       <div className={"w-1.5 h-10 rounded-full flex-shrink-0 " + runBarColor(run.type || "OTHER")}/>
-      <div className={"flex-1 min-w-0" + (onClick ? " cursor-pointer" : "")} {...clickProps}>
+      <div className={"flex-1 min-w-0" + (contentClick ? " cursor-pointer" : "")} {...(contentClick ? clickProps : {})}>
         <p className="text-white text-sm font-medium flex items-center gap-1.5">
           <span className="truncate">{run.km + " km · " + fmt.dur(run.durationSec)}</span>
           {highlight && badgeLabel && (

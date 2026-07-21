@@ -11,14 +11,16 @@ export type RouteData = { points: (TrackPoint | null)[]; stats?: Record<string, 
 // run fetches from Supabase by `routeId`; one still pending upload reads straight
 // from the offline queue so it's viewable before it syncs. `undefined` = loading,
 // `null` = unavailable. Shared by History's map loader and RunDetailModal so the
-// two never drift.
-export function useRouteTrace(run: Run): { route: RouteData } {
+// two never drift. `withStats` fetches the `stats` sidecar (incl. the raw HR
+// stream) — the map-only preview leaves it false to skip that payload.
+export function useRouteTrace(run: Run, opts?: { withStats?: boolean }): { route: RouteData } {
+  const withStats = opts?.withStats ?? false;
   const [route, setRoute] = useState<RouteData>(() => run.routeId ? undefined : getPendingRoute(run.routeTmp) as RouteData);
   useEffect(() => {
     if (!run.routeId) return; // pending route already pulled from localStorage
     let on = true;
-    getRoute(run.routeId).then(r => on && setRoute(r as RouteData)).catch(() => on && setRoute(null));
+    getRoute(run.routeId, withStats).then(r => on && setRoute(r as RouteData)).catch(() => on && setRoute(null));
     return () => { on = false; };
-  }, [run.routeId]);
+  }, [run.routeId, withStats]);
   return { route };
 }

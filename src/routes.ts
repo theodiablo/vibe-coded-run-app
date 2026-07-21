@@ -29,14 +29,18 @@ export async function saveRoute({ points, stats }: RouteTrace): Promise<string> 
 }
 
 // Lazy-fetch a trace for replay. Returns {points, stats} or null.
-export async function getRoute(id: string): Promise<RouteTrace | null> {
+// `stats` now carries a run's full raw ~1Hz HR stream (see LiveRunTracker), which
+// can be hundreds of KB on a multi-hour run. Surfaces that only draw the map (the
+// History route preview) pass `withStats:false` so they don't fetch and parse that
+// payload; RunDetailModal passes true because it renders the HR series/zones.
+export async function getRoute(id: string, withStats = true): Promise<RouteTrace | null> {
   const { data, error } = await supabase
     .from("run_routes")
-    .select("points, stats")
+    .select(withStats ? "points, stats" : "points")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  return data as RouteTrace | null;
 }
 
 // Best-effort delete (called when its run is deleted). Failure is logged, not
