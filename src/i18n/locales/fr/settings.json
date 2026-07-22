@@ -105,7 +105,7 @@
     },
     "mobile": {
       "title": "Capteurs et synchronisation de montre",
-      "desc": "La capture de la fréquence cardiaque et la synchronisation de ta montre se font dans l'app mobile.",
+      "desc": "Synchronise les sorties de ta montre (Garmin ou Zepp/Amazfit via Health Connect sur Android, Apple Watch via Santé sur iPhone) et capture ta fréquence cardiaque avec un capteur Bluetooth. Tout se passe dans l'app mobile.",
       "android": "Télécharger sur Google Play",
       "ios": "Télécharger pour iPhone"
     },

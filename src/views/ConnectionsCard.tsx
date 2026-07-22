@@ -486,8 +486,11 @@ function MobileAppPointer() {
       <RowShell
         icon={<Smartphone size={16} />}
         label={t("settings.connections.mobile.title")}
-        status={t("settings.connections.mobile.desc")}
       />
+      {/* Full paragraph, NOT RowShell's one-line truncating status slot: this
+          copy names the supported watches (Garmin/Zepp via Health Connect,
+          Apple Watch via Apple Health) — it's the install pitch, don't cut it. */}
+      <p className="text-xs text-slate-500">{t("settings.connections.mobile.desc")}</p>
       <div className="grid grid-cols-2 gap-2">
         <a href={PLAY_STORE_BETA_URL} target="_blank" rel="noopener noreferrer"
           className="py-2.5 rounded-xl text-sm font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 text-center">

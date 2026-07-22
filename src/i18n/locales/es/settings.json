@@ -105,7 +105,7 @@
     },
     "mobile": {
       "title": "Sensores y sincronización del reloj",
-      "desc": "La captura de frecuencia cardíaca y la sincronización del reloj están en la app móvil.",
+      "desc": "Sincroniza los entrenamientos de tu reloj (Garmin o Zepp/Amazfit con Health Connect en Android, Apple Watch con Salud de Apple en iPhone) y registra la frecuencia cardíaca con sensores Bluetooth. Todo está en la app móvil.",
       "android": "Descargar en Google Play",
       "ios": "Descargar para iPhone"
     },

@@ -105,7 +105,7 @@
     },
     "mobile": {
       "title": "Sensors & watch sync",
-      "desc": "Heart-rate capture and watch sync live in the mobile app.",
+      "desc": "Sync runs from your watch — Garmin or Zepp/Amazfit via Health Connect on Android, Apple Watch via Apple Health on iPhone — and capture heart rate from Bluetooth sensors. It all lives in the mobile app.",
       "android": "Get it on Google Play",
       "ios": "Get it for iPhone"
     },
