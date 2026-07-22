@@ -40,10 +40,24 @@ user's token — neither ever reaches the SPA bundle, mirroring `coach-agent`.
   and maps exercises to runs (`polarExerciseToRun`, pure + unit-tested); runs are
   stamped `extId: "polar:<id>"` so the registry dedupes them like any other
   source.
-- **Web-only for now.** The redirect flow would navigate a native Capacitor
-  webview away from the app, so `isAvailable()` is `false` on native. Native
-  support is a follow-up using the existing deep-link return (`AUTH_DEEP_LINK`),
-  landing alongside Suunto.
+- **Web + native.** On the shells, `connect()` opens the authorization page in
+  the system browser (Android: plain top-frame navigation → `Bridge.launchIntent`
+  hands it to the OS; iOS: `Browser.open` / SFSafariViewController) and marks the
+  OAuth `state` with a `:native:` segment. Polar can only redirect to the ONE
+  registered https redirect URL (the web origin), so the return lands on the web
+  app in that browser — whose `polarPreinit` detects the native marker and
+  **bounces** code+state to the `solutions.camboulive.run://polar-callback` deep
+  link (scripted redirect attempted, plus an always-rendered "Open the app" tap
+  target because browsers block scripted custom-scheme navigation without a
+  gesture). `App.tsx` routes that deep link BEFORE its Supabase auth-code
+  exchange (the native twin of the preinit's web-side guard), stashes code+state
+  in localStorage (survives the OS killing the app under the browser; the nonce
+  is stored in localStorage on native for the same reason) and fires
+  `rc-polar-return`; `RunningCoach` answers with the same `completePolarAuth()`
+  exchange, which passes the SAME https redirect_uri (`WEB_APP_ORIGIN`) the
+  authorization used. No Polar-side changes needed — one registered redirect URL
+  serves both platforms. Native builds need `VITE_POLAR_CLIENT_ID` at web-bundle
+  build time (wired in `release.yml` and `android-pr.yml`).
 
 ## Activation (maintainer)
 

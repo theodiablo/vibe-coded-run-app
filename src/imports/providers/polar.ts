@@ -1,7 +1,11 @@
 import { supabase } from "../../supabase";
-import { isNative } from "../../native";
+import { isNative, isIos } from "../../native";
+import { WEB_APP_ORIGIN } from "../../constants";
 import { parseActivityFile } from "../../utils/gpx";
-import { POLAR_STATE_PREFIX, POLAR_CODE_KEY, POLAR_RETURNED_STATE_KEY, POLAR_NONCE_KEY } from "../../polarPreinit";
+import {
+  POLAR_STATE_PREFIX, POLAR_NATIVE_STATE_PREFIX,
+  POLAR_CODE_KEY, POLAR_RETURNED_STATE_KEY, POLAR_NONCE_KEY,
+} from "../../polarPreinit";
 import type { ImportProvider, ImportedRun } from "../types";
 
 // Polar (AccessLink) cloud import — the first real vendor-cloud provider, for
@@ -12,6 +16,20 @@ import type { ImportProvider, ImportedRun } from "../types";
 // Dormant until configured: without VITE_POLAR_CLIENT_ID the provider's
 // isAvailable() is false, so nothing renders and no request is made — exactly
 // like garminCloudProvider. Activation steps: docs/integrations-polar.md.
+//
+// Works on web AND in the native shells, with one OAuth return path each:
+//  - web: full-page redirect out and back; polarPreinit stashes the ?code= on
+//    the way back in (sessionStorage) and completePolarAuth (RunningCoach boot)
+//    exchanges it.
+//  - native: the authorization page opens in the system browser (Android:
+//    plain top-frame navigation → Bridge.launchIntent hands it to the OS;
+//    iOS: SFSafariViewController). Polar can only redirect to the registered
+//    https web origin, so the return lands on the web app, whose polarPreinit
+//    detects the `:native:` state marker and bounces code+state to the
+//    solutions.camboulive.run://polar-callback deep link; App.tsx stashes them
+//    (localStorage — survives the OS killing the app under the browser) and
+//    fires "rc-polar-return", which RunningCoach answers with the same
+//    completePolarAuth exchange.
 //
 // GPX (route + HR extensions) is parsed by the app's existing, tested
 // parseActivityFile — the same path a user-picked .gpx takes — so a Polar import
@@ -33,9 +51,44 @@ function newNonce(): string {
 }
 
 // Where Polar sends the browser back after authorization — must exactly match the
-// redirect URL registered in the Polar app. The app root; the return is detected
-// by the `state` marker, so it never collides with Supabase's PKCE ?code=.
-const redirectUri = () => (typeof window !== "undefined" ? window.location.origin + "/" : "");
+// redirect URL registered in the Polar app. The web app root; the return is
+// detected by the `state` marker, so it never collides with Supabase's PKCE
+// ?code=. On native this MUST be the canonical production origin, not
+// window.location.origin (capacitor://localhost, unreachable and unregistered):
+// the return lands on the web app, which bounces it to the deep link. The same
+// value is passed again at exchange time — OAuth requires the token request's
+// redirect_uri to equal the authorization request's byte-for-byte.
+const redirectUri = () =>
+  isNative ? WEB_APP_ORIGIN + "/" : (typeof window !== "undefined" ? window.location.origin + "/" : "");
+
+// Storage seam for the OAuth handshake values. Web stashes in sessionStorage
+// (per-tab, cleaned up with the tab); native must use localStorage because the
+// OS can kill the app while the system browser is open — the cold-start
+// relaunch via the deep link is a fresh WebView session and sessionStorage is
+// gone (the CSRF nonce would be lost and every cold-start return would be
+// rejected). Reads check both so one code path serves both platforms.
+const readStash = (key: string): string | null => {
+  try { const v = sessionStorage.getItem(key); if (v != null) return v; } catch { /* unavailable */ }
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+const clearStash = (key: string): void => {
+  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
+};
+const writeNonce = (nonce: string): void => {
+  try {
+    if (isNative) localStorage.setItem(POLAR_NONCE_KEY, nonce);
+    else sessionStorage.setItem(POLAR_NONCE_KEY, nonce);
+  } catch { /* storage unavailable — the return's state check will just fail closed */ }
+};
+
+// The exact state strings a return may carry for the nonce this device stored
+// at connect() time (plain = web connect, :native: = native connect). Exported
+// for tests.
+export const expectedPolarStates = (nonce: string): string[] => [
+  POLAR_STATE_PREFIX + ":" + nonce,
+  POLAR_NATIVE_STATE_PREFIX + ":" + nonce,
+];
 
 type Invoke = { action: string; [k: string]: unknown };
 async function invoke<T>(body: Invoke): Promise<T | null> {
@@ -115,27 +168,47 @@ export function polarExerciseToRun(ex: PolarExercise): ImportedRun | null {
   };
 }
 
-// Kick off the OAuth authorization redirect (full-page). A per-connect nonce is
-// saved so the return can be CSRF-validated. Completion happens on return via
-// completePolarAuth() at app boot.
-async function connect(): Promise<boolean> {
+// Kick off the OAuth authorization (full-page redirect on web, system browser
+// on native). A per-connect nonce is saved so the return can be CSRF-validated.
+// Completion happens on return via completePolarAuth() — at boot on web, and
+// on the "rc-polar-return" deep-link event on native.
+async function connect(): Promise<boolean | "pending"> {
   if (!polarEnabled || typeof window === "undefined") return false;
   const nonce = newNonce();
-  try { sessionStorage.setItem(POLAR_NONCE_KEY, nonce); } catch { /* storage unavailable — the return's state check will just fail closed */ }
+  writeNonce(nonce);
   const url = new URL(POLAR_AUTH_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", POLAR_CLIENT_ID!);
   url.searchParams.set("redirect_uri", redirectUri());
   url.searchParams.set("scope", "accesslink.read_all");
-  url.searchParams.set("state", POLAR_STATE_PREFIX + ":" + nonce);
+  url.searchParams.set("state", (isNative ? POLAR_NATIVE_STATE_PREFIX : POLAR_STATE_PREFIX) + ":" + nonce);
+  if (isNative) {
+    // The app itself stays alive under the external browser, so resolve
+    // "pending": the caller drops its spinner without toasting, and the real
+    // outcome arrives later via the deep-link event (or never, if the user
+    // abandons the browser — in which case the row simply stays disconnected).
+    if (isIos) {
+      // SFSafariViewController — the OAuth pattern LoginScreen uses; App.tsx
+      // closes it when the deep link lands.
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url: url.toString() });
+    } else {
+      // Android: plain top-frame navigation. Capacitor's WebViewClient
+      // intercepts the external host (Bridge.launchIntent) and hands it to the
+      // OS as an ACTION_VIEW intent — the WebView never leaves the app. Never
+      // use @capacitor/browser here (see openStore in UpdatePrompt.tsx).
+      window.location.assign(url.toString());
+    }
+    return "pending";
+  }
   window.location.assign(url.toString());
   // The page is navigating away to Polar; the real result only arrives on the
   // OAuth return (completePolarAuth at boot), so there is no boolean to give
-  // here. Resolving false would make Integrations' connect() flash a false
+  // here. Resolving false would make the settings panel flash a false
   // "access denied" toast on EVERY connect (the promise settles a microtask
   // before the browser unloads). So return a never-settling promise instead.
   // TRADE-OFF: if the navigation somehow never starts (assign blocked), the
-  // Integrations spinner hangs — accepted, as that's far rarer than the
+  // connect spinner hangs — accepted, as that's far rarer than the
   // guaranteed false-error-on-every-connect the naive `return false` caused.
   return new Promise<boolean>(() => {});
 }
@@ -149,25 +222,28 @@ async function connect(): Promise<boolean> {
 //                 isn't left staring at an unchanged "Connect" with no feedback.
 export type PolarAuthResult = "idle" | "connected" | "failed";
 
-// Called once at app boot: if this load was a Polar OAuth return, polarPreinit
-// has already stashed the code + returned state in sessionStorage (and stripped
-// the URL before Supabase could touch it). Validate the state against this
-// browser's connect-time nonce (CSRF guard), then exchange the code server-side
+// Called at app boot and (native) on the "rc-polar-return" deep-link event: if
+// a Polar OAuth return was stashed — by polarPreinit on web (sessionStorage,
+// after stripping the URL before Supabase could touch it) or by App.tsx's
+// deep-link handler on native (localStorage) — validate the state against this
+// device's connect-time nonce (CSRF guard), then exchange the code server-side
 // for a stored token. A no-op on every normal load and when Polar is unconfigured.
 export async function completePolarAuth(): Promise<PolarAuthResult> {
   if (!polarEnabled || typeof window === "undefined") return "idle";
-  let code: string | null = null, returnedState: string | null = null, nonce: string | null = null;
-  try {
-    code = sessionStorage.getItem(POLAR_CODE_KEY);
-    returnedState = sessionStorage.getItem(POLAR_RETURNED_STATE_KEY);
-    nonce = sessionStorage.getItem(POLAR_NONCE_KEY);
-  } catch { /* storage unavailable */ }
-  // One-shot: clear everything so a reload can't replay the exchange.
-  try {
-    sessionStorage.removeItem(POLAR_CODE_KEY);
-    sessionStorage.removeItem(POLAR_RETURNED_STATE_KEY);
-    sessionStorage.removeItem(POLAR_NONCE_KEY);
-  } catch { /* ignore */ }
+  const code = readStash(POLAR_CODE_KEY);
+  const returnedState = readStash(POLAR_RETURNED_STATE_KEY);
+  const nonce = readStash(POLAR_NONCE_KEY);
+  // One-shot ONLY when actually consuming a return: clear everything so a
+  // reload can't replay the exchange. When no code is stashed, clear NOTHING —
+  // on native a connect can still be in flight while the app boots (the OS
+  // killed it under the system browser and something other than the deep link
+  // relaunched it, or the boot ran before App.tsx finished stashing); wiping
+  // the nonce then would reject the genuine return that's about to arrive.
+  if (code) {
+    clearStash(POLAR_CODE_KEY);
+    clearStash(POLAR_RETURNED_STATE_KEY);
+    clearStash(POLAR_NONCE_KEY);
+  }
   // No code stashed → either a normal load (not a Polar return) OR the user
   // DENIED on Polar's page (the return carried ?error= and no code; polarPreinit
   // already stripped it from the URL). TRADE-OFF: a denial is handled silently
@@ -179,10 +255,11 @@ export async function completePolarAuth(): Promise<PolarAuthResult> {
   // "not connected". (This differs from a *failed exchange* below, which the
   // user didn't choose and so IS surfaced.)
   if (!code) return "idle";
-  // CSRF: the returned state MUST equal the nonce this browser generated at
-  // connect() time. A forged link carrying an attacker's code won't match, so
-  // it's never exchanged into the victim's account (silently ignored).
-  if (!nonce || returnedState !== POLAR_STATE_PREFIX + ":" + nonce) return "idle";
+  // CSRF: the returned state MUST carry the nonce this device generated at
+  // connect() time (in either the web or native state format). A forged link
+  // carrying an attacker's code won't match, so it's never exchanged into the
+  // victim's account (silently ignored).
+  if (!nonce || !returnedState || !expectedPolarStates(nonce).includes(returnedState)) return "idle";
   // A genuine return with a valid state: any non-connected result here is a real
   // failure the user should see (they authorized and expect a result).
   const res = await invoke<{ connected?: boolean }>({ action: "exchange", code, redirectUri: redirectUri() });
@@ -193,12 +270,12 @@ export const polarProvider: ImportProvider = {
   id: "polar",
   label: "Polar",
   kind: "cloud",
-  // Web-only for now: connect() is a full-page OAuth redirect, which would
-  // navigate a native Capacitor webview away from the app. Native support is a
-  // follow-up using the existing deep-link return (AUTH_DEEP_LINK), landing with
-  // Suunto. Cloud sync is most useful the moment the runner opens the web app.
-  platform: "web",
-  isAvailable: () => polarEnabled && !isNative,
+  // Web + native: web uses the full-page redirect; native opens the system
+  // browser and gets the return bounced to the polar-callback deep link (see
+  // the module comment). Still dormant everywhere until VITE_POLAR_CLIENT_ID
+  // is set — native builds get it from release.yml's web-build env.
+  platform: "both",
+  isAvailable: () => polarEnabled,
   isConnected: async () => {
     if (!polarEnabled) return false;
     const res = await invoke<{ connected?: boolean }>({ action: "status" });

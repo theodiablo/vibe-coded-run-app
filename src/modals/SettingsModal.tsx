@@ -5,8 +5,7 @@ import { Download, Upload, LogOut, Trash2, Shield } from "lucide-react";
 import { LANGS, setLocale, currentLang, isLangId, type LangId } from "../i18n";
 import { INPUT_CLS, PRIVACY_URL, DISCLAIMER_URL, USER_CONTEXT_MAX_CHARS, USER_CONTEXT_WARN_CHARS, USER_CONTEXT_NOTICE_CHARS } from "../constants";
 import { HRZones } from "../views/HRZones";
-import { HrSensor } from "../views/HrSensor";
-import { Integrations } from "../views/Integrations";
+import { ConnectionsCard } from "../views/ConnectionsCard";
 import { isNative } from "../native";
 import { getConsent, setConsent } from "../telemetry";
 import type { SettingsState, UserContextState } from "../types";
@@ -102,12 +101,13 @@ export function SettingsModal({settings, saveSettings, userContext, saveUserCont
               </div>
             </div>
             <HRZones settings={settings} saveSettings={saveSettings}/>
-            {/* Heart-rate sensor capture is native-only (BLE / Health Connect). */}
-            {isNative && <HrSensor settings={settings} saveSettings={saveSettings} showToast={showToast}/>}
-            {/* Post-run import integrations (registry-driven; today Health Connect,
-                which only exists on native — Integrations renders nothing on web). */}
-            <Integrations settings={settings} saveSettings={saveSettings} showToast={showToast} scanImportsNow={scanImportsNow}/>
           </div>
+
+          {/* Connections & sync — every external source (BLE sensor, phone
+              health store, cloud accounts) in ONE card with the same structure
+              on web and native; web shows a mobile-app pointer for the
+              native-only rows. */}
+          <ConnectionsCard settings={settings} saveSettings={saveSettings} showToast={showToast} scanImportsNow={scanImportsNow}/>
 
           <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
             <div>

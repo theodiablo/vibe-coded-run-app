@@ -411,8 +411,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   // unconfigured — gated on the state marker inside). On success, flip the
   // provider's enable flag on and scan straight away for anything already synced;
   // on a failed exchange, tell the user (they authorized and expect a result).
-  useEffect(() => {
-    if (loading) return;
+  // Two triggers share this: the boot effect (web returns — the page reloaded
+  // through the redirect — and native cold-start relaunches), and the
+  // "rc-polar-return" event App.tsx fires when the deep link lands warm.
+  const finishPolarReturn = () => {
     completePolarAuth().then(result => {
       if (result === "idle") return;
       if (result === "failed") { showToast(t("settings.integrations.connectFailed"), "err"); return; }
@@ -424,13 +426,26 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       // this, the "scan straight away" would skip Polar until the next boot.
       settingsRef.current = next;
       showToast(t("settings.integrations.connectSuccess"));
+      // Let an open settings panel flip its Polar row to "connected" without a
+      // reopen (its per-provider isConnected checks only run on mount).
+      window.dispatchEvent(new Event("rc-polar-connected"));
       checkWatchRef.current({ manual: true }).catch(() => {});
     }).catch(() => {});
-    // Boot-once on the loading→false transition: t/saveSettings/showToast are
-    // stable enough that re-running on their identity would just re-scan; only
-    // the loading edge should trigger this.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  };
+  const finishPolarReturnRef = useRef(finishPolarReturn);
+  // Latest-ref pattern (same as checkWatchRef above): the long-lived deep-link
+  // listener below must call this render's closure, not a stale one.
+  // eslint-disable-next-line react-hooks/refs
+  finishPolarReturnRef.current = finishPolarReturn;
+  useEffect(() => {
+    if (loading) return;
+    finishPolarReturnRef.current();
   }, [loading]);
+  useEffect(() => {
+    const onPolarReturn = () => finishPolarReturnRef.current();
+    window.addEventListener("rc-polar-return", onPolarReturn);
+    return () => window.removeEventListener("rc-polar-return", onPolarReturn);
+  }, []);
   const saveUserContext = (next: Partial<UserContextState>) => {
     const clean = withLimitNotice({ notes: String(next?.notes || "").slice(0, USER_CONTEXT_MAX_CHARS), lastLimitNoticeAt: next?.lastLimitNoticeAt || null });
     userContextRef.current = clean;

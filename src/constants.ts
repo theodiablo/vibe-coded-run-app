@@ -65,14 +65,21 @@ export const WATCH_DEBUG_KEY = "rc_watch_debug";           // "1" reveals the hi
 // HealthKit itself is unavailable — never from a permission check.
 export const HK_AUTH_KEY = "rc_hk_auth";
 
+// Canonical production web origin (no trailing slash). Native code that must
+// name the web app's address uses this — e.g. Polar's OAuth redirect_uri, which
+// is registered with Polar as the web origin and must match byte-for-byte even
+// when the flow starts inside the Capacitor shell (whose own origin is
+// capacitor://localhost and unreachable from a browser).
+export const WEB_APP_ORIGIN = "https://run.camboulive.solutions";
+
 // Public privacy policy (static page in public/privacy.html, served at the site
 // root). Linked from the disclosure + login screen and required by the app stores
 // for background-location apps.
-export const PRIVACY_URL = "https://run.camboulive.solutions/privacy.html";
+export const PRIVACY_URL = WEB_APP_ORIGIN + "/privacy.html";
 
 // Public health & safety / medical disclaimer (static page in public/disclaimer.html).
 // Linked from the in-app onboarding disclaimer so the full version is reachable.
-export const DISCLAIMER_URL = "https://run.camboulive.solutions/disclaimer.html";
+export const DISCLAIMER_URL = WEB_APP_ORIGIN + "/disclaimer.html";
 
 // Version of the medical/liability disclaimer shown in onboarding. Stored
 // alongside the user's acknowledgment (`settings.healthAck`) so a future change

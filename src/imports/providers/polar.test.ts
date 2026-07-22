@@ -80,3 +80,30 @@ describe("polarExerciseToRun", () => {
     })).toBeNull();
   });
 });
+
+// ── Native deep-link OAuth plumbing (pure parts) ─────────────────────────────
+import { expectedPolarStates } from "./polar";
+import { classifyPolarReturn, POLAR_STATE_PREFIX, POLAR_NATIVE_STATE_PREFIX } from "../../polarPreinit";
+
+describe("polar OAuth state helpers", () => {
+  it("accepts both the web and the native state format for one nonce", () => {
+    expect(expectedPolarStates("abc")).toEqual(["polar_import:abc", "polar_import:native:abc"]);
+  });
+
+  it("classifyPolarReturn tells web returns, native returns and non-Polar loads apart", () => {
+    expect(classifyPolarReturn("").kind).toBe("none");
+    // Supabase's own PKCE return (?code= with no Polar state) is NOT ours.
+    expect(classifyPolarReturn("?code=supa").kind).toBe("none");
+    expect(classifyPolarReturn("?state=other:xyz&code=c").kind).toBe("none");
+    expect(classifyPolarReturn(`?state=${POLAR_STATE_PREFIX}:xyz&code=c`))
+      .toEqual({ kind: "web", code: "c", state: "polar_import:xyz" });
+    // Native marker also starts with the plain prefix — must classify native,
+    // not web (order of the startsWith checks is load-bearing).
+    expect(classifyPolarReturn(`?state=${POLAR_NATIVE_STATE_PREFIX}:xyz&code=c`))
+      .toEqual({ kind: "native", code: "c", state: "polar_import:native:xyz" });
+    // A denial carries error and no code — still classified so the URL gets
+    // stripped (web) or bounced (native, to close the iOS browser sheet).
+    expect(classifyPolarReturn(`?state=${POLAR_STATE_PREFIX}:xyz&error=access_denied`))
+      .toEqual({ kind: "web", code: null, state: "polar_import:xyz" });
+  });
+});

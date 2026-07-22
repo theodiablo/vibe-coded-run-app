@@ -69,16 +69,6 @@
     "fullBreakdown": "Consulta el desglose completo de zonas en Progreso → Estadísticas."
   },
   "hrSensor": {
-    "title": "Sensor de frecuencia cardíaca",
-    "subtitle": "Registra automáticamente tu frecuencia cardíaca durante un entrenamiento, sin tener que introducirla a mano.",
-    "betaWarning": "Esta función es nueva y se ha probado poco. El emparejamiento, las lecturas en tiempo real y las importaciones pueden fallar o tardar en aparecer. Revisa la frecuencia cardíaca guardada antes de usarla para entrenar.",
-    "methods": {
-      "off": "Desactivado",
-      "bluetooth": "Sensor Bluetooth",
-      "healthconnect": "Health Connect",
-      "healthkit": "Salud de Apple"
-    },
-    "newTag": "nuevo",
     "forgetAria": "Olvidar sensor",
     "scanning": "Buscando…",
     "pairAnother": "Emparejar otro sensor",
@@ -87,23 +77,43 @@
     "scanFailed": "No se pudieron buscar sensores. Comprueba que Bluetooth esté activado.",
     "permissionNeeded": "Se necesita permiso de Bluetooth para emparejar un sensor.",
     "paired": "Sensor {{name}} emparejado.",
-    "hcConnected": "Conectado. La frecuencia cardíaca se añade automáticamente a tus entrenamientos.",
-    "hcReconnect": "Reconectar Health Connect",
-    "hcConnect": "Conectar Health Connect",
-    "hcHelp": "Recupera tu frecuencia cardíaca de Health Connect después de cada entrenamiento. Es útil si tu reloj sincroniza los datos pero no los transmite en tiempo real. Pueden tardar unos minutos en aparecer. La misma conexión también permite importar entrenamientos completos. Actívalo en «Entrenamientos del reloj».",
     "hcNotSupported": "Health Connect no es compatible con este dispositivo (requiere Android 8+).",
-    "hcSuccess": "Conexión con Health Connect establecida. La frecuencia cardíaca se recuperará después de tus entrenamientos.",
     "hcInstall": "Instala Health Connect desde Google Play y luego vuelve a tocar Conectar.",
-    "hcDenied": "No se concedió el acceso. En Health Connect, permite que Running Coach lea la frecuencia cardíaca.",
     "hcOpenFailed": "No se pudo abrir Health Connect. Asegúrate de que está instalado y actualizado.",
-    "hkConnected": "Conectado. La frecuencia cardíaca se añade automáticamente a tus entrenamientos.",
-    "hkReconnect": "Reconectar Salud de Apple",
-    "hkConnect": "Conectar Salud de Apple",
-    "hkHelp": "Recupera tu frecuencia cardíaca de Salud de Apple después de cada entrenamiento. Es útil si tu reloj sincroniza los datos pero no los transmite en tiempo real. Pueden tardar unos minutos en aparecer.",
     "hkNotSupported": "Salud de Apple no está disponible en este dispositivo.",
-    "hkSuccess": "Conexión con Salud de Apple establecida. La frecuencia cardíaca se recuperará después de tus entrenamientos.",
     "hkDenied": "No se concedió el acceso. En la app Salud, permite que Running Coach lea Frecuencia cardíaca y Entrenos.",
     "hkOpenFailed": "No se pudo acceder a Salud de Apple. Vuelve a intentarlo o revisa los ajustes para compartir de la app Salud."
+  },
+  "connections": {
+    "title": "Conexiones y sincronización",
+    "subtitle": "Sensores, relojes y cuentas que añaden entrenamientos y frecuencia cardíaca automáticamente.",
+    "howItWorks": "Cómo funciona",
+    "notSetUp": "Sin configurar",
+    "connected": "Conectado",
+    "reconnect": "Reconectar",
+    "connectBtn": "Conectar",
+    "ble": {
+      "label": "Sensor Bluetooth de frecuencia cardíaca"
+    },
+    "store": {
+      "labelHc": "Health Connect",
+      "labelHk": "Salud de Apple",
+      "hrToggle": "Frecuencia cardíaca tras el entrenamiento",
+      "hrToggleDesc": "Completa tu frecuencia cardíaca al terminar un entrenamiento.",
+      "watchToggle": "Entrenamientos del reloj",
+      "watchToggleDesc": "Propone importar los entrenamientos terminados de tu reloj."
+    },
+    "mobile": {
+      "title": "Sensores y sincronización del reloj",
+      "desc": "La captura de frecuencia cardíaca y la sincronización del reloj están en la app móvil.",
+      "android": "Descargar en Google Play",
+      "ios": "Descargar para iPhone"
+    },
+    "betaNote": "Estas conexiones son nuevas y se han probado poco. El emparejamiento, las lecturas en tiempo real o las importaciones pueden fallar o tardar. Revisa la frecuencia cardíaca guardada antes de entrenar con ella.",
+    "help": {
+      "oneHrSource": "Una sola fuente de frecuencia cardíaca a la vez: al activar una se desactiva la otra.",
+      "hrEditable": "Los valores importados siguen siendo editables en cada entrenamiento."
+    }
   },
   "hrDisclosure": {
     "title": "Conectar un sensor de frecuencia cardíaca",
@@ -116,12 +126,8 @@
     "accept": "Permitir y continuar"
   },
   "integrations": {
-    "title": "Entrenamientos del reloj",
-    "subtitle": "Importa entrenamientos terminados con distancia, tiempo, desnivel y frecuencia cardíaca desde tu reloj, sin tener que llevar el teléfono.",
-    "connectedRow": "{{label}}: los nuevos entrenamientos se propondrán automáticamente para importarlos.",
     "scan30": "Buscar en los últimos 30 días",
     "turnOff": "Desactivar",
-    "connect": "Conectar {{label}}",
     "connectSuccess": "Conexión establecida. Los entrenamientos del reloj aparecerán aquí después de sincronizarse.",
     "noNewRuns": "Aún no hay entrenamientos nuevos para importar.",
     "accessDenied": "No se concedió el acceso. Permite que Running Coach lea Ejercicio, Distancia, Desnivel y Frecuencia cardíaca.",
@@ -136,6 +142,10 @@
       "healthkit": {
         "label": "Tu reloj (Salud de Apple)",
         "help": "Funciona con la app Entreno del Apple Watch y con cualquier reloj cuya aplicación registre entrenamientos en Salud de Apple. Aparecen unos minutos después de la sincronización; no incluyen ruta ni mapa."
+      },
+      "polar": {
+        "label": "Polar",
+        "help": "Conecta tu cuenta de Polar para importar los entrenamientos terminados, con ruta, ritmo, desnivel y frecuencia cardíaca, desde tu reloj Polar, incluso si dejas el teléfono en casa."
       }
     }
   }
