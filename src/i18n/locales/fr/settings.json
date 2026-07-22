@@ -131,7 +131,7 @@
     "connectSuccess": "Connexion établie. Les sorties de ta montre apparaîtront ici après leur synchronisation.",
     "noNewRuns": "Aucune nouvelle sortie à importer pour l'instant.",
     "accessDenied": "L'accès n'a pas été accordé. Autorise Running Coach à lire les exercices, les distances, le dénivelé et la fréquence cardiaque.",
-    "connectFailed": "Connexion impossible. Vérifie que Health Connect est installé et à jour.",
+    "connectFailed": "La connexion n'a pas pu aboutir. Réessaie.",
     "noRuns30": "Aucune nouvelle sortie trouvée dans les 30 derniers jours.",
     "scanFailed": "Impossible de lire tes sources connectées.",
     "providers": {

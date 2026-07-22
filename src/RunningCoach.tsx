@@ -427,8 +427,9 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       settingsRef.current = next;
       showToast(t("settings.integrations.connectSuccess"));
       // Let an open settings panel flip its Polar row to "connected" without a
-      // reopen (its per-provider isConnected checks only run on mount).
-      window.dispatchEvent(new Event("rc-polar-connected"));
+      // reopen (its per-provider isConnected checks only run on mount). The id
+      // in detail scopes it to the Polar row (future Suunto/COROS rows ignore it).
+      window.dispatchEvent(new CustomEvent("rc-cloud-connected", { detail: { id: "polar" } }));
       checkWatchRef.current({ manual: true }).catch(() => {});
     }).catch(() => {});
   };

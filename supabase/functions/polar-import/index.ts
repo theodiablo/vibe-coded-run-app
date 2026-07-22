@@ -101,7 +101,12 @@ async function fetchExercise(token: string, uri: string): Promise<PolarExercise 
     return "retry"; // network error — retryable
   }
   if (summaryRes.status >= 500) return "retry"; // server error — retryable
-  if (!summaryRes.ok) return null;              // 4xx (e.g. gone) — terminal, skip
+  // 401/403 = the stored token was revoked or expired mid-sync. This is NOT an
+  // "exercise gone" — treat it as retryable so the transaction is left OPEN and
+  // the exercises aren't dropped when the user reconnects. Lumping it with 404
+  // would commit past unfetched runs and lose them permanently.
+  if (summaryRes.status === 401 || summaryRes.status === 403) return "retry";
+  if (!summaryRes.ok) return null;              // other 4xx (e.g. gone) — terminal, skip
   const summary = await summaryRes.json().catch(() => null);
   const id = summary ? String((summary as { id?: unknown }).id ?? "") : "";
   if (!id) return null;                          // malformed / id-less — terminal, skip

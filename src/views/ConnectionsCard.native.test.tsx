@@ -15,6 +15,7 @@ vi.mock("../hr/healthkit", () => ({
     requestPermissions: vi.fn(async () => false),
   },
 }));
+import { connectHealthConnect } from "../health/connect";
 vi.mock("../health/connect", () => ({
   connectHealthConnect: vi.fn(async () => ({ availability: "Available", heartRate: true, activity: true })),
 }));
@@ -55,5 +56,25 @@ describe("ConnectionsCard (Android shell)", () => {
     await waitFor(() => expect(saved.length).toBe(1));
     expect(saved[0].hrMethod).toBe("off");
     expect(saved[0].watchImport).toBe(true); // untouched
+  });
+
+  it("Reconnect that newly grants activity auto-enables watch import", async () => {
+    // Connected via HR only (activity was declined before); the reconnect grant
+    // now returns activity:true → watchImport should flip on. But an ALREADY-on
+    // reconnect must never re-enable a toggle the user deliberately turned off,
+    // which applyGrant's newly-granted guard ensures.
+    const { healthConnectSource } = await import("../hr/healthconnect");
+    const provider = (await import("../imports/providers/healthConnect")).healthConnectProvider;
+    (healthConnectSource.checkPermissions as ReturnType<typeof vi.fn>).mockResolvedValue(true); // HR granted
+    vi.spyOn(provider, "isConnected").mockResolvedValue(false); // activity NOT granted yet
+    (connectHealthConnect as ReturnType<typeof vi.fn>).mockResolvedValue({ availability: "Available", heartRate: true, activity: true });
+
+    const saved: SettingsState[] = [];
+    render(<ConnectionsCard
+      settings={{ hrMethod: "healthconnect", watchImport: false } as SettingsState}
+      saveSettings={s => saved.push(s)} />);
+    const reconnect = await screen.findByRole("button", { name: "Reconnect" });
+    fireEvent.click(reconnect);
+    await waitFor(() => expect(saved.some(s => s.watchImport === true)).toBe(true));
   });
 });

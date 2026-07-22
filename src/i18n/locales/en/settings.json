@@ -131,7 +131,7 @@
     "connectSuccess": "Connected — your watch runs will appear here after they sync.",
     "noNewRuns": "No new runs to import yet.",
     "accessDenied": "Access wasn't granted. Allow Running Coach to read Exercise, Distance, Elevation and Heart rate.",
-    "connectFailed": "Couldn't connect. Make sure Health Connect is installed and up to date.",
+    "connectFailed": "Couldn't complete the connection. Please try again.",
     "noRuns30": "No new runs found in the last 30 days.",
     "scanFailed": "Couldn't read your connected sources.",
     "providers": {

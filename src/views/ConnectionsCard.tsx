@@ -284,15 +284,36 @@ function HealthStoreRow({ settings, saveSettings, showToast, scanImportsNow }: C
     scanImportsNow?.().then(n => { if (!n) showToast?.(t("settings.integrations.noNewRuns")); }).catch(() => {});
   };
 
+  // Enable a feature only when THIS grant newly authorized it (was ungranted
+  // before, granted now) — so a reconnect that broadens scope turns the new
+  // feature on, but re-authorizing an already-granted store never flips a
+  // toggle the user deliberately switched off. HR additionally only auto-enables
+  // when no HR source is configured (never silently replaces a BLE strap or a
+  // method synced from another device). `prev` is the granted state before the
+  // grant call.
+  const applyGrant = (prev: { hr: boolean; watch: boolean }, grant: { hr: boolean; watch: boolean }): boolean => {
+    let next = settings;
+    if (grant.watch && !prev.watch) next = withProviderEnabled(next, isAndroid ? "healthconnect" : "healthkit", true);
+    if (grant.hr && !prev.hr && (settings.hrMethod || "off") === "off") next = { ...next, hrMethod: storeMethod };
+    if (next !== settings) { saveSettings(next); return true; }
+    return false;
+  };
+
   const connectFirstTime = async () => {
     const grant = await doConnect();
     if (!grant.hr && !grant.watch) return;
-    let next = settings;
-    if (grant.watch) next = withProviderEnabled(next, isAndroid ? "healthconnect" : "healthkit", true);
-    if (grant.hr && (settings.hrMethod || "off") === "off") next = { ...next, hrMethod: storeMethod };
-    if (next !== settings) saveSettings(next);
+    applyGrant({ hr: false, watch: false }, grant);
     showToast?.(t("settings.integrations.connectSuccess"));
     if (grant.watch) scanNow();
+  };
+
+  // Reconnect an already-connected store: re-run the grant and auto-enable any
+  // feature it newly authorizes (the fix for a broader grant silently leaving
+  // watch-import off), then scan if watch import just came on.
+  const reconnect = async () => {
+    const prev = { hr: !!hrGranted, watch: !!watchGranted };
+    const grant = await doConnect();
+    if (applyGrant(prev, grant) && grant.watch && !prev.watch) scanNow();
   };
 
   const toggleHr = async () => {
@@ -334,7 +355,8 @@ function HealthStoreRow({ settings, saveSettings, showToast, scanImportsNow }: C
         label={storeLabel}
         status={connected ? t("settings.connections.connected") : t("settings.connections.notSetUp")}
         control={connected ? (
-          <button type="button" onClick={() => { void doConnect(); }} disabled={busy}
+          <button type="button" onClick={() => { void reconnect(); }} disabled={busy}
+            aria-label={t("settings.connections.reconnect")}
             className="text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50 shrink-0">
             {busy ? <Loader size={14} className="animate-spin" /> : t("settings.connections.reconnect")}
           </button>
@@ -389,10 +411,15 @@ function CloudRow({ provider, settings, saveSettings, showToast, scanImportsNow 
       .catch(() => { if (!cancelled) setConnected(false); });
     // A native OAuth return completes out-of-band (deep link → RunningCoach
     // exchange) — refresh this row's state when it lands so the user sees
-    // "connected" without reopening Settings.
-    const onDone = () => { if (!cancelled) setConnected(true); };
-    window.addEventListener("rc-polar-connected", onDone);
-    return () => { cancelled = true; window.removeEventListener("rc-polar-connected", onDone); };
+    // "connected" without reopening Settings. The event carries the provider id
+    // in its detail so this only fires the matching row (future-proof for
+    // Suunto/COROS on the same seam — a bare event would flip every cloud row).
+    const onDone = (e: Event) => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+      if (!cancelled && id === provider.id) setConnected(true);
+    };
+    window.addEventListener("rc-cloud-connected", onDone);
+    return () => { cancelled = true; window.removeEventListener("rc-cloud-connected", onDone); };
   }, [provider]);
 
   const on = providerEnabledInSettings(settings, provider.id) && !!connected;

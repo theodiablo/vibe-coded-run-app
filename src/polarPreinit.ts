@@ -63,9 +63,15 @@ export function classifyPolarReturn(search: string): { kind: PolarReturnKind; co
 }
 
 // The bounce overlay is pre-React and pre-i18n, so it carries its own three
-// lines of copy (the app's locales), picked off navigator.language.
+// lines of copy (the app's locales). Prefer the user's SAVED app language
+// (rc_lang, the same key src/i18n/detect.ts reads) so it matches what they
+// picked in-app; fall back to the browser/OS locale only when unset. The bounce
+// runs in the phone's browser, but rc_lang is set on this origin when they use
+// the web app, and it's the best signal available here.
 function bounceCopy(): { returning: string; open: string } {
-  const lang = (typeof navigator !== "undefined" ? navigator.language || "" : "").slice(0, 2).toLowerCase();
+  let lang = "";
+  try { lang = (localStorage.getItem("rc_lang") || "").slice(0, 2).toLowerCase(); } catch { /* storage unavailable */ }
+  if (!lang) lang = (typeof navigator !== "undefined" ? navigator.language || "" : "").slice(0, 2).toLowerCase();
   if (lang === "fr") return { returning: "Retour vers Running Coach…", open: "Ouvrir l'application" };
   if (lang === "es") return { returning: "Volviendo a Running Coach…", open: "Abrir la aplicación" };
   return { returning: "Returning to Running Coach…", open: "Open the app" };

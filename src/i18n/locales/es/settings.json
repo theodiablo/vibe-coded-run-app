@@ -131,7 +131,7 @@
     "connectSuccess": "Conexión establecida. Los entrenamientos del reloj aparecerán aquí después de sincronizarse.",
     "noNewRuns": "Aún no hay entrenamientos nuevos para importar.",
     "accessDenied": "No se concedió el acceso. Permite que Running Coach lea Ejercicio, Distancia, Desnivel y Frecuencia cardíaca.",
-    "connectFailed": "No se pudo conectar. Asegúrate de que Health Connect está instalado y actualizado.",
+    "connectFailed": "No se pudo completar la conexión. Vuelve a intentarlo.",
     "noRuns30": "No se encontraron entrenamientos nuevos en los últimos 30 días.",
     "scanFailed": "No se pudieron leer tus fuentes conectadas.",
     "providers": {
