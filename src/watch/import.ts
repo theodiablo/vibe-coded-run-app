@@ -1,8 +1,10 @@
 import { isAndroid } from "../native";
 import { WATCH_HC_AUTH_KEY, WATCH_SEEN_HC_IDS_KEY, WATCH_SEEN_MAX } from "../constants";
 import { getWatchImportPlugin, type WatchImportAvailability } from "./plugin";
-import { classifyWatchSessions } from "./mapping";
+import { classifyWatchSessions, type ClassifiedSession } from "./mapping";
 import { appendScanLog, toLogSessions } from "./scanLog";
+import { normalizeHrSamples } from "../imports/series";
+import type { ImportedRun } from "../imports/types";
 import type { Run } from "../types";
 
 // Default rolling window scanned on each app open/foreground. No sync cursor:
@@ -101,7 +103,7 @@ type ScanOptions = { enabled?: boolean; allowNativeRead?: boolean; days?: number
 export async function scanWatchSessions(
   runs: Run[],
   { enabled = true, allowNativeRead = true, days = WATCH_SCAN_DAYS, now = Date.now(), trigger = "auto" }: ScanOptions = {},
-): Promise<Partial<Run>[]> {
+): Promise<ImportedRun[]> {
   if (!isAndroid) return []; // web / iOS: nothing to scan or log
   if (!enabled || !allowNativeRead || !hasWatchAuthorization()) {
     // Preference on but this device not authorized (or reads deferred): log it so
@@ -122,13 +124,37 @@ export async function scanWatchSessions(
     });
     const raw = res?.sessions || [];
     const classified = classifyWatchSessions(raw, runs || [], getSeenIds(), WATCH_MIN_KM);
-    const imported = classified.filter(c => c.outcome === "imported").map(c => c.run as Partial<Run>);
+    const importedC = classified.filter(c => c.outcome === "imported");
+    // Enrich each NEW run with its raw HR series (for the detail time-in-zone
+    // card) — one lazy per-run read, so an all-skipped scan does no extra I/O.
+    const imported = await enrichWithHrSeries(importedC);
     appendScanLog({ at: now, trigger, days, availability: avail, permission: true, rawCount: raw.length, importedCount: imported.length, sessions: toLogSessions(classified) });
     return imported;
   } catch (e) {
     appendScanLog({ at: now, trigger, days, availability: "skipped", permission: false, rawCount: 0, importedCount: 0, error: String((e as { message?: string })?.message || e), sessions: [] });
     return [];
   }
+}
+
+// Fetch the raw HR series for each imported session and attach it as hrSamples.
+// Origin-filtered to the session's writer; a failed/empty read leaves the run
+// with just its avg/max HR aggregates (already on the mapped run). Health Connect
+// has no route for any known writer, so these imports carry HR but no GPS — the
+// run rides hrRouteId (see persistImportedRoute), powering the detail zone card.
+async function enrichWithHrSeries(items: ClassifiedSession[]): Promise<ImportedRun[]> {
+  return Promise.all(items.map(async ({ raw, run }): Promise<ImportedRun> => {
+    const base = (run || {}) as ImportedRun;
+    if (!raw?.startTime || !raw?.endTime) return base;
+    try {
+      const res = await getWatchImportPlugin().readHeartRateSeries({
+        startTime: raw.startTime,
+        endTime: raw.endTime,
+        ...(raw.dataOrigin ? { dataOrigin: raw.dataOrigin } : {}),
+      });
+      const hrSamples = normalizeHrSamples(res?.samples);
+      return hrSamples.length ? { ...base, hrSamples } : base;
+    } catch { return base; }
+  }));
 }
 
 // Surface for the Settings UI (connect flow + status), mirroring healthConnectSource.

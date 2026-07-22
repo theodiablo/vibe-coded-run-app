@@ -25,6 +25,10 @@ export type WatchImportNative = {
   checkHealthPermissions: () => Promise<{ granted?: boolean }>;
   requestHealthPermissions: () => Promise<{ granted?: boolean }>;
   readExerciseSessions: (options: { startTime: string; endTime: string }) => Promise<{ sessions?: WatchSessionRaw[] }>;
+  // Raw per-sample HR over a window, restricted to one writing app (dataOrigin)
+  // so two apps syncing the same run can't interleave. Cleaned by the pure
+  // normalizeHrSamples (src/imports/series.ts).
+  readHeartRateSeries: (options: { startTime: string; endTime: string; dataOrigin?: string }) => Promise<{ samples?: unknown }>;
 };
 
 // Lazily resolve the native bridge, mirroring getHealthConnect() in

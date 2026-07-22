@@ -8,6 +8,7 @@ const plugin = {
   checkHealthPermissions: vi.fn(),
   requestHealthPermissions: vi.fn(),
   readExerciseSessions: vi.fn(),
+  readHeartRateSeries: vi.fn(),
 };
 vi.mock("./plugin", () => ({ getWatchImportPlugin: () => plugin }));
 
@@ -20,6 +21,7 @@ beforeEach(() => {
   plugin.checkAvailability.mockReset().mockResolvedValue({ availability: "Available" });
   plugin.checkHealthPermissions.mockReset().mockResolvedValue({ granted: true });
   plugin.readExerciseSessions.mockReset().mockResolvedValue({ sessions: [] });
+  plugin.readHeartRateSeries.mockReset().mockResolvedValue({ samples: [] });
 });
 
 describe("scanWatchSessions gating", () => {
@@ -81,6 +83,31 @@ describe("scanWatchSessions reading", () => {
     plugin.readExerciseSessions.mockRejectedValue(new Error("boom"));
     const out = await scanWatchSessions([], { enabled: true });
     expect(out).toEqual([]);
+  });
+
+  it("attaches the cleaned HR series to an imported run, origin-filtered to the writer", async () => {
+    grant();
+    plugin.readExerciseSessions.mockResolvedValue({
+      sessions: [{ id: "a", startTime: "2026-07-10T08:00:00Z", endTime: "2026-07-10T08:40:00Z", exerciseType: 56, distanceM: 8000, startZoneOffsetSec: 0, dataOrigin: "com.garmin.android.apps.connectmobile" }],
+    });
+    plugin.readHeartRateSeries.mockResolvedValue({ samples: [{ bpm: 150, t: 1000 }, { bpm: 0, t: 2000 }] }); // 0-bpm dropped by normalize
+    const out = await scanWatchSessions([], { enabled: true });
+    expect(out).toHaveLength(1);
+    expect((out[0] as { hrSamples?: unknown }).hrSamples).toEqual([{ bpm: 150, t: 1000 }]);
+    expect(plugin.readHeartRateSeries).toHaveBeenCalledWith(
+      expect.objectContaining({ startTime: "2026-07-10T08:00:00Z", endTime: "2026-07-10T08:40:00Z", dataOrigin: "com.garmin.android.apps.connectmobile" }),
+    );
+  });
+
+  it("keeps the imported run (with its HR aggregates) when the HR-series read fails", async () => {
+    grant();
+    plugin.readExerciseSessions.mockResolvedValue({
+      sessions: [{ id: "a", startTime: "2026-07-10T08:00:00Z", endTime: "2026-07-10T08:40:00Z", exerciseType: 56, distanceM: 8000, startZoneOffsetSec: 0 }],
+    });
+    plugin.readHeartRateSeries.mockRejectedValue(new Error("no perm"));
+    const out = await scanWatchSessions([], { enabled: true });
+    expect(out.map(r => r.hcId)).toEqual(["a"]);
+    expect((out[0] as { hrSamples?: unknown }).hrSamples).toBeUndefined();
   });
 });
 

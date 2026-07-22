@@ -1,11 +1,15 @@
 import type { Run } from "../types";
 import type { TrackPointOrGap } from "../utils/geo";
+import type { HrSample } from "./series";
 
 // A run produced by an import provider: a partial Run plus optional *transient*
-// route points (GPX/TCX traces). The caller persists points via saveRoute and
-// strips the field before addRuns — providers never import routes.ts, so they
-// stay pure and unit-testable.
-export type ImportedRun = Partial<Run> & { points?: TrackPointOrGap[] };
+// route points (GPX/TCX traces) and/or a raw HR series (health-store imports —
+// HealthKit's HKWorkoutRoute + per-sample HR, Health Connect's HeartRateRecord).
+// The caller (persistImportedRoute) persists both into a run_routes row and
+// strips the fields before addRuns — providers never import routes.ts, so they
+// stay pure and unit-testable. A run with points → routeId; HR series with no
+// points → hrRouteId (see persistImportedRoute).
+export type ImportedRun = Partial<Run> & { points?: TrackPointOrGap[]; hrSamples?: HrSample[] };
 
 export type ImportParseResult = { runs: ImportedRun[]; error?: string | null };
 

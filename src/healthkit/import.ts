@@ -1,11 +1,13 @@
 import { isIos } from "../native";
 import { HK_AUTH_KEY } from "../constants";
 import { getHealthKitPlugin, type HealthKitAvailability } from "./plugin";
-import { newHkWorkouts } from "./mapping";
+import { newHkWorkouts, hkId } from "./mapping";
+import { normalizeRoutePoints, normalizeHrSamples } from "../imports/series";
 // Reuse the watch-import seen-ids list and window/threshold constants so the
 // two health-store providers can't drift; on an iPhone the per-device list only
 // ever holds "hk:"-prefixed ids.
 import { getSeenIds, WATCH_SCAN_DAYS, WATCH_MIN_KM } from "../watch/import";
+import type { ImportedRun } from "../imports/types";
 import type { Run } from "../types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -37,9 +39,19 @@ export async function availability(): Promise<HealthKitAvailability> {
 
 export async function isAvailable() { return (await availability()) === "Available"; }
 
-// Show the HealthKit read-authorization sheet (heart rate + workouts +
-// running/walking distance in one ask). granted:true means the flow completed;
-// whether reads actually return data is only learnable by reading.
+// Show the HealthKit read-authorization sheet (heart rate + workouts + workout
+// route + running/walking distance in one ask). granted:true means the flow
+// completed; whether reads actually return data is only learnable by reading.
+//
+// KNOWN LIMITATION (follow-up): the workout-route read scope was added in the
+// route-import change, but an EXISTING user who granted HealthKit before that
+// keeps a valid local marker, so scanHealthKitWorkouts fast-paths past this
+// re-request and their new-scope grant never happens — their Apple Watch runs
+// import totals-only until they toggle the integration off/on in Settings (which
+// re-invokes this). We deliberately DON'T invalidate the marker (that gates
+// post-run HR too, so it would regress that feature) and DON'T prompt during a
+// passive scan (an unexpected permission sheet). A proper fix is a one-time
+// "re-authorize for routes" nudge at an interactive touchpoint.
 export async function requestHealthKitPermissions(): Promise<boolean> {
   try {
     if (!(await isAvailable())) { setHealthKitAuthorization(false); return false; }
@@ -61,7 +73,7 @@ type ScanOptions = { enabled?: boolean; allowNativeRead?: boolean; days?: number
 export async function scanHealthKitWorkouts(
   runs: Run[],
   { enabled = true, allowNativeRead = true, days, now = Date.now() }: ScanOptions = {},
-): Promise<Partial<Run>[]> {
+): Promise<ImportedRun[]> {
   const windowDays = days ?? WATCH_SCAN_DAYS;
   if (!enabled || !allowNativeRead || !isIos || !hasHealthKitAuthorization()) return [];
   try {
@@ -70,7 +82,30 @@ export async function scanHealthKitWorkouts(
       startTime: new Date(now - windowDays * DAY_MS).toISOString(),
       endTime: new Date(now).toISOString(),
     });
-    return newHkWorkouts(res?.sessions || [], runs || [], getSeenIds())
+    const raws = res?.sessions || [];
+    const news = newHkWorkouts(raws, runs || [], getSeenIds())
       .filter(r => (Number(r.km) || 0) >= WATCH_MIN_KM);
+    if (!news.length) return [];
+    // Fetch the GPS route + raw HR series for each NEW run only (post-dedupe), so
+    // an imported Apple Watch run gets a map/pace curve/HR chart instead of just
+    // totals. A failed or empty detail read degrades to totals-only. hcId ("hk:"+
+    // uuid) links a mapped run back to its raw workout for the by-UUID lookup.
+    const byHcId = new Map(raws.map(w => [hkId(w.id), w] as const));
+    return await Promise.all(news.map(async (run): Promise<ImportedRun> => {
+      const w = run.hcId ? byHcId.get(run.hcId) : undefined;
+      if (!w) return run;
+      try {
+        const d = await getHealthKitPlugin().readWorkoutDetail({
+          id: w.id, startTime: w.startTime, endTime: w.endTime,
+        });
+        const points = normalizeRoutePoints(d?.route);
+        const hrSamples = normalizeHrSamples(d?.hrSamples);
+        return {
+          ...run,
+          ...(points.length ? { points } : {}),
+          ...(hrSamples.length ? { hrSamples } : {}),
+        };
+      } catch { return run; }
+    }));
   } catch { return []; }
 }

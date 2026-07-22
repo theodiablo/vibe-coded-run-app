@@ -20,6 +20,7 @@ import { flushPendingHr, hasHealthConnectAuthorization } from "./hr/healthconnec
 import { flushPendingHkHr } from "./hr/healthkit";
 import { markSeen, WATCH_MANUAL_SCAN_DAYS, WATCH_AUTO_SCAN_COOLDOWN_MS } from "./watch/import";
 import { scanAllProviders, providerEnabledInSettings } from "./imports/registry";
+import { completePolarAuth } from "./imports/providers/polar";
 import { persistImportedRoutes } from "./imports/persistRoutes";
 import { Toast } from "./components/Toast";
 import { Confetti } from "./components/Confetti";
@@ -405,6 +406,31 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
   const savePlan     = (p: Plan) => { setPlan(p); db.set(STORAGE_KEYS.PLAN, p); track("plan_generated", {}); };
   const saveSettings = (s: SettingsState) => { setSettings(s); db.set(STORAGE_KEYS.SETTINGS, s); };
+
+  // Complete a Polar OAuth return (a no-op on every normal load and when Polar is
+  // unconfigured — gated on the state marker inside). On success, flip the
+  // provider's enable flag on and scan straight away for anything already synced;
+  // on a failed exchange, tell the user (they authorized and expect a result).
+  useEffect(() => {
+    if (loading) return;
+    completePolarAuth().then(result => {
+      if (result === "idle") return;
+      if (result === "failed") { showToast(t("settings.integrations.connectFailed"), "err"); return; }
+      const next = { ...settingsRef.current, imports: { ...settingsRef.current.imports, polar: true } };
+      saveSettings(next);
+      // Update the ref synchronously too: the [settings] sync effect only runs
+      // after React commits (a macrotask), but the scan below runs this tick and
+      // gates Polar on providerEnabledInSettings(settingsRef.current) — without
+      // this, the "scan straight away" would skip Polar until the next boot.
+      settingsRef.current = next;
+      showToast(t("settings.integrations.connectSuccess"));
+      checkWatchRef.current({ manual: true }).catch(() => {});
+    }).catch(() => {});
+    // Boot-once on the loading→false transition: t/saveSettings/showToast are
+    // stable enough that re-running on their identity would just re-scan; only
+    // the loading edge should trigger this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
   const saveUserContext = (next: Partial<UserContextState>) => {
     const clean = withLimitNotice({ notes: String(next?.notes || "").slice(0, USER_CONTEXT_MAX_CHARS), lastLimitNoticeAt: next?.lastLimitNoticeAt || null });
     userContextRef.current = clean;
@@ -603,10 +629,12 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
   const deleteRun = (id: string) => {
     setRuns(prev => {
       const r = prev.find(x => x.id === id);
-      // Drop the GPS trace too (privacy) — whether already synced (routeId) or
-      // still waiting in the offline queue (routeTmp), so a deleted run never
-      // leaks its route to the cloud on a later flush.
+      // Drop the trace too (privacy) — whether already synced (routeId, or an
+      // HR-only sidecar under hrRouteId) or still waiting in the offline queue
+      // (routeTmp), so a deleted run never leaks its route/HR to the cloud on a
+      // later flush.
       if (r?.routeId) deleteRoute(r.routeId);
+      if (r?.hrRouteId) deleteRoute(r.hrRouteId);
       if (r?.routeTmp) removePendingRoute(r.routeTmp);
       const next = prev.filter(x => x.id !== id);
       db.set(STORAGE_KEYS.RUNS, next);
@@ -673,9 +701,10 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
       // device-local state (grant markers) themselves.
       enabled: p => providerEnabledInSettings(settingsRef.current, p.id) || !p.connect,
     });
-    // Persist any route traces a provider returned and swap them for routeId —
-    // transient `points` never belong in the stored run (blob bloat). HC has no
-    // routes today; this is for file-like/cloud providers that do.
+    // Persist any route trace / raw HR series a provider returned and swap them
+    // for a routeId (GPS) or hrRouteId (HR-only) — the transient points/hrSamples
+    // never belong in the stored run (blob bloat). HealthKit imports Apple Watch
+    // routes + HR; Health Connect imports HR series (no routes exist there yet).
     const found = scanned.length ? await persistImportedRoutes(scanned) : [];
     if (!found.length) return 0;
     if (!manual) watchAutoShownRef.current = true;

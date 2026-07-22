@@ -8,6 +8,7 @@ import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ElevationGainedRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -129,6 +130,60 @@ class WatchImportPlugin : Plugin() {
                 call.resolve(JSObject().put("sessions", sessions))
             } catch (e: Exception) {
                 call.reject(e.message ?: "Couldn't read exercise sessions")
+            }
+        }
+    }
+
+    // The raw per-sample heart-rate stream over a window, restricted to one data
+    // origin (the app that wrote the session) so a second app syncing the same run
+    // can't interleave its samples. Uses the already-granted HeartRateRecord read
+    // permission (the aggregates in sessionJson already need it), so this adds no
+    // new manifest scope or Play health-data declaration. Called lazily by the TS
+    // import layer for NEW runs only. Health Connect has no GPS route for any
+    // known writer, so there is deliberately no route read here (adding
+    // READ_EXERCISE_ROUTES would force a Play re-declaration for data that doesn't
+    // exist yet); revisit if a watch app starts writing ExerciseRoute.
+    //   { startTime, endTime, dataOrigin? } → { samples: [{ bpm, t(ms epoch) }] }
+    @PluginMethod
+    fun readHeartRateSeries(call: PluginCall) {
+        val startStr = call.getString("startTime")
+        val endStr = call.getString("endTime")
+        if (startStr == null || endStr == null) {
+            call.reject("startTime and endTime are required")
+            return
+        }
+        val origin = call.getString("dataOrigin")
+        scope.launch {
+            try {
+                val start = Instant.parse(startStr)
+                val end = Instant.parse(endStr)
+                val c = client()
+                val filter = TimeRangeFilter.between(start, end)
+                val origins = if (origin != null) setOf(DataOrigin(origin)) else emptySet()
+                val samples = JSArray()
+                var pageToken: String? = null
+                do {
+                    val resp = c.readRecords(
+                        ReadRecordsRequest(
+                            recordType = HeartRateRecord::class,
+                            timeRangeFilter = filter,
+                            dataOriginFilter = origins,
+                            pageToken = pageToken,
+                        ),
+                    )
+                    for (rec in resp.records) {
+                        for (s in rec.samples) {
+                            val o = JSObject()
+                            o.put("bpm", s.beatsPerMinute.toInt())
+                            o.put("t", s.time.toEpochMilli())
+                            samples.put(o)
+                        }
+                    }
+                    pageToken = resp.pageToken
+                } while (pageToken != null)
+                call.resolve(JSObject().put("samples", samples))
+            } catch (e: Exception) {
+                call.reject(e.message ?: "Couldn't read heart rate series")
             }
         }
     }

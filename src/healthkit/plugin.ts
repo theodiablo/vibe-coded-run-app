@@ -29,6 +29,11 @@ export type HealthKitNative = {
   requestPermissions: () => Promise<{ granted?: boolean }>;
   readHeartRate: (options: { startTime: string; endTime: string }) => Promise<{ samples?: { bpm?: number; t?: number }[] }>;
   readWorkouts: (options: { startTime: string; endTime: string }) => Promise<{ sessions?: HkWorkoutRaw[] }>;
+  // Full detail for one workout (by UUID): GPS route + raw per-sample HR. Both
+  // arrays come back raw ([lat,lng,tEpochMs,alt|null] and {bpm,t}) and are
+  // cleaned by the pure normalizers in src/imports/series.ts.
+  readWorkoutDetail: (options: { id: string; startTime: string; endTime: string }) =>
+    Promise<{ route?: unknown; hrSamples?: unknown }>;
 };
 
 // Lazily resolve the native bridge, mirroring getWatchImportPlugin. registerPlugin

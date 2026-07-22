@@ -1,0 +1,91 @@
+# Polar (AccessLink) cloud import
+
+The first real vendor-cloud import provider, for runners who leave the phone at
+home and record on a **Polar** watch. It pulls each finished exercise's full
+detail (GPS route, pace, elevation, heart-rate series) from Polar's cloud and
+imports it as a run — the same review/dedupe/auto-tick pipeline every other
+import uses.
+
+Polar was chosen as the pilot because AccessLink is the only major vendor API
+that is **free and fully self-serve** (no partner-approval wait), returns
+GPX/TCX/FIT with route + HR samples, and has **no AI/ML data-use clause** — the
+clause that rules out Strava (whose terms ban AI use of API data, and the coach
+reads runs). Suunto and COROS are the intended next providers; the seam here is
+reusable for them.
+
+## How it's wired
+
+Same shape as every import: a client `ImportProvider` (`src/imports/providers/
+polar.ts`) registered in `src/imports/registry.ts`, plus a Supabase edge function
+(`supabase/functions/polar-import`) that holds the OAuth **secret** and the
+user's token — neither ever reaches the SPA bundle, mirroring `coach-agent`.
+
+- **`polar_tokens` table** (`supabase/migrations/20260721120000_polar_tokens.sql`)
+  stores `{ user_id, polar_user_id, access_token }`. It is **service-role only**:
+  RLS on, zero `authenticated` grants, so a client can never read the token —
+  only the edge function (service_role) touches it.
+- **`polar-import` edge function** actions: `status`, `exchange` (code → token,
+  register the user with AccessLink, store), `sync` (transaction pull → return
+  each exercise's summary + GPX **text**), `disconnect`. It never parses GPX —
+  it returns the raw GPX so the **client** parses it with the app's existing,
+  tested `parseActivityFile`, so a Polar run gets the same map/pace/HR-series/
+  time-in-zone detail a user-picked `.gpx` does.
+- **Client provider**: `connect()` is a full-page OAuth redirect. The return is
+  handled in two steps to avoid a collision with Supabase's own PKCE `?code=`
+  handling (`detectSessionInUrl: true`): `src/polarPreinit.ts` — imported ahead
+  of `./App` in `main.tsx` — runs first, detects the Polar return by its `state`
+  marker, stashes the code in `sessionStorage` and strips the URL **before** the
+  Supabase client can consume it; then `completePolarAuth()` (`RunningCoach`
+  boot) reads the stashed code and exchanges it. `scan()` calls the `sync` action
+  and maps exercises to runs (`polarExerciseToRun`, pure + unit-tested); runs are
+  stamped `extId: "polar:<id>"` so the registry dedupes them like any other
+  source.
+- **Web-only for now.** The redirect flow would navigate a native Capacitor
+  webview away from the app, so `isAvailable()` is `false` on native. Native
+  support is a follow-up using the existing deep-link return (`AUTH_DEEP_LINK`),
+  landing alongside Suunto.
+
+## Activation (maintainer)
+
+Dormant until configured — exactly like `garminCloudProvider` and telemetry.
+Without the pieces below, `isAvailable()` is `false`, nothing renders, and the
+edge function returns `{ skipped }`. To turn it on:
+
+1. **Register a Polar app** at <https://admin.polaraccesslink.com> (free; any
+   Polar Flow account). Note the **client id** and **client secret**.
+2. **Set the redirect/OAuth URL** in the Polar app to the production web origin
+   **with a trailing slash**: `https://run.camboulive.solutions/`. It must match
+   `redirectUri()` in `providers/polar.ts` exactly (= `window.location.origin`
+   + `/`).
+3. **Server secrets** (Supabase dashboard → Edge Functions → Secrets, or CLI):
+   `supabase secrets set POLAR_CLIENT_ID=… POLAR_CLIENT_SECRET=…`
+   then deploy: `supabase functions deploy polar-import` (or the MCP recipe /
+   the merge-to-main auto-deploy in `deploy-supabase-functions.yml`).
+4. **Client env — repo VARIABLE, not a secret** (the client id is public): set
+   Actions repo variable `VITE_POLAR_CLIENT_ID` (Settings → Secrets and variables
+   → Actions → Variables). It's wired into the web build in `deploy.yml` /
+   `deploy-pr.yml`; the next production deploy inlines it and flips the provider
+   visible.
+5. **Apply the migration** (`supabase db push`, or it flows on merge) so
+   `polar_tokens` exists.
+
+Once live, users see a **Polar** row in Settings → Integrations → Connect,
+authorize on Polar, land back in the app connected, and their runs sync.
+
+## Verification note
+
+The AccessLink calls follow Polar's documented v3 API but **cannot be exercised
+in CI or the dev sandbox** (no credentials; the proxy blocks polar.com). Verify
+end-to-end after step 4 with a real Polar account: connect, record/sync a run on
+the watch, then confirm it imports with a map + HR chart.
+
+The Supabase `?code=` collision is already handled in code (`src/polarPreinit.ts`
+strips the Polar return before the Supabase client sees it), so the remaining
+first-run snags to check are Polar-API shapes, which the sandbox can't reach:
+
+1. Token-endpoint field names (`x_user_id`) and the exercise-transaction
+   lifecycle (create → list → GET each → commit) against Polar's current docs.
+2. The `detailed-sport-info` / `sport` string values (the run/walk filter in
+   `polarExerciseToRun`) — extend the sets if a run comes back skipped.
+
+Everything downstream reuses the app's already-tested parsers.
