@@ -1,0 +1,128 @@
+# Weekly SES deliverability report — bounces, complaints, suppression list.
+#
+# Every Monday it queries SES + CloudWatch (eu-west-1) and:
+#   * writes a report to the job summary,
+#   * emails it to the maintainer via SES itself,
+#   * FAILS the job (so GitHub notifies) if any address was suppressed this
+#     week or a reputation rate crosses half of AWS's warning threshold.
+#
+# Needs two repo secrets from a dedicated read-mostly IAM user:
+#   SES_REPORT_AWS_ACCESS_KEY_ID / SES_REPORT_AWS_SECRET_ACCESS_KEY
+# Create user `ses-report-ci` (console → IAM → Users → Create, no console
+# access) with this inline policy, then paste its access key into the secrets:
+#
+#   {
+#     "Version": "2012-10-17",
+#     "Statement": [
+#       { "Effect": "Allow",
+#         "Action": ["ses:GetAccount", "ses:ListSuppressedDestinations",
+#                     "cloudwatch:GetMetricData"],
+#         "Resource": "*" },
+#       { "Effect": "Allow",
+#         "Action": "ses:SendEmail",
+#         "Resource": "arn:aws:ses:eu-west-1:*:identity/camboulive.solutions" }
+#     ]
+#   }
+#
+# The job is skipped (not failed) while the secrets are absent.
+
+name: SES weekly report
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  FROM_EMAIL: Running Coach <noreply@camboulive.solutions>
+  REPORT_EMAIL: theo.camboulive.dev@gmail.com
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        id: creds
+        env:
+          KEY_ID: ${{ secrets.SES_REPORT_AWS_ACCESS_KEY_ID }}
+        run: |
+          if [ -z "$KEY_ID" ]; then
+            echo "SES_REPORT_AWS_* secrets not set — skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build report
+        if: steps.creds.outputs.present == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.SES_REPORT_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SES_REPORT_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: eu-west-1
+        run: |
+          set -euo pipefail
+          since="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          account="$(aws sesv2 get-account --output json)"
+          enforcement="$(jq -r '.EnforcementStatus' <<<"$account")"
+          prod="$(jq -r '.ProductionAccessEnabled' <<<"$account")"
+          sent24="$(jq -r '.SendQuota.SentLast24Hours' <<<"$account")"
+          quota="$(jq -r '.SendQuota.Max24HourSend' <<<"$account")"
+
+          # Addresses newly added to the account suppression list this week.
+          suppressed="$(aws sesv2 list-suppressed-destinations \
+            --start-date "$since" --end-date "$now" --output json \
+            | jq -r '.SuppressedDestinationSummaries // []')"
+          sup_count="$(jq 'length' <<<"$suppressed")"
+
+          # Account reputation rates (fractions; AWS warns at 0.05 / 0.001).
+          rates="$(aws cloudwatch get-metric-data \
+            --start-time "$since" --end-time "$now" --output json \
+            --metric-data-queries '[
+              {"Id":"bounce","MetricStat":{"Metric":{"Namespace":"AWS/SES","MetricName":"Reputation.BounceRate"},"Period":86400,"Stat":"Maximum"}},
+              {"Id":"complaint","MetricStat":{"Metric":{"Namespace":"AWS/SES","MetricName":"Reputation.ComplaintRate"},"Period":86400,"Stat":"Maximum"}}
+            ]')"
+          bounce_rate="$(jq -r '.MetricDataResults[] | select(.Id=="bounce") | .Values | max // 0' <<<"$rates")"
+          complaint_rate="$(jq -r '.MetricDataResults[] | select(.Id=="complaint") | .Values | max // 0' <<<"$rates")"
+
+          {
+            echo "## SES weekly report ($(date -u +%F))"
+            echo
+            echo "| Metric | Value |"
+            echo "| --- | --- |"
+            echo "| Enforcement status | $enforcement |"
+            echo "| Production access | $prod |"
+            echo "| Sent last 24 h | $sent24 / $quota |"
+            echo "| Max bounce rate (7 d) | $bounce_rate (AWS warns at 0.05) |"
+            echo "| Max complaint rate (7 d) | $complaint_rate (AWS warns at 0.001) |"
+            echo "| New suppressed addresses (7 d) | $sup_count |"
+            if [ "$sup_count" != "0" ]; then
+              echo
+              echo "| Suppressed address | Reason | When |"
+              echo "| --- | --- | --- |"
+              jq -r '.[] | "| \(.EmailAddress) | \(.Reason) | \(.LastUpdateTime) |"' <<<"$suppressed"
+            fi
+          } > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+          aws sesv2 send-email \
+            --from-email-address "$FROM_EMAIL" \
+            --destination "ToAddresses=$REPORT_EMAIL" \
+            --content "{\"Simple\":{\"Subject\":{\"Data\":\"Running Coach - SES weekly report\"},\"Body\":{\"Text\":{\"Data\":$(jq -Rs . report.md)}}}}" \
+            || echo "::warning::report email failed to send (report is in the job summary)"
+
+          # Loud failure => GitHub notifies the maintainer.
+          fail=""
+          if [ "$sup_count" != "0" ]; then fail="new suppressed addresses: $sup_count"; fi
+          if awk "BEGIN{exit !($bounce_rate >= 0.025)}"; then fail="${fail:+$fail; }bounce rate $bounce_rate"; fi
+          if awk "BEGIN{exit !($complaint_rate >= 0.0005)}"; then fail="${fail:+$fail; }complaint rate $complaint_rate"; fi
+          if [ "$enforcement" != "HEALTHY" ]; then fail="${fail:+$fail; }enforcement $enforcement"; fi
+          if [ -n "$fail" ]; then
+            echo "::error::SES attention needed — $fail"
+            exit 1
+          fi
