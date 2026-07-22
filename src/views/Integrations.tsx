@@ -71,6 +71,15 @@ export function Integrations({ settings, saveSettings, showToast, scanImportsNow
   const connect = async (p: ImportProvider) => {
     setBusyId(p.id);
     try {
+      // connect() resolving false means "authorization was refused, in place"
+      // (e.g. the Health Connect grant sheet was declined) — hence the
+      // accessDenied toast below. A REDIRECT-based provider (Polar) must NOT
+      // resolve false here: it navigates away, and the real result only arrives
+      // on the OAuth return (completePolarAuth at boot). Its connect() therefore
+      // returns a never-settling promise, so we never flash accessDenied for a
+      // legitimate redirect. (Trade-off: if that navigation somehow failed to
+      // start, the spinner would hang — accepted vs. a false error on every
+      // connect. Any new redirect provider must follow the same contract.)
       const ok = p.connect ? await p.connect() : false;
       setConnected(prev => ({ ...prev, [p.id]: ok }));
       if (ok) {

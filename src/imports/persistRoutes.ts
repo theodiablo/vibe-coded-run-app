@@ -33,9 +33,17 @@ export async function persistImportedRoute(r: ImportedRun): Promise<Partial<Run>
     const id = await saveRoute({ points: pts, stats });
     return hasRoute ? { ...run, routeId: id } : { ...run, hrRouteId: id };
   } catch {
-    // Only a GPS trace is user-authored data worth the offline queue. An HR-only
-    // sidecar is enrichment — the run keeps its avg/max HR aggregates — so on a
-    // failed save we drop the raw series rather than grow a second pending queue.
+    // Offline / save failed. TRADE-OFF (deliberate): only a GPS trace is queued
+    // for retry; an HR-only sidecar (no GPS — the HealthKit / Health Connect HR
+    // case) is dropped here instead.
+    //   Consequence: a run imported while Supabase is unreachable still saves
+    //   with its avg/max HR aggregates, but the raw ~1Hz stream is lost, so the
+    //   detail HR chart + time-in-zone card won't populate for that one run.
+    //   Why accept it: the pending queue + flushPendingRoutes relink only know
+    //   how to reattach a `routeId`. Supporting an offline HR-only sidecar would
+    //   need a parallel queue that relinks `hrRouteId` — real complexity for
+    //   enrichment-only data (the HR is still summarised on the run). GPS traces
+    //   ARE user-authored data worth that machinery; a derived series isn't.
     if (!hasRoute) return run;
     const routeTmp = "rt" + Date.now();
     queuePendingRoute({ tmpId: routeTmp, points: pts, stats });

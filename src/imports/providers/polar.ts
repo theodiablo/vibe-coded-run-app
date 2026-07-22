@@ -129,9 +129,14 @@ async function connect(): Promise<boolean> {
   url.searchParams.set("scope", "accesslink.read_all");
   url.searchParams.set("state", POLAR_STATE_PREFIX + ":" + nonce);
   window.location.assign(url.toString());
-  // The page is navigating to Polar; the real result arrives after the OAuth
-  // return (completePolarAuth at boot). Never resolve, so the Integrations
-  // handler doesn't flash a false "access denied" toast before the page unloads.
+  // The page is navigating away to Polar; the real result only arrives on the
+  // OAuth return (completePolarAuth at boot), so there is no boolean to give
+  // here. Resolving false would make Integrations' connect() flash a false
+  // "access denied" toast on EVERY connect (the promise settles a microtask
+  // before the browser unloads). So return a never-settling promise instead.
+  // TRADE-OFF: if the navigation somehow never starts (assign blocked), the
+  // Integrations spinner hangs — accepted, as that's far rarer than the
+  // guaranteed false-error-on-every-connect the naive `return false` caused.
   return new Promise<boolean>(() => {});
 }
 
@@ -155,6 +160,16 @@ export async function completePolarAuth(): Promise<boolean> {
     sessionStorage.removeItem(POLAR_RETURNED_STATE_KEY);
     sessionStorage.removeItem(POLAR_NONCE_KEY);
   } catch { /* ignore */ }
+  // No code stashed → either a normal load (not a Polar return) OR the user
+  // DENIED on Polar's page (the return carried ?error= and no code; polarPreinit
+  // already stripped it from the URL). TRADE-OFF: a denial is handled silently —
+  // we return false and RunningCoach's !connected branch is a no-op, so the
+  // Polar row simply stays on "Connect" with no error toast. Deliberate: the
+  // denial has to be detected pre-app-boot (in polarPreinit, before React/i18n
+  // exist), so surfacing a localized "you cancelled" message would mean plumbing
+  // a flag from there into the app just for the case where the user themselves
+  // chose to cancel — not worth it. The visible outcome (still "Connect", clean
+  // URL) already reads correctly as "not connected".
   if (!code) return false;
   // CSRF: the returned state MUST equal the nonce this browser generated at
   // connect() time. A forged link carrying an attacker's code won't match, so
