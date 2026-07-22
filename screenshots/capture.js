@@ -23,6 +23,13 @@ async function shot(page, dir, name) {
   // underlying page is still mounted (and often taller), so we hide every
   // sibling that isn't part of the modal's ancestor chain to stop it
   // bleeding through below the modal's real content.
+  // Width is forced to 100%: an absolutely-positioned block with `width:auto`
+  // and both left/right auto shrinks to fit its content (CSS 10.3.7) instead
+  // of spanning the viewport like it would as `fixed inset-x-0`. The header
+  // hit this too, but its bg-slate-900 matches the page background so the
+  // squashed box was invisible there — the bottom nav's bg-slate-800 is what
+  // exposed it. Forcing 100% restores the full-bleed bar these elements were
+  // always meant to render as (`inset-x-0` / `inset-0` implies full width).
   const styleHandle = await page.addStyleTag({
     content: `
       .fixed {
@@ -32,6 +39,7 @@ async function shot(page, dir, name) {
         left: auto !important;
         right: auto !important;
         inset: auto !important;
+        width: 100% !important;
       }
       [class*="overflow-y-auto"], [class*="overflow-auto"] {
         overflow: visible !important;
@@ -121,13 +129,51 @@ async function run(viewportName) {
   if (await week2.isVisible().catch(() => false)) {
     await week2.click();
     await shot(page, dir, '02b-plan-week-expanded');
+    await week2.click(); // collapse again before opening the edit form
+  }
+
+  // "Edit plan" — opens the goal/availability/style form (3 numbered
+  // accordion sections). Capture it as-is (goal section expanded by default)
+  // then navigate back WITHOUT clicking the generate/rebuild CTA, so the
+  // plan itself is never touched.
+  const editGoalRow = page.locator('text=Edit').first();
+  if (await editGoalRow.isVisible().catch(() => false)) {
+    await editGoalRow.click();
+    await page.waitForTimeout(400);
+    await shot(page, dir, '02c-plan-edit-form');
+    const backBtn = page.locator('button[aria-label="Back"]').first();
+    if (await backBtn.isVisible().catch(() => false)) {
+      await backBtn.click();
+      await page.waitForTimeout(300);
+    }
   }
 
   const coachBtn = page.locator('button:text-is("Coach")').first();
   if (await coachBtn.isVisible().catch(() => false)) {
     await coachBtn.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(800); // let the usage-ring fetch settle
     await shot(page, dir, '03-coach-chat');
+
+    // Conversation history sheet.
+    const historyBtn = page.locator('button[aria-label="Conversation history"]').first();
+    if (await historyBtn.isVisible().catch(() => false)) {
+      await historyBtn.click();
+      await page.waitForTimeout(500);
+      await shot(page, dir, '03b-coach-history');
+      await page.keyboard.press('Escape'); // dismiss the sheet, back to the chat
+      await page.waitForTimeout(300);
+    }
+
+    // Usage popover ("N left today").
+    const usageBtn = page.locator('button[aria-expanded]').first();
+    if (await usageBtn.isVisible().catch(() => false)) {
+      await usageBtn.click();
+      await page.waitForTimeout(300);
+      await shot(page, dir, '03c-coach-usage');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
+    }
+
     await closeModal(page);
   }
 
