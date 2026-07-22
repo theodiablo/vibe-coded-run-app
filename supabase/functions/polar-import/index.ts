@@ -81,19 +81,36 @@ async function registerUser(token: string, memberId: string, xUserId?: number): 
   throw new Error("polar user id unavailable after registration");
 }
 
-// One exercise's summary + GPX (route + HR extensions). GPX is 404 for an
-// indoor/treadmill run — return null so the client still imports the summary.
-async function fetchExercise(token: string, uri: string) {
+type PolarExercise = { id: string; summary: unknown; gpx: string | null };
+
+// One exercise's summary + GPX (route + HR extensions). Three outcomes:
+//   - a PolarExercise      → fetched OK (GPX 404 for an indoor run → gpx:null,
+//                            still importable from the summary).
+//   - "retry"              → a TRANSIENT failure (network / 5xx) worth retrying
+//                            next sync; the caller must NOT commit the transaction.
+//   - null                 → a TERMINAL, non-retryable exercise (4xx gone, or a
+//                            malformed / id-less summary). Skip it, but it must
+//                            NOT block the commit — otherwise one bad exercise
+//                            wedges the whole transaction forever.
+async function fetchExercise(token: string, uri: string): Promise<PolarExercise | null | "retry"> {
   const auth = { "Authorization": `Bearer ${token}` };
-  const summaryRes = await fetch(uri, { headers: { ...auth, "Accept": "application/json" } });
-  if (!summaryRes.ok) return null;
-  const summary = await summaryRes.json();
+  let summaryRes: Response;
+  try {
+    summaryRes = await fetch(uri, { headers: { ...auth, "Accept": "application/json" } });
+  } catch {
+    return "retry"; // network error — retryable
+  }
+  if (summaryRes.status >= 500) return "retry"; // server error — retryable
+  if (!summaryRes.ok) return null;              // 4xx (e.g. gone) — terminal, skip
+  const summary = await summaryRes.json().catch(() => null);
+  const id = summary ? String((summary as { id?: unknown }).id ?? "") : "";
+  if (!id) return null;                          // malformed / id-less — terminal, skip
   let gpx: string | null = null;
   try {
     const gpxRes = await fetch(`${uri}/gpx`, { headers: { ...auth, "Accept": "application/gpx+xml" } });
-    if (gpxRes.ok) gpx = await gpxRes.text();
+    if (gpxRes.ok) gpx = await gpxRes.text();   // 404 = no route (fine); else summary-only
   } catch { /* no route — summary-only */ }
-  return { id: String((summary as { id?: unknown })?.id ?? ""), summary, gpx };
+  return { id, summary, gpx };
 }
 
 // Pull all not-yet-transacted exercises via the AccessLink transaction lifecycle:
@@ -119,19 +136,21 @@ async function pullExercises(token: string, polarUserId: string) {
   const list = await listRes.json() as { exercises?: string[] };
   const uris = Array.isArray(list.exercises) ? list.exercises : [];
 
-  const exercises: Array<{ id: string; summary: unknown; gpx: string | null }> = [];
-  let allFetched = true;
+  const exercises: PolarExercise[] = [];
+  let anyRetryable = false;
   for (const uri of uris) {
-    const ex = await fetchExercise(token, uri).catch(() => null);
+    const ex = await fetchExercise(token, uri);
+    if (ex === "retry") { anyRetryable = true; continue; } // transient — try again next sync
     if (ex && ex.id) exercises.push(ex);
-    else allFetched = false; // a transient per-exercise failure — don't commit yet
+    // else (null): terminal-unusable (gone / malformed) — skip, but do NOT treat
+    // it as a reason to hold the transaction open.
   }
-  // Only commit (advance Polar's "new" cursor) when EVERY listed exercise came
-  // back. On a partial fetch we leave the transaction open so the missed ones are
-  // re-offered next sync; client-side extId dedupe drops the ones already saved,
-  // so re-listing is harmless — but committing on a partial fetch would silently
-  // lose the un-fetched runs.
-  if (allFetched) await fetch(txUrl, { method: "PUT", headers: auth }).catch(() => {});
+  // Advance Polar's "new" cursor UNLESS a transient failure means a retry could
+  // still surface more. Terminal-bad exercises are deliberately not a reason to
+  // hold the transaction open — that would re-list the whole set every sync
+  // forever and let one bad exercise wedge all the good ones. Client-side extId
+  // dedupe drops anything already saved, so committing after a clean pass is safe.
+  if (!anyRetryable) await fetch(txUrl, { method: "PUT", headers: auth }).catch(() => {});
   return exercises;
 }
 

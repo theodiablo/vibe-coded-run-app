@@ -140,14 +140,22 @@ async function connect(): Promise<boolean> {
   return new Promise<boolean>(() => {});
 }
 
+// Outcome of a boot-time Polar OAuth return:
+//   "idle"      — not a Polar return (normal load), a silently-handled denial,
+//                 or a rejected state (CSRF). Caller does nothing.
+//   "connected" — a token was just stored. Caller enables + scans.
+//   "failed"    — the user authorized but the server-side exchange failed (bad
+//                 code, Polar 5xx, network). Caller surfaces an error so the user
+//                 isn't left staring at an unchanged "Connect" with no feedback.
+export type PolarAuthResult = "idle" | "connected" | "failed";
+
 // Called once at app boot: if this load was a Polar OAuth return, polarPreinit
 // has already stashed the code + returned state in sessionStorage (and stripped
 // the URL before Supabase could touch it). Validate the state against this
 // browser's connect-time nonce (CSRF guard), then exchange the code server-side
-// for a stored token. Gated so it's a no-op on every normal load and when Polar
-// is unconfigured. Returns true when a connection was just established.
-export async function completePolarAuth(): Promise<boolean> {
-  if (!polarEnabled || typeof window === "undefined") return false;
+// for a stored token. A no-op on every normal load and when Polar is unconfigured.
+export async function completePolarAuth(): Promise<PolarAuthResult> {
+  if (!polarEnabled || typeof window === "undefined") return "idle";
   let code: string | null = null, returnedState: string | null = null, nonce: string | null = null;
   try {
     code = sessionStorage.getItem(POLAR_CODE_KEY);
@@ -162,21 +170,23 @@ export async function completePolarAuth(): Promise<boolean> {
   } catch { /* ignore */ }
   // No code stashed → either a normal load (not a Polar return) OR the user
   // DENIED on Polar's page (the return carried ?error= and no code; polarPreinit
-  // already stripped it from the URL). TRADE-OFF: a denial is handled silently —
-  // we return false and RunningCoach's !connected branch is a no-op, so the
-  // Polar row simply stays on "Connect" with no error toast. Deliberate: the
-  // denial has to be detected pre-app-boot (in polarPreinit, before React/i18n
-  // exist), so surfacing a localized "you cancelled" message would mean plumbing
-  // a flag from there into the app just for the case where the user themselves
-  // chose to cancel — not worth it. The visible outcome (still "Connect", clean
-  // URL) already reads correctly as "not connected".
-  if (!code) return false;
+  // already stripped it from the URL). TRADE-OFF: a denial is handled silently
+  // (returns "idle" → no toast). Deliberate: the denial has to be detected
+  // pre-app-boot (in polarPreinit, before React/i18n exist), so surfacing a
+  // localized "you cancelled" message would mean plumbing a flag from there into
+  // the app just for the case where the user themselves chose to cancel — not
+  // worth it. The visible outcome (still "Connect", clean URL) already reads as
+  // "not connected". (This differs from a *failed exchange* below, which the
+  // user didn't choose and so IS surfaced.)
+  if (!code) return "idle";
   // CSRF: the returned state MUST equal the nonce this browser generated at
   // connect() time. A forged link carrying an attacker's code won't match, so
-  // it's never exchanged into the victim's account.
-  if (!nonce || returnedState !== POLAR_STATE_PREFIX + ":" + nonce) return false;
+  // it's never exchanged into the victim's account (silently ignored).
+  if (!nonce || returnedState !== POLAR_STATE_PREFIX + ":" + nonce) return "idle";
+  // A genuine return with a valid state: any non-connected result here is a real
+  // failure the user should see (they authorized and expect a result).
   const res = await invoke<{ connected?: boolean }>({ action: "exchange", code, redirectUri: redirectUri() });
-  return !!res?.connected;
+  return res?.connected ? "connected" : "failed";
 }
 
 export const polarProvider: ImportProvider = {

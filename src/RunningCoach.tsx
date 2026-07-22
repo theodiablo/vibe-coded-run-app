@@ -409,13 +409,20 @@ export default function RunningCoach({ onSignOut = () => {} }: { onSignOut?: () 
 
   // Complete a Polar OAuth return (a no-op on every normal load and when Polar is
   // unconfigured — gated on the state marker inside). On success, flip the
-  // provider's enable flag on and scan straight away for anything already synced.
+  // provider's enable flag on and scan straight away for anything already synced;
+  // on a failed exchange, tell the user (they authorized and expect a result).
   useEffect(() => {
     if (loading) return;
-    completePolarAuth().then(connected => {
-      if (!connected) return;
-      const s = settingsRef.current;
-      saveSettings({ ...s, imports: { ...s.imports, polar: true } });
+    completePolarAuth().then(result => {
+      if (result === "idle") return;
+      if (result === "failed") { showToast(t("settings.integrations.connectFailed"), "err"); return; }
+      const next = { ...settingsRef.current, imports: { ...settingsRef.current.imports, polar: true } };
+      saveSettings(next);
+      // Update the ref synchronously too: the [settings] sync effect only runs
+      // after React commits (a macrotask), but the scan below runs this tick and
+      // gates Polar on providerEnabledInSettings(settingsRef.current) — without
+      // this, the "scan straight away" would skip Polar until the next boot.
+      settingsRef.current = next;
       showToast(t("settings.integrations.connectSuccess"));
       checkWatchRef.current({ manual: true }).catch(() => {});
     }).catch(() => {});

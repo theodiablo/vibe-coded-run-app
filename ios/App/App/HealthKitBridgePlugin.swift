@@ -217,9 +217,20 @@ public class HealthKitBridgePlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
 
-            // 1) HR samples over the workout's own window.
-            let hrPredicate = HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate,
-                                                          options: .strictStartDate)
+            // 1) HR samples over the workout's own window, restricted to the app
+            //    that recorded the workout. A bare time-window predicate would mix
+            //    in HR from any other source overlapping the run (e.g. a chest
+            //    strap or the iPhone also writing HeartRateRecords), inflating the
+            //    chart and disagreeing with readWorkouts' own avg/max. We combine
+            //    the window with a source filter rather than predicateForObjects(
+            //    from: workout) because the workout-association predicate returns
+            //    nothing for samples a third-party recorder didn't explicitly
+            //    associate; window + source works for both Apple and third-party
+            //    workouts while still excluding other sources' samples.
+            let hrPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate, options: .strictStartDate),
+                HKQuery.predicateForObjects(from: workout.sourceRevision.source),
+            ])
             let hrSort = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
             let hrQuery = HKSampleQuery(sampleType: self.heartRateType, predicate: hrPredicate,
                                         limit: HKObjectQueryNoLimit, sortDescriptors: hrSort) { _, hrResults, _ in
