@@ -69,16 +69,6 @@
     "fullBreakdown": "Retrouve le détail des zones dans Progression → Statistiques."
   },
   "hrSensor": {
-    "title": "Capteur de fréquence cardiaque",
-    "subtitle": "Enregistre automatiquement ta fréquence cardiaque pendant tes sorties au lieu de la saisir.",
-    "betaWarning": "Cette fonctionnalité est récente et encore peu testée. L'association du capteur, les mesures en temps réel et les imports peuvent échouer ou être retardés. Vérifie donc la fréquence cardiaque enregistrée avant de t'y fier.",
-    "methods": {
-      "off": "Désactivé",
-      "bluetooth": "Capteur Bluetooth",
-      "healthconnect": "Health Connect",
-      "healthkit": "Santé (Apple)"
-    },
-    "newTag": "nouveau",
     "forgetAria": "Oublier le capteur",
     "scanning": "Recherche…",
     "pairAnother": "Associer un autre capteur",
@@ -87,23 +77,43 @@
     "scanFailed": "Impossible de rechercher des capteurs. Vérifie que le Bluetooth est activé.",
     "permissionNeeded": "L'autorisation Bluetooth est nécessaire pour associer un capteur.",
     "paired": "Capteur {{name}} associé.",
-    "hcConnected": "Connexion établie. La fréquence cardiaque est ajoutée automatiquement à tes sorties.",
-    "hcReconnect": "Reconnecter Health Connect",
-    "hcConnect": "Connecter Health Connect",
-    "hcHelp": "Récupère ta fréquence cardiaque dans Health Connect après chaque sortie. C'est utile si ta montre y synchronise ses données sans les diffuser en direct. Les données peuvent mettre quelques minutes à apparaître. La même connexion permet aussi d'importer tes sorties complètes. Active-le dans « Sorties de ta montre ».",
     "hcNotSupported": "Health Connect n'est pas pris en charge sur cet appareil (nécessite Android 8+).",
-    "hcSuccess": "Connexion à Health Connect établie. La fréquence cardiaque sera récupérée après tes sorties.",
     "hcInstall": "Installe Health Connect depuis Google Play, puis touche à nouveau Connecter.",
-    "hcDenied": "L'accès n'a pas été accordé. Dans Health Connect, autorise Running Coach à lire la fréquence cardiaque.",
     "hcOpenFailed": "Impossible d'ouvrir Health Connect. Vérifie qu'il est installé et à jour.",
-    "hkConnected": "Connexion établie. La fréquence cardiaque est ajoutée automatiquement à tes sorties.",
-    "hkReconnect": "Reconnecter l'app Santé",
-    "hkConnect": "Connecter l'app Santé",
-    "hkHelp": "Récupère ta fréquence cardiaque dans l'app Santé après chaque sortie. C'est utile si ta montre y synchronise ses données sans les diffuser en direct.",
     "hkNotSupported": "L'app Santé n'est pas disponible sur cet appareil.",
-    "hkSuccess": "Connexion à l'app Santé établie. La fréquence cardiaque sera récupérée après tes sorties.",
     "hkDenied": "L'accès n'a pas été accordé. Dans l'app Santé, autorise Running Coach à lire Fréquence cardiaque et Entraînements.",
     "hkOpenFailed": "Impossible d'accéder à l'app Santé. Réessaie ou vérifie ses réglages de partage."
+  },
+  "connections": {
+    "title": "Connexions et synchronisation",
+    "subtitle": "Capteurs, montres et comptes qui ajoutent automatiquement tes sorties et ta fréquence cardiaque.",
+    "howItWorks": "Comment ça marche",
+    "notSetUp": "Non configuré",
+    "connected": "Connecté",
+    "reconnect": "Reconnecter",
+    "connectBtn": "Connecter",
+    "ble": {
+      "label": "Capteur Bluetooth de fréquence cardiaque"
+    },
+    "store": {
+      "labelHc": "Health Connect",
+      "labelHk": "Santé (Apple)",
+      "hrToggle": "Fréquence cardiaque après la sortie",
+      "hrToggleDesc": "Complète ta fréquence cardiaque à la fin d'une sortie.",
+      "watchToggle": "Sorties de ta montre",
+      "watchToggleDesc": "Te propose d'importer les sorties terminées de ta montre."
+    },
+    "mobile": {
+      "title": "Capteurs et synchronisation de montre",
+      "desc": "Synchronise les sorties de ta montre (Garmin ou Zepp/Amazfit via Health Connect sur Android, Apple Watch via Santé sur iPhone) et capture ta fréquence cardiaque avec un capteur Bluetooth. Tout se passe dans l'app mobile.",
+      "android": "Télécharger sur Google Play",
+      "ios": "Télécharger pour iPhone"
+    },
+    "betaNote": "Ces connexions sont récentes et encore peu testées. L'association, les mesures en direct ou les imports peuvent échouer ou être retardés. Vérifie la fréquence cardiaque enregistrée avant de t'y fier.",
+    "help": {
+      "oneHrSource": "Une seule source de fréquence cardiaque à la fois : en activer une désactive l'autre.",
+      "hrEditable": "Les valeurs importées restent modifiables sur chaque sortie."
+    }
   },
   "hrDisclosure": {
     "title": "Connecter un capteur de fréquence cardiaque",
@@ -116,16 +126,12 @@
     "accept": "Autoriser et continuer"
   },
   "integrations": {
-    "title": "Sorties de ta montre",
-    "subtitle": "Importe les sorties terminées avec leur distance, leur durée, leur dénivelé positif et leur fréquence cardiaque, sans avoir à emporter ton téléphone.",
-    "connectedRow": "{{label}} : les nouvelles sorties te sont automatiquement proposées à l'importation.",
     "scan30": "Rechercher dans les 30 derniers jours",
     "turnOff": "Désactiver",
-    "connect": "Connecter {{label}}",
     "connectSuccess": "Connexion établie. Les sorties de ta montre apparaîtront ici après leur synchronisation.",
     "noNewRuns": "Aucune nouvelle sortie à importer pour l'instant.",
     "accessDenied": "L'accès n'a pas été accordé. Autorise Running Coach à lire les exercices, les distances, le dénivelé et la fréquence cardiaque.",
-    "connectFailed": "Connexion impossible. Vérifie que Health Connect est installé et à jour.",
+    "connectFailed": "La connexion n'a pas pu aboutir. Réessaie.",
     "noRuns30": "Aucune nouvelle sortie trouvée dans les 30 derniers jours.",
     "scanFailed": "Impossible de lire tes sources connectées.",
     "providers": {
@@ -136,6 +142,10 @@
       "healthkit": {
         "label": "Ta montre (app Santé)",
         "help": "Compatible avec l'app Exercice de l'Apple Watch et toute montre dont l'app associée enregistre les activités dans l'app Santé. Les sorties apparaissent quelques minutes après la synchronisation ; aucun tracé ni aucune carte ne sont importés."
+      },
+      "polar": {
+        "label": "Polar",
+        "help": "Connecte ton compte Polar pour importer tes sorties terminées, avec tracé, allure, dénivelé et fréquence cardiaque, depuis ta montre Polar, même quand tu laisses ton téléphone à la maison."
       }
     }
   }

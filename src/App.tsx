@@ -5,6 +5,7 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { isNative, isIos } from "./native";
+import { POLAR_DEEP_LINK, stashPolarReturn } from "./polarPreinit";
 import { versionStatus } from "./utils/version";
 import { UpdateRequired, UpdateBanner } from "./components/UpdatePrompt";
 import { initStore, clearStore } from "./db";
@@ -121,6 +122,25 @@ export default function App() {
     const processUrl = async (url: string) => {
       if (!url || url === lastUrlRef.current) return; // de-dupe appUrlOpen vs getLaunchUrl
       lastUrlRef.current = url;
+      // Polar OAuth return, bounced from the web origin by polarPreinit. It
+      // carries a ?code= that is NOT a Supabase auth code — route it before the
+      // exchangeCodeForSession below can eat it (the native twin of
+      // polarPreinit's web-side guard). Stash for completePolarAuth (which
+      // CSRF-validates the state) and wake whoever is mounted: RunningCoach
+      // listens for the event (warm return), and its boot path re-reads the
+      // stash anyway (cold start, where this may run before it mounts).
+      if (url.startsWith(POLAR_DEEP_LINK)) {
+        closeAuthBrowser(); // iOS: the OAuth SFSafariViewController is still up
+        try {
+          const p = new URL(url).searchParams;
+          const code = p.get("code"), state = p.get("state");
+          // A denial carries no code — stay silent (same choice as the web flow)
+          // but still close the browser sheet above.
+          if (code && state) stashPolarReturn(code, state);
+        } catch { /* malformed — ignore */ }
+        window.dispatchEvent(new Event("rc-polar-return"));
+        return;
+      }
       let params;
       try { params = new URL(url).searchParams; } catch { return; }
       // Provider-side denial/error (e.g. user cancels Google consent) carries no

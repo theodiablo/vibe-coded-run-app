@@ -32,16 +32,6 @@ export const providerEnabledInSettings = (
 
 export const getProvider = (id: string) => importProviders.find(p => p.id === id) || null;
 
-// Connectable integrations to show in Settings (file import lives in LogView —
-// picking a file isn't a "connection").
-export async function connectableProviders(): Promise<ImportProvider[]> {
-  const out: ImportProvider[] = [];
-  for (const p of importProviders) {
-    if (p.connect && (await p.isAvailable())) out.push(p);
-  }
-  return out;
-}
-
 type ScanAllOptions = {
   days?: number;
   now?: number;

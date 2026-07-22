@@ -161,6 +161,12 @@ jobs:
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           # Public support address for crash trace mailto links. Set as a repo variable.
           VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          # Polar cloud import (public client id, repo VARIABLE — the secret half
+          # lives in the polar-import edge function). Native connects open the
+          # system browser and return via the polar-callback deep link; without
+          # this the provider is dormant and the Polar row never renders in the
+          # apps. Same variable as the web deploy (docs/integrations-polar.md).
+          VITE_POLAR_CLIENT_ID: ${{ vars.VITE_POLAR_CLIENT_ID }}
           # Released native apps — production telemetry (PR builds tag "preview").
           VITE_APP_ENV: production
           # Native build: drop the web-only marketing landing chunk entirely so

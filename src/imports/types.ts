@@ -37,8 +37,13 @@ export type ImportProvider = {
   // Is this device currently authorized/connected? (Per-device, like the HC
   // grant markers — a synced preference alone is never enough.)
   isConnected?: () => Promise<boolean> | boolean;
-  // Prompt the user to authorize; returns whether it was granted.
-  connect?: () => Promise<boolean>;
+  // Prompt the user to authorize. Resolves true/false for an in-place grant
+  // (e.g. a Health Connect consent sheet), or "pending" when the flow leaves
+  // the app (native OAuth in the system browser) and the real outcome arrives
+  // later out-of-band (deep-link event) — the caller must not toast either way
+  // on "pending". A web redirect provider instead returns a never-settling
+  // promise (the page itself navigates away; see polar.ts connect()).
+  connect?: () => Promise<boolean | "pending">;
   disconnect?: () => void;
   // Scan-capable providers: return new (deduped) runs since `days` ago. `trigger`
   // is a free-form label ("auto"/"manual") for diagnostics only.

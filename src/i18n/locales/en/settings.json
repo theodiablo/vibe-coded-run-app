@@ -69,16 +69,6 @@
     "fullBreakdown": "Full zone breakdown is in Progress → Stats."
   },
   "hrSensor": {
-    "title": "Heart-rate sensor",
-    "subtitle": "Capture heart rate automatically during a run instead of typing it in.",
-    "betaWarning": "This is a new, lightly tested feature. Sensor pairing, live readings, or Health Connect imports may fail or arrive late, so check the saved heart rate before relying on it.",
-    "methods": {
-      "off": "Off",
-      "bluetooth": "Bluetooth sensor",
-      "healthconnect": "Health Connect",
-      "healthkit": "Apple Health"
-    },
-    "newTag": "new",
     "forgetAria": "Forget sensor",
     "scanning": "Scanning…",
     "pairAnother": "Pair a different sensor",
@@ -87,23 +77,43 @@
     "scanFailed": "Couldn't scan for sensors — make sure Bluetooth is on.",
     "permissionNeeded": "Bluetooth permission is needed to pair a sensor.",
     "paired": "Paired {{name}}.",
-    "hcConnected": "Connected — heart rate is added to your runs automatically.",
-    "hcReconnect": "Reconnect Health Connect",
-    "hcConnect": "Connect Health Connect",
-    "hcHelp": "Reads your heart rate from Android Health Connect after a run — useful if your watch syncs there but doesn't broadcast live. It may take a few minutes to appear after you finish. The same connection also unlocks importing full runs — turn that on under \"Runs from your watch\".",
     "hcNotSupported": "Health Connect isn't supported on this device (needs Android 8+).",
-    "hcSuccess": "Health Connect connected — heart rate will be read after your runs.",
     "hcInstall": "Install Health Connect from Google Play, then tap Connect again.",
-    "hcDenied": "Access wasn't granted. In Health Connect, allow Running Coach to read Heart rate.",
     "hcOpenFailed": "Couldn't open Health Connect. Make sure it's installed and up to date.",
-    "hkConnected": "Connected — heart rate is added to your runs automatically.",
-    "hkReconnect": "Reconnect Apple Health",
-    "hkConnect": "Connect Apple Health",
-    "hkHelp": "Reads your heart rate from Apple Health after a run — useful if your watch syncs there but doesn't broadcast live. It may take a few minutes to appear after you finish.",
     "hkNotSupported": "Apple Health isn't available on this device.",
-    "hkSuccess": "Apple Health connected — heart rate will be read after your runs.",
     "hkDenied": "Access wasn't granted. In the Health app, allow Running Coach to read Heart Rate and Workouts.",
     "hkOpenFailed": "Couldn't reach Apple Health. Try again, or check the Health app's sharing settings."
+  },
+  "connections": {
+    "title": "Connections & sync",
+    "subtitle": "Sensors, watches and accounts that add runs and heart rate automatically.",
+    "howItWorks": "How it works",
+    "notSetUp": "Not set up",
+    "connected": "Connected",
+    "reconnect": "Reconnect",
+    "connectBtn": "Connect",
+    "ble": {
+      "label": "Bluetooth heart-rate sensor"
+    },
+    "store": {
+      "labelHc": "Health Connect",
+      "labelHk": "Apple Health",
+      "hrToggle": "Heart rate after runs",
+      "hrToggleDesc": "Fills in your heart rate once a run ends.",
+      "watchToggle": "Runs from your watch",
+      "watchToggleDesc": "Offers finished watch workouts as runs to import."
+    },
+    "mobile": {
+      "title": "Sensors & watch sync",
+      "desc": "Sync runs from your watch — Garmin or Zepp/Amazfit via Health Connect on Android, Apple Watch via Apple Health on iPhone — and capture heart rate from Bluetooth sensors. It all lives in the mobile app.",
+      "android": "Get it on Google Play",
+      "ios": "Get it for iPhone"
+    },
+    "betaNote": "These connections are new and lightly tested. Pairing, live readings or imports may fail or arrive late, so check the saved heart rate before training by it.",
+    "help": {
+      "oneHrSource": "One heart-rate source at a time: turning one on switches the other off.",
+      "hrEditable": "Imported values stay editable on every run."
+    }
   },
   "hrDisclosure": {
     "title": "Connect a heart-rate sensor",
@@ -116,16 +126,12 @@
     "accept": "Allow & continue"
   },
   "integrations": {
-    "title": "Runs from your watch",
-    "subtitle": "Import finished runs — distance, time, elevation and heart rate — from a watch, so you don't have to carry your phone.",
-    "connectedRow": "{{label}} — new runs are offered for import automatically.",
     "scan30": "Scan last 30 days",
     "turnOff": "Turn off",
-    "connect": "Connect {{label}}",
     "connectSuccess": "Connected — your watch runs will appear here after they sync.",
     "noNewRuns": "No new runs to import yet.",
     "accessDenied": "Access wasn't granted. Allow Running Coach to read Exercise, Distance, Elevation and Heart rate.",
-    "connectFailed": "Couldn't connect. Make sure Health Connect is installed and up to date.",
+    "connectFailed": "Couldn't complete the connection. Please try again.",
     "noRuns30": "No new runs found in the last 30 days.",
     "scanFailed": "Couldn't read your connected sources.",
     "providers": {
@@ -136,6 +142,10 @@
       "healthkit": {
         "label": "Your watch (Apple Health)",
         "help": "Works with the Apple Watch Workout app and any watch whose companion app writes workouts to Apple Health (Garmin Connect, Polar Flow, Zepp…). Runs appear a few minutes after your watch syncs; no route/map is included."
+      },
+      "polar": {
+        "label": "Polar",
+        "help": "Connect your Polar account to import finished runs — route, pace, elevation and heart rate — from your Polar watch, even when you leave your phone at home."
       }
     }
   }

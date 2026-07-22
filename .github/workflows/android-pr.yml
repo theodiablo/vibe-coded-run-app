@@ -83,6 +83,9 @@ jobs:
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           # Public support address for crash trace mailto links. Set as a repo variable.
           VITE_SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          # Polar cloud import — lets a sideloaded PR APK exercise the native
+          # OAuth deep-link flow end-to-end (public client id, repo variable).
+          VITE_POLAR_CLIENT_ID: ${{ vars.VITE_POLAR_CLIENT_ID }}
           VITE_APP_ENV: preview
 
       - name: Sync Capacitor

@@ -659,9 +659,17 @@ and delete anything that becomes stale.
   `hasHealthConnectAuthorization()` for Health Connect). `LiveRunTracker` uses an
   effective method (`"off"` when the selected source is not ready here) and prompts
   the user to pair/authorize in Settings before Start, without blocking the run.
-  Config UI is `HrSensor` (`src/views/HrSensor.tsx`), nested in Settings → Profile,
-  native-only. BLE pairing reuses the disclosure→OS-prompt pattern
-  (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable nudge (in
+  Config UI is the unified **`ConnectionsCard`** (`src/views/ConnectionsCard.tsx`,
+  its own Settings card — it replaced the old `HrSensor` + `Integrations`
+  sections, which surfaced Health Connect twice): a BLE-sensor row, ONE
+  health-store row per platform (Health Connect / Apple Health) whose sub-toggles
+  write `hrMethod` and `watchImport`, registry-driven cloud rows (Polar), and on
+  web a single "in the mobile app" pointer (store links) instead of disabled
+  native rows — never render the OTHER mobile platform's store row. A fresh
+  health-store grant auto-enables watch import and — only when `hrMethod` is
+  `"off"` — post-run HR; it never silently replaces a configured method (BLE or
+  one synced from another device). BLE pairing reuses the disclosure→OS-prompt
+  pattern (`HrSensorDisclosure`, `HR_BLE_DISCLOSED_KEY`). A skippable nudge (in
   `LiveRunTracker`) offers setup on run start while HR is off; it reappears each run
   until the user sets HR up or taps "Don't record heart rate", which sets the synced
   `settings.hrOptOut`. It never blocks Start.
@@ -694,18 +702,33 @@ and delete anything that becomes stale.
   export the activity from Strava's "Export Original" (the .fit Zepp uploaded) or
   Export GPX — the in-app import help (`log.import.perActivity`) spells this out.
   **cloud** — vendor cloud APIs (OAuth + server-side pull). **Polar**
-  (`providers/polar.ts`, the first real one — `docs/integrations-polar.md`) is
-  **web-only** (its OAuth is a full-page redirect that would navigate a native
-  webview off the app; native deep-link is a follow-up with Suunto) and **dormant
-  until configured**: the secret half lives in the `polar-import` edge function +
-  `polar_tokens` table (service-role-only, token never reaches the client), and
-  the provider's `isAvailable()` is false without `VITE_POLAR_CLIENT_ID` — so it
-  ships as a safe no-op, like `garminCloudProvider` (`providers/cloud.ts`, still
-  scaffold-only). The edge function returns each exercise's raw **GPX**, parsed
-  **client-side** by the app's existing `parseActivityFile` so a Polar run gets
-  the same detail a user-picked `.gpx` does. `completePolarAuth()` (RunningCoach
-  boot) finishes the OAuth return, gated on a `state` marker so it never collides
-  with Supabase's own `?code=` PKCE flow. Provider order for the next cloud
+  (`providers/polar.ts`, the first real one — `docs/integrations-polar.md`) works
+  on **web AND native** and is **dormant until configured**: the secret half
+  lives in the `polar-import` edge function + `polar_tokens` table
+  (service-role-only, token never reaches the client), and the provider's
+  `isAvailable()` is false without `VITE_POLAR_CLIENT_ID` (wired into
+  `deploy.yml`/`deploy-pr.yml` AND `release.yml`/`android-pr.yml` — native builds
+  inline it at web-bundle build time) — so it ships as a safe no-op, like
+  `garminCloudProvider` (`providers/cloud.ts`, still scaffold-only). The edge
+  function returns each exercise's raw **GPX**, parsed **client-side** by the
+  app's existing `parseActivityFile` so a Polar run gets the same detail a
+  user-picked `.gpx` does. `completePolarAuth()` (RunningCoach boot + the
+  `rc-polar-return` event) finishes the OAuth return, gated on a `state` marker
+  so it never collides with Supabase's own `?code=` PKCE flow. **Native OAuth is
+  a bounce**: Polar has ONE registered https redirect (the web origin), so a
+  native connect marks its state `polar_import:native:<nonce>`, opens the system
+  browser (Android via plain top-frame navigation / Bridge.launchIntent — never
+  `@capacitor/browser` there; iOS via `Browser.open`), and the returning web
+  page's `polarPreinit` forwards code+state to the
+  `solutions.camboulive.run://polar-callback` deep link (scripted redirect +
+  always-rendered tap fallback, since browsers gesture-gate custom-scheme
+  navigation). `App.tsx` must route that deep link BEFORE its Supabase
+  auth-code exchange (it also carries `?code=`); handshake values live in
+  localStorage on native (sessionStorage dies with the killed app), and
+  `completePolarAuth` only clears the stash when a code is actually consumed —
+  wiping the nonce on a codeless boot would reject an in-flight return. The
+  exchange passes the SAME https redirect_uri (`WEB_APP_ORIGIN`), never the
+  WebView origin. Provider order for the next cloud
   integrations (Suunto, COROS): reuse this seam. **Strava API is deliberately
   excluded**: its agreement bans AI-model use of API data and the coach reads
   runs — users' own CSV/GPX exports are fine, that's data portability, not the
@@ -713,8 +736,9 @@ and delete anything that becomes stale.
   **no usable Zepp cloud API** for indies (official one is corporate-partner
   only); password-based scraping libs are ToS-violating — Amazfit rides Health
   Connect or files.
-  Settings UI is `src/views/Integrations.tsx` (registry-driven, connectable
-  providers only; file import lives in LogView's "Import file"). Whether Zepp
+  Settings UI is the unified `src/views/ConnectionsCard.tsx` (registry-driven for
+  cloud providers; the health-store providers get the dedicated per-platform row;
+  file import lives in LogView's "Import file"). Whether Zepp
   writes exercise *sessions with distance* to HC (vs wellness only) is
   **unverified on-device**.
 - **Source is Health Connect exercise sessions, NOT the pinned HR plugin.** The
