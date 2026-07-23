@@ -32,6 +32,23 @@ export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
 // Once per install — asked the first time a run starts, never re-nagged.
 export const REC_NOTIF_ASKED_KEY = "rc_rec_notif_asked";
 
+// localStorage flag: we've asked once for ACCESS_BACKGROUND_LOCATION ("Allow all
+// the time"). Only ever requested on a build that DECLARES the permission (the
+// debug/personal sideload manifest — the public Play release never declares it),
+// and only after foreground fine location is already granted. Once per install so
+// a denied Settings round-trip never re-nags every run. See src/geo/background.ts.
+export const BG_LOC_ASKED_KEY = "rc_bg_loc_asked";
+
+// ── GPS tracking diagnostics (native) — PER-DEVICE, never in the synced blob ──
+// A hidden developer log of the live tracker's fix stream, mirroring the watch
+// sync log: it records each accepted/rejected GPS fix (with the reason), gap
+// insertions, permission results, and app foreground/background transitions, so a
+// screen-off run can be inspected to see exactly when and why fixes stop. Off by
+// default (nothing recorded until the reveal flag is on); bounded ring buffer.
+export const GEO_DIAG_LOG_KEY = "rc_geo_diag_log";   // JSON ring buffer of tracker events
+export const GEO_DIAG_LOG_MAX = 2000;                // cap on stored events (FIFO)
+export const GEO_DEBUG_KEY = "rc_geo_debug";         // "1" enables logging + reveals the panel
+
 // ── Heart-rate sensor (native) — all PER-DEVICE, never in the synced blob ──
 // The *method* preference (off/bluetooth/healthconnect) lives in synced settings
 // (settings.hrMethod); the concrete paired device and one-shot UI flags are local

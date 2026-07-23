@@ -3,6 +3,7 @@ import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
 import { hrSummary } from "../utils/hr";
 import { geoSource } from "../geo/source";
+import { logTrack } from "../geo/trackLog";
 import { getHrSource } from "../hr/source";
 import { getPairedDevice } from "../hr/device";
 import { isNative } from "../native";
@@ -165,8 +166,14 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
 
   // ── geolocation callback ─────────────────────────────────────────────────
   const onPos = useCallback((pos: GeoPosition) => {
-    if (stateRef.current !== "tracking") return; // ignore fixes while paused
-    if (!accuracyOK(pos, ACC_MAX_M)) return;
+    // Log the raw arrival BEFORE any filtering — the key diagnostic signal is
+    // whether fixes keep landing at the JS boundary while the app is backgrounded
+    // (screen off). A no-op unless GPS debug is enabled.
+    const acc0 = pos.coords.accuracy ?? null;
+    const t0 = pos.timestamp || Date.now();
+    logTrack("native-fix", { t: t0, acc: acc0, sinceMs: lastFixRef.current ? t0 - lastFixRef.current : undefined });
+    if (stateRef.current !== "tracking") { logTrack("drop", { t: t0, acc: acc0, msg: "paused" }); return; } // ignore fixes while paused
+    if (!accuracyOK(pos, ACC_MAX_M)) { logTrack("drop", { t: t0, acc: acc0, msg: "accuracy" }); return; }
     const { latitude, longitude, altitude, accuracy } = pos.coords;
     const t = pos.timestamp || Date.now();
     // Silence since the last usable fix. Measured against every accepted fix
@@ -179,23 +186,25 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     for (let i = pts.length - 1; i >= 0; i--) { if (pts[i]) { last = pts[i]; break; } }
     let next = pts;
     if (last) {
-      if (t - last[2] < MIN_INTERVAL_MS) return;          // too soon
+      if (t - last[2] < MIN_INTERVAL_MS) { logTrack("drop", { t, acc: accuracy ?? null, msg: "too-soon" }); return; }          // too soon
       // Reject a move smaller than the fix's own uncertainty as jitter, so a
       // less-accurate fix can't zigzag the track or inflate distance. Accurate
       // fixes fall back to the flat MIN_MOVE_M floor.
       const minMove = Math.max(MIN_MOVE_M, (accuracy || 0) * 0.5);
-      if (haversineM(last, [latitude, longitude]) < minMove) return; // not moving
-      if (sinceLastFix > GAP_MS) next = [...pts, null];   // lost signal → break track
+      if (haversineM(last, [latitude, longitude]) < minMove) { logTrack("drop", { t, acc: accuracy ?? null, msg: "jitter" }); return; } // not moving
+      if (sinceLastFix > GAP_MS) { next = [...pts, null]; logTrack("gap", { t, sinceMs: sinceLastFix }); }   // lost signal → break track
     } else if (accuracy == null || accuracy > ACC_WARMUP_M) {
       // Warm-up: don't anchor the track on a coarse — or unknown-accuracy — pre-lock
       // fix. The web GeolocationPosition always carries a numeric accuracy, so this
       // is unchanged for web; it only tightens the native path, where a plugin fix
       // can report null accuracy (the next fix with a known-good reading anchors).
+      logTrack("drop", { t, acc: accuracy ?? null, msg: "warmup" });
       return;
     }
     const np: StoredTrackPoint = [latitude, longitude, t, altitude == null ? null : Math.round(altitude)];
     pointsRef.current = [...next, np];
     setPoints(pointsRef.current);
+    logTrack("fix", { t, acc: accuracy ?? null, sinceMs: sinceLastFix });
     persist();
   }, [persist]);
 
@@ -234,6 +243,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   }, [hrMethod]);
 
   const onErr = useCallback((err: GeoError) => {
+    logTrack("error", { msg: `code=${err.code} ${err.message || ""}`.trim() });
     if (err.code === err.PERMISSION_DENIED)
       setError(permissionDeniedMsg());
     else if (err.code === err.POSITION_UNAVAILABLE)
@@ -294,6 +304,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     if (!startWatch()) return;
     stateRef.current = "tracking";
     setState("tracking");
+    logTrack("start", { msg: isNative ? "native" : "web" });
     setMovingSec(0);
     startHrWatch();
     acquireWake();
@@ -306,6 +317,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     startRef.current = null;
     stateRef.current = "paused";
     setState("paused");
+    logTrack("pause");
     setMovingSec(computeMoving());
     releaseWake();
     persist();
@@ -317,6 +329,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     if (watchRef.current == null) startWatch();
     stateRef.current = "tracking";
     setState("tracking");
+    logTrack("resume");
     startHrWatch();
     acquireWake();
     persist();
@@ -332,6 +345,7 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
     releaseWake();
     stateRef.current = "stopped";
     setState("stopped");
+    logTrack("stop", { msg: `pts=${pointsRef.current.filter(Boolean).length}` });
     setMovingSec(computeMoving());
     persist();
   }, [stopWatch, stopHrWatch, releaseWake, persist, computeMoving]);
@@ -406,9 +420,12 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   // when the page hides) and flush the buffer on hide.
   useEffect(() => {
     const onVis = () => {
+      const tracking = stateRef.current === "tracking" || stateRef.current === "paused";
       if (document.visibilityState === "visible") {
+        if (tracking) logTrack("visible");
         if (stateRef.current === "tracking") acquireWake();
       } else {
+        if (tracking) logTrack("hidden");
         persist();
       }
     };

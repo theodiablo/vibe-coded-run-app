@@ -12,21 +12,26 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
 import com.getcapacitor.annotation.PermissionCallback
 
-// Local plugin for the one run-recording runtime permission that neither
+// Local plugin for run-recording runtime permissions that neither
 // @capacitor/geolocation nor @capacitor-community/background-geolocation requests:
-// POST_NOTIFICATIONS (Android 13+). The background-geolocation foreground service
-// shows an ongoing "recording run" notification, but on Android 13+ that
-// notification is silently suppressed unless POST_NOTIFICATIONS is granted — so the
-// user gets no visible indication a run is recording. This exposes a request for it.
 //
-// Deliberately narrow: background location is NOT handled here. Recording keeps
-// working with the screen off via the foreground service under the "while using the
-// app" grant, so the app never requests ACCESS_BACKGROUND_LOCATION (declaring it
-// would trigger Google Play's background-location review for no gain).
+//  • POST_NOTIFICATIONS (Android 13+): the background-geolocation foreground service
+//    shows an ongoing "recording run" notification, silently suppressed on 13+
+//    unless this is granted, so the user gets no visible sign a run is recording.
+//
+//  • ACCESS_BACKGROUND_LOCATION ("Allow all the time"): requested ONLY on a build
+//    whose merged manifest declares it — the debug / personal sideload build (see
+//    android/app/src/debug/AndroidManifest.xml). The public Play release does NOT
+//    declare it, so checkBackgroundLocation reports declared:false and the request
+//    is a no-op there — recording stays foreground-only (no Play background-location
+//    review). On the debug build it lets the foreground service keep receiving GPS
+//    fixes with the screen off, which the "while using the app" grant does not
+//    reliably do on every device.
 @CapacitorPlugin(
     name = "RunPermissions",
     permissions = [
         Permission(alias = "notifications", strings = [Manifest.permission.POST_NOTIFICATIONS]),
+        Permission(alias = "backgroundLocation", strings = [Manifest.permission.ACCESS_BACKGROUND_LOCATION]),
     ],
 )
 class RunPermissionsPlugin : Plugin() {
@@ -55,5 +60,54 @@ class RunPermissionsPlugin : Plugin() {
     @PermissionCallback
     private fun notificationsCallback(call: PluginCall) {
         call.resolve(JSObject().put("granted", hasNotifications()))
+    }
+
+    // True only if ACCESS_BACKGROUND_LOCATION is in THIS build's merged manifest.
+    // The release build never declares it, so every background request short-circuits
+    // to a no-op — no accidental background-location behaviour or Play review.
+    private fun isBackgroundLocationDeclared(): Boolean =
+        try {
+            context.packageManager
+                .getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+                .requestedPermissions
+                ?.contains(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == true
+        } catch (e: Exception) { false }
+
+    // Before Android 10 (Q) there is no separate background-location permission —
+    // holding foreground location already covers background use.
+    private fun hasBackgroundLocation(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+
+    @PluginMethod
+    fun checkBackgroundLocation(call: PluginCall) {
+        val declared = isBackgroundLocationDeclared()
+        call.resolve(
+            JSObject()
+                .put("declared", declared)
+                .put("granted", declared && hasBackgroundLocation())
+        )
+    }
+
+    @PluginMethod
+    fun requestBackgroundLocation(call: PluginCall) {
+        if (!isBackgroundLocationDeclared()) {
+            call.resolve(JSObject().put("declared", false).put("granted", false))
+            return
+        }
+        if (hasBackgroundLocation()) {
+            call.resolve(JSObject().put("declared", true).put("granted", true))
+            return
+        }
+        // Android 11+ routes this to a Settings screen ("Allow all the time"); the
+        // caller only invokes it after foreground location is already granted, the
+        // OS precondition for the request to be offered.
+        requestPermissionForAlias("backgroundLocation", call, "backgroundLocationCallback")
+    }
+
+    @PermissionCallback
+    private fun backgroundLocationCallback(call: PluginCall) {
+        call.resolve(JSObject().put("declared", true).put("granted", hasBackgroundLocation()))
     }
 }

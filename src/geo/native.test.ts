@@ -5,7 +5,10 @@ import { adaptBgLocation, adaptBgError, ensureForegroundPermission } from "./nat
 vi.mock("@capacitor/geolocation", () => ({
   Geolocation: { checkPermissions: vi.fn(), getCurrentPosition: vi.fn() },
 }));
-vi.mock("@capacitor/core", () => ({ registerPlugin: () => ({}) }));
+vi.mock("@capacitor/core", () => ({
+  registerPlugin: () => ({}),
+  Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" },
+}));
 
 // The native background-geolocation plugin hands us a flat `location` object; the
 // rest of the tracker (onPos, accuracyOK) reads the GeolocationPosition shape.
