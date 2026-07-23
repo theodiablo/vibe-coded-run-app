@@ -11,6 +11,10 @@
     "moveLongRun": "Mueve mi tirada larga al domingo",
     "confidence": "Ayúdame a ganar confianza para el día de la carrera"
   },
+  "detailNotice": {
+    "text": "Para responder algunas preguntas, el entrenador puede consultar los datos detallados de tus últimos entrenamientos, incluida tu frecuencia cardíaca. Tu ubicación GPS nunca se comparte con él.",
+    "gotIt": "Entendido"
+  },
   "sessionGreeting": "Hablemos de tu entrenamiento {{type}} del {{date}} ({{km}} km). ¿Qué te preocupa: demasiado exigente, mal día, u otra cosa? Te propondré un ajuste seguro y lo verás antes de cambiar nada.",
   "sessionExamples": {
     "tooHard": "Me parece demasiado exigente para mi nivel",

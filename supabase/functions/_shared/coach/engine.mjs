@@ -21,6 +21,9 @@ export const MAX_VALIDATOR_RETRIES = 3;
 // Hard ceiling on model calls per round, so a pathological tool-call loop
 // can't burn budget even without validator failures.
 export const MAX_MODEL_CALLS = 8;
+// Per-round budget for get_run_detail fetches: enough for a "compare these two
+// runs" ask plus one retry, and bounds the extra context at ~3 digests.
+export const MAX_RUN_DETAIL_FETCHES = 3;
 
 export const SYSTEM_PROMPT = `You are the adjustment coach inside a running-training app. The runner already has a structured training plan built by a deterministic generator; your job is to ADAPT it to what just happened (pain, illness, missed sessions, schedule conflicts, doubts) — never to author a plan from scratch.
 
@@ -34,6 +37,7 @@ Rules:
 - If the runner asks for one extra easy run because they have a free day, and there is no current pain/illness/fatigue or missed-week make-up context, try one modest add_session before reframing it as a goal-settings issue. The validator/tool will reject unsafe dates or load.
 - Cancelling a session is a last resort: prefer shortening it, shifting it, swapping it easier, or converting it to cross-training.
 - If the whole plan feels too easy, do not hand-edit every session: reassess the goal (reassess_goal_feasibility) and, if it is conservative, suggest a more ambitious goal in the plan settings — the plan is rebuilt from the goal.
+- get_run_detail is for occasional deep-dives into a single run's execution; do not call it unless the runner's request hinges on how a specific run went.
 - The plan may follow a methodology style (PLAN STYLE below): balanced (classic mix), polarized (ONE hard session a week — keep every other day genuinely easy), runwalk (run/walk structure — never introduce tempo or interval work), lowfreq (exactly three key runs, other days optional cross-training), hansons (capped moderate long run, frequent moderate days). Preserve the style's pattern when adjusting; do not add quality the style wouldn't schedule.
 - Completed sessions and RACE sessions are immutable.
 - If no change is warranted, or the request needs information you don't have, say so in plain text and make no tool calls.
@@ -73,6 +77,38 @@ function suggestMemory(input, context, suggestions) {
   const text = `${context.today}: ${clipped}`;
   suggestions.push({ text });
   return "Queued for runner confirmation. It is not saved unless the runner taps Save to memory.";
+}
+
+// Read-only get_run_detail executor. Like reassess_goal_feasibility it never
+// touches the working plan and is not recorded in toolCalls; successful fetches
+// land in runDetailFetches for the caller's audit log (input_context — the
+// digest is part of what the model saw). fetchRunDetail is injected by the edge
+// function (a closure over the user's RLS-scoped DB client); it resolves to a
+// digest or { unavailable: string } and never throws. Data absence is a
+// NON-error tool_result — absence is a valid answer, and is_error invites
+// retry loops; is_error is reserved for a malformed input and the fetch budget.
+async function handleRunDetail(input, context, fetchRunDetail, runDetailFetches) {
+  const runId = String(input?.run_id || "").trim();
+  if (!runId) throw new CoachToolError("BAD_INPUT", "run_id is required — use the id of a run from RECENT RUNS.");
+  // Only runs the model was shown are fetchable: an id outside the RECENT RUNS
+  // window never reaches the database. These absence answers come BEFORE the
+  // budget check so a bad id after 3 successful fetches gets the accurate
+  // "unknown run" answer, not a misleading DETAIL_BUDGET error.
+  const known = (context.recentRuns || []).some((r) => r.id === runId);
+  if (!known) return "Unknown run id — use the id field of a run from RECENT RUNS.";
+  if (!fetchRunDetail) return "Run detail is not available in this environment — advise from the RECENT RUNS summary.";
+  if (runDetailFetches.length >= MAX_RUN_DETAIL_FETCHES) {
+    throw new CoachToolError("DETAIL_BUDGET",
+      `You have already fetched ${MAX_RUN_DETAIL_FETCHES} run digests this round — answer with what you have.`);
+  }
+  const detail = await fetchRunDetail(runId);
+  if (!detail || detail.unavailable) {
+    return `No detailed data available for this run (${detail?.unavailable || "nothing recorded"}) — advise from the RECENT RUNS summary.`;
+  }
+  runDetailFetches.push({ runId, digest: detail });
+  return "Run detail digest. splits rows: {k: split #, d: partial-km length (omitted for full kms), p: pace sec/km, e: elevation gain m, h: avg hr}. " +
+    "series rows (downsampled): {d: cumulative km, p: pace sec/km, e: elevation m, h: hr bpm} — or {t: sec, h: hr} when GPS was not recorded.\n" +
+    JSON.stringify(detail);
 }
 
 const riskText = (context, history, message) => [
@@ -170,12 +206,13 @@ const textOf = (content) =>
 //   { status: "proposed", plan, changed, rationale, toolCalls, usage, validation }
 // or { status: "no_valid_adjustment", rationale, toolCalls, usage }
 // callModel(messages, tools) → an Anthropic Message ({ content, stop_reason, usage }).
-export async function generateProposal({ baseline, context, history = [], message = null, callModel }) {
+export async function generateProposal({ baseline, context, history = [], message = null, callModel, fetchRunDetail = null }) {
   let working = structuredClone(context.plan ?? baseline);
   const messages = buildMessages(context, history, message);
   const usage = { input_tokens: 0, output_tokens: 0 };
   const toolCalls = [];
   const memorySuggestions = [];
+  const runDetailFetches = [];
   let retries = 0;
   let lastText = "";
   // Tracks the most recent validation of `working`, so that if the loop ends
@@ -183,6 +220,11 @@ export async function generateProposal({ baseline, context, history = [], messag
   // kept issuing valid tool calls instead of ever stopping to summarize) we
   // can still surface an already-valid plan instead of discarding it.
   let lastValidation = null;
+  // Whether any read-only tool (get_run_detail / reassess / remember) ran —
+  // those never land in toolCalls, so the terminal gate below needs its own
+  // signal to tell "an informational round that kept fetching" apart from
+  // "every edit attempt failed".
+  let readOnlyActivity = false;
 
   for (let call = 0; call < MAX_MODEL_CALLS; call++) {
     const resp = await callModel(messages, TOOL_DEFS);
@@ -200,7 +242,7 @@ export async function generateProposal({ baseline, context, history = [], messag
         return {
           status: "proposed", plan: working,
           changed: JSON.stringify(working) !== JSON.stringify(baseline),
-          rationale: lastText, toolCalls, memorySuggestions, usage, validation,
+          rationale: lastText, toolCalls, memorySuggestions, runDetailFetches, usage, validation,
         };
       }
       if (++retries > MAX_VALIDATOR_RETRIES) break;
@@ -219,8 +261,13 @@ export async function generateProposal({ baseline, context, history = [], messag
         let resultText;
         if (tu.name === "remember_runner_context") {
           resultText = suggestMemory(tu.input, context, memorySuggestions);
+          readOnlyActivity = true;
         } else if (tu.name === "reassess_goal_feasibility") {
           resultText = assessGoalFeasibility(context);
+          readOnlyActivity = true;
+        } else if (tu.name === "get_run_detail") {
+          resultText = await handleRunDetail(tu.input, context, fetchRunDetail, runDetailFetches);
+          readOnlyActivity = true;
         } else {
           guardToolForContext(tu.name, tu.input, context, history, message);
           working = applyToolCall(working, tu.name, tu.input);
@@ -261,12 +308,16 @@ export async function generateProposal({ baseline, context, history = [], messag
   // every turn). Without this gate that dead-end would be misreported as
   // "proposed, nothing needs to change" instead of the honest
   // `no_valid_adjustment` — the model never found a working edit.
-  if (toolCalls.length > 0 && lastValidation && lastValidation.ok) {
+  // Read-only-only rounds (the model kept calling get_run_detail / reassess /
+  // remember without ever stopping) are NOT that dead-end: nothing failed and
+  // there is a real informational answer in lastText — surface it as an
+  // unchanged proposal instead of discarding it as no_valid_adjustment.
+  if ((toolCalls.length > 0 || (readOnlyActivity && lastText)) && lastValidation && lastValidation.ok) {
     return {
       status: "proposed", plan: working,
       changed: JSON.stringify(working) !== JSON.stringify(baseline),
-      rationale: lastText, toolCalls, memorySuggestions, usage, validation: lastValidation,
+      rationale: lastText, toolCalls, memorySuggestions, runDetailFetches, usage, validation: lastValidation,
     };
   }
-  return { status: "no_valid_adjustment", rationale: lastText, toolCalls, memorySuggestions, usage };
+  return { status: "no_valid_adjustment", rationale: lastText, toolCalls, memorySuggestions, runDetailFetches, usage };
 }

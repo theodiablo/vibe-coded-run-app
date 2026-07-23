@@ -49,6 +49,35 @@ if (UNKNOWN_SCENARIOS.length) {
 
 const records = [];
 
+// Stub for the engine's injected get_run_detail fetcher — evals have no DB, so
+// every hasDetail run resolves to this canned digest: an honest "HR climbed on
+// the hills" pattern (rising elevation, drifting HR at steady pace) shaped
+// exactly like runDigest.mjs output.
+const FIXTURE_DIGEST = {
+  date: "(fixture)", type: "EASY", distKm: 8, durationSec: 8 * 372, avgHr: 158, maxHr: 181, effort: 3,
+  elevGainM: 210,
+  splits: [
+    { k: 1, p: 370, e: 8, h: 141 }, { k: 2, p: 372, e: 12, h: 146 }, { k: 3, p: 378, e: 45, h: 162 },
+    { k: 4, p: 381, e: 52, h: 171 }, { k: 5, p: 375, e: 38, h: 168 }, { k: 6, p: 368, e: 20, h: 158 },
+    { k: 7, p: 366, e: 18, h: 155 }, { k: 8, p: 362, e: 17, h: 152 },
+  ],
+  hrZones: [
+    { zone: "Z1", label: "Recovery", sec: 180, pctTime: 6 }, { zone: "Z2", label: "Aerobic Base", sec: 660, pctTime: 22 },
+    { zone: "Z3", label: "Aerobic Tempo", sec: 900, pctTime: 30 }, { zone: "Z4", label: "Threshold", sec: 960, pctTime: 32 },
+    { zone: "Z5", label: "VO2 Max", sec: 276, pctTime: 9 },
+  ],
+  series: Array.from({ length: 40 }, (_, i) => ({
+    d: Math.round((i + 1) * 0.2 * 100) / 100, p: 365 + Math.round(15 * Math.sin(i / 6)),
+    e: 100 + Math.round(60 * Math.sin(i / 5)), h: 140 + Math.round(20 * Math.sin(i / 5 - 0.5)),
+  })),
+  notes: [],
+};
+const makeFetchRunDetail = (context) => async (runId) => {
+  const run = (context.recentRuns || []).find(r => r.id === runId);
+  if (!run || !run.hasDetail) return { unavailable: "no detailed recording for this run" };
+  return { ...FIXTURE_DIGEST, runId };
+};
+
 function makeCallModel(context) {
   const observedTools = [];
   const inner = MOCK
@@ -68,7 +97,7 @@ describe.skipIf(!runnable)(`coach live eval (${MODEL}, ${TRIALS} trial(s)/scenar
       const { context, baseline } = makeFixture(scenario);
       const { callModel, observedTools } = makeCallModel(context);
       const t0 = Date.now();
-      const result = await generateProposal({ baseline, context, callModel });
+      const result = await generateProposal({ baseline, context, callModel, fetchRunDetail: makeFetchRunDetail(context) });
       const ms = Date.now() - t0;
 
       const outcome = { result, baseline, context, observedTools };
