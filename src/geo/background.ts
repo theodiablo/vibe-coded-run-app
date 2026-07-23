@@ -31,6 +31,17 @@ const markAsked = () => {
   try { localStorage.setItem(BG_LOC_ASKED_KEY, "1"); } catch { /* non-fatal */ }
 };
 
+// True only on a build whose manifest declares ACCESS_BACKGROUND_LOCATION — i.e.
+// the debug/personal build, where the "Allow all the time" step actually happens.
+// The disclosure uses this to decide whether to show the extra step-by-step prompt
+// guidance; on the release build (and web) it's false, so that copy never appears
+// and the disclosure keeps its Play-compliant "While using the app" wording.
+export async function isBackgroundLocationAvailable(): Promise<boolean> {
+  if (!isAndroid) return false;
+  try { return !!(await plugin().checkBackgroundLocation())?.declared; }
+  catch { return false; }
+}
+
 // Ask for background location at most once per install. On Android 11+ the OS
 // routes this to a Settings screen (there is no in-context "Allow all the time"
 // dialog), so re-asking on every run would be a nag — hence the once flag. Must be

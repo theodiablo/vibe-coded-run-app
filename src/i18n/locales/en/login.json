@@ -20,6 +20,11 @@
     "bulletRoute": "Used to draw your route and compute distance, pace, and elevation.",
     "bulletStored": "Stored in your own account; never sold or shared with third parties.",
     "privacyNote": "See our <privacy>Privacy Policy</privacy>. When you tap Allow, Android will ask to use your location — choose <strong>“While using the app”</strong>; recording keeps going with the screen off.",
+    "privacyNoteBg": "See our <privacy>Privacy Policy</privacy>. Location is only used while a run is recording.",
+    "stepsIntro": "When you continue, Android shows 3 prompts in a row. Here's what to tap:",
+    "step1": "<strong>Location:</strong> choose <strong>“While using the app”</strong> and keep <strong>Precise</strong> turned on.",
+    "step2": "<strong>“Allow all the time”:</strong> Android opens a settings screen — switch it to <strong>“Allow all the time”</strong> so tracking keeps working when the screen is off.",
+    "step3": "<strong>Notifications:</strong> tap <strong>“Allow”</strong> so the recording notice can show while you run.",
     "allowContinue": "Allow & continue"
   }
 }
