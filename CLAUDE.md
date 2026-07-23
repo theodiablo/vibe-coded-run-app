@@ -446,7 +446,10 @@ and delete anything that becomes stale.
   replacing the live head dot) and a `highlight` point; hovering/tapping the chart
   sets a `cursor` (a single nullable **index**, derived-during-render + clamped to
   the trace), and `RunChart` (now `memo`'d, with a stable `onCursor`) reports
-  recharts' `activeTooltipIndex`. This works ONLY because `buildRunSeries` and
+  recharts' `activeTooltipIndex`. **Gotcha:** recharts v3 hands that index back as
+  a STRING (`String(clampedIndex)`) for Line/Area/Composed charts, so coerce it
+  through `activeIndexFromChartState` (a `typeof === "number"` check is always
+  false → a permanently-null cursor). This works ONLY because `buildRunSeries` and
   `flattenTrack` emit one row per real point in the same order, so `series[i]` and
   `flat[i]` are the same point — an invariant locked by a test in
   `RunDetailModal.test.tsx`. Use the index, never `activeLabel` (float-matching the

@@ -16,6 +16,7 @@ vi.mock("recharts", async (importOriginal) => {
 });
 
 import { RunChart, Readout } from "./RunDetailModal";
+import { activeIndexFromChartState } from "../utils/chartCursor";
 import { buildRunSeries } from "../utils/runSeries";
 import { flattenTrack } from "../utils/geo";
 import type { RunSeriesRow } from "../utils/runSeries";
@@ -114,6 +115,25 @@ describe("Readout", () => {
   it("renders the hint (no layout-shifting emptiness) when no point is active", () => {
     const { container } = render(<Readout row={null} hasHr hasElev />);
     expect(container.textContent).toContain("Hover or tap the chart");
+  });
+});
+
+describe("activeIndexFromChartState (recharts v3 stringly-typed index)", () => {
+  // recharts 3.x returns activeTooltipIndex as String(clampedIndex) for
+  // Line/Area/Composed charts, so a numeric-only check silently breaks the link.
+  it("coerces a numeric string index to a number", () => {
+    expect(activeIndexFromChartState({ activeTooltipIndex: "5" })).toBe(5);
+  });
+  it("accepts a real number index", () => {
+    expect(activeIndexFromChartState({ activeTooltipIndex: 3 })).toBe(3);
+  });
+  it("returns null for absent / empty / non-numeric state", () => {
+    expect(activeIndexFromChartState(null)).toBeNull();
+    expect(activeIndexFromChartState(undefined)).toBeNull();
+    expect(activeIndexFromChartState({})).toBeNull();
+    expect(activeIndexFromChartState({ activeTooltipIndex: "" })).toBeNull();
+    expect(activeIndexFromChartState({ activeTooltipIndex: "x" })).toBeNull();
+    expect(activeIndexFromChartState({ activeTooltipIndex: null })).toBeNull();
   });
 });
 

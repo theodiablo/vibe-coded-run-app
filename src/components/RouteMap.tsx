@@ -124,7 +124,9 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
   }, [follow, emitFollowing]);
 
   // Enable/disable pan-zoom without tearing the map down (which would reset the
-  // view). Tracking shows a non-interactive, auto-following map.
+  // view). The live map stays interactive (nav-follow handles centring); History
+  // and the run-detail map are interactive too. `interactive={false}` is only for
+  // callers that want a static preview.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -211,7 +213,12 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
     if (follow) {
       if (followingRef.current && head) programmaticSetView(head, Math.max(map.getZoom(), LIVE_DEFAULT_ZOOM));
     } else if (all.length) {
+      // Guard as programmatic: fitBounds changes zoom (fires `zoomstart`), which
+      // the gesture handler would otherwise read as a user pan and suspend follow
+      // — spuriously showing the recenter button on tracking→paused.
+      programmaticRef.current = true;
       map.fitBounds(L.latLngBounds(all).pad(0.15), { animate: false });
+      programmaticRef.current = false;
     }
   }, [points, follow, endpoints, programmaticSetView]);
 

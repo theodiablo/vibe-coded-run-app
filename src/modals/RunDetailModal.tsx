@@ -9,6 +9,7 @@ import { buildRunSeries } from "../utils/runSeries";
 import { buildSplits } from "../utils/runSplits";
 import { timeInZones, effectiveMaxHR, HR_ZONES } from "../utils/hr";
 import { flattenTrack, haversineM } from "../utils/geo";
+import { activeIndexFromChartState } from "../utils/chartCursor";
 import { fmt } from "../utils/format";
 import type { HrSample, RunSeriesRow } from "../utils/runSeries";
 import type { TrackPointOrGap } from "../utils/geo";
@@ -43,11 +44,10 @@ export const RunChart = memo(function RunChart({ series, show, hasElev, hasHr, o
   onCursor?: (i: number | null) => void;
 }) {
   const { t } = useTranslation();
-  // recharts hands the chart state (with activeTooltipIndex — the index into
-  // `data`, which aligns 1:1 with the flattened track) to move/click; onClick
-  // also covers touch taps, where mouse-move never fires.
+  // recharts hands the chart state (with activeTooltipIndex) to move/click;
+  // onClick also covers touch taps, where mouse-move never fires.
   const pick = (s: { activeTooltipIndex?: number | string | null } | null | undefined) =>
-    onCursor?.(typeof s?.activeTooltipIndex === "number" ? s.activeTooltipIndex : null);
+    onCursor?.(activeIndexFromChartState(s));
   return (
     <ResponsiveContainer width="100%" height={200}>
       <ComposedChart data={series} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}
