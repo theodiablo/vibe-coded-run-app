@@ -82,16 +82,17 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Live GPS run tracking (Phase 2). FOREGROUND location only: recording keeps
-         going with the screen off via the background-geolocation foreground service
-         (started while the app is visible, under the "while using the app" grant),
-         so ACCESS_BACKGROUND_LOCATION is NOT needed and is deliberately not declared
-         — declaring it would force Google Play's background-location review for no
-         functional gain (the plugin never requests it; ~90% of users are on Android
-         11+ where it can only be granted via a Settings round-trip anyway). The
-         watcher is active only during a run (never 24/7). -->
+    <!-- Live GPS run tracking (Phase 2). Foreground fine/coarse location plus
+         ACCESS_BACKGROUND_LOCATION so recording keeps receiving fixes with the
+         screen off — the foreground-service-only model left minutes-long GPS holes
+         on some devices once the WebView froze. Background is requested in-context
+         (only after the prominent BgLocationDisclosure + a foreground grant, when
+         the user starts a run) and the watcher is active only during a run (never
+         24/7). Shipping this permission requires the Google Play background-location
+         declaration + Data Safety entry — see docs/background-location.md. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <!-- Foreground service that holds the location while recording. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

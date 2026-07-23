@@ -161,17 +161,17 @@ export const nativeSource = {
   // disclosure — not only when recording starts. Precise (FINE) so the OS offers
   // the precise toggle — run tracking needs GPS accuracy.
   //
-  // Two-step by Android mandate: foreground FIRST, then — on a build that declares
-  // ACCESS_BACKGROUND_LOCATION (the debug/personal build) — the "Allow all the
-  // time" upgrade. On Android 11+ background CANNOT be offered in the first dialog
-  // and always routes to a Settings screen, so the best we can do is fire it
-  // immediately after the foreground grant here (during consent) rather than
-  // deferring it to Start, where it read as a surprise mid-run redirect. Once per
-  // install and a no-op on the release build (permission not declared), so a
-  // normal user never sees it. Returns whether foreground location is usable.
+  // Two-step by Android mandate: foreground FIRST, then the ACCESS_BACKGROUND_LOCATION
+  // ("Allow all the time") upgrade. On Android 11+ background CANNOT be offered in
+  // the first dialog and always routes to a Settings screen, so the best we can do
+  // is fire it immediately after the foreground grant here (during consent) rather
+  // than deferring it to Start, where it read as a surprise mid-run redirect. Once
+  // per install; a no-op where the permission isn't declared (web/iOS). Returns
+  // whether foreground location is usable — a declined background upgrade never
+  // blocks the run (recording still works while the screen is on).
   async requestPermissions() {
     const granted = await ensureForegroundPermission(true);
-    if (granted) await ensureBackgroundLocationOnce(); // "all the time" upgrade, debug build only
+    if (granted) await ensureBackgroundLocationOnce(); // "Allow all the time" upgrade
     return granted;
   },
 

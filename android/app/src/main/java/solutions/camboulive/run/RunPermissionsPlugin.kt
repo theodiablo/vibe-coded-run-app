@@ -19,14 +19,13 @@ import com.getcapacitor.annotation.PermissionCallback
 //    shows an ongoing "recording run" notification, silently suppressed on 13+
 //    unless this is granted, so the user gets no visible sign a run is recording.
 //
-//  • ACCESS_BACKGROUND_LOCATION ("Allow all the time"): requested ONLY on a build
-//    whose merged manifest declares it — the debug / personal sideload build (see
-//    android/app/src/debug/AndroidManifest.xml). The public Play release does NOT
-//    declare it, so checkBackgroundLocation reports declared:false and the request
-//    is a no-op there — recording stays foreground-only (no Play background-location
-//    review). On the debug build it lets the foreground service keep receiving GPS
-//    fixes with the screen off, which the "while using the app" grant does not
-//    reliably do on every device.
+//  • ACCESS_BACKGROUND_LOCATION ("Allow all the time"): lets the foreground service
+//    keep receiving GPS fixes with the screen off, which the "while using the app"
+//    grant does not reliably do on every device. Declared in the main manifest and
+//    shipped to all users (requires the Google Play background-location declaration).
+//    The declared() guard stays as defensive code — it reports declared:false and
+//    no-ops on any build/platform that does NOT declare the permission (e.g. a
+//    future flavor that drops it), so the request path can never crash.
 @CapacitorPlugin(
     name = "RunPermissions",
     permissions = [
@@ -62,9 +61,10 @@ class RunPermissionsPlugin : Plugin() {
         call.resolve(JSObject().put("granted", hasNotifications()))
     }
 
-    // True only if ACCESS_BACKGROUND_LOCATION is in THIS build's merged manifest.
-    // The release build never declares it, so every background request short-circuits
-    // to a no-op — no accidental background-location behaviour or Play review.
+    // True if ACCESS_BACKGROUND_LOCATION is in THIS build's merged manifest. It is
+    // now in the main manifest (shipped to all users), so this is true on Android;
+    // the check remains as a guard so a build that ever drops the permission
+    // short-circuits the request to a no-op instead of throwing.
     private fun isBackgroundLocationDeclared(): Boolean =
         try {
             context.packageManager
