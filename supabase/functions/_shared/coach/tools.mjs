@@ -148,6 +148,18 @@ export const TOOL_DEFS = [
       required: ["memory"],
     },
   },
+  {
+    name: "get_run_detail",
+    description:
+      "Fetch a compact digest of one recent run's recorded detail: per-km splits, heart-rate time in zones, and a downsampled pace/elevation/HR series (returns data; does NOT change the plan). Use ONLY when analysing how a specific run was actually executed would change your advice — pacing fade, HR drift, whether climbs drove the effort; most questions are answerable from the RECENT RUNS summary alone. Only runs whose summary shows hasDetail:true have data; pass that run's id. Fetch at most 1-2 runs, never routinely.",
+    input_schema: {
+      type: "object",
+      properties: {
+        run_id: { type: "string", description: "The id field of a run from RECENT RUNS." },
+      },
+      required: ["run_id"],
+    },
+  },
 ];
 
 function findSession(plan, id) {

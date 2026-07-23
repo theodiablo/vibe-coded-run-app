@@ -37,6 +37,7 @@ import Anthropic from "npm:@anthropic-ai/sdk";
 import { generateProposal, SYSTEM_PROMPT } from "../_shared/coach/engine.mjs";
 import { validatePlan, formatValidation } from "../_shared/coach/validation.mjs";
 import { createMockModel } from "../_shared/coach/mock.mjs";
+import { buildRunDigest } from "../_shared/coach/runDigest.mjs";
 
 const MOCK = Boolean(Deno.env.get("MOCK_LLM"));
 const DEFAULT_MODEL = Deno.env.get("COACH_MODEL") ?? "claude-sonnet-5";
@@ -241,8 +242,11 @@ async function handle(req: Request): Promise<any> {
   const settings = blob.rc_settings ?? {};
   const userContext = cleanUserContext(blob.rc_user_context);
   if (!plan?.weeks?.length) return { error: "no training plan to adjust — build one first", code: "NO_PLAN" };
+  // `id` + `hasDetail` give the model a handle for get_run_detail (and tell it
+  // which runs have any detail to fetch) — no other fields leak into context.
   const recentRuns = (blob.rc_runs ?? []).slice(0, 30).map((r: Record<string, unknown>) => ({
-    date: r.date, type: r.type, km: r.km, durationSec: r.durationSec, hr: r.hr, effort: r.effort,
+    id: r.id, date: r.date, type: r.type, km: r.km, durationSec: r.durationSec, hr: r.hr, effort: r.effort,
+    hasDetail: Boolean(r.routeId || r.hrRouteId),
   }));
   // Per-user daily budget; charge only after cheap request/state validation and
   // before any trajectory mutation. The increment is atomic (SQL function) so
@@ -343,12 +347,31 @@ async function handle(req: Request): Promise<any> {
   };
 
   const { model, callModel } = makeCallModel(context, message);
+  // get_run_detail's data access: resolve the run in the user's own blob, read
+  // its run_routes row through the RLS-scoped userClient, and collapse it to a
+  // coordinate-free digest (runDigest.mjs) — raw GPS points and the full HR
+  // stream never reach the model. Never throws: any miss or DB error becomes
+  // an { unavailable } the engine reports as a plain tool_result.
+  const fetchRunDetail = async (runId: string) => {
+    try {
+      const run = (blob.rc_runs ?? []).find((r: Record<string, unknown>) => r.id === runId);
+      const routeId = (run?.routeId ?? run?.hrRouteId) as string | undefined;
+      if (!run || !routeId) return { unavailable: "no detailed recording for this run" };
+      const { data, error } = await userClient.from("run_routes")
+        .select("points, stats").eq("id", routeId).maybeSingle();
+      if (error || !data) return { unavailable: "no detailed recording for this run" };
+      return buildRunDigest({ run, points: data.points ?? [], stats: data.stats ?? {}, settings });
+    } catch {
+      return { unavailable: "run detail temporarily unavailable" };
+    }
+  };
   const result = await generateProposal({
     baseline: baselinePlan,
     context,
     history,
     message: action === "critique" ? message : null,
     callModel,
+    fetchRunDetail,
   });
 
   const failed = result.status === "no_valid_adjustment";
@@ -397,6 +420,9 @@ async function handle(req: Request): Promise<any> {
       report, goal: context.goal, today, recentRuns, userContext,
       baselinePlan, planSeenByModel: workingPlan,
       memorySuggestions: result.memorySuggestions ?? [],
+      // Digests the model fetched via get_run_detail — part of what it saw,
+      // so they belong in the audit snapshot (each is ~1-2KB, max 3/round).
+      fetchedRunDetails: result.runDetailFetches ?? [],
       // Back-compat for existing confirm/client validation callers.
       plan: baselinePlan,
     },

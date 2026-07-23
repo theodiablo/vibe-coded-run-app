@@ -11,6 +11,10 @@
     "moveLongRun": "Déplace ma sortie longue à dimanche",
     "confidence": "Aide-moi à prendre confiance pour le jour J"
   },
+  "detailNotice": {
+    "text": "Pour répondre à certaines questions, le coach peut consulter les données détaillées de tes dernières sorties, y compris ta fréquence cardiaque. Ta position GPS ne lui est jamais transmise.",
+    "gotIt": "Compris"
+  },
   "sessionGreeting": "Parlons de ta sortie {{type}} du {{date}} ({{km}} km). Qu'est-ce qui te préoccupe : trop dure, mauvais jour, ou autre chose ? Je te proposerai un ajustement prudent, que tu verras avant tout changement.",
   "sessionExamples": {
     "tooHard": "Ça me semble trop dur pour mon niveau",

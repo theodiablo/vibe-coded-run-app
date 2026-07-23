@@ -55,6 +55,12 @@ export const GEO_DEBUG_KEY = "rc_geo_debug";         // "1" enables logging + re
 // because Bluetooth bonding is inherently per-device (a synced device id would
 // show as "paired" on a phone where it isn't bonded). Mirrors the telemetry-
 // consent / bg-disclosure decision to keep device-specific state out of the blob.
+// One-time coach data notice — the AI coach can read detailed run data
+// (splits/HR digests via get_run_detail). Per-device like the other one-shot
+// disclosure flags: a fresh browser shows the notice again, which is the
+// privacy-conservative direction.
+export const COACH_DETAIL_NOTICE_KEY = "rc_coach_detail_notice_v1";
+
 export const HR_DEVICE_KEY = "rc_hr_device";          // JSON {id,name} of the bonded BLE sensor
 export const HR_BLE_DISCLOSED_KEY = "rc_hr_ble_disclosed"; // BLE permission disclosure seen
 export const HR_HEALTH_CONNECT_AUTH_KEY = "rc_hr_healthconnect_auth"; // local HC permission was granted

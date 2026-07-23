@@ -5,6 +5,8 @@
 //   "missed|skipped"        → recovery week on the next upcoming week
 //   "add|extra + run|session|day" → add_session: a modest EASY run on the day
 //                             after the next upcoming session (outside taper)
+//   "split|heart rate|hr …"  → get_run_detail on the newest hasDetail run,
+//                             then a text-only analysis (no plan change)
 //   "force-invalid"         → repeatedly proposes intervals inside the taper,
 //                             exercising the validator-retry → no_valid_adjustment path
 //   anything else           → text-only answer, no tool calls
@@ -63,6 +65,13 @@ export function createMockModel(context) {
     }
 
     if (calls > 1) return done("Done — I've eased things off. Listen to your body and see a physio if the pain persists.");
+
+    if (/\bsplits?\b|heart rate|\bhr\b.{0,20}(spike|drift|high)|analy[sz]e.{0,25}\brun\b/.test(text)) {
+      const detailed = (context.recentRuns || []).find(r => r.hasDetail && r.id);
+      return useTools(
+        [tu("get_run_detail", { run_id: detailed?.id ?? "mock-run-id" })],
+        "Let me look at how that run actually unfolded.");
+    }
 
     if (/knee|pain|hurt|injur/.test(text)) {
       const hard = up.find(s => ["TEMPO", "INTERVALS", "LONG"].includes(s.type));

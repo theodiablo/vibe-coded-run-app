@@ -118,10 +118,16 @@ author. The Anthropic key, validator, tools, rate limit, and audit log live
 server-side in `supabase/functions/coach-agent`; shared logic is plain ESM in
 `supabase/functions/_shared/coach/*.mjs` (imported by both Deno and Vitest).
 `confirm` makes no model call and no server write — the client applies the
-returned plan via `applyCoachPlan`. **Read `docs/coach-agent.md` before
+returned plan via `applyCoachPlan`. The read-only `get_run_detail` tool serves
+the model a compact, **coordinate-free** digest of one recent run (splits, HR
+zones, downsampled series) built by `_shared/coach/runDigest.mjs` — ports of
+`src/utils/{geo,runSeries,runSplits,hr}.ts`, parity-tested by
+`src/utils/runDigest.test.ts`; keep the algorithms in sync at both ends and
+never let lat/lng into a digest. **Read `docs/coach-agent.md` before
 touching prompts, tools, validator rules, or the chat client** — it also covers
 resiliency, usage limits, memory, history, and feedback. Evals: offline in
-`npm test`; live-model in `evals/coach/` (`npm run eval:live`).
+`npm test`; live-model in `evals/coach/` (`npm run eval:live`) — re-run after
+prompt/tool-description changes.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort,
