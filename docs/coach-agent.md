@@ -187,6 +187,22 @@ is resumable (a new `propose` abandons any other open one, and `critique`/
 `confirm` on a closed one returns `TRAJECTORY_CLOSED`); accepted/abandoned ones
 are read-only transcripts. UI: `src/modals/CoachHistorySheet.tsx`.
 
+Client gotcha — **a `changed:false` round (an informational answer, no plan
+edit) keeps the trajectory OPEN server-side**, so `CoachChat.applyCoachResult`
+must PRESERVE `trajectoryId` in that branch: clearing it made the next message
+a fresh `propose`, splitting an all-informational multi-message chat into one
+conversation per message in history. It's safe to keep because `changed:false`
+guarantees the working plan still equals the original baseline (any real edit
+makes later rounds diff `changed:true` against that baseline), so there's never
+a confirmable proposal / stale Apply button to mis-target.
+
+Schema gotcha — the `profiles.coach_daily_limit` override column is why
+migration `20260719120000_coach_daily_limit.sql` **narrows the `authenticated`
+insert/update grants on `profiles` to specific columns**: the table had blanket
+own-row insert/update RLS + table-level grants, so a bare column would be
+user-writable (mint unlimited requests). Keep new user-writable profile columns
+in that column-grant list; keep `coach_daily_limit` out of it.
+
 ## Local development
 
 ```sh
