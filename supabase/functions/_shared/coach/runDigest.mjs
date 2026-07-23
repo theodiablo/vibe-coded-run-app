@@ -279,7 +279,8 @@ const round2 = (x) => Math.round(x * 100) / 100;
 // Compose the digest the model sees. `run` is the rc_runs entry, `points` /
 // `stats` the run_routes row, `settings` the rc_settings blob (for HR zones).
 // Degenerate inputs produce a header + explanatory `notes`, never a throw.
-export function buildRunDigest({ run, points, stats, settings, today }) {
+// `today` is optional (tests inject it for deterministic Tanaka age fallback).
+export function buildRunDigest({ run, points, stats, settings, today = undefined }) {
   const pts = Array.isArray(points) ? points : [];
   const hrSamples = Array.isArray(stats?.hrSamples) ? stats.hrSamples : [];
   const maxHR = effectiveMaxHR(settings ?? {}, today);
