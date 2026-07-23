@@ -41,17 +41,26 @@ Both the archive and the export sign with a manually created Apple
 Distribution certificate (a .p12 imported into a temp keychain:
 `APPLE_DIST_CERT_P12_BASE64` / `APPLE_DIST_CERT_PASSWORD` secrets; mint/renew
 it Mac-free with `npm run ios:dist-cert`, certs last 1 year and expiry only
-blocks new uploads) against an **App Store provisioning profile regenerated on
+blocks new uploads) against **App Store provisioning profiles regenerated on
 every run** by `scripts/ios-appstore-profile.mjs`
 (`npm run ios:appstore-profile`; step "Create App Store provisioning
-profile"). That script uses the SAME ASC API key (`ASC_API_KEY_P8_BASE64` /
-`ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets + `APPLE_TEAM_ID` repo var) to
-create an `IOS_APP_STORE` profile bound to the team's live distribution certs
-and installs it locally; the archive then pins `CODE_SIGN_STYLE=Manual` /
-`CODE_SIGN_IDENTITY="Apple Distribution"` /
-`PROVISIONING_PROFILE_SPECIFIER="Running Coach App Store CI"` (`IOS_BUNDLE_ID`
-+ `APPSTORE_PROFILE_NAME` job envs are the single source — keep them in sync
-with `PRODUCT_BUNDLE_IDENTIFIER` and the script default).
+profiles") — TWO of them since the Live Activity widget extension landed: the
+app's ("Running Coach App Store CI", bundle `solutions.camboulive.run`) and
+the widget's ("Running Coach Widget App Store CI",
+`solutions.camboulive.run.widgets`, whose ASC bundle-id record the script
+auto-registers if missing). The script uses the SAME ASC API key
+(`ASC_API_KEY_P8_BASE64` / `ASC_API_KEY_ID` / `ASC_API_ISSUER_ID` secrets +
+`APPLE_TEAM_ID` repo var) to create `IOS_APP_STORE` profiles bound to the
+team's live distribution certs and installs them locally; the archive then
+pins `CODE_SIGN_STYLE=Manual` / `CODE_SIGN_IDENTITY="Apple Distribution"` on
+the CLI, while **`PROVISIONING_PROFILE_SPECIFIER` lives per-target in the
+pbxproj Release configs** — a CLI override is global across targets and would
+force one profile onto both bundle ids, so never reintroduce it on the archive
+command. The `IOS_BUNDLE_ID` / `APPSTORE_PROFILE_NAME` /
+`IOS_WIDGET_BUNDLE_ID` / `WIDGET_PROFILE_NAME` job envs feed the profile
+script + exportOptions `provisioningProfiles` map — keep them in sync with the
+pbxproj `PRODUCT_BUNDLE_IDENTIFIER` + `PROVISIONING_PROFILE_SPECIFIER` values
+and the script defaults.
 
 **Why manual, not Xcode automatic signing (the bug that broke a release):**
 automatic signing on an ephemeral runner has an empty keychain, so
