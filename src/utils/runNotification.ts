@@ -1,7 +1,7 @@
 // Pure content builder for the Android lock-screen run notification.
 //
 // Architecture (see docs in the PR / plan): the ticking duration is rendered by
-// the OS itself — the notification is posted with `setUsingChronometer(true)`
+// the OS itself — the notification is posted with `setUsesChronometer(true)`
 // and a `when` anchored so that (now - when) equals the run's MOVING time — so
 // it keeps counting even when the WebView's JS is throttled or fully suspended
 // in the background. JS only pushes content when the DATA (distance/pace/HR)

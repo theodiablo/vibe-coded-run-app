@@ -85,7 +85,7 @@ index a92fcf9..bcfd32d 100644
 -                    getContext().getPackageName()
 +        if (chronometerStartMs != null) {
 +            builder.setWhen(chronometerStartMs.longValue())
-+                    .setUsingChronometer(true)
++                    .setUsesChronometer(true)
 +                    .setShowWhen(true);
 +        } else {
 +            builder.setWhen(System.currentTimeMillis());
