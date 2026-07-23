@@ -135,15 +135,19 @@ export const TIP_JAR_URL = "https://buymeacoffee.com/theo.camboulive";
 // "needs key" notice instead of tiles. Attribution stays visible per the OSM
 // data licence.
 //
-// Style is `outdoor-v2` (not the car-oriented `streets-v2`): it renders hiking
-// trails, pedestrian-only ways, tracks, forest/woodland and contour lines
-// prominently — the paths runners actually use. That detail is already in the
-// OSM data; the street style just hides it. Shared by every map surface (live
-// tracker, run detail, history preview, race location picker) via this one
-// constant.
+// Style is a custom MapTiler map (id below) forked from `outdoor-v4` and
+// decluttered for running: it keeps the runnable network (paths, tracks,
+// trails, pedestrian ways, steps), terrain (hillshade + contours),
+// green landcover and water prominent, and drops the noise a runner doesn't
+// need (commercial/tourism POIs, ski lifts, cycle overlays, airports, road
+// shields). Served as raster PNG tiles by style id, same host/key/CSP as any
+// built-in slug. Editable at cloud.maptiler.com; shared by every map surface
+// (live tracker, run detail, history preview, race location picker) via this
+// one constant.
+export const MAP_STYLE_ID = "019f90e1-4015-7fca-8856-0e11ad68a80d";
 export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
 export const MAP_TILE_URL =
-  "https://api.maptiler.com/maps/outdoor-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
+  `https://api.maptiler.com/maps/${MAP_STYLE_ID}/256/{z}/{x}/{y}.png?key=` + MAP_KEY;
 export const MAP_ATTRIBUTION =
   '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
 
