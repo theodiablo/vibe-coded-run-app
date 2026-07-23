@@ -29,6 +29,15 @@
 //   ASC_API_KEY_P8_PATH | ASC_API_KEY_P8_BASE64  (same values as the secrets)
 //   BUNDLE_ID       app bundle identifier (default: solutions.camboulive.run)
 //   PROFILE_NAME    profile name / specifier (default: "Running Coach App Store CI")
+//   WIDGET_BUNDLE_ID / WIDGET_PROFILE_NAME
+//                   the Live Activity widget extension's pair (defaults:
+//                   solutions.camboulive.run.widgets / "Running Coach Widget
+//                   App Store CI"). The widget is an embedded target with its
+//                   own bundle id, so the archive needs a SECOND profile; its
+//                   bundle id record is auto-registered on ASC if missing
+//                   (unlike the app's, which must already exist). Keep the
+//                   names in sync with the pbxproj Release configs'
+//                   PROVISIONING_PROFILE_SPECIFIER values.
 //
 // Flags:
 //   --dry-run       validate inputs + sign the API JWT, but stop before any API
@@ -62,6 +71,8 @@ if (!keyId || !issuerId)
 
 const bundleId = process.env.BUNDLE_ID || "solutions.camboulive.run";
 const profileName = process.env.PROFILE_NAME || "Running Coach App Store CI";
+const widgetBundleId = process.env.WIDGET_BUNDLE_ID || "solutions.camboulive.run.widgets";
+const widgetProfileName = process.env.WIDGET_PROFILE_NAME || "Running Coach Widget App Store CI";
 
 let p8;
 if (process.env.ASC_API_KEY_P8_PATH) {
@@ -115,21 +126,7 @@ const asc = async (method, route, body) => {
   return json;
 };
 
-// --- 1. resolve the bundle id resource -------------------------------------
-const bundle = await asc(
-  "GET",
-  `/bundleIds?filter[identifier]=${encodeURIComponent(bundleId)}&limit=200`
-);
-const bundleResource = (bundle.data ?? []).find(
-  (b) => b.attributes?.identifier === bundleId
-);
-if (!bundleResource)
-  fail(
-    `no bundle id '${bundleId}' registered on this team. Create the App ID in the Developer portal (or check BUNDLE_ID / the ASC key's team).`
-  );
-console.log(`Bundle id '${bundleId}' → ${bundleResource.id}`);
-
-// --- 2. gather live distribution certificates ------------------------------
+// --- 1. gather live distribution certificates (shared by both profiles) -----
 const certs = await asc(
   "GET",
   "/certificates?filter[certificateType]=DISTRIBUTION&limit=200"
@@ -139,48 +136,90 @@ if (certIds.length === 0)
   fail(
     "no Apple Distribution certificates on this team — mint one with `npm run ios:dist-cert` first."
   );
-console.log(`Binding profile to ${certIds.length} distribution certificate(s).`);
+console.log(`Binding profiles to ${certIds.length} distribution certificate(s).`);
 
-// --- 3. remove any existing profile with this name -------------------------
+// Resolve a bundle id resource, optionally registering it on ASC when absent.
+// The APP id must already exist (a typo should fail loudly, and the App Store
+// record hangs off it); the WIDGET id is ours to create — it's just an
+// extension identifier with no capabilities.
+const resolveBundleId = async (identifier, { registerIfMissing, name }) => {
+  const bundle = await asc(
+    "GET",
+    `/bundleIds?filter[identifier]=${encodeURIComponent(identifier)}&limit=200`
+  );
+  const found = (bundle.data ?? []).find((b) => b.attributes?.identifier === identifier);
+  if (found) {
+    console.log(`Bundle id '${identifier}' → ${found.id}`);
+    return found;
+  }
+  if (!registerIfMissing)
+    fail(
+      `no bundle id '${identifier}' registered on this team. Create the App ID in the Developer portal (or check BUNDLE_ID / the ASC key's team).`
+    );
+  const registered = await asc("POST", "/bundleIds", {
+    data: {
+      type: "bundleIds",
+      attributes: { identifier, name, platform: "IOS" },
+    },
+  });
+  if (!registered.data?.id)
+    fail(`could not register bundle id '${identifier}' on App Store Connect.`);
+  console.log(`Registered bundle id '${identifier}' → ${registered.data.id}`);
+  return registered.data;
+};
+
+// Delete-then-create an IOS_APP_STORE profile for one bundle id and install it
+// where xcodebuild resolves profiles by PROVISIONING_PROFILE_SPECIFIER.
 // Profile names are unique per team; deleting first lets us always rebind to
 // the current cert set (e.g. after a yearly cert renewal) without a collision.
-const existing = await asc(
-  "GET",
-  `/profiles?filter[name]=${encodeURIComponent(profileName)}&limit=200`
-);
-for (const p of existing.data ?? []) {
-  if (p.attributes?.name !== profileName) continue;
-  await asc("DELETE", `/profiles/${p.id}`);
-  console.log(`Deleted stale profile '${profileName}' (${p.id}).`);
-}
+const ensureProfile = async (bundleResource, name) => {
+  const existing = await asc(
+    "GET",
+    `/profiles?filter[name]=${encodeURIComponent(name)}&limit=200`
+  );
+  for (const p of existing.data ?? []) {
+    if (p.attributes?.name !== name) continue;
+    await asc("DELETE", `/profiles/${p.id}`);
+    console.log(`Deleted stale profile '${name}' (${p.id}).`);
+  }
 
-// --- 4. create the fresh App Store profile ---------------------------------
-const created = await asc("POST", "/profiles", {
-  data: {
-    type: "profiles",
-    attributes: { name: profileName, profileType: "IOS_APP_STORE" },
-    relationships: {
-      bundleId: { data: { type: "bundleIds", id: bundleResource.id } },
-      certificates: { data: certIds.map((id) => ({ type: "certificates", id })) },
+  const created = await asc("POST", "/profiles", {
+    data: {
+      type: "profiles",
+      attributes: { name, profileType: "IOS_APP_STORE" },
+      relationships: {
+        bundleId: { data: { type: "bundleIds", id: bundleResource.id } },
+        certificates: { data: certIds.map((id) => ({ type: "certificates", id })) },
+      },
     },
-  },
+  });
+  const attrs = created.data?.attributes ?? {};
+  const profileContent = attrs.profileContent;
+  const uuid = attrs.uuid;
+  if (!profileContent || !uuid)
+    fail("App Store Connect returned a profile without content/uuid — cannot install it.");
+  console.log(`Created profile '${attrs.name}' (uuid ${uuid}, expires ${attrs.expirationDate}).`);
+
+  const dir = path.join(os.homedir(), "Library", "MobileDevice", "Provisioning Profiles");
+  fs.mkdirSync(dir, { recursive: true });
+  const dest = path.join(dir, `${uuid}.mobileprovision`);
+  fs.writeFileSync(dest, Buffer.from(profileContent, "base64"));
+  console.log(`Installed → ${dest}`);
+  return uuid;
+};
+
+const appBundle = await resolveBundleId(bundleId, { registerIfMissing: false });
+const appUuid = await ensureProfile(appBundle, profileName);
+
+const widgetBundle = await resolveBundleId(widgetBundleId, {
+  registerIfMissing: true,
+  name: "Running Coach Live Activity Widget",
 });
-const attrs = created.data?.attributes ?? {};
-const profileContent = attrs.profileContent;
-const uuid = attrs.uuid;
-if (!profileContent || !uuid)
-  fail("App Store Connect returned a profile without content/uuid — cannot install it.");
-console.log(`Created profile '${attrs.name}' (uuid ${uuid}, expires ${attrs.expirationDate}).`);
+await ensureProfile(widgetBundle, widgetProfileName);
 
-// --- 5. install it where xcodebuild resolves profiles ----------------------
-const dir = path.join(os.homedir(), "Library", "MobileDevice", "Provisioning Profiles");
-fs.mkdirSync(dir, { recursive: true });
-const dest = path.join(dir, `${uuid}.mobileprovision`);
-fs.writeFileSync(dest, Buffer.from(profileContent, "base64"));
-console.log(`Installed → ${dest}`);
-
-// Hand the specifier back to the workflow when running in Actions.
+// Hand the app specifier back to the workflow when running in Actions.
 if (process.env.GITHUB_OUTPUT) {
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `name=${profileName}\nuuid=${uuid}\n`);
+  fs.appendFileSync(process.env.GITHUB_OUTPUT, `name=${profileName}\nuuid=${appUuid}\n`);
 }
-console.log(`\nPROVISIONING_PROFILE_SPECIFIER=${profileName}`);
+console.log(`\nPROVISIONING_PROFILE_SPECIFIER (app)    = ${profileName}`);
+console.log(`PROVISIONING_PROFILE_SPECIFIER (widget) = ${widgetProfileName}`);
