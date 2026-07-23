@@ -234,4 +234,5 @@ prompt/tool-description changes.
 - `docs/coach-agent.md` — coach architecture, validator, evals, resiliency.
 - `docs/telemetry.md` — analytics/crash-reporting seam and consent.
 - `docs/integrations-polar.md` — Polar cloud import.
+- `docs/route-suggestion-plan.md` — plan (not yet built) for suggested loop routes.
 - `docs/monetization.md` — monetization direction.
