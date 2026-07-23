@@ -518,9 +518,11 @@ and delete anything that becomes stale.
   Screen-off recording via the foreground service alone left minutes-long GPS holes
   on some devices once the WebView froze, so the permission is declared in the
   **main** manifest (`android/app/src/main/AndroidManifest.xml`) and requested for
-  everyone. **Read `docs/background-location.md` before touching this** — shipping
-  it requires the Google Play background-location declaration + demo video + Data
-  Safety entry + a privacy policy that covers it, or the release is rejected.
+  everyone. The Play background-location permissions declaration is **already
+  approved** and `public/privacy.html` already covers background location, so this
+  is not a blocked release item — but **read `docs/background-location.md` before
+  touching this**: materially changing the location use case (collecting outside an
+  active run, 24/7 tracking) would need a fresh Play re-declaration.
   Request flow (all Android): the prominent `BgLocationDisclosure` (a Play
   requirement, shown before the OS prompt, dismissable via "Not now") →
   `nativeSource.requestPermissions` runs `ensureForegroundPermission(true)` FIRST,

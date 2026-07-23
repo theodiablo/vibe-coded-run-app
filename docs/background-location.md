@@ -25,25 +25,26 @@ and requests **`ACCESS_BACKGROUND_LOCATION`** ("Allow all the time") for all use
   the request no-ops if the permission is ever absent from a build — defensive, so
   the path can't crash.
 
-## Google Play requirements — DO THIS before the next release
+## Google Play status — already approved
 
-Shipping `ACCESS_BACKGROUND_LOCATION` triggers Google Play's background-location
-review. The release will be **rejected** if these are not completed:
+The app **already has Google Play approval** for the location permissions it ships:
 
-- [ ] **Permissions declaration** (Play Console → App content → *Sensitive app
-      permissions* → Location): declare background access, describe the core feature
-      (screen-off run tracking), and confirm the in-app prominent disclosure.
-- [ ] **Demo video**: a link showing the prominent disclosure, the permission
-      request, and the feature using background location. Required for approval.
-- [ ] **Foreground service declaration** (App content → *Foreground service
-      permissions*): the `location` FGS type is already declared in the manifest;
-      justify it in the console.
-- [ ] **Data safety form**: declare Location (precise) collection, purpose (app
-      functionality), whether shared (no), and that it's not sold.
-- [ ] **Privacy policy** (`PRIVACY_URL`) must explicitly cover background location:
-      what's collected, when (only during a recorded run), and how it's stored.
-- [ ] Budget for review friction — background-location apps are frequently bounced;
-      the feature must read as essential.
+- `ACCESS_BACKGROUND_LOCATION`
+- `ACCESS_COARSE_LOCATION`
+- `ACCESS_FINE_LOCATION`
+
+The background-location permissions declaration (core feature: screen-off run
+tracking) is in place, and `public/privacy.html` explicitly covers background
+location (a "Location data & background tracking" section plus a Permissions entry).
+So shipping this permission is **not** a blocked/pending review item — no new Play
+action is required to release it.
+
+Only revisit the Play declarations if the location **use case materially changes**
+(e.g. collecting location outside an active run, or 24/7 tracking) — that would
+require re-declaring and could trigger a fresh review. Keep the in-app prominent
+disclosure (`BgLocationDisclosure`) and the "only while a run is recording" scope
+intact so the approved justification stays accurate. The `location` foreground
+service type is declared in the manifest and covered by the same approval.
 
 ## Reverting / scoping down
 
