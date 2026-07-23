@@ -138,6 +138,25 @@ describe("buildRunDigest", () => {
     assertNoCoordinates(d);
   });
 
+  it("ultra-length run: splits truncate to 45 WITH an explanatory note", () => {
+    // ~55 km: 0.0001° lng ≈ 11.1 m per step at the equator.
+    const ultra: TrackPointOrGap[] = [];
+    for (let i = 0; i <= 5000; i++) ultra.push(p(0, i * 0.0001, i * 5, 100));
+    const d = digest.buildRunDigest({ run: { ...RUN, km: 55 }, points: ultra, stats: {}, settings: SETTINGS });
+    expect(d.splits.length).toBe(45);
+    expect(d.notes.join(" ")).toMatch(/truncated to the first 45/);
+  });
+
+  it("maxHR set but unusable reserve: zone note does NOT claim max HR is missing", () => {
+    const d = digest.buildRunDigest({
+      run: RUN, points: track, stats: { hrSamples: hrStream },
+      settings: { maxHR: 60, restHR: 80 }, // restHR >= maxHR → reserve <= 0
+    });
+    expect(d.hrZones).toBeUndefined();
+    expect(d.notes.join(" ")).not.toMatch(/not set a max heart rate/);
+    expect(d.notes.join(" ")).toMatch(/HR zones unavailable/);
+  });
+
   it("HR-only route (no GPS): time-indexed HR series + zones, with a note", () => {
     const d = digest.buildRunDigest({ run: RUN, points: [], stats: { hrSamples: hrStream }, settings: SETTINGS });
     expect(d.splits).toBeUndefined();

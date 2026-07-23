@@ -66,13 +66,6 @@ export function createMockModel(context) {
 
     if (calls > 1) return done("Done — I've eased things off. Listen to your body and see a physio if the pain persists.");
 
-    if (/\bsplits?\b|heart rate|\bhr\b.{0,20}(spike|drift|high)|analy[sz]e.{0,25}\brun\b/.test(text)) {
-      const detailed = (context.recentRuns || []).find(r => r.hasDetail && r.id);
-      return useTools(
-        [tu("get_run_detail", { run_id: detailed?.id ?? "mock-run-id" })],
-        "Let me look at how that run actually unfolded.");
-    }
-
     if (/knee|pain|hurt|injur/.test(text)) {
       const hard = up.find(s => ["TEMPO", "INTERVALS", "LONG"].includes(s.type));
       if (!hard) return done("Nothing hard is coming up — rest today and see how the knee feels tomorrow.");
@@ -80,6 +73,15 @@ export function createMockModel(context) {
         [tu("convert_to_cross_training", { session_id: hard.id }, 0),
          tu("reduce_week_volume", { week_number: hard.weekNumber, factor: 0.7 }, 1)],
         "Sorry about the knee — let's take the impact out and unload this week.");
+    }
+
+    // AFTER the pain branch: "my knee hurt, can you analyse my run?" must take
+    // the injury-adjustment path, not a no-change detail fetch.
+    if (/\bsplits?\b|heart rate|\bhr\b.{0,20}(spike|drift|high)|analy[sz]e.{0,25}\brun\b/.test(text)) {
+      const detailed = (context.recentRuns || []).find(r => r.hasDetail && r.id);
+      return useTools(
+        [tu("get_run_detail", { run_id: detailed?.id ?? "mock-run-id" })],
+        "Let me look at how that run actually unfolded.");
     }
 
     if (/\b(add|extra)\b/.test(text) && /\b(run|session|day)\b/.test(text)) {

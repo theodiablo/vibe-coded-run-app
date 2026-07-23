@@ -486,7 +486,10 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
             ))}
           </div>
         )}
-        {msgs.length === 1 && showDetailNotice && (
+        {/* Not gated on the empty state: a resumed conversation (history sheet
+            restores msgs.length > 1) must still surface the privacy notice
+            until the user dismisses it on this device. */}
+        {showDetailNotice && (
           <div className="flex items-start gap-2 text-[11px] text-slate-400 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2">
             <span className="flex-1">{t("coach.detailNotice.text")}</span>
             <button onClick={dismissDetailNotice}

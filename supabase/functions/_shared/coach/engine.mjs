@@ -90,15 +90,17 @@ function suggestMemory(input, context, suggestions) {
 async function handleRunDetail(input, context, fetchRunDetail, runDetailFetches) {
   const runId = String(input?.run_id || "").trim();
   if (!runId) throw new CoachToolError("BAD_INPUT", "run_id is required — use the id of a run from RECENT RUNS.");
+  // Only runs the model was shown are fetchable: an id outside the RECENT RUNS
+  // window never reaches the database. These absence answers come BEFORE the
+  // budget check so a bad id after 3 successful fetches gets the accurate
+  // "unknown run" answer, not a misleading DETAIL_BUDGET error.
+  const known = (context.recentRuns || []).some((r) => r.id === runId);
+  if (!known) return "Unknown run id — use the id field of a run from RECENT RUNS.";
+  if (!fetchRunDetail) return "Run detail is not available in this environment — advise from the RECENT RUNS summary.";
   if (runDetailFetches.length >= MAX_RUN_DETAIL_FETCHES) {
     throw new CoachToolError("DETAIL_BUDGET",
       `You have already fetched ${MAX_RUN_DETAIL_FETCHES} run digests this round — answer with what you have.`);
   }
-  // Only runs the model was shown are fetchable: an id outside the RECENT RUNS
-  // window never reaches the database.
-  const known = (context.recentRuns || []).some((r) => r.id === runId);
-  if (!known) return "Unknown run id — use the id field of a run from RECENT RUNS.";
-  if (!fetchRunDetail) return "Run detail is not available in this environment — advise from the RECENT RUNS summary.";
   const detail = await fetchRunDetail(runId);
   if (!detail || detail.unavailable) {
     return `No detailed data available for this run (${detail?.unavailable || "nothing recorded"}) — advise from the RECENT RUNS summary.`;
@@ -218,6 +220,11 @@ export async function generateProposal({ baseline, context, history = [], messag
   // kept issuing valid tool calls instead of ever stopping to summarize) we
   // can still surface an already-valid plan instead of discarding it.
   let lastValidation = null;
+  // Whether any read-only tool (get_run_detail / reassess / remember) ran —
+  // those never land in toolCalls, so the terminal gate below needs its own
+  // signal to tell "an informational round that kept fetching" apart from
+  // "every edit attempt failed".
+  let readOnlyActivity = false;
 
   for (let call = 0; call < MAX_MODEL_CALLS; call++) {
     const resp = await callModel(messages, TOOL_DEFS);
@@ -254,10 +261,13 @@ export async function generateProposal({ baseline, context, history = [], messag
         let resultText;
         if (tu.name === "remember_runner_context") {
           resultText = suggestMemory(tu.input, context, memorySuggestions);
+          readOnlyActivity = true;
         } else if (tu.name === "reassess_goal_feasibility") {
           resultText = assessGoalFeasibility(context);
+          readOnlyActivity = true;
         } else if (tu.name === "get_run_detail") {
           resultText = await handleRunDetail(tu.input, context, fetchRunDetail, runDetailFetches);
+          readOnlyActivity = true;
         } else {
           guardToolForContext(tu.name, tu.input, context, history, message);
           working = applyToolCall(working, tu.name, tu.input);
@@ -298,7 +308,11 @@ export async function generateProposal({ baseline, context, history = [], messag
   // every turn). Without this gate that dead-end would be misreported as
   // "proposed, nothing needs to change" instead of the honest
   // `no_valid_adjustment` — the model never found a working edit.
-  if (toolCalls.length > 0 && lastValidation && lastValidation.ok) {
+  // Read-only-only rounds (the model kept calling get_run_detail / reassess /
+  // remember without ever stopping) are NOT that dead-end: nothing failed and
+  // there is a real informational answer in lastText — surface it as an
+  // unchanged proposal instead of discarding it as no_valid_adjustment.
+  if ((toolCalls.length > 0 || (readOnlyActivity && lastText)) && lastValidation && lastValidation.ok) {
     return {
       status: "proposed", plan: working,
       changed: JSON.stringify(working) !== JSON.stringify(baseline),

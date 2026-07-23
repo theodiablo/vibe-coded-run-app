@@ -360,7 +360,15 @@ async function handle(req: Request): Promise<any> {
       const { data, error } = await userClient.from("run_routes")
         .select("points, stats").eq("id", routeId).maybeSingle();
       if (error || !data) return { unavailable: "no detailed recording for this run" };
-      return buildRunDigest({ run, points: data.points ?? [], stats: data.stats ?? {}, settings });
+      // A row can exist with nothing usable in it (empty points, no HR
+      // samples) — answer as unavailable so it doesn't consume one of the
+      // round's fetch-budget slots as a "successful" digest.
+      const points = Array.isArray(data.points) ? data.points : [];
+      const hrSamples = (data.stats as Record<string, unknown> | null)?.hrSamples;
+      if (!points.length && !(Array.isArray(hrSamples) && hrSamples.length)) {
+        return { unavailable: "no detailed data recorded for this run" };
+      }
+      return buildRunDigest({ run, points, stats: data.stats ?? {}, settings });
     } catch {
       return { unavailable: "run detail temporarily unavailable" };
     }

@@ -313,11 +313,15 @@ export function buildRunDigest({ run, points, stats, settings, today = undefined
     // sec/km, e: elev gain m, h: avg hr}; series {d: cum km, p, e, h}. The
     // engine's tool_result framing line explains them to the model.
     const seriesRows = buildSeriesRows(pts, hrSamples);
-    digest.splits = buildSplitRows(pts, hrSamples).slice(0, 45).map((s) => {
+    const allSplits = buildSplitRows(pts, hrSamples);
+    digest.splits = allSplits.slice(0, 45).map((s) => {
       const row = { k: s.km, p: Math.round(s.paceSecPerKm), e: s.elevGainM, h: s.avgHr };
       if (s.distKm < 0.995) row.d = round2(s.distKm);
       return row;
     });
+    if (allSplits.length > 45) {
+      notes.push(`splits truncated to the first 45 of ${allSplits.length} km — the downsampled series still covers the whole run`);
+    }
     digest.series = downsampleSeries(seriesRows, 50, "distKm").map((r) => ({
       d: round2(r.distKm),
       p: r.paceSecPerKm == null ? null : Math.round(r.paceSecPerKm),
@@ -345,8 +349,12 @@ export function buildRunDigest({ run, points, stats, settings, today = undefined
         sec: Math.round(z.sec),
         pctTime: Math.round((z.sec / total) * 100),
       }));
-    } else {
+    } else if (!maxHR) {
       notes.push("HR zones unavailable: the runner has not set a max heart rate");
+    } else {
+      // maxHR is set but zones still failed: an unusable reserve (restHR >=
+      // maxHR) or too few samples — do NOT tell the model max HR is missing.
+      notes.push("HR zones unavailable (too few samples or an unusable HR profile)");
     }
   } else {
     notes.push("no heart-rate data recorded for this run");
