@@ -1033,6 +1033,14 @@ and delete anything that becomes stale.
   trajectory's latest proposal diffs vs the live plan instead. Only the single
   `open` trajectory resumes (server abandons others on `propose`); closed ones
   are read-only transcripts (`src/modals/CoachHistorySheet.tsx` bottom sheet).
+  **A `changed:false` round (an informational answer, no plan edit) keeps the
+  trajectory OPEN server-side**, so `CoachChat.applyCoachResult` must PRESERVE
+  `trajectoryId` in that branch — clearing it made the next message a fresh
+  `propose`, splitting an all-informational multi-message chat into one
+  conversation per message in history. It's safe to keep because `changed:false`
+  guarantees the working plan still equals the original baseline (any real edit
+  makes later rounds diff `changed:true` against that baseline), so there's never
+  a confirmable proposal / stale Apply button to mis-target.
 
 ## Data shapes
 - **Run:** `{id, date, type, km, durationSec, hr, hrMax, elevation, effort, notes}`

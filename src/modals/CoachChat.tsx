@@ -234,7 +234,14 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId ?? null);
       setMsgs(m => [...m, coachMsg(res, t("coach.fallback.noValidAdjustment"))]);
     } else if (!res.changed) {
-      setTrajectoryId(null);
+      // No plan change proposed (an informational answer). The trajectory is
+      // still OPEN server-side, so keep its id: a follow-up must continue this
+      // same conversation as a critique, not start a fresh propose — otherwise
+      // a purely informational two-message chat gets split into two separate
+      // conversations in history. There's no proposal card here, so keeping the
+      // id can't surface a stale Apply button (a `changed:false` round means the
+      // working plan still equals the original baseline — no confirmable edit).
+      setTrajectoryId(res.trajectoryId ?? null);
       setMsgs(m => [...m, coachMsg(res, t("coach.fallback.noChangeNeeded"))]);
     } else {
       setTrajectoryId(res.trajectoryId ?? null);
