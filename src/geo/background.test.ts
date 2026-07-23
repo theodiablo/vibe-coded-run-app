@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 
 describe("ensureBackgroundLocationOnce", () => {
-  it("no-ops on the release build (permission not declared) and never marks asked", async () => {
+  it("no-ops when the permission isn't declared (web/iOS or a build without it) and never marks asked", async () => {
     native.checkBackgroundLocation.mockResolvedValue({ declared: false, granted: false });
     await ensureBackgroundLocationOnce();
     expect(native.requestBackgroundLocation).not.toHaveBeenCalled();

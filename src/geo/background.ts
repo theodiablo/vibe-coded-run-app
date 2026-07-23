@@ -5,16 +5,16 @@ import { logTrack } from "./trackLog";
 
 // Request ACCESS_BACKGROUND_LOCATION ("Allow all the time") so live run tracking
 // keeps receiving GPS fixes with the screen off / app backgrounded, rather than
-// relying solely on the foreground service — which in practice stalls on this
-// device once the WebView is frozen (long screen-off holes in the recorded track).
+// relying solely on the foreground service — which in practice stalls on some
+// devices once the WebView is frozen (long screen-off holes in the recorded track).
 //
-// Deliberately scoped to builds that DECLARE the permission in their manifest —
-// the debug / personal sideload build, via android/app/src/debug/AndroidManifest.xml.
-// The public Play release does NOT declare it (so no Google Play background-location
-// review), and on that build the native side reports declared:false and this is a
-// no-op — the app stays foreground-only exactly as before. Backed by the local
-// RunPermissions plugin (the same one that owns POST_NOTIFICATIONS). Android-only,
-// never throws, never blocks recording.
+// The permission is declared in the main manifest and shipped to all users (which
+// requires the Google Play background-location declaration — see
+// docs/background-location.md). The `declared` guard stays as defensive code: the
+// native side reports declared:false and this becomes a no-op on any build/platform
+// that does not declare it, so the app degrades to foreground-only rather than
+// crashing. Backed by the local RunPermissions plugin (the same one that owns
+// POST_NOTIFICATIONS). Android-only, never throws, never blocks recording.
 
 type RunPermissionsBg = {
   checkBackgroundLocation: () => Promise<{ granted?: boolean; declared?: boolean }>;
@@ -31,11 +31,10 @@ const markAsked = () => {
   try { localStorage.setItem(BG_LOC_ASKED_KEY, "1"); } catch { /* non-fatal */ }
 };
 
-// True only on a build whose manifest declares ACCESS_BACKGROUND_LOCATION — i.e.
-// the debug/personal build, where the "Allow all the time" step actually happens.
-// The disclosure uses this to decide whether to show the extra step-by-step prompt
-// guidance; on the release build (and web) it's false, so that copy never appears
-// and the disclosure keeps its Play-compliant "While using the app" wording.
+// True on a build whose manifest declares ACCESS_BACKGROUND_LOCATION — now every
+// Android build, since it ships to all users. The disclosure uses this to decide
+// whether to show the "Allow all the time" step-by-step prompt guidance; it's false
+// on web/iOS (no such permission), where that Android-specific copy shouldn't show.
 export async function isBackgroundLocationAvailable(): Promise<boolean> {
   if (!isAndroid) return false;
   try { return !!(await plugin().checkBackgroundLocation())?.declared; }

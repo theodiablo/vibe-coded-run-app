@@ -514,35 +514,33 @@ and delete anything that becomes stale.
   re-offer precise instead of being pinned to approximate forever. A resolved
   probe still returns `true` even if the user picks Approximate — choosing it
   degrades accuracy, it never blocks the run.
-- **Foreground location only — no `ACCESS_BACKGROUND_LOCATION`.** Screen-off
-  recording works via the background-geolocation **foreground service** (started
-  while the app is visible) under the "while using the app" grant, so the app
-  deliberately does NOT declare or request `ACCESS_BACKGROUND_LOCATION`: the
-  plugin never requests it (its `@Permission` alias is COARSE+FINE only), and on
-  Android 11+ (~90% of users) it can only be granted via a Settings round-trip
-  anyway — declaring it would just trigger Google Play's background-location
-  review for no functional gain. Keep the "while using the app" wording in the
-  disclosure/permission copy; don't reintroduce "Allow all the time".
-  - **Exception — debug/personal build only.** Screen-off recording is unreliable
-    on some devices even with the foreground service (the maintainer's runs show
-    minutes-long GPS holes that line up exactly with the screen being off — the
-    WebView freezes and fixes stop). To let the maintainer test true background
-    tracking on their own phone **without** shipping the permission to the public
-    release, `ACCESS_BACKGROUND_LOCATION` is declared in a **debug-only manifest
-    overlay** (`android/app/src/debug/AndroidManifest.xml`) — the manifest merger
-    applies `src/debug/` to the debug variant only, so it reaches the sideload APK
-    (`android-pr.yml` with the `apk` label / local `assembleDebug`) but never the
-    release AAB. `RunPermissionsPlugin.kt` gained `checkBackgroundLocation` /
-    `requestBackgroundLocation`, both **gated on `isBackgroundLocationDeclared()`**
-    (reads the merged manifest via `PackageManager`): on the release build the
-    permission is absent → `declared:false` → the request is a **no-op**, so the
-    release stays foreground-only exactly as before. JS seam:
-    `src/geo/background.ts` `ensureBackgroundLocationOnce()` (Android-only, once per
-    install via `BG_LOC_ASKED_KEY`, called from `native.ts`'s background watcher
-    **after** foreground fine location is granted — the OS precondition). If this is
-    ever promoted to the public release, MOVE the permission into
-    `src/main/AndroidManifest.xml` and do the Play Data-Safety + background-location
-    review; do not rely on the overlay for a shipped feature.
+- **Background location — `ACCESS_BACKGROUND_LOCATION`, shipped to all users.**
+  Screen-off recording via the foreground service alone left minutes-long GPS holes
+  on some devices once the WebView froze, so the permission is declared in the
+  **main** manifest (`android/app/src/main/AndroidManifest.xml`) and requested for
+  everyone. The Play background-location permissions declaration is **already
+  approved** and `public/privacy.html` already covers background location, so this
+  is not a blocked release item — but **read `docs/background-location.md` before
+  touching this**: materially changing the location use case (collecting outside an
+  active run, 24/7 tracking) would need a fresh Play re-declaration.
+  Request flow (all Android): the prominent `BgLocationDisclosure` (a Play
+  requirement, shown before the OS prompt, dismissable via "Not now") →
+  `nativeSource.requestPermissions` runs `ensureForegroundPermission(true)` FIRST,
+  then `ensureBackgroundLocationOnce()` (`src/geo/background.ts`, Android-only, once
+  per install via `BG_LOC_ASKED_KEY`) → then `POST_NOTIFICATIONS`. On Android 11+
+  the background grant is a **Settings round-trip** ("Allow all the time") that
+  cannot appear in the first dialog — so the disclosure shows an explicit bolded
+  3-step walkthrough (`login.bgLocation.step1/2/3`), gated on
+  `isBackgroundLocationAvailable()` (true only where the permission is declared —
+  Android, not web/iOS). A declined background grant **never blocks the run**
+  (recording still works with the screen on). `RunPermissionsPlugin.kt`'s
+  `checkBackgroundLocation`/`requestBackgroundLocation` keep the
+  `isBackgroundLocationDeclared()` (`PackageManager`) guard as defensive code so the
+  request no-ops rather than throwing on any build/platform that lacks the
+  permission. To scope it back to a personal build, the fallback is a debug-only
+  manifest overlay — see `docs/background-location.md` (was the original approach in
+  PR #115). iOS is unaffected (background `location` mode in Info.plist; no such
+  permission).
 - **GPS tracking diagnostics (dev-only, native).** A hidden per-device ring buffer
   (`src/geo/trackLog.ts`, `GEO_DIAG_LOG_KEY`, **never synced**, capped at
   `GEO_DIAG_LOG_MAX`) records the live tracker's event stream — each raw

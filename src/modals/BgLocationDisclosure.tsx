@@ -13,12 +13,12 @@ type BgLocationDisclosureProps = { onAccept: () => void; onCancel: () => void };
 // The user must affirmatively accept this in-app screen; the OS dialog then gates
 // the actual grant. See LiveRunTracker for the once-per-install gating.
 //
-// On a build that declares ACCESS_BACKGROUND_LOCATION (the debug/personal build)
-// the OS asks for three things in a row — location, then "Allow all the time" (a
-// Settings round-trip), then notifications — which is confusing without warning.
-// So on that build we add an explicit, bolded step-by-step block telling the user
-// exactly what to tap. On the release build (`bgSteps` stays false) the disclosure
-// is unchanged: it keeps its Play-compliant "While using the app" wording.
+// On Android the OS asks for three things in a row — location, then "Allow all the
+// time" (a Settings round-trip), then notifications — which is confusing without
+// warning. So we add an explicit, bolded step-by-step block telling the user exactly
+// what to tap. Gated on isBackgroundLocationAvailable() so the "Allow all the time"
+// guidance only shows where that permission exists (Android); on web/iOS `bgSteps`
+// stays false and the disclosure keeps its "While using the app" wording.
 export function BgLocationDisclosure({ onAccept, onCancel }: BgLocationDisclosureProps) {
   const { t } = useTranslation();
   useDismissable(true, onCancel);
