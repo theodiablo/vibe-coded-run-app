@@ -156,11 +156,24 @@ export const nativeSource = {
     return isGranted(await Geolocation.checkPermissions());
   },
 
-  // Request foreground location, showing the OS dialog. Called from the consent
-  // flow so the prompt appears right after the user accepts the disclosure — not
-  // only when recording starts. Precise (FINE) so the OS offers the precise
-  // toggle — run tracking needs GPS accuracy. Returns true if usable.
-  requestPermissions: () => ensureForegroundPermission(true),
+  // Request the location we need to record, showing the OS dialog(s). Called from
+  // the consent flow so the prompt appears right after the user accepts the
+  // disclosure — not only when recording starts. Precise (FINE) so the OS offers
+  // the precise toggle — run tracking needs GPS accuracy.
+  //
+  // Two-step by Android mandate: foreground FIRST, then — on a build that declares
+  // ACCESS_BACKGROUND_LOCATION (the debug/personal build) — the "Allow all the
+  // time" upgrade. On Android 11+ background CANNOT be offered in the first dialog
+  // and always routes to a Settings screen, so the best we can do is fire it
+  // immediately after the foreground grant here (during consent) rather than
+  // deferring it to Start, where it read as a surprise mid-run redirect. Once per
+  // install and a no-op on the release build (permission not declared), so a
+  // normal user never sees it. Returns whether foreground location is usable.
+  async requestPermissions() {
+    const granted = await ensureForegroundPermission(true);
+    if (granted) await ensureBackgroundLocationOnce(); // "all the time" upgrade, debug build only
+    return granted;
+  },
 
   // Returns a sync handle immediately. The underlying watcher id resolves
   // asynchronously; `handle.removed` covers a clearWatch that races ahead of it.
@@ -187,11 +200,9 @@ export const nativeSource = {
           onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: t("tracker.errors.permissionNotGranted") }));
           return;
         }
-        // On a build that declares ACCESS_BACKGROUND_LOCATION (the debug/personal
-        // sideload — never the public release), upgrade to "Allow all the time"
-        // so fixes survive the screen going off. A no-op on the release build
-        // (permission not declared) and asked at most once per install.
-        await ensureBackgroundLocationOnce();
+        // The "Allow all the time" upgrade (debug build only) is requested up front
+        // in requestPermissions(), which every Start/Resume path awaits before the
+        // watcher is added — so it's part of the consent flow, not a surprise here.
         if (handle.removed) return;
         try {
           const id = await BackgroundGeolocation.addWatcher(
