@@ -516,17 +516,17 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   useEffect(() => {
     if (!isNative) return;
     if (state !== "tracking" && state !== "paused") { resetRunNotification(); return; }
-    const movingMs = (accRef.current * 1000)
-      + (state === "tracking" && startRef.current ? Date.now() - startRef.current : 0);
     pushRunNotification(buildRunNotificationContent({
       state,
       km: stats.km,
       paceSecPerKm: state === "tracking" ? (stats.curPace || stats.avgPace) : stats.avgPace,
       hr: stats.hr,
-      movingMs,
+      // computeMoving reads stateRef, synced by the ref-mirror effect declared
+      // above this one (same-commit ordering), so it agrees with `state` here.
+      movingMs: computeMoving() * 1000,
       nowMs: Date.now(),
     }));
-  }, [state, stats]);
+  }, [state, stats, computeMoving]);
 
   return {
     state, points, stats, error, pending, location, hrSamples,
