@@ -20,10 +20,13 @@
 #         "Resource": "*" },
 #       { "Effect": "Allow",
 #         "Action": "ses:SendEmail",
-#         "Resource": "arn:aws:ses:eu-west-1:*:identity/camboulive.solutions" }
+#         "Resource": ["arn:aws:ses:eu-west-1:*:identity/camboulive.solutions",
+#                      "arn:aws:ses:eu-west-1:*:identity/theo.camboulive.dev@gmail.com"] }
 #     ]
 #   }
 #
+# (While the account is in the SES sandbox, SendEmail authorizes against the
+# RECIPIENT's verified identity too — hence the second resource entry.)
 # The job is skipped (not failed) while the secrets are absent.
 
 name: SES weekly report
