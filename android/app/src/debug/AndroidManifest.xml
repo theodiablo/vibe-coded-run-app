@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG-ONLY manifest overlay. The Android manifest merger applies files under
+  src/debug/ ONLY to the debug build variant, so anything here reaches the
+  personal sideload APK (built by android-pr.yml / a local `assembleDebug`) but
+  NEVER the release AAB that ships to Google Play.
+
+  ACCESS_BACKGROUND_LOCATION ("Allow all the time") is declared here — and only
+  here — so live run tracking can keep receiving GPS fixes with the screen off on
+  a personal test build, without adding the permission to the public release
+  (which would trigger Google Play's background-location review). RunPermissionsPlugin
+  gates its background-location request on this declaration: on the release build
+  the permission is absent, checkBackgroundLocation reports declared:false, and the
+  request is a no-op, so the release stays foreground-only exactly as before.
+
+  If background tracking is ever promoted to the public release, MOVE this
+  permission into src/main/AndroidManifest.xml and complete the Play Data Safety +
+  background-location review instead of relying on this overlay.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+</manifest>

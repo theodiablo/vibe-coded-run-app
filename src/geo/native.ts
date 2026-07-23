@@ -1,5 +1,7 @@
 import { registerPlugin } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
+import { ensureBackgroundLocationOnce } from "./background";
+import { logTrack } from "./trackLog";
 import { t } from "../i18n";
 
 type BgLocation = {
@@ -176,13 +178,20 @@ export const nativeSource = {
         try {
           granted = await ensureForegroundPermission(true); // precise — run tracking needs FINE GPS
         } catch (e) {
+          logTrack("perm", { ok: false, msg: "fg-throw" });
           onErr?.(adaptBgError(e)); // surface — do not hide a broken prompt
           return;
         }
+        logTrack("perm", { ok: !!granted, msg: "fg" });
         if (!granted) {
           onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: t("tracker.errors.permissionNotGranted") }));
           return;
         }
+        // On a build that declares ACCESS_BACKGROUND_LOCATION (the debug/personal
+        // sideload — never the public release), upgrade to "Allow all the time"
+        // so fixes survive the screen going off. A no-op on the release build
+        // (permission not declared) and asked at most once per install.
+        await ensureBackgroundLocationOnce();
         if (handle.removed) return;
         try {
           const id = await BackgroundGeolocation.addWatcher(
@@ -194,13 +203,14 @@ export const nativeSource = {
               backgroundMessage: t("tracker.notif.body"),
             },
             (location, error) => {
-              if (error) { onErr?.(adaptBgError(error)); return; }
+              if (error) { logTrack("error", { msg: `bg-watch ${error.message || error.code || ""}`.trim() }); onErr?.(adaptBgError(error)); return; }
               if (location) onPos(adaptBgLocation(location));
             },
           );
           if (handle.removed) BackgroundGeolocation.removeWatcher({ id });
-          else handle.id = id;
+          else { handle.id = id; logTrack("watch-start", { msg: "background" }); }
         } catch (e) {
+          logTrack("error", { msg: "addWatcher-fail" });
           onErr?.(adaptBgError(e));
         }
       })();
@@ -221,7 +231,7 @@ export const nativeSource = {
     if (!handle) return;
     handle.removed = true;
     if (handle.id == null) return; // not yet started; the resolver above will remove it
-    if (handle.background) BackgroundGeolocation.removeWatcher({ id: handle.id });
+    if (handle.background) { logTrack("watch-stop", { msg: "background" }); BackgroundGeolocation.removeWatcher({ id: handle.id }); }
     else Geolocation.clearWatch({ id: handle.id });
   },
 

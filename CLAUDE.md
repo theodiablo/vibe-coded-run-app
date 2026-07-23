@@ -523,6 +523,39 @@ and delete anything that becomes stale.
   anyway — declaring it would just trigger Google Play's background-location
   review for no functional gain. Keep the "while using the app" wording in the
   disclosure/permission copy; don't reintroduce "Allow all the time".
+  - **Exception — debug/personal build only.** Screen-off recording is unreliable
+    on some devices even with the foreground service (the maintainer's runs show
+    minutes-long GPS holes that line up exactly with the screen being off — the
+    WebView freezes and fixes stop). To let the maintainer test true background
+    tracking on their own phone **without** shipping the permission to the public
+    release, `ACCESS_BACKGROUND_LOCATION` is declared in a **debug-only manifest
+    overlay** (`android/app/src/debug/AndroidManifest.xml`) — the manifest merger
+    applies `src/debug/` to the debug variant only, so it reaches the sideload APK
+    (`android-pr.yml` with the `apk` label / local `assembleDebug`) but never the
+    release AAB. `RunPermissionsPlugin.kt` gained `checkBackgroundLocation` /
+    `requestBackgroundLocation`, both **gated on `isBackgroundLocationDeclared()`**
+    (reads the merged manifest via `PackageManager`): on the release build the
+    permission is absent → `declared:false` → the request is a **no-op**, so the
+    release stays foreground-only exactly as before. JS seam:
+    `src/geo/background.ts` `ensureBackgroundLocationOnce()` (Android-only, once per
+    install via `BG_LOC_ASKED_KEY`, called from `native.ts`'s background watcher
+    **after** foreground fine location is granted — the OS precondition). If this is
+    ever promoted to the public release, MOVE the permission into
+    `src/main/AndroidManifest.xml` and do the Play Data-Safety + background-location
+    review; do not rely on the overlay for a shipped feature.
+- **GPS tracking diagnostics (dev-only, native).** A hidden per-device ring buffer
+  (`src/geo/trackLog.ts`, `GEO_DIAG_LOG_KEY`, **never synced**, capped at
+  `GEO_DIAG_LOG_MAX`) records the live tracker's event stream — each raw
+  `native-fix` arrival at the JS boundary, whether it was kept (`fix`) or dropped
+  (`drop`, with reason) or opened a `gap`, plus permission/watch/foreground-
+  background transitions. Instrumented in `useRunTracker.ts` (`onPos`/`onErr`/
+  lifecycle/visibility) and `geo/native.ts`. Logging is a **no-op until enabled**
+  (`isGeoDebugEnabled`, cached in-module so the per-fix cost is nil when off).
+  Viewer is `src/views/TrackDiagLog.tsx` — revealed by the SAME Settings →
+  Connections title 5-tap as the watch sync log (`revealTap` now flips
+  `setGeoDebug` too); its summary reports max fix-gap **while hidden vs visible**,
+  the direct read on "do fixes stop when the screen is off". Raw + English-only
+  (a debug surface, not wired through i18n), mirroring `WatchSyncLog`.
 - **`POST_NOTIFICATIONS` (Android 13+) is requested by the local `RunPermissions`
   plugin** (`android/.../RunPermissionsPlugin.kt`, registered in `MainActivity.java`),
   because neither geolocation plugin requests it and without it the foreground
