@@ -3,6 +3,8 @@ import { LIVE_RUN_KEY } from "../constants";
 import { accuracyOK, distanceKm, elevGainM, haversineM } from "../utils/geo";
 import { hrSummary } from "../utils/hr";
 import { geoSource } from "../geo/source";
+import { pushRunNotification, resetRunNotification } from "../geo/liveNotification";
+import { buildRunNotificationContent } from "../utils/runNotification";
 import { logTrack } from "../geo/trackLog";
 import { getHrSource } from "../hr/source";
 import { getPairedDevice } from "../hr/device";
@@ -501,6 +503,30 @@ export function useRunTracker({ hrMethod }: UseRunTrackerOptions = {}) {
   }, [points, movingSec]);
 
   const stats = useMemo(() => ({ ...gpsStats, ...hrSummary(hrSamples) }), [gpsStats, hrSamples]);
+
+  // Lock-screen live stats (Android): mirror distance/pace/HR into the
+  // foreground-service notification. The DURATION is deliberately not pushed —
+  // the notification carries an OS-rendered chronometer anchored at
+  // now - movingMs, so the clock ticks natively even when this JS is throttled
+  // in the background. This effect re-runs off the same renders the bridge
+  // callbacks (onPos/onHrSample) and the control handlers trigger — never off
+  // a timer — and pushRunNotification's content gate turns the foreground
+  // 1s-tick re-runs into no-ops. Do not move this onto the setInterval above:
+  // that interval is exactly what stops in the background.
+  useEffect(() => {
+    if (!isNative) return;
+    if (state !== "tracking" && state !== "paused") { resetRunNotification(); return; }
+    const movingMs = (accRef.current * 1000)
+      + (state === "tracking" && startRef.current ? Date.now() - startRef.current : 0);
+    pushRunNotification(buildRunNotificationContent({
+      state,
+      km: stats.km,
+      paceSecPerKm: state === "tracking" ? (stats.curPace || stats.avgPace) : stats.avgPace,
+      hr: stats.hr,
+      movingMs,
+      nowMs: Date.now(),
+    }));
+  }, [state, stats]);
 
   return {
     state, points, stats, error, pending, location, hrSamples,

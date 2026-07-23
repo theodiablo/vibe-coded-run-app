@@ -1,7 +1,8 @@
 {
   "notif": {
     "title": "Enregistrement de la sortie",
-    "body": "Touchez pour revenir à Running Coach"
+    "body": "Touchez pour revenir à Running Coach",
+    "pausedTitle": "Sortie en pause"
   },
   "header": {
     "live": "Sortie en cours",

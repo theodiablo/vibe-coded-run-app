@@ -1,7 +1,8 @@
 {
   "notif": {
     "title": "Grabando entrenamiento",
-    "body": "Toca para volver a Running Coach"
+    "body": "Toca para volver a Running Coach",
+    "pausedTitle": "Entrenamiento en pausa"
   },
   "header": {
     "live": "Entrenamiento en curso",
