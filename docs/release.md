@@ -180,8 +180,12 @@ call's returned `status: "ACTIVE"` and, for request-level confirmation,
   overhead in CI (opt in locally instead).
 - **iOS:** SPM clones are pinned to `ios/SourcePackages`
   (`-clonedSourcePackagesDirPath`, gitignored) and cached via `actions/cache`
-  keyed on the *synced* `CapApp-SPM/Package.swift` — the cache step must stay
-  AFTER `npx cap sync ios`, which rewrites that manifest. There is **no** `main`
+  keyed on the repo name + the *synced* `CapApp-SPM/Package.swift` — the cache
+  step must stay AFTER `npx cap sync ios`, which rewrites that manifest, and
+  the repo name is in the key because SwiftPM bakes the runner's absolute
+  workspace path (`/Users/runner/work/<repo>/<repo>`) into `SourcePackages`
+  state, so a cache surviving a repo rename fails the archive with "no
+  XCFramework found at" the old path. There is **no** `main`
   iOS seed (macOS minutes bill ×10, and `ios-pr.yml` is path-filtered to
   `ios/**`), so the SPM cache is same-ref only. Deliberately no DerivedData
   caching (unreliable invalidation, big caches, small win).
