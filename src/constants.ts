@@ -134,9 +134,16 @@ export const TIP_JAR_URL = "https://buymeacoffee.com/theo.camboulive";
 // quota. Without the env var the tracker still records — RouteMap just shows a
 // "needs key" notice instead of tiles. Attribution stays visible per the OSM
 // data licence.
+//
+// Style is `outdoor-v2` (not the car-oriented `streets-v2`): it renders hiking
+// trails, pedestrian-only ways, tracks, forest/woodland and contour lines
+// prominently — the paths runners actually use. That detail is already in the
+// OSM data; the street style just hides it. Shared by every map surface (live
+// tracker, run detail, history preview, race location picker) via this one
+// constant.
 export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
 export const MAP_TILE_URL =
-  "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
+  "https://api.maptiler.com/maps/outdoor-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
 export const MAP_ATTRIBUTION =
   '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
 
