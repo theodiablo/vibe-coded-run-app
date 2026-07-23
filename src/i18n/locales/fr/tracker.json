@@ -72,7 +72,8 @@
     "permissionNotGranted": "L'autorisation de localisation n'a pas été accordée."
   },
   "map": {
-    "noKey": "Le fond de carte nécessite VITE_MAPTILER_KEY. Le parcours s'enregistre quand même."
+    "noKey": "Le fond de carte nécessite VITE_MAPTILER_KEY. Le parcours s'enregistre quand même.",
+    "recenter": "Recentrer sur ma position"
   },
   "hrTarget": {
     "addProfile": "Ajoute ton profil FC dans les Paramètres pour voir une zone cible",

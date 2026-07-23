@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Play, Pause, Square, X, Loader, MapPin, HeartPulse } from "lucide-react";
+import { Play, Pause, Square, X, Loader, MapPin, HeartPulse, LocateFixed } from "lucide-react";
 import { fmt, ymd } from "../utils/format";
 import { simplify } from "../utils/geo";
 import { saveRoute, queuePendingRoute } from "../routes";
@@ -75,6 +75,11 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
   const tracker = rt as Omit<typeof rt, "location"> & { location: LocationPreview | null };
   const { state, points, stats, error, pending, location } = tracker;
   const [busy, setBusy] = useState(false);
+  // Live map: `following` mirrors RouteMap's nav-follow (false once the user pans,
+  // which surfaces the recenter button); bumping `recenterSignal` snaps back to
+  // the current position at the default zoom and re-arms follow.
+  const [recenterSignal, setRecenterSignal] = useState(0);
+  const [following, setFollowing] = useState(true);
   const reducedMotion = usePrefersReducedMotion();
   // A 3-2-1-Go overlay before a fresh run start (never on Resume). It runs AFTER
   // guardedStart's disclosure/HR gates, since guardedStart calls this as its fn.
@@ -146,6 +151,20 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
 
   const hasTrack = stats.n > 0;
   const live = state === "tracking" || state === "paused";
+
+  // Returning from a locked screen / app background snaps the live map back to the
+  // current position at the default zoom (the requested reset). visibilitychange
+  // fires in the native WebView on screen lock/unlock and app foreground, and on
+  // web when the tab is refocused.
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible" && (state === "tracking" || state === "paused")) {
+        setRecenterSignal(n => n + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [state]);
   // Offer the HR nudge in place of `fn`, deferring it the same way the
   // disclosure does. Returns whether the nudge took over (caller must not also
   // call fn in that case).
@@ -333,9 +352,16 @@ export function LiveRunTracker({ onFinish, onClose, showToast, hrMethod, hrOptOu
           className="text-slate-400 hover:text-white p-1.5"><X size={18} /></button>
       </header>
 
-      <div className="flex-1 min-h-0">
-        <RouteMap points={points} follow={state === "tracking"} interactive={!live}
+      <div className="flex-1 min-h-0 relative">
+        <RouteMap points={points} follow={state === "tracking"} interactive
+          recenterSignal={recenterSignal} onFollowingChange={setFollowing}
           location={location} className="h-full w-full" style={{}} />
+        {live && !following && (
+          <button type="button" onClick={() => setRecenterSignal(n => n + 1)} aria-label={t("tracker.map.recenter")}
+            className="absolute bottom-3 right-3 z-[1000] flex items-center justify-center w-11 h-11 rounded-full bg-slate-900/85 text-orange-400 border border-slate-700 shadow-lg active:scale-95 transition-transform">
+            <LocateFixed size={20} />
+          </button>
+        )}
       </div>
 
       <div className="p-4 space-y-3 border-t border-slate-800" style={{ paddingBottom: "calc(1rem + var(--safe-bottom))" }}>

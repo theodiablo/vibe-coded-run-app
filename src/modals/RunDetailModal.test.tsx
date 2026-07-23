@@ -15,8 +15,12 @@ vi.mock("recharts", async (importOriginal) => {
   };
 });
 
-import { RunChart } from "./RunDetailModal";
+import { RunChart, Readout } from "./RunDetailModal";
+import { activeIndexFromChartState } from "../utils/chartCursor";
+import { buildRunSeries } from "../utils/runSeries";
+import { flattenTrack } from "../utils/geo";
 import type { RunSeriesRow } from "../utils/runSeries";
+import type { TrackPointOrGap } from "../utils/geo";
 
 afterEach(cleanup);
 
@@ -76,5 +80,80 @@ describe("RunChart", () => {
     const { container } = render(<RunChart series={series} show={ALL} hasElev hasHr={false} />);
     expect(container.querySelector(`path.recharts-curve[stroke="${HR}"]`)).toBeNull();
     expect(container.querySelectorAll(".recharts-line").length).toBe(1); // pace only
+  });
+
+  it("still renders with an onCursor handler attached", () => {
+    // The chart→map link wires onMouseMove/onClick/onMouseLeave; recharts mouse
+    // geometry is flaky in jsdom, so this just asserts the prop is accepted and
+    // the chart renders (the index→geo guarantee is covered by the pure test below).
+    const { container } = render(<RunChart series={series} show={ALL} hasElev hasHr onCursor={() => {}} />);
+    expect(container.querySelectorAll(".recharts-area").length).toBe(1);
+    expect(container.querySelectorAll(".recharts-line").length).toBe(2);
+  });
+});
+
+describe("Readout", () => {
+  const row: RunSeriesRow = { distKm: 1.2, tSec: 360, elevM: 110, paceSecPerKm: 300, hr: 150 };
+
+  it("formats distance, pace, elevation and HR for the active point", () => {
+    const { container } = render(<Readout row={row} hasHr hasElev />);
+    const text = container.textContent || "";
+    expect(text).toContain("1.20 km");
+    expect(text).toContain("5:00/km");
+    expect(text).toContain("110 m");
+    expect(text).toContain("150 bpm");
+  });
+
+  it("omits HR when hasHr is false and elevation when hasElev is false", () => {
+    const { container } = render(<Readout row={row} hasHr={false} hasElev={false} />);
+    const text = container.textContent || "";
+    expect(text).toContain("5:00/km");
+    expect(text).not.toContain("bpm");
+    expect(text).not.toContain("110 m");
+  });
+
+  it("renders the hint (no layout-shifting emptiness) when no point is active", () => {
+    const { container } = render(<Readout row={null} hasHr hasElev />);
+    expect(container.textContent).toContain("Hover or tap the chart");
+  });
+});
+
+describe("activeIndexFromChartState (recharts v3 stringly-typed index)", () => {
+  // recharts 3.x returns activeTooltipIndex as String(clampedIndex) for
+  // Line/Area/Composed charts, so a numeric-only check silently breaks the link.
+  it("coerces a numeric string index to a number", () => {
+    expect(activeIndexFromChartState({ activeTooltipIndex: "5" })).toBe(5);
+  });
+  it("accepts a real number index", () => {
+    expect(activeIndexFromChartState({ activeTooltipIndex: 3 })).toBe(3);
+  });
+  it("returns null for absent / empty / non-numeric state", () => {
+    expect(activeIndexFromChartState(null)).toBeNull();
+    expect(activeIndexFromChartState(undefined)).toBeNull();
+    expect(activeIndexFromChartState({})).toBeNull();
+    expect(activeIndexFromChartState({ activeTooltipIndex: "" })).toBeNull();
+    expect(activeIndexFromChartState({ activeTooltipIndex: "x" })).toBeNull();
+    expect(activeIndexFromChartState({ activeTooltipIndex: null })).toBeNull();
+  });
+});
+
+describe("chart↔map index alignment", () => {
+  it("buildRunSeries and flattenTrack stay 1:1 in length and order across a gap", () => {
+    // A gap marker (null) breaks the track; both helpers must skip it identically,
+    // or the chart hover would highlight the wrong geographic point.
+    const pts: TrackPointOrGap[] = [
+      [48.000, 2.000, 1000, 100],
+      [48.001, 2.000, 2000, 101],
+      null, // GPS lost
+      [48.002, 2.000, 3000, 102],
+    ];
+    const rows = buildRunSeries(pts);
+    const flat = flattenTrack(pts);
+    expect(rows.length).toBe(flat.length);
+    expect(rows.length).toBe(3); // the gap is dropped, not emitted as a row
+    rows.forEach((r, i) => {
+      expect(r.distKm).toBeCloseTo(flat[i].cumKm, 6);
+      expect(r.elevM).toBe(flat[i].alt);
+    });
   });
 });

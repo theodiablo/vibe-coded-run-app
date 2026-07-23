@@ -96,6 +96,17 @@
   from { opacity: 1; transform: translate3d(0, -10px, 0) rotate(0); }
   to { opacity: 0; transform: translate3d(var(--cf-dx, 0), 80vh, 0) rotate(var(--cf-rot, 540deg)); }
 }
+/* Run-detail chart→map highlight: an expanding halo behind a static centre dot.
+   Injected into a Leaflet divIcon (raw HTML), so it's a plain class, not an
+   `animate-*` token. Under reduced motion the global block below collapses the
+   halo to near-nothing; the static dot alone still marks the point. */
+@keyframes route-highlight {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.route-highlight-ring {
+  animation: route-highlight 1.4s ease-out infinite;
+}
 
 /* Respect the OS "reduce motion" setting: collapse every animation and
    transition to near-instant. `animate-spin` is exempt — a frozen loading

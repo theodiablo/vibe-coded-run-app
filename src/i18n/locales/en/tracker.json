@@ -72,7 +72,8 @@
     "permissionNotGranted": "Location permission was not granted."
   },
   "map": {
-    "noKey": "Map tiles need VITE_MAPTILER_KEY — route still records."
+    "noKey": "Map tiles need VITE_MAPTILER_KEY — route still records.",
+    "recenter": "Recenter on my position"
   },
   "hrTarget": {
     "addProfile": "Add your HR profile in Settings to see a target zone",
