@@ -10,7 +10,7 @@ import { diffPlans } from "../utils/coachDiff";
 import { validatePlan } from "../utils/coachValidation";
 import { fmt } from "../utils/format";
 import { track } from "../telemetry";
-import { PRIVACY_URL, DISCLAIMER_URL } from "../constants";
+import { PRIVACY_URL, DISCLAIMER_URL, COACH_DETAIL_NOTICE_KEY } from "../constants";
 import { usageLeft, type CoachUsage } from "../utils/coachUsage";
 import { buildSessionCard, type CoachMessage } from "../utils/coachTranscript";
 import { CoachHistorySheet } from "./CoachHistorySheet";
@@ -146,6 +146,16 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
   // plan: Apply would clobber intervening edits, so it is hidden (the user is
   // told to start a new conversation to adjust the current plan).
   const [applyBlocked, setApplyBlocked] = useState(false);
+  // One-time (per device) transparency note: the coach can read detailed run
+  // data (splits/HR digests) when a question calls for it. Dismissal mirrors
+  // the other one-shot disclosure flags (HR_BLE_DISCLOSED_KEY et al.).
+  const [showDetailNotice, setShowDetailNotice] = useState(() => {
+    try { return localStorage.getItem(COACH_DETAIL_NOTICE_KEY) !== "1"; } catch { return true; }
+  });
+  const dismissDetailNotice = () => {
+    setShowDetailNotice(false);
+    try { localStorage.setItem(COACH_DETAIL_NOTICE_KEY, "1"); } catch { /* quota — non-fatal */ }
+  };
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
@@ -234,7 +244,14 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
       setTrajectoryId(res.trajectoryClosed ? null : res.trajectoryId ?? null);
       setMsgs(m => [...m, coachMsg(res, t("coach.fallback.noValidAdjustment"))]);
     } else if (!res.changed) {
-      setTrajectoryId(null);
+      // No plan change proposed (an informational answer). The trajectory is
+      // still OPEN server-side, so keep its id: a follow-up must continue this
+      // same conversation as a critique, not start a fresh propose — otherwise
+      // a purely informational two-message chat gets split into two separate
+      // conversations in history. There's no proposal card here, so keeping the
+      // id can't surface a stale Apply button (a `changed:false` round means the
+      // working plan still equals the original baseline — no confirmable edit).
+      setTrajectoryId(res.trajectoryId ?? null);
       setMsgs(m => [...m, coachMsg(res, t("coach.fallback.noChangeNeeded"))]);
     } else {
       setTrajectoryId(res.trajectoryId ?? null);
@@ -467,6 +484,18 @@ export function CoachChat({ plan, onApplyPlan, appendUserContext, showToast, onC
                 {t(k)}
               </button>
             ))}
+          </div>
+        )}
+        {/* Not gated on the empty state: a resumed conversation (history sheet
+            restores msgs.length > 1) must still surface the privacy notice
+            until the user dismisses it on this device. */}
+        {showDetailNotice && (
+          <div className="flex items-start gap-2 text-[11px] text-slate-400 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2">
+            <span className="flex-1">{t("coach.detailNotice.text")}</span>
+            <button onClick={dismissDetailNotice}
+              className="text-slate-300 hover:text-white font-medium shrink-0">
+              {t("coach.detailNotice.gotIt")}
+            </button>
           </div>
         )}
         {busy && <div className="flex items-center gap-2 text-slate-400 text-xs"><Loader size={14} className="animate-spin"/>{t("coach.thinking")}</div>}

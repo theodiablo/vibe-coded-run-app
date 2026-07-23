@@ -29,6 +29,20 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
    during pain/illness. `cancel_session` marks a session `skipped` (the
    app's existing flag) rather than deleting it; skipped sessions carry no
    training load in the validator (volume/spacing/taper rules ignore them).
+   Three tools are **read-only** and can never touch the plan:
+   `reassess_goal_feasibility` (goal assessment from context),
+   `remember_runner_context` (memory suggestion, user-confirmed), and
+   `get_run_detail` (fetches a compact digest of ONE recent run's recorded
+   detail — per-km splits, HR time-in-zone, downsampled pace/elevation/HR
+   series — derived server-side in `_shared/coach/runDigest.mjs` from the
+   user's own `run_routes` row via the RLS-scoped client). All three are
+   dispatched in the engine, never in `applyToolCall`. `get_run_detail` is
+   capped at 3 fetches per round (`MAX_RUN_DETAIL_FETCHES`), only accepts ids
+   present in the RECENT RUNS window (anything else never reaches the DB),
+   and its digests are **coordinate-free by construction** — the digest
+   module's `flattenTrack` port never emits lat/lng, so the runner's GPS
+   location cannot reach the model. Missing data (no route, HR-only, no
+   max HR set) degrades to explanatory notes, never an error loop.
 3. **One validator, two callers** — `validatePlan`
    (`supabase/functions/_shared/coach/validation.mjs`) is shared by the agent
    path and confirmed against `buildPlan` output by
@@ -89,8 +103,9 @@ Browser (CoachChat) ──message──▶ Edge Function coach-agent ──▶ A
   tells the model to preserve the style's pattern (e.g. polarized = one hard
   session/week; runwalk = never introduce tempo/intervals). A plan without a
   style field gets byte-identical paces/descriptions to pre-styles behaviour.
-  Deploy note: `styles.mjs` is part of the six-file MCP deploy recipe in
-  CLAUDE.md — omitting it breaks the function at boot.
+  Deploy note: `styles.mjs` is part of the seven-file MCP deploy recipe in
+  docs/release.md — omitting it breaks the function at boot (as does
+  `runDigest.mjs`, imported by the entrypoint).
   `buildMessages` also adds a `RUNNER AGE:` line (derived server-side in
   `index.ts` from `settings.birthYear`, legacy `settings.age` fallback) so
   advice can be age-aware; it is omitted when unknown, keeping ageless
@@ -174,6 +189,20 @@ model saw. Memory suggestions are logged separately in
 `input_context.memorySuggestions` and returned to the client for confirmation;
 they are not plan tool calls and do not satisfy plan-adjustment fallback logic.
 
+Run-detail privacy & audit: `get_run_detail` digests are derived server-side
+(`_shared/coach/runDigest.mjs`) from the user's own `run_routes` row, read with
+the caller's JWT client (RLS). The digest contains splits, HR zones, and a
+downsampled distance-indexed series — **never GPS coordinates** (the module's
+`flattenTrack` port structurally cannot emit lat/lng; `runDigest.test.ts`
+asserts no coordinate-shaped keys anywhere in the output) and never the raw
+~1Hz HR stream (a marathon digest serializes under ~4KB). Fetched digests are
+logged verbatim in `agent_rounds.input_context.fetchedRunDetails` because they
+are part of what the model saw (the log is the eval dataset). Like
+`memorySuggestions`, they are not plan tool calls and never appear in
+`tool_calls`. The client shows a one-time per-device notice in CoachChat
+(`coach.detailNotice.*`, `rc_coach_detail_notice_v1`) that the coach may read
+detailed run data including heart rate, and that GPS location is never shared.
+
 Conversation history: users have read-own RLS SELECT on `agent_trajectories`
 and `agent_rounds`, so the chat lists and replays past conversations as a free
 DB read — no model call. `src/coachHistory.ts` fetches the rows and
@@ -186,6 +215,22 @@ against the live plan (what Apply will change). Only the one `open` trajectory
 is resumable (a new `propose` abandons any other open one, and `critique`/
 `confirm` on a closed one returns `TRAJECTORY_CLOSED`); accepted/abandoned ones
 are read-only transcripts. UI: `src/modals/CoachHistorySheet.tsx`.
+
+Client gotcha — **a `changed:false` round (an informational answer, no plan
+edit) keeps the trajectory OPEN server-side**, so `CoachChat.applyCoachResult`
+must PRESERVE `trajectoryId` in that branch: clearing it made the next message
+a fresh `propose`, splitting an all-informational multi-message chat into one
+conversation per message in history. It's safe to keep because `changed:false`
+guarantees the working plan still equals the original baseline (any real edit
+makes later rounds diff `changed:true` against that baseline), so there's never
+a confirmable proposal / stale Apply button to mis-target.
+
+Schema gotcha — the `profiles.coach_daily_limit` override column is why
+migration `20260719120000_coach_daily_limit.sql` **narrows the `authenticated`
+insert/update grants on `profiles` to specific columns**: the table had blanket
+own-row insert/update RLS + table-level grants, so a bare column would be
+user-writable (mint unlimited requests). Keep new user-writable profile columns
+in that column-grant list; keep `coach_daily_limit` out of it.
 
 ## Local development
 
@@ -211,7 +256,13 @@ through `src/coach.ts`.
     itself, and recovery from one) that the keyword mock doesn't reach.
   Both assert adaptation *properties*, not exact output (knee pain never adds
   intensity; a missed week never "makes up" volume; the validator-failure path
-  ends in `no_valid_adjustment`). `npm test` runs both.
+  ends in `no_valid_adjustment`). `npm test` runs both. The scripted harness
+  also covers `get_run_detail` (digest round-trip, unknown-id absence answer,
+  the `DETAIL_BUDGET` cap, and the fetcher-absent degrade);
+  `src/utils/runDigest.test.ts` parity-tests the digest module against the
+  app's TS helpers and pins the size/no-coordinates guarantees. Offline
+  harnesses run with no fetcher (or a stub) — the engine degrades to a
+  non-error "not available" tool_result, so no DB is ever needed.
 - **Live model eval** — `npm run eval:live` (`evals/coach/`, needs
   `ANTHROPIC_API_KEY`; `COACH_EVAL_MOCK=1` for a free plumbing check) replays
   10 realistic scenarios through the real `generateProposal` loop against the

@@ -183,6 +183,14 @@ describe("applyToolCall", () => {
     expect(() => applyTool(plan(), "delete_everything", {})).toThrow(/Unknown tool/);
   });
 
+  it("get_run_detail is defined (read-only) and requires run_id", () => {
+    const def = toolDefs.find(d => d.name === "get_run_detail") as ToolDef & { input_schema: { required: string[] } };
+    expect(def).toBeDefined();
+    expect(def.input_schema.required).toEqual(["run_id"]);
+    // Read-only: the plan-transform dispatcher must refuse it.
+    expect(() => applyTool(plan(), "get_run_detail", { run_id: "x" })).toThrow(/Unknown tool/);
+  });
+
   // Property: any single tool applied with valid input to a valid plan yields a
   // plan the validator can always process (structured result, never a throw).
   it("tool → validate never throws; results stay structured", () => {
@@ -197,7 +205,8 @@ describe("applyToolCall", () => {
       add_session: { date: "2026-01-08", type: "EASY", km: 5 },
     };
     for (const def of toolDefs) {
-      if (["reassess_goal_feasibility", "remember_runner_context"].includes(def.name)) continue;
+      // Read-only tools are dispatched by the engine, not applyToolCall.
+      if (["reassess_goal_feasibility", "remember_runner_context", "get_run_detail"].includes(def.name)) continue;
       const out = applyTool(plan(), def.name, toolInputs[def.name as ToolName]);
       const r = validatePlan(out, { baseline: plan() });
       expect(Array.isArray(r.errors)).toBe(true);

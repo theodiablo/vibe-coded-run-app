@@ -32,12 +32,35 @@ export const BG_LOC_DISCLOSED_KEY = "rc_bg_loc_disclosed";
 // Once per install — asked the first time a run starts, never re-nagged.
 export const REC_NOTIF_ASKED_KEY = "rc_rec_notif_asked";
 
+// localStorage flag: we've asked once for ACCESS_BACKGROUND_LOCATION ("Allow all
+// the time"). Only ever requested on a build that DECLARES the permission (the
+// debug/personal sideload manifest — the public Play release never declares it),
+// and only after foreground fine location is already granted. Once per install so
+// a denied Settings round-trip never re-nags every run. See src/geo/background.ts.
+export const BG_LOC_ASKED_KEY = "rc_bg_loc_asked";
+
+// ── GPS tracking diagnostics (native) — PER-DEVICE, never in the synced blob ──
+// A hidden developer log of the live tracker's fix stream, mirroring the watch
+// sync log: it records each accepted/rejected GPS fix (with the reason), gap
+// insertions, permission results, and app foreground/background transitions, so a
+// screen-off run can be inspected to see exactly when and why fixes stop. Off by
+// default (nothing recorded until the reveal flag is on); bounded ring buffer.
+export const GEO_DIAG_LOG_KEY = "rc_geo_diag_log";   // JSON ring buffer of tracker events
+export const GEO_DIAG_LOG_MAX = 2000;                // cap on stored events (FIFO)
+export const GEO_DEBUG_KEY = "rc_geo_debug";         // "1" enables logging + reveals the panel
+
 // ── Heart-rate sensor (native) — all PER-DEVICE, never in the synced blob ──
 // The *method* preference (off/bluetooth/healthconnect) lives in synced settings
 // (settings.hrMethod); the concrete paired device and one-shot UI flags are local
 // because Bluetooth bonding is inherently per-device (a synced device id would
 // show as "paired" on a phone where it isn't bonded). Mirrors the telemetry-
 // consent / bg-disclosure decision to keep device-specific state out of the blob.
+// One-time coach data notice — the AI coach can read detailed run data
+// (splits/HR digests via get_run_detail). Per-device like the other one-shot
+// disclosure flags: a fresh browser shows the notice again, which is the
+// privacy-conservative direction.
+export const COACH_DETAIL_NOTICE_KEY = "rc_coach_detail_notice_v1";
+
 export const HR_DEVICE_KEY = "rc_hr_device";          // JSON {id,name} of the bonded BLE sensor
 export const HR_BLE_DISCLOSED_KEY = "rc_hr_ble_disclosed"; // BLE permission disclosure seen
 export const HR_HEALTH_CONNECT_AUTH_KEY = "rc_hr_healthconnect_auth"; // local HC permission was granted
@@ -117,9 +140,20 @@ export const TIP_JAR_URL = "https://buymeacoffee.com/theo.camboulive";
 // quota. Without the env var the tracker still records — RouteMap just shows a
 // "needs key" notice instead of tiles. Attribution stays visible per the OSM
 // data licence.
+//
+// Style is a custom MapTiler map (id below) forked from `outdoor-v4` and
+// decluttered for running: it keeps the runnable network (paths, tracks,
+// trails, pedestrian ways, steps), terrain (hillshade + contours),
+// green landcover and water prominent, and drops the noise a runner doesn't
+// need (commercial/tourism POIs, ski lifts, cycle overlays, airports, road
+// shields). Served as raster PNG tiles by style id, same host/key/CSP as any
+// built-in slug. Editable at cloud.maptiler.com; shared by every map surface
+// (live tracker, run detail, history preview, race location picker) via this
+// one constant.
+export const MAP_STYLE_ID = "019f90e1-4015-7fca-8856-0e11ad68a80d";
 export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
 export const MAP_TILE_URL =
-  "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
+  `https://api.maptiler.com/maps/${MAP_STYLE_ID}/256/{z}/{x}/{y}.png?key=` + MAP_KEY;
 export const MAP_ATTRIBUTION =
   '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
 

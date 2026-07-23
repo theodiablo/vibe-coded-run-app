@@ -6,6 +6,8 @@
 import { afterAll, describe, expect, it } from "vitest";
 // @ts-expect-error Shared edge-function ESM has no TypeScript declarations yet.
 import { generateProposal, buildMessages } from "../../supabase/functions/_shared/coach/engine.mjs";
+// @ts-expect-error Shared edge-function ESM has no TypeScript declarations yet.
+import { createMockModel } from "../../supabase/functions/_shared/coach/mock.mjs";
 import { validatePlan } from "./coachValidation";
 import { buildPlan } from "./plan";
 import { ymd } from "./format";
@@ -38,7 +40,9 @@ function makeContext(report: string) {
     plan,
     report,
     today: ymd(new Date()),
-    recentRuns: [{ date: ymd(new Date(Date.now() - 3 * 86400000)), type: "EASY", km: 6, durationSec: 6 * 380 }],
+    // Mirrors the production projection in coach-agent/index.ts (id + hasDetail
+    // are what get_run_detail keys off).
+    recentRuns: [{ id: "seed-1", date: ymd(new Date(Date.now() - 3 * 86400000)), type: "EASY", km: 6, durationSec: 6 * 380, hasDetail: false }],
     goal: { raceDate: plan.raceDate, distanceKm: 21.1, goalSec: 6600 },
     goalSec: 6600,
     distanceKm: 21.1,
@@ -276,6 +280,154 @@ const cases = [
       expect(result.status).toBe("proposed");
       expect(result.changed).toBe(false);
       expect(result.plan).toEqual(context.plan);
+    },
+  },
+  {
+    name: "get_run_detail digest reaches the model, is audited, and stays out of toolCalls",
+    async check() {
+      const context = makeContext("why was my heart rate so high on that hilly run?");
+      context.recentRuns = [{ id: "run-1", date: context.recentRuns[0].date, type: "EASY", km: 6, durationSec: 6 * 380, hasDetail: true }];
+      const digest = { runId: "run-1", splits: [{ km: 1, paceSecPerKm: 372, elevGainM: 24, avgHr: 158 }], notes: [] };
+      const fetched: string[] = [];
+      const inner = scriptedModel([[{ name: "get_run_detail", input: { run_id: "run-1" } }], []]);
+      let secondCallMessages: { role: string; content: unknown }[] = [];
+      const result = await generateProposal({
+        baseline: context.plan,
+        context,
+        callModel: async (messages: { role: string; content: unknown }[]) => {
+          if (fetched.length) secondCallMessages = messages;
+          return inner();
+        },
+        fetchRunDetail: async (runId: string) => { fetched.push(runId); return digest; },
+      });
+      expect(result.status).toBe("proposed");
+      expect(result.changed).toBe(false);
+      expect(fetched).toEqual(["run-1"]);
+      expect(result.toolCalls).toEqual([]);
+      expect(result.runDetailFetches).toEqual([{ runId: "run-1", digest }]);
+      // The digest JSON must have been fed back to the model as a tool_result.
+      // Double-escaped: the digest is JSON inside a tool_result string.
+      const feedback = JSON.stringify(secondCallMessages);
+      expect(feedback).toContain('\\"avgHr\\":158');
+      expect(feedback).not.toContain("is_error");
+    },
+  },
+  {
+    name: "get_run_detail with an unknown id answers without touching the fetcher",
+    async check() {
+      const context = makeContext("analyse my run from last month");
+      let fetches = 0;
+      const result = await generateProposal({
+        baseline: context.plan,
+        context,
+        callModel: scriptedModel([[{ name: "get_run_detail", input: { run_id: "nope" } }], []]),
+        fetchRunDetail: async () => { fetches++; return {}; },
+      });
+      expect(result.status).toBe("proposed");
+      expect(fetches).toBe(0);
+      expect(result.runDetailFetches).toEqual([]);
+    },
+  },
+  {
+    name: "get_run_detail beyond the per-round budget returns DETAIL_BUDGET as is_error",
+    async check() {
+      const context = makeContext("compare all my recent runs in detail");
+      context.recentRuns = ["a", "b", "c", "d"].map(id =>
+        ({ id, date: context.today, type: "EASY", km: 5, durationSec: 1500, hasDetail: true }));
+      let secondCallMessages: { role: string; content: unknown }[] = [];
+      let calls = 0;
+      const inner = scriptedModel([
+        ["a", "b", "c", "d"].map(id => ({ name: "get_run_detail", input: { run_id: id } })),
+        [],
+      ]);
+      const result = await generateProposal({
+        baseline: context.plan,
+        context,
+        callModel: async (messages: { role: string; content: unknown }[]) => {
+          if (calls++ === 1) secondCallMessages = messages;
+          return inner();
+        },
+        fetchRunDetail: async (runId: string) => ({ runId }),
+      });
+      expect(result.status).toBe("proposed");
+      expect(result.runDetailFetches).toHaveLength(3);
+      expect(JSON.stringify(secondCallMessages)).toContain("DETAIL_BUDGET");
+    },
+  },
+  {
+    name: "an unknown id after the budget is spent answers accurately, not DETAIL_BUDGET",
+    async check() {
+      const context = makeContext("compare my runs, then one more");
+      context.recentRuns = ["a", "b", "c"].map(id =>
+        ({ id, date: context.today, type: "EASY", km: 5, durationSec: 1500, hasDetail: true }));
+      let secondCallMessages: { role: string; content: unknown }[] = [];
+      let calls = 0;
+      const inner = scriptedModel([
+        [...["a", "b", "c"].map(id => ({ name: "get_run_detail", input: { run_id: id } })),
+          { name: "get_run_detail", input: { run_id: "nope" } }],
+        [],
+      ]);
+      const result = await generateProposal({
+        baseline: context.plan,
+        context,
+        callModel: async (messages: { role: string; content: unknown }[]) => {
+          if (calls++ === 1) secondCallMessages = messages;
+          return inner();
+        },
+        fetchRunDetail: async (runId: string) => ({ runId }),
+      });
+      expect(result.status).toBe("proposed");
+      expect(result.runDetailFetches).toHaveLength(3);
+      const feedback = JSON.stringify(secondCallMessages);
+      expect(feedback).toContain("Unknown run id");
+      expect(feedback).not.toContain("DETAIL_BUDGET");
+    },
+  },
+  {
+    name: "a read-only-only round that exhausts the model-call budget still surfaces its answer",
+    async check() {
+      const context = makeContext("deep-dive my runs forever");
+      context.recentRuns = [{ id: "run-1", date: context.today, type: "EASY", km: 6, durationSec: 2280, hasDetail: true }];
+      // scriptedModel repeats its last turn, so the model NEVER stops calling
+      // get_run_detail — MAX_MODEL_CALLS is exhausted without a tool-free turn.
+      const result = await generateProposal({
+        baseline: context.plan,
+        context,
+        callModel: scriptedModel([[{ name: "get_run_detail", input: { run_id: "run-1" } }]]),
+        fetchRunDetail: async (runId: string) => ({ runId }),
+      });
+      // The old terminal gate keyed only on toolCalls.length and misreported
+      // this as no_valid_adjustment, discarding the coach's text.
+      expect(result.status).toBe("proposed");
+      expect(result.changed).toBe(false);
+      expect(result.plan).toEqual(context.plan);
+      expect(result.rationale).toBeTruthy();
+      expect(result.runDetailFetches).toHaveLength(3);
+    },
+  },
+  {
+    name: "mock model routes pain-plus-analysis phrasing to the injury path, not a detail fetch",
+    async check() {
+      const context = makeContext("my knee hurt on that run, can you analyse my run?");
+      const resp = await createMockModel(context)([{ role: "user", content: context.report }]);
+      const names = resp.content.filter((b: { type: string }) => b.type === "tool_use")
+        .map((b: { name: string }) => b.name);
+      expect(names).toContain("convert_to_cross_training");
+      expect(names).not.toContain("get_run_detail");
+    },
+  },
+  {
+    name: "get_run_detail without an injected fetcher degrades to a plain answer",
+    async check() {
+      const context = makeContext("how did my last run go?");
+      context.recentRuns = [{ id: "run-1", date: context.today, type: "EASY", km: 6, durationSec: 2280, hasDetail: true }];
+      const result = await run(context, [
+        [{ name: "get_run_detail", input: { run_id: "run-1" } }],
+        [],
+      ], "From the summary alone: that run looks steady.");
+      expect(result.status).toBe("proposed");
+      expect(result.changed).toBe(false);
+      expect((result as { runDetailFetches?: unknown[] }).runDetailFetches).toEqual([]);
     },
   },
   {

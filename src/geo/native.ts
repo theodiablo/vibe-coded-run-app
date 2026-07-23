@@ -1,5 +1,7 @@
 import { registerPlugin } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
+import { ensureBackgroundLocationOnce } from "./background";
+import { logTrack } from "./trackLog";
 import { t } from "../i18n";
 
 type BgLocation = {
@@ -154,11 +156,24 @@ export const nativeSource = {
     return isGranted(await Geolocation.checkPermissions());
   },
 
-  // Request foreground location, showing the OS dialog. Called from the consent
-  // flow so the prompt appears right after the user accepts the disclosure — not
-  // only when recording starts. Precise (FINE) so the OS offers the precise
-  // toggle — run tracking needs GPS accuracy. Returns true if usable.
-  requestPermissions: () => ensureForegroundPermission(true),
+  // Request the location we need to record, showing the OS dialog(s). Called from
+  // the consent flow so the prompt appears right after the user accepts the
+  // disclosure — not only when recording starts. Precise (FINE) so the OS offers
+  // the precise toggle — run tracking needs GPS accuracy.
+  //
+  // Two-step by Android mandate: foreground FIRST, then the ACCESS_BACKGROUND_LOCATION
+  // ("Allow all the time") upgrade. On Android 11+ background CANNOT be offered in
+  // the first dialog and always routes to a Settings screen, so the best we can do
+  // is fire it immediately after the foreground grant here (during consent) rather
+  // than deferring it to Start, where it read as a surprise mid-run redirect. Once
+  // per install; a no-op where the permission isn't declared (web/iOS). Returns
+  // whether foreground location is usable — a declined background upgrade never
+  // blocks the run (recording still works while the screen is on).
+  async requestPermissions() {
+    const granted = await ensureForegroundPermission(true);
+    if (granted) await ensureBackgroundLocationOnce(); // "Allow all the time" upgrade
+    return granted;
+  },
 
   // Returns a sync handle immediately. The underlying watcher id resolves
   // asynchronously; `handle.removed` covers a clearWatch that races ahead of it.
@@ -176,13 +191,18 @@ export const nativeSource = {
         try {
           granted = await ensureForegroundPermission(true); // precise — run tracking needs FINE GPS
         } catch (e) {
+          logTrack("perm", { ok: false, msg: "fg-throw" });
           onErr?.(adaptBgError(e)); // surface — do not hide a broken prompt
           return;
         }
+        logTrack("perm", { ok: !!granted, msg: "fg" });
         if (!granted) {
           onErr?.(adaptBgError({ code: "NOT_AUTHORIZED", message: t("tracker.errors.permissionNotGranted") }));
           return;
         }
+        // The "Allow all the time" upgrade (debug build only) is requested up front
+        // in requestPermissions(), which every Start/Resume path awaits before the
+        // watcher is added — so it's part of the consent flow, not a surprise here.
         if (handle.removed) return;
         try {
           const id = await BackgroundGeolocation.addWatcher(
@@ -194,13 +214,14 @@ export const nativeSource = {
               backgroundMessage: t("tracker.notif.body"),
             },
             (location, error) => {
-              if (error) { onErr?.(adaptBgError(error)); return; }
+              if (error) { logTrack("error", { msg: `bg-watch ${error.message || error.code || ""}`.trim() }); onErr?.(adaptBgError(error)); return; }
               if (location) onPos(adaptBgLocation(location));
             },
           );
           if (handle.removed) BackgroundGeolocation.removeWatcher({ id });
-          else handle.id = id;
+          else { handle.id = id; logTrack("watch-start", { msg: "background" }); }
         } catch (e) {
+          logTrack("error", { msg: "addWatcher-fail" });
           onErr?.(adaptBgError(e));
         }
       })();
@@ -221,7 +242,7 @@ export const nativeSource = {
     if (!handle) return;
     handle.removed = true;
     if (handle.id == null) return; // not yet started; the resolver above will remove it
-    if (handle.background) BackgroundGeolocation.removeWatcher({ id: handle.id });
+    if (handle.background) { logTrack("watch-stop", { msg: "background" }); BackgroundGeolocation.removeWatcher({ id: handle.id }); }
     else Geolocation.clearWatch({ id: handle.id });
   },
 

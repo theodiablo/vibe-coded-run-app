@@ -10,7 +10,9 @@ import { getPairedDevice, setPairedDevice, forgetPairedDevice } from "../hr/devi
 import { HrSensorDisclosure } from "../modals/HrSensorDisclosure";
 import { importProviders, healthStoreProviderIds, providerEnabledInSettings } from "../imports/registry";
 import { isWatchDebugEnabled, setWatchDebug } from "../watch/scanLog";
+import { setGeoDebug } from "../geo/trackLog";
 import { WatchSyncLog } from "./WatchSyncLog";
+import { TrackDiagLog } from "./TrackDiagLog";
 import { BetaBadge } from "../components/BetaBadge";
 import { HR_BLE_DISCLOSED_KEY, PLAY_STORE_BETA_URL, APP_STORE_URL, TESTFLIGHT_BETA_URL } from "../constants";
 import type { ImportProvider } from "../imports/types";
@@ -546,8 +548,9 @@ export function ConnectionsCard(props: ConnectionsProps) {
     tapsRef.current = 0;
     const next = !isWatchDebugEnabled();
     setWatchDebug(next);
+    setGeoDebug(next); // same gesture arms GPS tracking logging (off = no cost on normal runs)
     setDebug(next);
-    showToast?.(next ? "Developer sync log enabled" : "Developer sync log hidden");
+    showToast?.(next ? "Developer logs enabled" : "Developer logs hidden");
   };
 
   useEffect(() => {
@@ -585,6 +588,7 @@ export function ConnectionsCard(props: ConnectionsProps) {
       </HowItWorks>
 
       {debug && <WatchSyncLog onHide={() => setDebug(false)} />}
+      {debug && isNative && <TrackDiagLog onHide={() => setDebug(false)} />}
     </div>
   );
 }

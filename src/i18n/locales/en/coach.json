@@ -11,6 +11,10 @@
     "moveLongRun": "Move my long run to Sunday",
     "confidence": "Build confidence for race day"
   },
+  "detailNotice": {
+    "text": "To answer some questions, the coach may read detailed data from your recent runs, including heart rate. Your GPS location is never shared with it.",
+    "gotIt": "Got it"
+  },
   "sessionGreeting": "Let's talk about your {{type}} run on {{date}} ({{km}} km). What's on your mind — too hard, wrong day, or something else? I'll suggest a safe adjustment and you'll see it before anything changes.",
   "sessionExamples": {
     "tooHard": "This feels too hard for where I am",

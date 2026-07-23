@@ -5,6 +5,8 @@
 //   "missed|skipped"        → recovery week on the next upcoming week
 //   "add|extra + run|session|day" → add_session: a modest EASY run on the day
 //                             after the next upcoming session (outside taper)
+//   "split|heart rate|hr …"  → get_run_detail on the newest hasDetail run,
+//                             then a text-only analysis (no plan change)
 //   "force-invalid"         → repeatedly proposes intervals inside the taper,
 //                             exercising the validator-retry → no_valid_adjustment path
 //   anything else           → text-only answer, no tool calls
@@ -71,6 +73,15 @@ export function createMockModel(context) {
         [tu("convert_to_cross_training", { session_id: hard.id }, 0),
          tu("reduce_week_volume", { week_number: hard.weekNumber, factor: 0.7 }, 1)],
         "Sorry about the knee — let's take the impact out and unload this week.");
+    }
+
+    // AFTER the pain branch: "my knee hurt, can you analyse my run?" must take
+    // the injury-adjustment path, not a no-change detail fetch.
+    if (/\bsplits?\b|heart rate|\bhr\b.{0,20}(spike|drift|high)|analy[sz]e.{0,25}\brun\b/.test(text)) {
+      const detailed = (context.recentRuns || []).find(r => r.hasDetail && r.id);
+      return useTools(
+        [tu("get_run_detail", { run_id: detailed?.id ?? "mock-run-id" })],
+        "Let me look at how that run actually unfolded.");
     }
 
     if (/\b(add|extra)\b/.test(text) && /\b(run|session|day)\b/.test(text)) {
