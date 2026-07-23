@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -8,6 +8,7 @@ import { useRouteTrace } from "../hooks/useRouteTrace";
 import { buildRunSeries } from "../utils/runSeries";
 import { buildSplits } from "../utils/runSplits";
 import { timeInZones, effectiveMaxHR, HR_ZONES } from "../utils/hr";
+import { flattenTrack, haversineM } from "../utils/geo";
 import { fmt } from "../utils/format";
 import type { HrSample, RunSeriesRow } from "../utils/runSeries";
 import type { TrackPointOrGap } from "../utils/geo";
@@ -34,16 +35,23 @@ function Chip({ on, color, label, onToggle }: { on: boolean; color: string; labe
 // (a categorical axis would evenly space unevenly-spaced post-simplify points)
 // and the distinct per-series `yAxisId`s (recharts throws if a series references
 // a yAxisId with no matching YAxis).
-export function RunChart({ series, show, hasElev, hasHr }: {
+export const RunChart = memo(function RunChart({ series, show, hasElev, hasHr, onCursor }: {
   series: RunSeriesRow[];
   show: { elev: boolean; pace: boolean; hr: boolean };
   hasElev: boolean;
   hasHr: boolean;
+  onCursor?: (i: number | null) => void;
 }) {
   const { t } = useTranslation();
+  // recharts hands the chart state (with activeTooltipIndex — the index into
+  // `data`, which aligns 1:1 with the flattened track) to move/click; onClick
+  // also covers touch taps, where mouse-move never fires.
+  const pick = (s: { activeTooltipIndex?: number | string | null } | null | undefined) =>
+    onCursor?.(typeof s?.activeTooltipIndex === "number" ? s.activeTooltipIndex : null);
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <ComposedChart data={series} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+      <ComposedChart data={series} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}
+        onMouseMove={pick} onClick={pick} onMouseLeave={() => onCursor?.(null)}>
         <CartesianGrid strokeDasharray="3 3" stroke="#0f172a" />
         {/* Numeric distance axis: post-simplify points are unevenly spaced in km,
             so a categorical axis would misplace where things happened. */}
@@ -71,6 +79,37 @@ export function RunChart({ series, show, hasElev, hasHr }: {
           <Line yAxisId="hr" type="monotone" dataKey="hr" stroke={HR_CLR} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />}
       </ComposedChart>
     </ResponsiveContainer>
+  );
+});
+
+// The highlighted-point readout under the chart. Exported so a render test can
+// assert the formatting/omission rules directly. A fixed min-height keeps the
+// layout stable when the cursor appears and clears.
+export function Readout({ row, hasHr, hasElev }: { row: RunSeriesRow | null; hasHr: boolean; hasElev: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <div aria-live="polite" className="flex flex-wrap items-center gap-x-4 gap-y-1 min-h-[1.75rem] text-sm">
+      {row ? (
+        <>
+          <span className="text-slate-100 font-semibold tabular-nums">{t("progress.detail.tooltip.km", { v: row.distKm.toFixed(2) })}</span>
+          <span className="tabular-nums" style={{ color: PACE_CLR }}>
+            {row.paceSecPerKm != null ? t("progress.detail.tooltip.pace", { pace: fmt.pace(row.paceSecPerKm) }) : "—"}
+          </span>
+          {hasElev && (
+            <span className="tabular-nums" style={{ color: ELEV_CLR }}>
+              {row.elevM != null ? t("progress.detail.tooltip.elevation", { v: Math.round(row.elevM) }) : "—"}
+            </span>
+          )}
+          {hasHr && (
+            <span className="tabular-nums" style={{ color: HR_CLR }}>
+              {row.hr != null ? t("progress.detail.tooltip.hr", { bpm: Math.round(row.hr) }) : "—"}
+            </span>
+          )}
+        </>
+      ) : (
+        <span className="text-slate-500">{t("progress.detail.readout.hint")}</span>
+      )}
+    </div>
   );
 }
 
@@ -110,6 +149,9 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
     return {
       hasPoints: points.length > 0,
       series,
+      // flat[i] is the SAME point as series[i] (buildRunSeries walks flattenTrack
+      // in order, one row per real point) — the backbone of the chart↔map link.
+      flat: points.length ? flattenTrack(points) : [],
       splits: points.length ? buildSplits(points, hrSamples) : [],
       zones: timeInZones(hrSamples, maxHR, restHR),
       // HR presence is the RAW stream, not per-point alignment — so the chart HR
@@ -119,8 +161,27 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
       hasElev: series.some(r => r.elevM != null),
     };
   }, [route, maxHR, restHR]);
-  const { hasPoints, series, splits, zones, hasHr, hasElev } = derived;
+  const { hasPoints, series, flat, splits, zones, hasHr, hasElev } = derived;
   const zoneTotal = zones.reduce((s, z) => s + z.sec, 0);
+
+  // Shared chart↔map cursor: the active series/flat index (a single nullable
+  // number). Derived during render (not an effect), clamped to the current trace
+  // so a cursor left over from a prior run can't index out of range.
+  const [cursor, setCursor] = useState<number | null>(null);
+  const active = cursor != null && cursor >= 0 && cursor < flat.length ? cursor : null;
+  const highlight = active != null ? { lat: flat[active].lat, lng: flat[active].lng } : null;
+  const onCursor = useCallback((i: number | null) => setCursor(i), []);
+  // Map tap → nearest flattened point (best-effort). Reads the memoised flat array.
+  const onPick = useCallback((loc: { lat: number; lng: number }) => {
+    const fp = derived.flat;
+    if (!fp.length) return;
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < fp.length; i++) {
+      const d = haversineM(loc, { lat: fp[i].lat, lng: fp[i].lng });
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    setCursor(best);
+  }, [derived.flat]);
 
   const pace = run.km && run.durationSec ? run.durationSec / run.km : 0;
 
@@ -170,9 +231,10 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
 
         {hasPoints && route && (
           <>
-            <RouteMap points={route.points} interactive className="h-56 rounded-xl overflow-hidden" />
+            <RouteMap points={route.points} interactive endpoints highlight={highlight} onPick={onPick}
+              className="h-56 rounded-xl overflow-hidden" />
 
-            {/* Series toggles + combined chart */}
+            {/* Series toggles + combined chart + highlighted-point readout */}
             <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
               <div className="flex flex-wrap gap-1">
                 {hasElev && <Chip on={show.elev} color={ELEV_CLR} label={t("progress.detail.series.elevation")}
@@ -182,7 +244,8 @@ export function RunDetailModal({ run, settings, onClose }: Props) {
                 {hasHr && <Chip on={show.hr} color={HR_CLR} label={t("progress.detail.series.heartRate")}
                   onToggle={() => setShow(s => ({ ...s, hr: !s.hr }))} />}
               </div>
-              <RunChart series={series} show={show} hasElev={hasElev} hasHr={hasHr} />
+              <RunChart series={series} show={show} hasElev={hasElev} hasHr={hasHr} onCursor={onCursor} />
+              <Readout row={active != null ? series[active] : null} hasHr={hasHr} hasElev={hasElev} />
             </div>
           </>
         )}

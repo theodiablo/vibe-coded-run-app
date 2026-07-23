@@ -26,6 +26,7 @@ declare module "leaflet" {
     removeControl: (control: Control) => Map;
     remove: () => void;
     on: (event: string, cb: (e: LeafletEvent) => void) => Map;
+    off: (event: string, cb?: (e: LeafletEvent) => void) => Map;
     dragging?: ToggleHandler;
     scrollWheelZoom?: ToggleHandler;
     doubleClickZoom?: ToggleHandler;

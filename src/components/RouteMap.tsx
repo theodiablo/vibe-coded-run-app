@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useCallback } from "react";
+import type { CSSProperties, MutableRefObject } from "react";
 import { useTranslation } from "react-i18next";
 import L, { type Circle, type Control, type LatLngExpression, type Map, type Marker, type Polyline } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -11,9 +11,15 @@ import { segments } from "../utils/geo";
 // re-rendering React, and to avoid a React-version-coupled dependency.
 //
 // `points` is the tracker tuple array ([lat,lng,t,alt], null = gap). `follow`
-// recenters on the latest fix while live.
+// recenters on the latest fix while live — nav-app style: the user can pan/zoom
+// to take over (which suspends follow, reported via `onFollowingChange`), and a
+// bump of `recenterSignal` snaps back to the current position at a default zoom
+// and re-arms follow. `endpoints` swaps the live "head" dot for distinct
+// start/finish markers (finished-run view), `highlight` pins a marker at an
+// externally-driven point (chart hover), and `onPick` reports map taps back.
 export type TrackPoint = [number, number, number, number | null] | LatLngExpression;
 type PreviewLocation = { lat: number; lng: number; acc?: number | null };
+type LatLng = { lat: number; lng: number };
 type RouteMapProps = {
   points?: (TrackPoint | null)[];
   follow?: boolean;
@@ -21,20 +27,55 @@ type RouteMapProps = {
   location?: PreviewLocation | null;
   className?: string;
   style?: CSSProperties;
+  endpoints?: boolean;
+  highlight?: LatLng | null;
+  onPick?: (loc: LatLng) => void;
+  recenterSignal?: number;
+  onFollowingChange?: (following: boolean) => void;
 };
 
 type ToggleKey = "dragging" | "scrollWheelZoom" | "doubleClickZoom" | "boxZoom" | "keyboard" | "touchZoom" | "tap";
 
-export function RouteMap({ points = [], follow = false, interactive = true, location = null, className = "", style }: RouteMapProps) {
+const LIVE_DEFAULT_ZOOM = 16; // recenter/snap-back zoom for the live map
+
+export function RouteMap({ points = [], follow = false, interactive = true, location = null, className = "", style,
+  endpoints = false, highlight = null, onPick, recenterSignal = 0, onFollowingChange }: RouteMapProps) {
   const { t } = useTranslation();
   const elRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const linesRef = useRef<Polyline[]>([]);
   const dotRef = useRef<Marker | null>(null);
+  const startRef = useRef<Marker | null>(null);      // start-of-route marker (endpoints mode)
+  const finishRef = useRef<Marker | null>(null);     // finish-of-route marker (endpoints mode)
+  const highlightRef = useRef<Marker | null>(null);  // externally-driven point highlight
+  const headRef = useRef<LatLngExpression | null>(null); // latest head, read by the recenter effect
   const locDotRef = useRef<Marker | null>(null);     // preview position dot (before recording)
   const locCircleRef = useRef<Circle | null>(null);  // accuracy circle around the preview dot
   const locCenteredRef = useRef(false);
   const zoomCtrlRef = useRef<Control | null>(null);
+  const followingRef = useRef(true);                 // nav-follow armed & not user-suspended
+  const programmaticRef = useRef(false);             // guards our own setView from the gesture handler
+  const onFollowingChangeRef = useRef(onFollowingChange);
+  useEffect(() => { onFollowingChangeRef.current = onFollowingChange; });
+
+  // Flip the internal follow state and notify the parent only on a real change,
+  // so the recenter button can appear/disappear without redundant re-renders.
+  const emitFollowing = useCallback((v: boolean) => {
+    if (followingRef.current === v) return;
+    followingRef.current = v;
+    onFollowingChangeRef.current?.(v);
+  }, []);
+
+  // Our own recenters must not read as a user gesture (which would suspend
+  // follow). setView({animate:false}) runs synchronously, so bracketing it with
+  // this flag reliably covers the move/zoom events it fires.
+  const programmaticSetView = useCallback((ll: LatLngExpression, zoom: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    programmaticRef.current = true;
+    map.setView(ll, zoom, { animate: false });
+    programmaticRef.current = false;
+  }, []);
 
   // Create the map once. Recreating it whenever interactivity changes would snap
   // the view back to the world map (it happened on every Start) — so interactive
@@ -52,12 +93,35 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
       mapRef.current = null;
       linesRef.current = [];
       dotRef.current = null;
+      startRef.current = null;
+      finishRef.current = null;
+      highlightRef.current = null;
+      headRef.current = null;
       locDotRef.current = null;
       locCircleRef.current = null;
       zoomCtrlRef.current = null;
       locCenteredRef.current = false;
     };
   }, []);
+
+  // Nav-follow: a manual pan or zoom suspends auto-follow so the map stays where
+  // the user put it. `dragstart` is always user-initiated; `zoomstart` also fires
+  // for our own programmatic zoom, hence the programmatic guard.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const onGesture = () => { if (!programmaticRef.current) emitFollowing(false); };
+    map.on("dragstart", onGesture);
+    map.on("zoomstart", onGesture);
+    return () => { map.off("dragstart", onGesture); map.off("zoomstart", onGesture); };
+  }, [emitFollowing]);
+
+  // Re-arm follow whenever it's (re)enabled — e.g. Start/Resume after the user
+  // panned the idle preview — so a prior manual pan doesn't leave the live map
+  // stuck off-centre.
+  useEffect(() => {
+    if (follow) emitFollowing(true);
+  }, [follow, emitFollowing]);
 
   // Enable/disable pan-zoom without tearing the map down (which would reset the
   // view). Tracking shows a non-interactive, auto-following map.
@@ -82,6 +146,16 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
 
     linesRef.current.forEach(l => l.remove());
     linesRef.current = [];
+    const dot = (bg: string, size = 14) => L.divIcon({
+      className: "",
+      html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:${bg};border:2px solid #fff;box-shadow:0 0 0 2px rgba(15,23,42,.35)"></div>`,
+      iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+    });
+    const place = (ref: MutableRefObject<Marker | null>, ll: LatLngExpression, icon: unknown) => {
+      if (ref.current) ref.current.setLatLng(ll).setIcon(icon);
+      else ref.current = L.marker(ll, { icon, interactive: false }).addTo(map);
+    };
+    const drop = (ref: MutableRefObject<Marker | null>) => { if (ref.current) { ref.current.remove(); ref.current = null; } };
 
     const segs = segments(points) as LatLngExpression[][];
     const all: LatLngExpression[] = [];
@@ -103,29 +177,88 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
       prevEnd = seg[seg.length - 1];
     });
 
-    // Current-position dot (CSS divIcon — no external marker image, so no CSP
-    // or bundler icon-path issues).
+    // Head of the track = current position (live) or the last recorded point.
     const lastSeg = segs[segs.length - 1];
-    const head = lastSeg && lastSeg[lastSeg.length - 1];
-    if (head) {
-      const icon = L.divIcon({
-        className: "",
-        html: '<div style="width:14px;height:14px;border-radius:9999px;background:#f97316;border:2px solid #fff;box-shadow:0 0 0 2px rgba(249,115,22,.4)"></div>',
-        iconSize: [14, 14], iconAnchor: [7, 7],
-      });
-      if (dotRef.current) dotRef.current.setLatLng(head).setIcon(icon);
-      else dotRef.current = L.marker(head, { icon, interactive: false }).addTo(map);
-    } else if (dotRef.current) {
-      dotRef.current.remove();
-      dotRef.current = null;
+    const head = (lastSeg && lastSeg[lastSeg.length - 1]) || null;
+    headRef.current = head;
+
+    if (endpoints) {
+      // Finished-run view: distinct start (green) + finish (checkered) markers.
+      // The live "head" dot is suppressed so it doesn't stack on the finish.
+      drop(dotRef);
+      const start = segs[0] && segs[0][0];
+      if (start) place(startRef, start, dot("#22c55e")); else drop(startRef);
+      if (head) {
+        const finishIcon = L.divIcon({
+          className: "",
+          html: '<div style="width:20px;height:20px;border-radius:6px;background:#fff;box-shadow:0 0 0 2px rgba(15,23,42,.35);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);overflow:hidden">'
+            + [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<span style="background:${(i + Math.floor(i / 3)) % 2 ? "#0f172a" : "#fff"}"></span>`).join("")
+            + "</div>",
+          iconSize: [20, 20], iconAnchor: [10, 10],
+        });
+        place(finishRef, head, finishIcon);
+      } else drop(finishRef);
+    } else {
+      // Live / preview / review: single orange current-position dot.
+      drop(startRef);
+      drop(finishRef);
+      if (head) place(dotRef, head, dot("#f97316")); else drop(dotRef);
     }
 
-    if (follow && head) {
-      map.setView(head, Math.max(map.getZoom(), 16), { animate: false });
+    // Camera: while follow is armed AND not user-suspended, keep the head centred
+    // (preserving the user's zoom). Otherwise, when not in follow mode, frame the
+    // whole route. A user-suspended live map is left exactly where they put it.
+    if (follow) {
+      if (followingRef.current && head) programmaticSetView(head, Math.max(map.getZoom(), LIVE_DEFAULT_ZOOM));
     } else if (all.length) {
       map.fitBounds(L.latLngBounds(all).pad(0.15), { animate: false });
     }
-  }, [points, follow]);
+  }, [points, follow, endpoints, programmaticSetView]);
+
+  // Externally-driven highlight (e.g. the run-detail chart hover). Keyed on the
+  // primitive lat/lng, not the object, so it doesn't re-create the marker on every
+  // unrelated re-render, and placed after the track effect so it layers on top.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (highlight) {
+      const icon = L.divIcon({
+        className: "",
+        html: '<div style="position:relative;width:16px;height:16px">'
+          + '<div class="route-highlight-ring" style="position:absolute;inset:0;border-radius:9999px;background:rgba(56,189,248,.45)"></div>'
+          + '<div style="position:absolute;inset:3px;border-radius:9999px;background:#38bdf8;border:2px solid #fff;box-shadow:0 0 0 1px rgba(56,189,248,.6)"></div>'
+          + '</div>',
+        iconSize: [16, 16], iconAnchor: [8, 8],
+      });
+      if (highlightRef.current) highlightRef.current.setLatLng([highlight.lat, highlight.lng]).setIcon(icon);
+      else highlightRef.current = L.marker([highlight.lat, highlight.lng], { icon, interactive: false }).addTo(map);
+    } else if (highlightRef.current) {
+      highlightRef.current.remove();
+      highlightRef.current = null;
+    }
+    // Keyed on the primitive coords, not the `highlight` object, so an unchanged
+    // point doesn't re-create the marker on every unrelated re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlight?.lat, highlight?.lng]);
+
+  // Report map taps back to the caller (run-detail: map → chart cursor).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !onPick) return;
+    const onClick = (e: { latlng: { lat: number; lng: number } }) => onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    map.on("click", onClick);
+    return () => { map.off("click", onClick); };
+  }, [onPick]);
+
+  // Snap-back: a bump of `recenterSignal` (recenter button, or returning from a
+  // locked screen) recentres on the current head at the default zoom and re-arms
+  // follow. The initial mount (signal 0) is a no-op — there's no head yet.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (headRef.current) programmaticSetView(headRef.current, LIVE_DEFAULT_ZOOM);
+    emitFollowing(true);
+  }, [recenterSignal, emitFollowing, programmaticSetView]);
 
   // Preview the current location + an accuracy circle before recording starts
   // (i.e. while there are no track points yet) so the user can confirm a good
@@ -156,7 +289,7 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
       }
 
       if (!locCenteredRef.current) {
-        map.setView(ll, Math.max(map.getZoom(), 16), { animate: false });
+        programmaticSetView(ll, Math.max(map.getZoom(), 16));
         locCenteredRef.current = true;
       }
     } else {
@@ -164,7 +297,7 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
       if (locCircleRef.current) { locCircleRef.current.remove(); locCircleRef.current = null; }
       locCenteredRef.current = false;
     }
-  }, [location, points.length]);
+  }, [location, points.length, programmaticSetView]);
 
   return (
     <div className={className} style={{ position: "relative", ...style }}>

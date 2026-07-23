@@ -73,6 +73,9 @@
       "pace": "{{pace}}/km",
       "hr": "{{bpm}} bpm"
     },
+    "readout": {
+      "hint": "Hover or tap the chart to inspect any point."
+    },
     "noRoute": "No route was recorded for this run.",
     "zones": {
       "title": "Time in heart-rate zones",

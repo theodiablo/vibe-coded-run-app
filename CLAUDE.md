@@ -442,11 +442,36 @@ and delete anything that becomes stale.
   series needs its own `yAxisId` matching a `<YAxis>` (recharts errors otherwise)
   — both guarded by the render test in `RunDetailModal.test.tsx`. HR series/cards
   render only when `stats.hrSamples` is present (degrade gracefully otherwise).
+  **Chart↔map link:** the map passes `endpoints` (distinct start/finish markers,
+  replacing the live head dot) and a `highlight` point; hovering/tapping the chart
+  sets a `cursor` (a single nullable **index**, derived-during-render + clamped to
+  the trace), and `RunChart` (now `memo`'d, with a stable `onCursor`) reports
+  recharts' `activeTooltipIndex`. This works ONLY because `buildRunSeries` and
+  `flattenTrack` emit one row per real point in the same order, so `series[i]` and
+  `flat[i]` are the same point — an invariant locked by a test in
+  `RunDetailModal.test.tsx`. Use the index, never `activeLabel` (float-matching the
+  numeric axis). The exported `Readout` shows the highlighted point's stats with a
+  fixed min-height (no layout shift); `onPick` maps a map tap back to the nearest
+  `flat` point.
 - **Geo math:** `src/utils/geo.ts` (haversine, jitter-gated `distanceKm`,
   hysteresis `elevGainM`, Douglas–Peucker `simplify`, `segments`). A point is the
   tuple `[lat, lng, tEpochMs, alt|null]`; a `null` entry is a GAP marker (don't
   bridge it). Map basemap is MapTiler — needs `VITE_MAPTILER_KEY` (records fine
   without it, just no tiles).
+- **`RouteMap` (`src/components/RouteMap.tsx`) is the ONE shared map** (imperative
+  Leaflet via refs, no react-leaflet, all markers inline SVG/CSS divIcons — no PNG,
+  CSP/native-WebView-safe). Additive props default inert so History/LocationPicker
+  are untouched: `endpoints`/`highlight`/`onPick` drive the run-detail chart link
+  (above). **Live nav-follow:** `follow` auto-centres the head, but a user pan/zoom
+  suspends it (`dragstart`/`zoomstart`, guarded against our own `programmaticSetView`
+  via a ref so a synchronous `setView({animate:false})` isn't read as a gesture),
+  reported via `onFollowingChange`; bumping `recenterSignal` snaps back to the head
+  at `LIVE_DEFAULT_ZOOM` and re-arms follow. `LiveRunTracker` keeps the live map
+  `interactive`, shows a recenter FAB while `!following`, and bumps `recenterSignal`
+  on `visibilitychange`→visible (screen unlock / app foreground) — the requested
+  zoom reset on return from a locked screen. New primitive-keyed effects
+  (`[highlight?.lat, highlight?.lng]`, `[recenterSignal]`) sit AFTER the track
+  effect so they layer on top and never fight the polyline redraw.
 - **Phase 2 — native background tracking:** browser tracking is foreground-only
   (screen must stay on). True background recording runs in the **Capacitor
   shells** (Android + iOS) that swap the GPS source behind `useRunTracker`'s

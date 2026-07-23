@@ -73,6 +73,9 @@
       "pace": "{{pace}}/km",
       "hr": "{{bpm}} ppm"
     },
+    "readout": {
+      "hint": "Pasa o toca el gráfico para inspeccionar un punto."
+    },
     "noRoute": "No se registró ninguna ruta para este entrenamiento.",
     "zones": {
       "title": "Tiempo por zona de frecuencia cardíaca",
