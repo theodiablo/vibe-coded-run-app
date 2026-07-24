@@ -62,7 +62,10 @@ jobs:
         env:
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
         run: |
-          aws s3 sync dist/ "s3://$S3_BUCKET_NAME" --delete
+          # --delete prunes bucket keys absent from dist/. Exclude the PR-preview
+          # prefix (deploy-pr.yml syncs previews to s3://<bucket>/pr/<n>/) so a
+          # production deploy never wipes open PRs' previews.
+          aws s3 sync dist/ "s3://$S3_BUCKET_NAME" --delete --exclude "pr/*"
 
       - name: Invalidate CloudFront cache
         env:
