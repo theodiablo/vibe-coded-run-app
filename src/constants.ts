@@ -141,20 +141,24 @@ export const TIP_JAR_URL = "https://buymeacoffee.com/theo.camboulive";
 // "needs key" notice instead of tiles. Attribution stays visible per the OSM
 // data licence.
 //
-// Style is a custom MapTiler map (id below) decluttered for running: it keeps
-// the runnable network (paths, tracks, trails, pedestrian ways, steps), terrain
-// (hillshade + contours), green landcover and water prominent, and drops the
-// noise a runner doesn't need (commercial/tourism POIs, ski lifts, cycle
-// overlays, airports, road shields). Served as raster PNG tiles by style id,
-// same host/key/CSP as any built-in slug. A custom style only renders with a
-// key from the account that owns it AND while it's published — a built-in slug
-// (e.g. `streets-v2`) is the fallback if that ever breaks. Editable at
-// cloud.maptiler.com; shared by every map surface (live tracker, run detail,
-// history preview, race location picker) via this one constant.
-export const MAP_STYLE_ID = "019f92a7-d9f3-7642-824f-18d8d0da7000";
+// Style is the built-in standard `streets-v2` slug. Built-in slugs ship
+// pre-rendered raster tiles on every MapTiler plan (incl. free) and render with
+// ANY valid key. Shared by every map surface (live tracker, run detail, history
+// preview, race location picker) via this one constant.
+//
+// NOTE: a custom decluttered style (id 019f92a7-d9f3-7642-824f-18d8d0da7000)
+// was tried here but reverted. Root cause, confirmed from an allowed origin
+// with the production key: the style's vector `style.json` returns 200 but its
+// raster `.../256/{z}/{x}/{y}.png` endpoint returns 403 — server-side RASTER
+// rendering of a CUSTOM style is a paid-plan feature, while built-in slugs are
+// pre-rendered for all tiers. It is NOT the URL, key, account, publish state,
+// or Android. To use the custom style as raster: upgrade the MapTiler plan
+// (then just set MAP_TILE_URL back to `.../maps/${id}/256/...`, zero other
+// changes). To use it for free: render it as vector via MapLibre GL (a larger
+// change, away from the CSP/WebView-safe Leaflet raster setup).
 export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
 export const MAP_TILE_URL =
-  `https://api.maptiler.com/maps/${MAP_STYLE_ID}/256/{z}/{x}/{y}.png?key=` + MAP_KEY;
+  "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
 export const MAP_ATTRIBUTION =
   '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
 

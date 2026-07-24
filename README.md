@@ -295,6 +295,17 @@ won't load (the app shows a small "needs key" notice instead of tiles). Raw
 OpenStreetMap tiles are intentionally not used — the OSMF tile policy disallows
 them for a multi-user app.
 
+The basemap is a **built-in style slug** (`streets-v2`), set once in
+`src/constants.ts` (`MAP_TILE_URL`). Built-in slugs ship pre-rendered raster
+tiles on every plan (incl. free) and render with any valid key. A **custom**
+MapTiler style (a UUID from cloud.maptiler.com) is *not* a drop-in swap: its
+vector `style.json` serves for free, but its **raster** `.../256/{z}/{x}/{y}.png`
+endpoint returns **403 on the free plan** — server-side rasterizing a custom
+style is a paid feature. A custom decluttered style was tried and reverted for
+this reason; to adopt one, either upgrade the MapTiler plan (then just point
+`MAP_TILE_URL` at `.../maps/<id>/256/...`) or render it as vector via MapLibre
+GL.
+
 **Set the key as the `VITE_MAPTILER_KEY` build-time variable:**
 
 - **CI / deploys:** add `VITE_MAPTILER_KEY` as a **repository secret**
