@@ -141,21 +141,21 @@ export const TIP_JAR_URL = "https://buymeacoffee.com/theo.camboulive";
 // "needs key" notice instead of tiles. Attribution stays visible per the OSM
 // data licence.
 //
-// Style is a custom MapTiler map (id below) forked from `outdoor-v4` and
-// decluttered for running: it keeps the runnable network (paths, tracks,
-// trails, pedestrian ways, steps), terrain (hillshade + contours),
-// green landcover and water prominent, and drops the noise a runner doesn't
-// need (commercial/tourism POIs, ski lifts, cycle overlays, airports, road
-// shields). Served as raster PNG tiles by style id, same host/key/CSP as any
-// built-in slug. A custom style only renders with a key from the account that
-// owns it AND while it's published — a built-in slug (e.g. `streets-v2`) is the
-// fallback if that ever breaks. Editable at cloud.maptiler.com; shared by every
+// Style is the built-in standard `streets-v2` slug. A built-in slug renders
+// with ANY valid key, unlike an account-scoped custom style. Shared by every
 // map surface (live tracker, run detail, history preview, race location picker)
 // via this one constant.
-export const MAP_STYLE_ID = "019f90e1-4015-7fca-8856-0e11ad68a80d";
+//
+// NOTE: a custom decluttered style (id 019f90e1-4015-7fca-8856-0e11ad68a80d,
+// forked from outdoor-v4) was reverted here because it 403'd even from the
+// production origin with the correct key while `streets-v2` rendered fine in
+// the same build — so the style itself is unpublished or owned by a different
+// MapTiler account than the key. Restore it once that's fixed in
+// cloud.maptiler.com (re-publish, or re-fork under the key's account for a new
+// id).
 export const MAP_KEY = import.meta.env.VITE_MAPTILER_KEY || "";
 export const MAP_TILE_URL =
-  `https://api.maptiler.com/maps/${MAP_STYLE_ID}/256/{z}/{x}/{y}.png?key=` + MAP_KEY;
+  "https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=" + MAP_KEY;
 export const MAP_ATTRIBUTION =
   '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>';
 
