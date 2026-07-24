@@ -5,6 +5,7 @@ import { dayName } from "../i18n";
 import { fmt } from "../utils/format";
 import { runnerAge } from "../utils/hr";
 import { findEdition } from "../utils/races";
+import { routeSuggestEnabled } from "../constants";
 import { GoalConfigurator } from "../components/GoalConfigurator";
 import { PlanInfo } from "../components/PlanInfo";
 import { StylePicker } from "../components/StylePicker";
@@ -34,7 +35,7 @@ type PlanViewProps = {
   skipSess: (weekNumber: number, sessionId: string) => void;
   openSettings: () => void;
   openCoach: (session?: CoachSessionContext) => void;
-  openTracker: (link?: { wNum: number; sId: string }) => void;
+  openTracker: (link?: { wNum: number; sId: string; findRouteKm?: number }) => void;
   goLog: (prefill: Partial<Run>) => void;
   showToast: (msg: string, type?: string) => void;
   planPrefill?: PlanPrefill | null;
@@ -423,6 +424,9 @@ export function PlanView({plan, settings, runs, races, savePlan, saveSettings, b
                       onToggleDone={() => toggleSess(wk.weekNumber, s.id)}
                       onSkip={() => skipSess(wk.weekNumber, s.id)}
                       onAskCoach={() => openCoach({ session: s, weekNumber: wk.weekNumber })}
+                      onFindRoute={routeSuggestEnabled && Number(s.km) > 0
+                        ? () => openTracker({ wNum: wk.weekNumber, sId: s.id, findRouteKm: Number(s.km) })
+                        : undefined}
                       openSettings={openSettings}/>
                   ))}
                 </div>
