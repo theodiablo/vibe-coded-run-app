@@ -412,13 +412,17 @@ jobs:
       # minute multiplier. Keyed on the synced CapApp-SPM manifest (cap sync
       # rewrites it from package-lock.json, which is why this step sits AFTER
       # Sync Capacitor). Deliberately NOT caching DerivedData: its invalidation
-      # is unreliable and the caches are huge for a small win.
+      # is unreliable and the caches are huge for a small win. The repo name is
+      # part of the key because SwiftPM bakes the runner's absolute workspace
+      # path (which contains the repo name) into SourcePackages state — a cache
+      # from before a repo rename fails the archive with "no XCFramework found
+      # at /Users/runner/work/<old-name>/...".
       - name: Cache SPM packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ios/SourcePackages
-          key: spm-${{ runner.os }}-${{ hashFiles('ios/App/CapApp-SPM/Package.swift') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: spm-${{ runner.os }}-${{ github.event.repository.name }}-${{ hashFiles('ios/App/CapApp-SPM/Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-${{ github.event.repository.name }}-
 
       # CFBundleShortVersionString from the resolved release version (prepare
       # job); CFBundleVersion uses the same offset run_number*1000+run_attempt
