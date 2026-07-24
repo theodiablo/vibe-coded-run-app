@@ -307,7 +307,11 @@ export function RouteMap({ points = [], follow = false, interactive = true, loca
   }, [location, points.length, programmaticSetView]);
 
   return (
-    <div className={className} style={{ position: "relative", ...style }}>
+    // `isolation: isolate` keeps Leaflet's internal z-indexes (panes up to 800,
+    // controls at 1000) contained to this box. Without it they leak to the root
+    // stacking context and can paint over a higher-level overlay — e.g. an inline
+    // History map bleeding through the full-screen RunDetailModal (z-50).
+    <div className={className} style={{ position: "relative", isolation: "isolate", ...style }}>
       <div ref={elRef} style={{ position: "absolute", inset: 0 }} />
       {!MAP_KEY && (
         <div className="absolute bottom-1 left-1 right-1 z-[400] text-[10px] text-amber-300 bg-slate-900/80 rounded px-1.5 py-0.5 pointer-events-none">
