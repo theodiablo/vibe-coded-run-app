@@ -81,13 +81,50 @@ errors otherwise) — both guarded by the render test in
 `RunDetailModal.test.tsx`. HR series/cards render only when `stats.hrSamples`
 is present (degrade gracefully otherwise).
 
+**Chart↔map link:** the map passes `endpoints` (distinct start/finish markers,
+replacing the live head dot) and a `highlight` point; hovering/tapping the
+chart sets a `cursor` (a single nullable **index**, derived-during-render +
+clamped to the trace), and `RunChart` (`memo`'d, with a stable `onCursor`)
+reports recharts' `activeTooltipIndex`. **Gotcha:** recharts v3 hands that
+index back as a STRING (`String(clampedIndex)`) for Line/Area/Composed charts,
+so coerce it through `activeIndexFromChartState` (a `typeof === "number"` check
+is always false → a permanently-null cursor). This works ONLY because
+`buildRunSeries` and `flattenTrack` emit one row per real point in the same
+order, so `series[i]` and `flat[i]` are the same point — an invariant locked by
+a test in `RunDetailModal.test.tsx`. Use the index, never `activeLabel`
+(float-matching the numeric axis). The exported `Readout` shows the highlighted
+point's stats with a fixed min-height (no layout shift); `onPick` maps a map
+tap back to the nearest `flat` point.
+
 ## Geo math
 
 `src/utils/geo.ts` (haversine, jitter-gated `distanceKm`, hysteresis
 `elevGainM`, Douglas–Peucker `simplify`, `segments`). A point is the tuple
 `[lat, lng, tEpochMs, alt|null]`; a `null` entry is a GAP marker (don't bridge
 it). Map basemap is MapTiler — needs `VITE_MAPTILER_KEY` (records fine without
-it, just no tiles).
+it, just no tiles). The style is a custom map (`MAP_STYLE_ID` in
+`src/constants.ts`) forked from `outdoor-v4` and decluttered for running;
+edited at cloud.maptiler.com and shared by every map surface via that one
+constant.
+
+## `RouteMap` — the ONE shared map
+
+`RouteMap` (`src/components/RouteMap.tsx`) is the one shared map component
+(imperative Leaflet via refs, no react-leaflet, all markers inline SVG/CSS
+divIcons — no PNG, CSP/native-WebView-safe). Additive props default inert so
+History/LocationPicker are untouched: `endpoints`/`highlight`/`onPick` drive
+the run-detail chart link (above). **Live nav-follow:** `follow` auto-centres
+the head, but a user pan/zoom suspends it (`dragstart`/`zoomstart`, guarded
+against our own `programmaticSetView` via a ref so a synchronous
+`setView({animate:false})` isn't read as a gesture), reported via
+`onFollowingChange`; bumping `recenterSignal` snaps back to the head at
+`LIVE_DEFAULT_ZOOM` and re-arms follow. `LiveRunTracker` keeps the live map
+`interactive`, shows a recenter FAB while `!following`, and bumps
+`recenterSignal` on `visibilitychange`→visible (screen unlock / app
+foreground) — the requested zoom reset on return from a locked screen. New
+primitive-keyed effects (`[highlight?.lat, highlight?.lng]`,
+`[recenterSignal]`) sit AFTER the track effect so they layer on top and never
+fight the polyline redraw.
 
 ## Native background tracking (the `geoSource` seam)
 
