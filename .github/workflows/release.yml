@@ -365,14 +365,21 @@ jobs:
       ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
       APPLE_DIST_CERT_P12_BASE64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-      # App bundle id + the App Store provisioning-profile name. The archive is
-      # manually distribution-signed with this profile (created fresh each run by
-      # the "Create App Store provisioning profile" step), so CI never touches
-      # Xcode's automatic-development-signing path that mints a throwaway,
-      # certificate-capped Apple Development cert per run. Keep these two in sync
-      # with PRODUCT_BUNDLE_IDENTIFIER and the script's PROFILE_NAME default.
+      # Bundle ids + App Store provisioning-profile names — app AND the Live
+      # Activity widget extension (an embedded target with its own bundle id, so
+      # the archive signs with TWO profiles, both created fresh each run by the
+      # "Create App Store provisioning profiles" step). CI never touches Xcode's
+      # automatic-development-signing path that mints a throwaway,
+      # certificate-capped Apple Development cert per run. The per-target
+      # profile SELECTION lives in the pbxproj Release configs
+      # (PROVISIONING_PROFILE_SPECIFIER) — a CLI override would apply one
+      # profile to both targets — so keep these in sync with
+      # PRODUCT_BUNDLE_IDENTIFIER + PROVISIONING_PROFILE_SPECIFIER there and
+      # with the script's defaults.
       IOS_BUNDLE_ID: solutions.camboulive.run
       APPSTORE_PROFILE_NAME: Running Coach App Store CI
+      IOS_WIDGET_BUNDLE_ID: solutions.camboulive.run.widgets
+      WIDGET_PROFILE_NAME: Running Coach Widget App Store CI
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -502,11 +509,13 @@ jobs:
       # number of certificates"). App Store profiles are NOT capped, so
       # regenerating one each run is free and keeps it bound to the current
       # distribution cert(s). No new secrets — reuses the ASC API key.
-      - name: Create App Store provisioning profile
+      - name: Create App Store provisioning profiles
         run: node scripts/ios-appstore-profile.mjs
         env:
           BUNDLE_ID: ${{ env.IOS_BUNDLE_ID }}
           PROFILE_NAME: ${{ env.APPSTORE_PROFILE_NAME }}
+          WIDGET_BUNDLE_ID: ${{ env.IOS_WIDGET_BUNDLE_ID }}
+          WIDGET_PROFILE_NAME: ${{ env.WIDGET_PROFILE_NAME }}
 
       # Archive with MANUAL Apple Distribution signing against the profile the
       # step above installed. This deliberately replaces the old automatic
@@ -518,6 +527,12 @@ jobs:
       # "conflicting provisioning settings" clash — that error only happens when
       # an identity is forced while the style stays Automatic. No
       # -allowProvisioningUpdates: nothing to provision at build time now.
+      # PROVISIONING_PROFILE_SPECIFIER is deliberately NOT a CLI override any
+      # more: CLI overrides are global across targets, and the archive now signs
+      # TWO targets (app + widget extension) with different bundle ids —
+      # a single global specifier breaks whichever target it doesn't match. The
+      # per-target specifiers live in the pbxproj Release configs; style,
+      # identity and team stay CLI-pinned (identical for both targets).
       - name: Archive
         run: |
           set -o pipefail
@@ -534,7 +549,6 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$APPSTORE_PROFILE_NAME" \
             | xcbeautify --renderer github-actions
 
       # Export + upload in one step: destination "upload" hands the build to
@@ -560,6 +574,7 @@ jobs:
             <key>provisioningProfiles</key>
             <dict>
               <key>${IOS_BUNDLE_ID}</key><string>${APPSTORE_PROFILE_NAME}</string>
+              <key>${IOS_WIDGET_BUNDLE_ID}</key><string>${WIDGET_PROFILE_NAME}</string>
             </dict>
           </dict>
           </plist>

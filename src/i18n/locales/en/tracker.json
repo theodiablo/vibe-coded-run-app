@@ -1,7 +1,8 @@
 {
   "notif": {
     "title": "Recording run",
-    "body": "Tap to return to Running Coach"
+    "body": "Tap to return to Running Coach",
+    "pausedTitle": "Run paused"
   },
   "header": {
     "live": "Live run",

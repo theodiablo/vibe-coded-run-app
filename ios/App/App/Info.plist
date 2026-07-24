@@ -47,6 +47,8 @@
 	<string>Running Coach uses your location to record your route, distance and pace while you run, including when the screen is off or the app is in the background during an active run.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Running Coach uses your location to record your route, distance and pace while you run.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

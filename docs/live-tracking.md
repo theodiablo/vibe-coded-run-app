@@ -17,6 +17,42 @@ when touching tracking or the shells. Background-location policy detail is in
   into the normal save path — `goLog(prefill)` → `LogView` → `addRuns` —
   passing measured `durationSec`/`elevation` and the trace ref.
 
+## Lock-screen live stats
+
+**The clock is OS-rendered, JS pushes only data.** While tracking, both shells
+show live distance/pace/HR plus a ticking duration on the lock screen — Android
+in the foreground-service notification, iOS as a Live Activity (lock screen +
+Dynamic Island). The duration is never pushed by JS: background WebView JS is
+throttled/suspended and a stationary runner (`distanceFilter: 5`) produces no
+GPS callbacks at all, so a JS-driven clock freezes exactly when the feature
+matters. Instead both platforms self-render it from a shared anchor,
+`chronometerStartMs = now - movingMs` (moving time, pauses excluded): Android
+via a notification **chronometer** (`setUsesChronometer(true)`, patched plugin
+— see the patches section below), iOS via `Text(_, style: .timer)`.
+
+Data pushes ride the bridge-callback-driven renders through one `useRunTracker`
+effect on `[state, stats]` → pure `buildRunNotificationContent`
+(`src/utils/runNotification.ts`, i18n-free, returns a `titleKey`) →
+`pushRunNotification` (`src/geo/liveNotification.ts`, the platform-routing
+seam: content-gated with ~3s chronometer tolerance, retries until native
+confirms `{updated: true}`, never throws, no-op on web). **Never wire
+notification updates to the tracker's `setInterval`** — that timer is exactly
+what stops in the background; the foreground 1s-tick effect re-runs are
+no-op'd by the content gate. Pause is an explicit state push (chronometer off,
+frozen time in the text). Stop: Android tears down with the watcher; iOS ends
+its Live Activity via `resetRunNotification` (idempotent `cleared` flag; the
+first reset after mount also sweeps a stale card left by a crashed session).
+
+iOS backend detail: the local `LiveActivityPlugin`
+(`ios/App/App/LiveActivityPlugin.swift`, push/end, gated
+`#available(iOS 16.2, *)` — the app deployment target stays 15.0, older
+devices just don't get the card). The card UI lives in the widget extension
+target `LiveActivityWidgetExtension` (`ios/App/LiveActivityWidget/`,
+deployment target 16.2); `RunActivityAttributes.swift` is compiled into BOTH
+the app and the extension (shared content-state contract — never fork it).
+The widget's bundle id `solutions.camboulive.run.widgets` signs with its own
+App Store profile — see `docs/release.md` → iOS signing.
+
 ## Route storage (`run_routes`)
 
 **Traces are NOT in the blob.** The polyline lives in its own Supabase
@@ -166,9 +202,14 @@ constraint conflict, reset package caches or resolve with fresh DerivedData
 rather than replacing Capacitor's generated package path.
 
 App-local Swift plugins are NOT auto-registered: `MainViewController.swift`
-(the storyboard's custom class) registers `HealthKitBridgePlugin` in
-`capacitorDidLoad()`. New Swift files must be hand-added to `project.pbxproj`
-(build-file + file-ref + group + sources phase); `ios-pr.yml` (no-signing
+(the storyboard's custom class) registers `HealthKitBridgePlugin` and
+`LiveActivityPlugin` in `capacitorDidLoad()`. New Swift files must be
+hand-added to `project.pbxproj` (build-file + file-ref + group + sources
+phase); the project also carries a second native target,
+`LiveActivityWidgetExtension` (WidgetKit appex embedded via the app target's
+"Embed Foundation Extensions" phase, deployment target 16.2) — a file shared
+with it (e.g. `RunActivityAttributes.swift`) needs a build-file entry in BOTH
+Sources phases; `ios-pr.yml` (no-signing
 Simulator build on PRs touching `ios/**`) is the compile check. Info.plist owns
 the permission strings, `UIBackgroundModes` (`location`, `bluetooth-central`),
 the deep-link scheme, and `ITSAppUsesNonExemptEncryption=false`;
@@ -260,12 +301,20 @@ surface, not wired through i18n), mirroring `WatchSyncLog`.
 Applied by `postinstall` → `patch-package`; native plugin modules compile
 straight out of `node_modules` (`android/capacitor.settings.gradle`), so a
 committed patch reaches every local and CI build. Current patch:
-`@capacitor-community/background-geolocation` crashed in production ("Unable to
-pause activity" → NPE at `Bridge.getPermissionStates`, Bridge.java:1217)
-because its `handleOnPause`/`handleOnResume` call
-`getPermissionState("location")` — the annotation-reflection path — on every
-activity pause/resume; the patch computes the same both-granted COARSE+FINE
-check via `ActivityCompat.checkSelfPermission` in a try/catch instead. The
+`@capacitor-community/background-geolocation`, two independent changes.
+(1) Lifecycle NPE fix: it crashed in production ("Unable to pause activity" →
+NPE at `Bridge.getPermissionStates`, Bridge.java:1217) because its
+`handleOnPause`/`handleOnResume` call `getPermissionState("location")` — the
+annotation-reflection path — on every activity pause/resume; the patch computes
+the same both-granted COARSE+FINE check via
+`ActivityCompat.checkSelfPermission` in a try/catch instead.
+(2) Lock-screen live run stats: an `updateNotification({title, message,
+chronometerStartMs?})` plugin method (upstream has no post-start notification
+API) that rebuilds the foreground-service notification (extracted
+`buildNotification` helper; `VISIBILITY_PUBLIC`, `setOnlyAlertOnce`, optional
+OS-rendered chronometer) and re-posts it via the service binder with the same
+NOTIFICATION_ID, resolving `{updated}` so a push that raced ahead of
+`addWatcher` gets retried by the JS seam (`src/geo/liveNotification.ts`). The
 dependency is **pinned exact** (no `^`) so the patch always matches; on a
 version bump, check whether upstream fixed the lifecycle permission check (repo
 issue tracker was silent as of 1.2.26 and the plugin lags on Capacitor majors —
